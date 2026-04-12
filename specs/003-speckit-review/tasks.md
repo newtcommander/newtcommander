@@ -19,10 +19,10 @@
 
 **Purpose**: Prepare the verification environment and tooling
 
-- [ ] T001 Read `.specify/init-options.json` and record version, integration type, and branch numbering mode
-- [ ] T002 Read `.specify/integration.json` and record version and script references
-- [ ] T003 Read `.specify/extensions.yml` and extract all hook definitions with their enabled/optional status
-- [ ] T004 Read `.specify/extensions/.registry` and extract registered extensions and commands
+- [x] T001 Read `.specify/init-options.json` and record version, integration type, and branch numbering mode
+- [x] T002 Read `.specify/integration.json` and record version and script references
+- [x] T003 Read `.specify/extensions.yml` and extract all hook definitions with their enabled/optional status
+- [x] T004 Read `.specify/extensions/.registry` and extract registered extensions and commands
 
 **Checkpoint**: All configuration data collected — verification can begin
 
@@ -34,9 +34,9 @@
 
 **CRITICAL**: No user story verification can begin until baseline data is collected
 
-- [ ] T005 Read `.specify/integrations/claude.manifest.json` and extract file list with SHA-256 hashes (11 entries)
-- [ ] T006 [P] Read `.specify/integrations/speckit.manifest.json` and extract file list with SHA-256 hashes (11 entries)
-- [ ] T007 Cross-reference version numbers across T001-T006 outputs and flag any inconsistencies
+- [x] T005 Read `.specify/integrations/claude.manifest.json` and extract file list with SHA-256 hashes (11 entries)
+- [x] T006 [P] Read `.specify/integrations/speckit.manifest.json` and extract file list with SHA-256 hashes (11 entries)
+- [x] T007 Cross-reference version numbers across T001-T006 outputs and flag any inconsistencies
 
 **Checkpoint**: Baseline manifest and config data ready — story verification can proceed
 
@@ -50,15 +50,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Verify all 11 files in `claude.manifest.json` exist at their declared paths in `.claude/skills/` and `.specify/integrations/claude/scripts/`
-- [ ] T009 [P] [US1] Verify all 11 files in `speckit.manifest.json` exist at their declared paths in `.specify/templates/` and `.specify/scripts/`
-- [ ] T010 [P] [US1] Verify git extension command definitions: 5 `.md` files in `.specify/extensions/git/commands/`
-- [ ] T011 [P] [US1] Verify git extension bash scripts: 4 `.sh` files in `.specify/extensions/git/scripts/bash/`
-- [ ] T012 [P] [US1] Verify git extension PowerShell scripts: 4 `.ps1` files in `.specify/extensions/git/scripts/powershell/`
-- [ ] T013 [P] [US1] Verify git extension config files: `extension.yml`, `config-template.yml`, `git-config.yml`, `README.md` in `.specify/extensions/git/`
-- [ ] T014 [US1] Cross-reference registered commands in `.registry` against actual skill files in `.claude/skills/` and command definitions in `.specify/extensions/git/commands/`
-- [ ] T015 [US1] Cross-reference hook commands in `extensions.yml` against registered commands in `.registry`
-- [ ] T016 [US1] Document verification results for US1 in `specs/003-speckit-review/research.md` section R1-R3
+- [x] T008 [P] [US1] Verify all 11 files in `claude.manifest.json` exist at their declared paths in `.claude/skills/` and `.specify/integrations/claude/scripts/`
+- [x] T009 [P] [US1] Verify all 11 files in `speckit.manifest.json` exist at their declared paths in `.specify/templates/` and `.specify/scripts/`
+- [x] T010 [P] [US1] Verify git extension command definitions: 5 `.md` files in `.specify/extensions/git/commands/`
+- [x] T011 [P] [US1] Verify git extension bash scripts: 4 `.sh` files in `.specify/extensions/git/scripts/bash/`
+- [x] T012 [P] [US1] Verify git extension PowerShell scripts: 4 `.ps1` files in `.specify/extensions/git/scripts/powershell/`
+- [x] T013 [P] [US1] Verify git extension config files: `extension.yml`, `config-template.yml`, `git-config.yml`, `README.md` in `.specify/extensions/git/`
+- [x] T014 [US1] Cross-reference registered commands in `.registry` against actual skill files in `.claude/skills/` and command definitions in `.specify/extensions/git/commands/`
+- [x] T015 [US1] Cross-reference hook commands in `extensions.yml` against registered commands in `.registry`
+- [x] T016 [US1] Document verification results for US1 in `specs/003-speckit-review/research.md` section R1-R3
 
 **Checkpoint**: SpecKit integration verified — all 73 infrastructure files confirmed present and consistent
 
@@ -72,15 +72,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T017 [P] [US2] Verify all 8 architecture documents exist in `architecture/` (01 through 08)
-- [ ] T018 [P] [US2] Verify `architecture/README.md` links to all 8 documents with correct paths and descriptions
-- [ ] T019 [P] [US2] Verify `CLAUDE.md` at project root accurately references architecture directory and lists all key project facts
-- [ ] T020 [P] [US2] Verify `build.cmd` exists at repo root and supports the modes described in spec 002 (incremental, rebuild, release)
-- [ ] T021 [P] [US2] Verify `specs/001-project-build-analysis/` contains all 7 expected artifacts (spec, plan, research, data-model, quickstart, tasks, checklists/requirements)
-- [ ] T022 [P] [US2] Verify `specs/002-msvc-x64-build-script/` contains all 7 expected artifacts (spec, plan, research, data-model, quickstart, tasks, checklists/requirements)
-- [ ] T023 [US2] Verify spec 001 references to architecture documents — confirm each referenced document exists and covers the described topic
-- [ ] T024 [US2] Verify spec 002 build script deliverable — confirm `build.cmd` behavior matches spec requirements (FR-001 through FR-010)
-- [ ] T025 [US2] Document verification results for US2 in `specs/003-speckit-review/research.md` section R4-R6
+- [x] T017 [P] [US2] Verify all 8 architecture documents exist in `architecture/` (01 through 08)
+- [x] T018 [P] [US2] Verify `architecture/README.md` links to all 8 documents with correct paths and descriptions
+- [x] T019 [P] [US2] Verify `CLAUDE.md` at project root accurately references architecture directory and lists all key project facts
+- [x] T020 [P] [US2] Verify `build.cmd` exists at repo root and supports the modes described in spec 002 (incremental, rebuild, release)
+- [x] T021 [P] [US2] Verify `specs/001-project-build-analysis/` contains all 7 expected artifacts (spec, plan, research, data-model, quickstart, tasks, checklists/requirements)
+- [x] T022 [P] [US2] Verify `specs/002-msvc-x64-build-script/` contains all 7 expected artifacts (spec, plan, research, data-model, quickstart, tasks, checklists/requirements)
+- [x] T023 [US2] Verify spec 001 references to architecture documents — confirm each referenced document exists and covers the described topic
+- [x] T024 [US2] Verify spec 002 build script deliverable — confirm `build.cmd` behavior matches spec requirements (FR-001 through FR-010)
+- [x] T025 [US2] Document verification results for US2 in `specs/003-speckit-review/research.md` section R4-R6
 
 **Checkpoint**: Existing work verified — architecture docs, specs, and build script confirmed accurate
 
@@ -94,11 +94,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Compile all verification results from T016 and T025 into a categorized summary (valid / needs-update / missing)
-- [ ] T027 [US3] For any items categorized as "needs-update", document the specific file, issue, and suggested resolution
-- [ ] T028 [US3] For any items categorized as "missing", document what is expected, where it should be, and how to create it
-- [ ] T029 [US3] Write recommended next development steps in `specs/003-speckit-review/quickstart.md` based on findings
-- [ ] T030 [US3] Update `specs/003-speckit-review/plan.md` Verification Results table with final status
+- [x] T026 [US3] Compile all verification results from T016 and T025 into a categorized summary (valid / needs-update / missing)
+- [x] T027 [US3] For any items categorized as "needs-update", document the specific file, issue, and suggested resolution
+- [x] T028 [US3] For any items categorized as "missing", document what is expected, where it should be, and how to create it
+- [x] T029 [US3] Write recommended next development steps in `specs/003-speckit-review/quickstart.md` based on findings
+- [x] T030 [US3] Update `specs/003-speckit-review/plan.md` Verification Results table with final status
 
 **Checkpoint**: All verification complete — summary produced with actionable next steps
 
@@ -108,9 +108,9 @@
 
 **Purpose**: Final documentation and cleanup
 
-- [ ] T031 [P] Update `specs/003-speckit-review/checklists/requirements.md` with final pass/fail status
-- [ ] T032 [P] Verify no orphaned files exist in `.specify/`, `.claude/`, `specs/`, or `architecture/` (files not referenced by any config or index)
-- [ ] T033 Run quickstart.md validation — confirm all next steps are actionable and reference existing infrastructure
+- [x] T031 [P] Update `specs/003-speckit-review/checklists/requirements.md` with final pass/fail status
+- [x] T032 [P] Verify no orphaned files exist in `.specify/`, `.claude/`, `specs/`, or `architecture/` (files not referenced by any config or index)
+- [x] T033 Run quickstart.md validation — confirm all next steps are actionable and reference existing infrastructure
 
 ---
 
