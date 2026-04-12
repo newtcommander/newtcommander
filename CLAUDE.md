@@ -98,6 +98,12 @@ Each plugin: `plugins/<name>/vcxproj/<name>.vcxproj` → outputs `<name>.spl`
 Each language: `plugins/<name>/vcxproj/lang_<name>.vcxproj` → outputs `english.slg`
 Property sheets: `plugins/shared/vcxproj/plugin_base.props` + debug/release variants
 
+## Branching Strategy
+
+- **`main`** — upstream/stable branch
+- **`ai-main`** — main branch for AI-assisted development
+- Feature branches (e.g., `003-speckit-review`) are created from and merged into `ai-main`
+
 ## Constitution
 
 Project principles are in `.specify/memory/constitution.md`:
