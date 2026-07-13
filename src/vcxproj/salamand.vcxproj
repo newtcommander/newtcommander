@@ -259,6 +259,12 @@
     </ClCompile>
     <ClCompile Include="..\common\regexp.cpp">
     </ClCompile>
+    <ClCompile Include="..\common\salfileio.cpp">
+    </ClCompile>
+    <ClCompile Include="..\common\salpath.cpp">
+    </ClCompile>
+    <ClCompile Include="..\common\salunicode.cpp">
+    </ClCompile>
     <ClCompile Include="..\common\sheets.cpp">
     </ClCompile>
     <ClCompile Include="..\common\str.cpp">
@@ -708,6 +714,12 @@
     <ClInclude Include="..\common\multimon.h">
     </ClInclude>
     <ClInclude Include="..\common\regexp.h">
+    </ClInclude>
+    <ClInclude Include="..\common\salfileio.h">
+    </ClInclude>
+    <ClInclude Include="..\common\salpath.h">
+    </ClInclude>
+    <ClInclude Include="..\common\salunicode.h">
     </ClInclude>
     <ClInclude Include="..\common\sheets.h">
     </ClInclude>

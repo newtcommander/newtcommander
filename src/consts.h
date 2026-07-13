@@ -285,6 +285,11 @@ const char* SkipRoot(const char* path);
 // nahrazka za PathRemoveFileSpec
 BOOL CutDirectory(char* path, char** cutDir = NULL);
 
+// NOTE (feature 004): all Sal*Path* helpers below operate on bytes and are
+// UTF-8 transparent (multi-byte sequences never contain '\\' or '.'); they are
+// bounded only by the caller-supplied buffer size, so long paths work whenever
+// the caller provides a large enough buffer (see SAL_MAX_PATH_UTF8 in salpath.h)
+
 // spoji 'path' a 'name' do 'path', zajisti spojeni backslashem, 'path' je buffer alespon 'pathSize' znaku
 // vraci TRUE pokud se 'name' veslo za 'path'; je-li 'path' nebo 'name' prazdne,
 // spojovaci (pocatecni/ukoncovaci) backslash nebude (napr. "c:\" + "" -> "c:")
@@ -2439,6 +2444,14 @@ extern "C"
     LONG SalRegQueryValueEx(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved,
                             LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData);
 }
+
+// W-API registry string I/O with UTF-8 payload (feature 004, research R9):
+// string types cross this boundary as UTF-8, stored as native UTF-16 REG_SZ;
+// values written by older ANSI versions load correctly with no migration
+LONG SalRegQueryValueExW8(HKEY hKey, LPCSTR lpValueName, LPDWORD lpType,
+                          LPBYTE lpData, LPDWORD lpcbData);
+LONG SalRegSetValueExW8(HKEY hKey, LPCSTR lpValueName, DWORD type,
+                        CONST BYTE* lpData, DWORD cbData);
 
 // Win7 a novejsi OS - notifikace od taskbar, ze doslo k vytvoreni tlacitka pro okno
 // nastavuje se pri startu Salamandera, testovat zda je nenulova

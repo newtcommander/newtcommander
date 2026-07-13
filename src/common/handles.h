@@ -538,6 +538,14 @@ public:
     LONG RegOpenKeyEx(HKEY hKey, LPCTSTR lpSubKey, DWORD ulOptions,
                       REGSAM samDesired, PHKEY phkResult);
 
+    LONG RegCreateKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD Reserved,
+                         LPWSTR lpClass, DWORD dwOptions, REGSAM samDesired,
+                         LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+                         PHKEY phkResult, LPDWORD lpdwDisposition);
+
+    LONG RegOpenKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD ulOptions,
+                       REGSAM samDesired, PHKEY phkResult);
+
     LONG RegConnectRegistry(LPTSTR lpMachineName, HKEY hKey, PHKEY phkResult);
 
     LONG RegCloseKey(HKEY hKey);

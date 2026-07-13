@@ -1223,41 +1223,8 @@ BOOL FileNameIsInvalid(const char* name, BOOL isFullName, BOOL ignInvalidName)
     return nameLen > 0 && (name[nameLen - 1] <= ' ' || name[nameLen - 1] == '.');
 }
 
-BOOL SalMoveFile(const char* srcName, const char* destName)
-{
-    // if the name ends with a space/period, we must append '\\', otherwise MoveFile
-    // spaces/periods are trimmed and it therefore works with a different name
-    char srcNameCopy[3 * MAX_PATH];
-    MakeCopyWithBackslashIfNeeded(srcName, srcNameCopy);
-    char destNameCopy[3 * MAX_PATH];
-    MakeCopyWithBackslashIfNeeded(destName, destNameCopy);
-
-    if (!MoveFile(srcName, destName))
-    {
-        DWORD err = GetLastError();
-        if (err == ERROR_ACCESS_DENIED)
-        { // it might be a Novell issue (MoveFile returns an error for files with the read-only attribute)
-            DWORD attr = SalGetFileAttributes(srcName);
-            if (attr != 0xFFFFFFFF && (attr & FILE_ATTRIBUTE_READONLY))
-            {
-                SetFileAttributes(srcName, FILE_ATTRIBUTE_ARCHIVE);
-                if (MoveFile(srcName, destName))
-                {
-                    SetFileAttributes(destName, attr);
-                    return TRUE;
-                }
-                else
-                {
-                    err = GetLastError();
-                    SetFileAttributes(srcName, attr);
-                }
-            }
-            SetLastError(err);
-        }
-        return FALSE;
-    }
-    return TRUE;
-}
+// SalMoveFile: since feature 004 implemented in src/common/salfileio.cpp on the
+// W-API layer (long paths + Unicode names + the Novell read-only retry)
 
 void RecognizeFileType(HWND parent, const char* pattern, int patternLen, BOOL forceText,
                        BOOL* isText, char* codePage)
@@ -1487,18 +1454,9 @@ BOOL SalGetFileSize2(const char* fileName, CQuadWord& size, DWORD* err)
     return FALSE;
 }
 
-DWORD SalGetFileAttributes(const char* fileName)
-{
-    CALL_STACK_MESSAGE2("SalGetFileAttributes(%s)", fileName);
-    // if the path ends with a space/period, we must append '\\', otherwise GetFileAttributes
-    // trims spaces/periods and works with a different path; it does not work for files,
-    // but it is still better than retrieving attributes of a different file/directory (for "c:\\file.txt   "
-    // it works with the name "c:\\file.txt")
-    char fileNameCopy[3 * MAX_PATH];
-    MakeCopyWithBackslashIfNeeded(fileName, fileNameCopy);
-
-    return GetFileAttributes(fileName);
-}
+// SalGetFileAttributes: since feature 004 implemented in src/common/salfileio.cpp
+// on the W-API layer (extended-length paths make the old trailing space/period
+// workaround unnecessary)
 
 BOOL ClearReadOnlyAttr(const char* name, DWORD attr)
 {

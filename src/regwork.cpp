@@ -12,15 +12,16 @@ CRegistryWorkerThread RegistryWorkerThread;
 
 BOOL ClearKeyAux(HKEY key)
 {
-    char name[MAX_PATH];
+    // W variants so that keys/values with any Unicode name get deleted reliably
+    WCHAR name[MAX_PATH];
     HKEY subKey;
-    while (RegEnumKey(key, 0, name, MAX_PATH) == ERROR_SUCCESS)
+    while (RegEnumKeyW(key, 0, name, MAX_PATH) == ERROR_SUCCESS)
     {
-        if (HANDLES_Q(RegOpenKeyEx(key, name, 0, KEY_READ | KEY_WRITE, &subKey)) == ERROR_SUCCESS)
+        if (HANDLES_Q(RegOpenKeyExW(key, name, 0, KEY_READ | KEY_WRITE, &subKey)) == ERROR_SUCCESS)
         {
             BOOL ret = ClearKeyAux(subKey);
             HANDLES(RegCloseKey(subKey));
-            if (!ret || RegDeleteKey(key, name) != ERROR_SUCCESS)
+            if (!ret || RegDeleteKeyW(key, name) != ERROR_SUCCESS)
                 return FALSE;
         }
         else
@@ -28,8 +29,8 @@ BOOL ClearKeyAux(HKEY key)
     }
 
     DWORD size = MAX_PATH;
-    while (RegEnumValue(key, 0, name, &size, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
-        if (RegDeleteValue(key, name) != ERROR_SUCCESS)
+    while (RegEnumValueW(key, 0, name, &size, NULL, NULL, NULL, NULL) == ERROR_SUCCESS)
+        if (RegDeleteValueW(key, name) != ERROR_SUCCESS)
         {
             TRACE_E("Unable to delete values in specified key (in registry).");
             break;
@@ -114,7 +115,7 @@ BOOL DeleteKeyAux(HKEY hKey, const char* name)
 BOOL GetValueAux(HWND parent, HKEY hKey, const char* name, DWORD type, void* buffer, DWORD bufferSize, BOOL quiet)
 {
     DWORD gettedType;
-    LONG res = SalRegQueryValueEx(hKey, name, 0, &gettedType, (BYTE*)buffer, &bufferSize);
+    LONG res = SalRegQueryValueExW8(hKey, name, &gettedType, (BYTE*)buffer, &bufferSize);
     if (res == ERROR_SUCCESS)
         if (gettedType == type)
             return TRUE;
@@ -160,7 +161,7 @@ BOOL GetValueAux(HWND parent, HKEY hKey, const char* name, DWORD type, void* buf
 BOOL GetValue2Aux(HWND parent, HKEY hKey, const char* name, DWORD type1, DWORD type2, DWORD* returnedType, void* buffer, DWORD bufferSize)
 {
     DWORD gettedType;
-    LONG res = SalRegQueryValueEx(hKey, name, 0, &gettedType, (BYTE*)buffer, &bufferSize);
+    LONG res = SalRegQueryValueExW8(hKey, name, &gettedType, (BYTE*)buffer, &bufferSize);
     if (res == ERROR_SUCCESS)
         if (gettedType == type1 || gettedType == type2)
         {
@@ -202,7 +203,7 @@ BOOL GetValue2Aux(HWND parent, HKEY hKey, const char* name, DWORD type1, DWORD t
 
 BOOL GetValueDontCheckTypeAux(HKEY hKey, const char* name, void* buffer, DWORD bufferSize)
 {
-    return SalRegQueryValueEx(hKey, name, 0, NULL, (BYTE*)buffer, &bufferSize) == ERROR_SUCCESS;
+    return SalRegQueryValueExW8(hKey, name, NULL, (BYTE*)buffer, &bufferSize) == ERROR_SUCCESS;
 }
 
 // ****************************************************************************
@@ -212,7 +213,7 @@ BOOL SetValueAux(HWND parent, HKEY hKey, const char* name, DWORD type,
 {
     if (dataSize == -1)
         dataSize = (DWORD)strlen((char*)data) + 1;
-    LONG res = RegSetValueEx(hKey, name, 0, type, (CONST BYTE*)data, dataSize);
+    LONG res = SalRegSetValueExW8(hKey, name, type, (CONST BYTE*)data, dataSize);
     if (res == ERROR_SUCCESS)
         return TRUE;
     else
@@ -246,7 +247,7 @@ BOOL DeleteValueAux(HKEY hKey, const char* name)
 BOOL GetSizeAux(HWND parent, HKEY hKey, const char* name, DWORD type, DWORD& bufferSize)
 {
     DWORD gettedType;
-    LONG res = SalRegQueryValueEx(hKey, name, 0, &gettedType, NULL, &bufferSize);
+    LONG res = SalRegQueryValueExW8(hKey, name, &gettedType, NULL, &bufferSize);
     if (res == ERROR_SUCCESS)
         if (gettedType == type)
             return TRUE;

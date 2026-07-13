@@ -96,10 +96,11 @@
 // 181 - 4.0 (SDK)
 // 182 - 4.0 (CB182)
 // 183 - 5.0
+// 184 - 5.0 development (UTF-8 names + long paths, feature 004)
 
 // ! DULEZITE: nova cisla buildu je nutne zapsat do vetve "default", a pak
 //             teprve do vedlejsi vetve (kompletni seznam je jen v "default" vetvi)
-#define VERSINFO_BUILDNUMBER 183
+#define VERSINFO_BUILDNUMBER 184
 
 // VERSINFO_BETAVERSION_TXT:
 //
@@ -191,8 +192,10 @@
 //   101 - 4.0 beta 1 (DB177)
 //   102 - 4.0
 //   103 - 5.0
+//   104 - 5.0 build 184: UTF-8 names + long paths (ABI break in CFileData::NameLen,
+//         see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md)
 
-#define LAST_VERSION_OF_SALAMANDER 103
-#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Open Salamander 5.0 (" SAL_VER_PLATFORM ") or later."
+#define LAST_VERSION_OF_SALAMANDER 104
+#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Open Salamander 5.0 build 184 (" SAL_VER_PLATFORM ") or later."
 
 #endif // __SPL_VERS_H

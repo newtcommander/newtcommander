@@ -1378,6 +1378,28 @@ LONG C__Handles::RegOpenKeyEx(HKEY hKey, LPCTSTR lpSubKey, DWORD ulOptions,
     return ret;
 }
 
+LONG C__Handles::RegCreateKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD Reserved,
+                                 LPWSTR lpClass, DWORD dwOptions, REGSAM samDesired,
+                                 LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+                                 PHKEY phkResult, LPDWORD lpdwDisposition)
+{
+    LONG ret = ::RegCreateKeyExW(hKey, lpSubKey, Reserved, lpClass, dwOptions,
+                                 samDesired, lpSecurityAttributes, phkResult,
+                                 lpdwDisposition);
+    CheckCreate(ret == ERROR_SUCCESS, __htKey, __hoRegCreateKeyEx,
+                (phkResult != NULL) ? *phkResult : NULL, ret);
+    return ret;
+}
+
+LONG C__Handles::RegOpenKeyExW(HKEY hKey, LPCWSTR lpSubKey, DWORD ulOptions,
+                               REGSAM samDesired, PHKEY phkResult)
+{
+    LONG ret = ::RegOpenKeyExW(hKey, lpSubKey, ulOptions, samDesired, phkResult);
+    CheckCreate(ret == ERROR_SUCCESS, __htKey, __hoRegOpenKeyEx,
+                (phkResult != NULL) ? *phkResult : NULL, ret);
+    return ret;
+}
+
 LONG C__Handles::RegConnectRegistry(LPTSTR lpMachineName, HKEY hKey, PHKEY phkResult)
 {
     LONG ret = ::RegConnectRegistry(lpMachineName, hKey, phkResult);

@@ -399,6 +399,15 @@
     <ClCompile Include="..\common\regexp.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\salfileio.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\salpath.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\salunicode.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\common\str.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -708,6 +717,15 @@
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\common\regexp.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\salfileio.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\salpath.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\salunicode.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\common\str.h">

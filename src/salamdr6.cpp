@@ -2270,6 +2270,123 @@ LONG SalRegQueryValueEx(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved,
 
 //******************************************************************************
 //
+// SalRegQueryValueExW8 / SalRegSetValueExW8
+//
+// W-API registry string I/O with UTF-8 payload (feature 004, research R9).
+// REG_SZ/REG_EXPAND_SZ/REG_MULTI_SZ data crosses this boundary as UTF-8 and is
+// stored in the registry's native UTF-16 - so values written by older (ANSI)
+// versions load correctly with no migration, and any Unicode path round-trips.
+// Termination is guaranteed like in SalRegQueryValueEx. Value names are
+// expected to be ASCII/UTF-8 (core-controlled).
+//
+
+LONG SalRegQueryValueExW8(HKEY hKey, LPCSTR lpValueName, LPDWORD lpType,
+                          LPBYTE lpData, LPDWORD lpcbData)
+{
+    WCHAR nameW[512];
+    if (lpValueName != NULL && SalU8ToW(lpValueName, -1, nameW, _countof(nameW)) == 0)
+        return ERROR_INVALID_PARAMETER;
+    const WCHAR* name = lpValueName == NULL ? NULL : nameW;
+
+    DWORD type = REG_NONE;
+    DWORD wsize = 0;
+    LONG ret = RegQueryValueExW(hKey, name, NULL, &type, NULL, &wsize);
+    if (lpType != NULL)
+        *lpType = type;
+    if (ret != ERROR_SUCCESS)
+        return ret;
+
+    if (type == REG_SZ || type == REG_EXPAND_SZ || type == REG_MULTI_SZ)
+    {
+        DWORD walloc = wsize + 2 * sizeof(WCHAR); // room for possibly missing terminator(s)
+        WCHAR* wbuf = (WCHAR*)malloc(walloc);
+        if (wbuf == NULL)
+            return ERROR_NOT_ENOUGH_MEMORY;
+        DWORD rsize = wsize;
+        ret = RegQueryValueExW(hKey, name, NULL, NULL, (BYTE*)wbuf, &rsize);
+        if (ret != ERROR_SUCCESS)
+        {
+            free(wbuf);
+            return ret;
+        }
+        int wlen = rsize / sizeof(WCHAR);
+        while (wlen > 0 && wbuf[wlen - 1] == 0)
+            wlen--; // strip stored terminators, we add our own below
+        int terminators = type == REG_MULTI_SZ ? 2 : 1;
+        wbuf[wlen] = 0;
+        if (type == REG_MULTI_SZ)
+            wbuf[wlen + 1] = 0;
+
+        int needed = WideCharToMultiByte(CP_UTF8, 0, wbuf, wlen + terminators, NULL, 0, NULL, NULL);
+        if (needed <= 0)
+        {
+            free(wbuf);
+            return ERROR_INVALID_DATA;
+        }
+        if (lpData == NULL)
+        {
+            if (lpcbData != NULL)
+                *lpcbData = needed;
+            free(wbuf);
+            return ERROR_SUCCESS;
+        }
+        if (lpcbData == NULL || *lpcbData < (DWORD)needed)
+        {
+            if (lpcbData != NULL)
+                *lpcbData = needed;
+            free(wbuf);
+            return ERROR_MORE_DATA;
+        }
+        WideCharToMultiByte(CP_UTF8, 0, wbuf, wlen + terminators, (char*)lpData, needed, NULL, NULL);
+        *lpcbData = needed;
+        free(wbuf);
+        return ERROR_SUCCESS;
+    }
+
+    // non-string types: raw passthrough
+    if (lpData == NULL)
+    {
+        if (lpcbData != NULL)
+            *lpcbData = wsize;
+        return ERROR_SUCCESS;
+    }
+    return RegQueryValueExW(hKey, name, NULL, NULL, lpData, lpcbData);
+}
+
+LONG SalRegSetValueExW8(HKEY hKey, LPCSTR lpValueName, DWORD type,
+                        CONST BYTE* lpData, DWORD cbData)
+{
+    WCHAR nameW[512];
+    if (lpValueName != NULL && SalU8ToW(lpValueName, -1, nameW, _countof(nameW)) == 0)
+        return ERROR_INVALID_PARAMETER;
+    const WCHAR* name = lpValueName == NULL ? NULL : nameW;
+
+    if ((type == REG_SZ || type == REG_EXPAND_SZ || type == REG_MULTI_SZ) &&
+        lpData != NULL && cbData > 0)
+    {
+        int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                                       (const char*)lpData, cbData, NULL, 0);
+        UINT srcCP = CP_UTF8;
+        if (wlen <= 0)
+        { // transitional tolerance: a not-yet-migrated caller passed ANSI bytes
+            srcCP = CP_ACP;
+            wlen = MultiByteToWideChar(CP_ACP, 0, (const char*)lpData, cbData, NULL, 0);
+            if (wlen <= 0)
+                return ERROR_INVALID_DATA;
+        }
+        WCHAR* wbuf = (WCHAR*)malloc(wlen * sizeof(WCHAR));
+        if (wbuf == NULL)
+            return ERROR_NOT_ENOUGH_MEMORY;
+        MultiByteToWideChar(srcCP, 0, (const char*)lpData, cbData, wbuf, wlen);
+        LONG ret = RegSetValueExW(hKey, name, 0, type, (CONST BYTE*)wbuf, wlen * sizeof(WCHAR));
+        free(wbuf);
+        return ret;
+    }
+    return RegSetValueExW(hKey, name, 0, type, lpData, cbData);
+}
+
+//******************************************************************************
+//
 // SalGetProcessId
 //
 // Works under W2K as well (SDK7.1 pretends that GetProcessId is available under W2K,

@@ -204,6 +204,10 @@ struct CFileData // nesmi sem prijit destruktor !
 {
     char* Name;                    // naalokovane jmeno souboru (bez cesty), nutne alokovat na heapu
                                    // Salamandera (viz CSalamanderGeneralAbstract::Alloc/Realloc/Free)
+                                   // since plugin interface 104 the string is UTF-8 (see
+                                   // specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md);
+                                   // plugins built for interface <= 103 keep receiving the legacy
+                                   // ANSI code page through the core's adaptation layer
     char* Ext;                     // ukazatel do Name za prvni tecku zprava (vcetne tecky na zacatku jmena,
                                    // na Windows se chape jako pripona, narozdil od UNIXu) nebo na konec
                                    // Name, pokud pripona neexistuje; je-li v konfiguraci nastaveno FALSE
@@ -215,7 +219,9 @@ struct CFileData // nesmi sem prijit destruktor !
     char* DosName;                 // naalokovane DOS 8.3 jmeno souboru, neni-li treba je NULL, nutne
                                    // alokovat na heapu Salamandera (viz CSalamanderGeneralAbstract::Alloc/Realloc/Free)
     DWORD_PTR PluginData;          // pouziva plugin skrze CPluginDataInterfaceAbstract, Salamander ignoruje
-    unsigned NameLen : 9;          // delka retezce Name (strlen(Name)) - POZOR: maximalni delka jmena je (MAX_PATH - 5)
+    unsigned NameLen;              // length of Name in bytes (strlen(Name)); UTF-8 byte count since
+                                   // interface 104 - a single component may need up to 3*255 bytes,
+                                   // the former (MAX_PATH - 5) cap is gone (ABI break vs. interface 103)
     unsigned Hidden : 1;           // je hidden? (je-li 1, ikonka je pruhlednejsi o 50% - ghosted)
     unsigned IsLink : 1;           // je link? (je-li 1, ikonka ma overlay linku) - standardni plneni viz CSalamanderGeneralAbstract::IsFileLink(CFileData::Ext), pri zobrazeni ma prednost pred IsOffline, ale IconOverlayIndex ma prednost
     unsigned IsOffline : 1;        // je offline? (je-li 1, ikonka ma overlay offline - cerne hodiny), pri zobrazeni ma IsLink i IconOverlayIndex prednost

@@ -57,7 +57,7 @@ class CCopyMoveData;
 struct CTmpDropData
 {
     BOOL Copy;
-    char TargetPath[MAX_PATH];
+    char TargetPath[SAL_MAX_PATH_UTF8]; // UTF-8, long-path capable (feature 004)
     CCopyMoveData* Data;
 };
 
@@ -358,8 +358,9 @@ public:
 class CTopIndexMem
 {
 protected:
-    // path for the last remembered top index; the longest is archive + archive-path so 2 * MAX_PATH
-    char Path[2 * MAX_PATH];
+    // path for the last remembered top index; the longest is archive + archive-path
+    // (UTF-8, long-path capable since feature 004)
+    char Path[2 * SAL_MAX_PATH_UTF8];
     int TopIndexes[TOP_INDEX_MEM_SIZE]; // stored top indexes
     int TopIndexesCount;                // number of stored top indexes
 
@@ -475,7 +476,8 @@ public:
 class CFilesWindowAncestor : public CWindow // the real object core - everything private ;-)
 {
 private:
-    char Path[MAX_PATH];      // path for a ptDisk panel - normal ("c:\path") or UNC ("\\server\share\path")
+    char Path[SAL_MAX_PATH_UTF8]; // path for a ptDisk panel - normal ("c:\path") or UNC ("\\server\share\path");
+                                  // UTF-8, long-path capable (feature 004)
     BOOL SuppressAutoRefresh; // TRUE if the user canceled directory listing during reading and chose temporary auto-refresh suppression
 
     CPanelType PanelType; // type of panel (disk, archive, plugin FS)
@@ -485,8 +487,8 @@ private:
 
     // when we are inside an archive:
     CSalamanderDirectory* ArchiveDir; // content of the open archive; basic data - array of CFileData
-    char ZIPArchive[MAX_PATH];        // path to the open archive
-    char ZIPPath[MAX_PATH];           // path inside the open archive
+    char ZIPArchive[SAL_MAX_PATH_UTF8]; // path to the open archive (UTF-8, long-path capable)
+    char ZIPPath[SAL_MAX_PATH_UTF8];    // path inside the open archive (UTF-8)
     FILETIME ZIPArchiveDate;          // archive date (used for the ".." date and during refresh)
     CQuadWord ZIPArchiveSize;         // archive size - used to detect archive changes
 

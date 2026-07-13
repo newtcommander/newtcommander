@@ -51,6 +51,31 @@ BOOL IsFilePlaceholder(WIN32_FIND_DATA const* findData)
            (findData->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER);
 }
 
+// fills the legacy-shaped 'a' view (attributes/times/sizes for helpers like
+// IsFilePlaceholder) + UTF-8 name buffers from wide find data; names that are
+// not valid UTF-16 (unpaired surrogates) fall back to replacement characters
+// so the item stays visible - operations on it then fail with a per-item error
+static void ConvertFindDataW(const WIN32_FIND_DATAW* w, WIN32_FIND_DATA* a,
+                             char* nameU8, int nameU8Size, char* dosNameU8, int dosNameU8Size)
+{
+    a->dwFileAttributes = w->dwFileAttributes;
+    a->ftCreationTime = w->ftCreationTime;
+    a->ftLastAccessTime = w->ftLastAccessTime;
+    a->ftLastWriteTime = w->ftLastWriteTime;
+    a->nFileSizeHigh = w->nFileSizeHigh;
+    a->nFileSizeLow = w->nFileSizeLow;
+    a->dwReserved0 = w->dwReserved0;
+    a->dwReserved1 = w->dwReserved1;
+    a->cFileName[0] = 0;          // names are NOT kept in the legacy view,
+    a->cAlternateFileName[0] = 0; // they live in nameU8/dosNameU8
+    if (SalWToU8(w->cFileName, -1, nameU8, nameU8Size) == 0 &&
+        WideCharToMultiByte(CP_UTF8, 0, w->cFileName, -1, nameU8, nameU8Size, NULL, NULL) == 0)
+        nameU8[0] = 0;
+    if (SalWToU8(w->cAlternateFileName, -1, dosNameU8, dosNameU8Size) == 0 &&
+        WideCharToMultiByte(CP_UTF8, 0, w->cAlternateFileName, -1, dosNameU8, dosNameU8Size, NULL, NULL) == 0)
+        dosNameU8[0] = 0;
+}
+
 BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 {
     CALL_STACK_MESSAGE1("CFilesWindow::ReadDirectory()");
@@ -290,9 +315,12 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                                            // causing a directory refresh)
 
         BOOL isUpDir = FALSE;
-        WIN32_FIND_DATA fileData;
+        WIN32_FIND_DATAW fileDataW;
+        WIN32_FIND_DATA fileData;   // legacy-shaped view (attributes/times only, no names)
+        char nameU8[3 * MAX_PATH];  // UTF-8 of cFileName (single component, worst case 3 B per WCHAR)
+        char dosNameU8[3 * 14 + 2]; // UTF-8 of cAlternateFileName (8.3 name)
         HANDLE search;
-        search = HANDLES_Q(FindFirstFile(fileName, &fileData));
+        search = SalFindFirstFile(fileName, &fileDataW);
         if (search == INVALID_HANDLE_VALUE)
         {
             DWORD err = GetLastError();
@@ -387,6 +415,9 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             {
                 NumberOfItemsInCurDir++;
 
+                ConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
+                                 dosNameU8, sizeof(dosNameU8));
+
                 // test ESC: does the user want to interrupt reading?
                 if (GetTickCount() - lastEscCheckTime >= 200) // 5 times per second
                 {
@@ -429,7 +460,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                     lastEscCheckTime = GetTickCount();
                 }
 
-                st = fileData.cFileName;
+                st = nameU8;
                 len = (int)strlen(st);
                 BOOL isDir;
                 isDir = (fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
@@ -457,14 +488,14 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 //--- applying filter to files
                 if (FilterEnabled && !isDir)
                 {
-                    const char* ext = fileData.cFileName + len;
-                    while (--ext >= fileData.cFileName && *ext != '.')
+                    const char* ext = nameU8 + len;
+                    while (--ext >= nameU8 && *ext != '.')
                         ;
-                    if (ext < fileData.cFileName)
-                        ext = fileData.cFileName + len; // ".cvspass" in Windows is an extension ...
+                    if (ext < nameU8)
+                        ext = nameU8 + len; // ".cvspass" in Windows is an extension ...
                     else
                         ext++;
-                    if (!Filter.AgreeMasks(fileData.cFileName, ext))
+                    if (!Filter.AgreeMasks(nameU8, ext))
                     {
                         HiddenFilesCount++;
                         HiddenDirsFilesReason |= HIDDEN_REASON_FILTER;
@@ -473,7 +504,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 }
 
                 //--- if the name is occupied in the array HiddenNames, we will discard it
-                if (HiddenNames.Contains(isDir, fileData.cFileName))
+                if (HiddenNames.Contains(isDir, nameU8))
                 {
                     if (isDir)
                         HiddenDirsCount++;
@@ -537,9 +568,9 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 else
                     file.Shared = 0;
 
-                if (fileData.cAlternateFileName[0] != 0)
+                if (dosNameU8[0] != 0)
                 {
-                    int l = (int)strlen(fileData.cAlternateFileName) + 1;
+                    int l = (int)strlen(dosNameU8) + 1;
                     file.DosName = (char*)malloc(l);
                     if (file.DosName == NULL)
                     {
@@ -559,7 +590,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                         //            TRACE_I("ReadDirectory: end");
                         return FALSE;
                     }
-                    memmove(file.DosName, fileData.cAlternateFileName, l);
+                    memmove(file.DosName, dosNameU8, l);
                 }
                 else
                     file.DosName = NULL;
@@ -621,8 +652,8 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                     {
                         while (*++s != 0)
                             *st++ = LowerCase[*s];
-                        *(DWORD*)st = 0;         // zeroes to the end
-                        st = fileData.cFileName; // lowercase extension
+                        *(DWORD*)st = 0; // zeroes to the end
+                        st = nameU8;     // lowercase extension
 
                         if (fileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
                             file.IsLink = 1; // if the file is reparse-point (maybe it's not possible at all) = show it with link overlay
@@ -654,13 +685,13 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                             {
                                 if (*(DWORD*)st == *(DWORD*)"lnk") // icons via shortcut
                                 {
-                                    strcpy(fileData.cFileName, file.Name);
-                                    char* ext2 = strrchr(fileData.cFileName, '.');
+                                    strcpy(nameU8, file.Name);
+                                    char* ext2 = strrchr(nameU8, '.');
                                     if (ext2 != NULL) // ".cvspass" is treated as an extension in Windows
-                                                      //                  if (ext2 != NULL && ext2 != fileData.cFileName)
+                                                      //                  if (ext2 != NULL && ext2 != nameU8)
                                     {
                                         *ext2 = 0;
-                                        if (PackerFormatConfig.PackIsArchive(fileData.cFileName)) // is it a link to an archive that we can process?
+                                        if (PackerFormatConfig.PackIsArchive(nameU8)) // is it a link to an archive that we can process?
                                         {
                                             file.Association = 1;
                                             file.Archive = 1;
@@ -843,7 +874,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 #endif                     // _WIN64
                     break; // the second pass (adding ".." or the win64 redirected-dir)
                 }
-            } while (FindNextFile(search, &fileData));
+            } while (SalFindNextFile(search, &fileDataW));
             DWORD err = GetLastError();
 
             if (search != NULL) // the first pass
@@ -867,7 +898,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             upDir = FALSE;
             *(fileNameEnd - 1) = 0; // it's not logical, but times ".." are from current directory
             if (!UNCRootUpDir)
-                search = HANDLES_Q(FindFirstFile(fileName, &fileData));
+                search = SalFindFirstFile(fileName, &fileDataW);
             else
                 search = INVALID_HANDLE_VALUE;
             if (search == INVALID_HANDLE_VALUE)
@@ -893,13 +924,17 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 fileData.dwReserved0 = fileData.dwReserved1 = 0;
             }
             else
+            {
                 HANDLES(FindClose(search));
+                ConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
+                                 dosNameU8, sizeof(dosNameU8)); // takes over the times of the current directory
+            }
             search = NULL;                                              // the second/third pass
             fileData.dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;      // this is ptDisk
             fileData.dwFileAttributes &= ~FILE_ATTRIBUTE_REPARSE_POINT; // need to remove flag FILE_ATTRIBUTE_REPARSE_POINT, otherwise link overlay will be on ".."
-            strcpy(fileData.cFileName, "..");
-            fileData.cAlternateFileName[0] = 0;
-            st = fileData.cFileName;
+            strcpy(nameU8, "..");
+            dosNameU8[0] = 0;
+            st = nameU8;
             len = (int)strlen(st);
             isUpDir = TRUE;
             goto ADD_ITEM;
@@ -939,7 +974,9 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 
             isWin64RedirectedDir = TRUE;
             search = NULL; // the second/third pass...
-            st = fileData.cFileName;
+            lstrcpyn(nameU8, fileData.cFileName, sizeof(nameU8)); // synthetic dir name (ASCII)
+            lstrcpyn(dosNameU8, fileData.cAlternateFileName, sizeof(dosNameU8));
+            st = nameU8;
             len = (int)strlen(st);
             isUpDir = FALSE;
             goto ADD_ITEM;

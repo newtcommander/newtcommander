@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34310.174
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "salamand", "salamand.vcxproj", "{FA82995C-2137-4A0B-96ED-404B08EFC0DD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "saltests", "saltests\saltests.vcxproj", "{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lang", "lang.vcxproj", "{7C7059BA-1FCE-4C36-B0B3-D095779CF89F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "unfat", "..\plugins\unfat\vcxproj\unfat.vcxproj", "{AFD3091E-0A54-4936-9DD2-328F84308668}"
@@ -208,6 +210,16 @@ Global
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Release|x64.Build.0 = Release|x64
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Utils (Release)|Win32.ActiveCfg = Release|Win32
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Utils (Release)|x64.ActiveCfg = Release|x64
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Debug|Win32.Build.0 = Debug|Win32
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Debug|x64.ActiveCfg = Debug|x64
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Debug|x64.Build.0 = Debug|x64
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Release|Win32.ActiveCfg = Release|Win32
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Release|Win32.Build.0 = Release|Win32
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Release|x64.ActiveCfg = Release|x64
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Release|x64.Build.0 = Release|x64
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Utils (Release)|Win32.ActiveCfg = Release|Win32
+		{D4A7C5B1-9E2F-4F63-A1C8-5B0E7D2F1A44}.Utils (Release)|x64.ActiveCfg = Release|x64
 		{7C7059BA-1FCE-4C36-B0B3-D095779CF89F}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7C7059BA-1FCE-4C36-B0B3-D095779CF89F}.Debug|Win32.Build.0 = Debug|Win32
 		{7C7059BA-1FCE-4C36-B0B3-D095779CF89F}.Debug|x64.ActiveCfg = Debug|x64
