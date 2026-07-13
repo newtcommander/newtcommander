@@ -51,30 +51,8 @@ BOOL IsFilePlaceholder(WIN32_FIND_DATA const* findData)
            (findData->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER);
 }
 
-// fills the legacy-shaped 'a' view (attributes/times/sizes for helpers like
-// IsFilePlaceholder) + UTF-8 name buffers from wide find data; names that are
-// not valid UTF-16 (unpaired surrogates) fall back to replacement characters
-// so the item stays visible - operations on it then fail with a per-item error
-static void ConvertFindDataW(const WIN32_FIND_DATAW* w, WIN32_FIND_DATA* a,
-                             char* nameU8, int nameU8Size, char* dosNameU8, int dosNameU8Size)
-{
-    a->dwFileAttributes = w->dwFileAttributes;
-    a->ftCreationTime = w->ftCreationTime;
-    a->ftLastAccessTime = w->ftLastAccessTime;
-    a->ftLastWriteTime = w->ftLastWriteTime;
-    a->nFileSizeHigh = w->nFileSizeHigh;
-    a->nFileSizeLow = w->nFileSizeLow;
-    a->dwReserved0 = w->dwReserved0;
-    a->dwReserved1 = w->dwReserved1;
-    a->cFileName[0] = 0;          // names are NOT kept in the legacy view,
-    a->cAlternateFileName[0] = 0; // they live in nameU8/dosNameU8
-    if (SalWToU8(w->cFileName, -1, nameU8, nameU8Size) == 0 &&
-        WideCharToMultiByte(CP_UTF8, 0, w->cFileName, -1, nameU8, nameU8Size, NULL, NULL) == 0)
-        nameU8[0] = 0;
-    if (SalWToU8(w->cAlternateFileName, -1, dosNameU8, dosNameU8Size) == 0 &&
-        WideCharToMultiByte(CP_UTF8, 0, w->cAlternateFileName, -1, dosNameU8, dosNameU8Size, NULL, NULL) == 0)
-        dosNameU8[0] = 0;
-}
+// conversion of wide find data to the legacy-shaped view + UTF-8 name buffers
+// lives in the shared layer: SalConvertFindDataW (src/common/salfileio.h)
 
 BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 {
@@ -415,8 +393,8 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             {
                 NumberOfItemsInCurDir++;
 
-                ConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
-                                 dosNameU8, sizeof(dosNameU8));
+                SalConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
+                                    dosNameU8, sizeof(dosNameU8));
 
                 // test ESC: does the user want to interrupt reading?
                 if (GetTickCount() - lastEscCheckTime >= 200) // 5 times per second
@@ -926,8 +904,8 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             else
             {
                 HANDLES(FindClose(search));
-                ConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
-                                 dosNameU8, sizeof(dosNameU8)); // takes over the times of the current directory
+                SalConvertFindDataW(&fileDataW, &fileData, nameU8, sizeof(nameU8),
+                                    dosNameU8, sizeof(dosNameU8)); // takes over the times of the current directory
             }
             search = NULL;                                              // the second/third pass
             fileData.dwFileAttributes |= FILE_ATTRIBUTE_DIRECTORY;      // this is ptDisk

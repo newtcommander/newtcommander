@@ -41,6 +41,32 @@ BOOL SalFindNextFile(HANDLE find, WIN32_FIND_DATAW* data)
     return FindNextFileW(find, data);
 }
 
+void SalConvertFindDataW(const WIN32_FIND_DATAW* w, WIN32_FIND_DATA* a,
+                         char* nameU8, int nameU8Size, char* dosNameU8, int dosNameU8Size)
+{
+    if (a != NULL)
+    {
+        a->dwFileAttributes = w->dwFileAttributes;
+        a->ftCreationTime = w->ftCreationTime;
+        a->ftLastAccessTime = w->ftLastAccessTime;
+        a->ftLastWriteTime = w->ftLastWriteTime;
+        a->nFileSizeHigh = w->nFileSizeHigh;
+        a->nFileSizeLow = w->nFileSizeLow;
+        a->dwReserved0 = w->dwReserved0;
+        a->dwReserved1 = w->dwReserved1;
+        a->cFileName[0] = 0;          // names are NOT kept in the legacy view,
+        a->cAlternateFileName[0] = 0; // they live in nameU8/dosNameU8
+    }
+    if (nameU8 != NULL &&
+        SalWToU8(w->cFileName, -1, nameU8, nameU8Size) == 0 &&
+        WideCharToMultiByte(CP_UTF8, 0, w->cFileName, -1, nameU8, nameU8Size, NULL, NULL) == 0)
+        nameU8[0] = 0;
+    if (dosNameU8 != NULL &&
+        SalWToU8(w->cAlternateFileName, -1, dosNameU8, dosNameU8Size) == 0 &&
+        WideCharToMultiByte(CP_UTF8, 0, w->cAlternateFileName, -1, dosNameU8, dosNameU8Size, NULL, NULL) == 0)
+        dosNameU8[0] = 0;
+}
+
 //*****************************************************************************
 //
 // SalCreateFile

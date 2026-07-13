@@ -27,6 +27,18 @@ HANDLE SalFindFirstFile(const char* u8pattern, WIN32_FIND_DATAW* data);
 // plain ::FindNextFileW re-export for call-site symmetry
 BOOL SalFindNextFile(HANDLE find, WIN32_FIND_DATAW* data);
 
+// recommended UTF-8 buffer sizes for a single find-data record
+#define SAL_FIND_NAME_U8 (3 * MAX_PATH)    // cFileName worst case (3 B per WCHAR)
+#define SAL_FIND_DOSNAME_U8 (3 * 14 + 2)   // cAlternateFileName (8.3)
+
+// fills the legacy-shaped 'a' view (attributes/times/sizes for helpers that
+// take WIN32_FIND_DATA*) + UTF-8 name buffers from wide find data; names that
+// are not valid UTF-16 (unpaired surrogates) fall back to replacement
+// characters so the item stays visible - operations on it then fail with a
+// clear per-item error; a->cFileName/cAlternateFileName are always emptied
+void SalConvertFindDataW(const WIN32_FIND_DATAW* w, WIN32_FIND_DATA* a,
+                         char* nameU8, int nameU8Size, char* dosNameU8, int dosNameU8Size);
+
 HANDLE SalCreateFile(const char* u8path, DWORD desiredAccess, DWORD shareMode,
                      LPSECURITY_ATTRIBUTES securityAttributes, DWORD creationDisposition,
                      DWORD flagsAndAttributes, HANDLE templateFile);
