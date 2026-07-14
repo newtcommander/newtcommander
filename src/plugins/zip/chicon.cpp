@@ -7,6 +7,7 @@
 #ifdef ZIP_DLL
 #include <ostream>
 #include "spl_base.h"
+#include "splunicode.h"
 #include "dbg.h"
 #else //ZIP_DLL
 #include "killdbg.h"
@@ -16,6 +17,46 @@
 #include "chicon.h"
 #include "resedit.h"
 #include "selfextr\\comdefs.h"
+
+// the icon file name is UTF-8 in the plugin (interface 104) -> W file APIs;
+// zip2sfx shares this file and keeps working with the legacy ANSI names
+#ifdef ZIP_DLL
+
+static HANDLE OpenIconFile(const char* iconFile)
+{
+    WCHAR* w = SplU8ToWExtAlloc(iconFile);
+    if (w == NULL)
+        return INVALID_HANDLE_VALUE;
+    HANDLE file = CreateFileW(w, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                              FILE_ATTRIBUTE_NORMAL, NULL);
+    free(w);
+    return file;
+}
+
+static HINSTANCE LoadIconModule(const char* iconFile)
+{
+    WCHAR* w = SplU8ToWAlloc(iconFile); // LoadLibrary does not like the \\?\ prefix
+    if (w == NULL)
+        return NULL;
+    HINSTANCE module = LoadLibraryExW(w, NULL, LOAD_LIBRARY_AS_DATAFILE);
+    free(w);
+    return module;
+}
+
+#else //ZIP_DLL
+
+static HANDLE OpenIconFile(const char* iconFile)
+{
+    return CreateFile(iconFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                      FILE_ATTRIBUTE_NORMAL, NULL);
+}
+
+static HINSTANCE LoadIconModule(const char* iconFile)
+{
+    return (HINSTANCE)LoadLibraryEx(iconFile, NULL, LOAD_LIBRARY_AS_DATAFILE);
+}
+
+#endif //ZIP_DLL
 
 CIcon* LoadIconsFromDirectory(HINSTANCE module, LPICONDIR directory, BOOL isIco);
 LPICONDIR LoadIconDirectoryByResName(HINSTANCE module, LPTSTR lpszName);
@@ -37,7 +78,26 @@ BOOL ChangeSfxIconAndAddManifest(const char* sfxFile, CIcon* icons, int iconsCou
     TIndirectArray2<TCHAR> IDsArray(16, FALSE);
     BOOL ret = FALSE;
 
-    HINSTANCE module = LoadLibraryEx(sfxFile, NULL, LOAD_LIBRARY_AS_DATAFILE);
+#ifdef ZIP_DLL
+    // CResEdit works with the ANSI resource API, so the name must be representable
+    // in the system code page (we refuse the operation instead of touching a wrong file)
+    char resFile[MAX_PATH];
+    WCHAR* wSfxFile = SplU8ToWAlloc(sfxFile);
+    BOOL usedDefault = TRUE;
+    if (wSfxFile != NULL)
+    {
+        if (WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wSfxFile, -1, resFile, MAX_PATH,
+                                NULL, &usedDefault) == 0)
+            usedDefault = TRUE;
+        free(wSfxFile);
+    }
+    if (usedDefault)
+        return FALSE;
+#else  //ZIP_DLL
+    const char* resFile = sfxFile;
+#endif //ZIP_DLL
+
+    HINSTANCE module = LoadIconModule(sfxFile);
     if (module)
     {
         LoadIDsList(module, IDsArray);
@@ -48,7 +108,7 @@ BOOL ChangeSfxIconAndAddManifest(const char* sfxFile, CIcon* icons, int iconsCou
         if (dir)
         {
             CResEdit re;
-            if (re.BeginUpdateResource(sfxFile, FALSE))
+            if (re.BeginUpdateResource(resFile, FALSE))
             {
                 WORD id = 0;
                 dir->idReserved = 0;
@@ -119,8 +179,7 @@ int LoadIcons(const char* iconFile, DWORD index, CIcon** icons, int* count)
 
     if (isIco)
     {
-        module = (HINSTANCE)CreateFile(iconFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                                       FILE_ATTRIBUTE_NORMAL, NULL);
+        module = (HINSTANCE)OpenIconFile(iconFile);
         if (module == INVALID_HANDLE_VALUE)
             return 1;
 
@@ -128,7 +187,7 @@ int LoadIcons(const char* iconFile, DWORD index, CIcon** icons, int* count)
     }
     else
     {
-        module = (HINSTANCE)LoadLibraryEx(iconFile, NULL, LOAD_LIBRARY_AS_DATAFILE);
+        module = LoadIconModule(iconFile);
         if (!module)
         {
             int err = GetLastError();

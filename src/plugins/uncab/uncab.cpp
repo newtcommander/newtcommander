@@ -140,6 +140,114 @@ CCABCacheEntry::CCABCacheEntry(char* name, char* path)
 
 // ****************************************************************************
 //
+// interface 104: UTF-8 <-> W / ANSI conversions (see splunicode.h)
+//
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    free(w);
+    return ret;
+}
+
+void U8ToAcp(const char* u8, char* buf, int bufSize)
+{
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w == NULL || WideCharToMultiByte(CP_ACP, 0, w, -1, buf, bufSize, NULL, NULL) == 0)
+        lstrcpyn(buf, u8, bufSize); // not valid UTF-8 / not representable: use the bytes as they are
+    free(w);
+}
+
+void AcpToU8(const char* acp, char* buf, int bufSize)
+{
+    int len = MultiByteToWideChar(CP_ACP, 0, acp, -1, NULL, 0);
+    WCHAR* w = len > 0 ? (WCHAR*)malloc(len * sizeof(WCHAR)) : NULL;
+    if (w == NULL || MultiByteToWideChar(CP_ACP, 0, acp, -1, w, len) == 0 ||
+        SplWToU8(w, buf, bufSize) == 0)
+    {
+        lstrcpyn(buf, acp, bufSize); // conversion failed: use the bytes as they are
+    }
+    free(w);
+}
+
+// CAB format boundary: a name inside a cabinet is stored either in the local ANSI
+// code page or - when _A_NAME_IS_UTF is set in the entry's attributes - already in
+// UTF-8. Interface 104 wants UTF-8 on the Salamander interface, so decode here,
+// once, and keep UTF-8 from this point on. Pass 'attribs' = -1 where FDI does not
+// report the attributes (fdintPARTIAL_FILE): the bytes are then taken as UTF-8 when
+// they decode as such and as ANSI otherwise. Returns FALSE when the name cannot be
+// decoded or does not fit into 'buf'.
+static BOOL CabNameToU8(const char* name, int attribs, char* buf, int bufSize)
+{
+    BOOL validU8 = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0) > 0;
+    BOOL isUTF = attribs >= 0 ? (attribs & _A_NAME_IS_UTF) != 0 : validU8;
+    if (isUTF)
+    {
+        // already UTF-8 -> pass the bytes through verbatim (never rewrite name bytes)
+        if (!validU8 || lstrlen(name) >= bufSize)
+            return FALSE;
+        lstrcpy(buf, name);
+        return TRUE;
+    }
+    WCHAR w[CB_MAX_FILENAME];
+    if (MultiByteToWideChar(CP_ACP, 0, name, -1, w, CB_MAX_FILENAME) == 0)
+        return FALSE;
+    return SplWToU8(w, buf, bufSize) != 0;
+}
+
+// case-insensitive compare of two UTF-8 names, done on their UTF-16 form
+// (the -A CompareString would read UTF-8 bytes in the local ANSI code page)
+static BOOL EqualNamesU8(const char* name1, const char* name2)
+{
+    if (SplIsASCII(name1) && SplIsASCII(name2))
+        return CompareStringA(LOCALE_USER_DEFAULT, NORM_IGNORECASE, name1, -1, name2, -1) == CSTR_EQUAL;
+    WCHAR* w1 = SplU8ToWAlloc(name1);
+    WCHAR* w2 = SplU8ToWAlloc(name2);
+    BOOL eq;
+    if (w1 != NULL && w2 != NULL)
+        eq = CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, w1, -1, w2, -1) == CSTR_EQUAL;
+    else
+        eq = lstrcmpi(name1, name2) == 0; // fallback for invalid UTF-8
+    free(w1);
+    free(w2);
+    return eq;
+}
+
+// UTF-8 -> heap \\?\ wide path for the W file APIs. Falls back to the local ANSI
+// code page because FDI builds the path handed to our Open() callback by
+// concatenating the cabinet path (ours, UTF-8) with the next-cabinet name taken
+// verbatim from the CAB header (local code page) - fdi.h states psz1 must not be
+// modified, so that one component can reach us in ANSI. free() the result.
+static WCHAR* CabPathToWExtAlloc(const char* path)
+{
+    WCHAR* w = SplU8ToWExtAlloc(path);
+    if (w != NULL)
+        return w; // the normal case: our own UTF-8 path
+    char u8[U8_MAX_CAB_NAME + 3 * CB_MAX_CAB_PATH + 2];
+    WCHAR wAcp[CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 2];
+    if (MultiByteToWideChar(CP_ACP, 0, path, -1, wAcp, _countof(wAcp)) == 0 ||
+        SplWToU8(wAcp, u8, sizeof(u8)) == 0)
+    {
+        return NULL;
+    }
+    return SplU8ToWExtAlloc(u8);
+}
+
+// ****************************************************************************
+//
 // Callback functions
 //
 
@@ -265,16 +373,23 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
     FirstCAB = TRUE;
     HFDI hfdi;
     ERF err;
-    char arcPath[MAX_PATH + 2];
+    // FDI caps the cabinet path at CB_MAX_CAB_PATH bytes and the cabinet name at
+    // CB_MAX_CABINET_NAME (fdi.h); 'fileName' is a UTF-8 path from the interface and
+    // can be longer than that (interface 104) -> refuse it instead of overflowing
+    char arcPath[CB_MAX_CAB_PATH];
     char* arcName;
     Dir = dir;
     Count = 0;
 
+    if (lstrlen(fileName) >= CB_MAX_CAB_PATH)
+        return Error(IDS_TOOLONGNAME);
     strcpy(arcPath, fileName);
     if (!SalamanderGeneral->CutDirectory(arcPath, &arcName))
         return FALSE;
+    if (lstrlen(arcName) >= CB_MAX_CABINET_NAME)
+        return Error(IDS_TOOLONGNAME);
     strcpy(NextCAB, arcName);
-    SalamanderGeneral->SalPathAddBackslash(arcPath, MAX_PATH + 2);
+    SalamanderGeneral->SalPathAddBackslash(arcPath, CB_MAX_CAB_PATH);
 
     memset(&err, 0, sizeof(ERF));
     hfdi = FDICreate(Malloc, Free, ::Open, ::Read, ::Write, ::Close, ::Seek, cpuUNKNOWN, &err);
@@ -293,10 +408,10 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
         if (!*NextCAB)
             break;
         FirstCAB = FALSE;
-        char buffer[MAX_PATH + CB_MAX_CABINET_NAME + 1];
+        char buffer[CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1];
         strcpy(buffer, arcPath);
-        SalamanderGeneral->SalPathAppend(buffer, NextCAB, MAX_PATH + CB_MAX_CABINET_NAME + 1);
-        DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer);
+        SalamanderGeneral->SalPathAppend(buffer, NextCAB, CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1);
+        DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer); // core service: UTF-8 path
         if (attr == -1 || attr & FILE_ATTRIBUTE_DIRECTORY)
         {
             NotWholeArchListed = TRUE;
@@ -348,12 +463,18 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
     AllocateWholeFile = TRUE;
     TestAllocateWholeFile = TRUE;
 
+    // FDI caps the cabinet path/name at CB_MAX_CAB_PATH/CB_MAX_CABINET_NAME (fdi.h);
+    // 'fileName' is a UTF-8 path from the interface and can be longer (interface 104)
+    if (lstrlen(fileName) >= CB_MAX_CAB_PATH)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCABPath, fileName);
     char* arcName;
     if (!SalamanderGeneral->CutDirectory(CurrentCABPath, &arcName))
         return FALSE;
+    if (lstrlen(arcName) >= CB_MAX_CABINET_NAME)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCAB, arcName);
-    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, MAX_PATH + 2);
+    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, CB_MAX_CAB_PATH);
 
     memset(&err, 0, sizeof(ERF));
     hfdi = FDICreate(Malloc, Free, ::Open, ::Read, ::Write, ::Close, ::Seek, cpuUNKNOWN, &err);
@@ -390,8 +511,8 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
             {
                 GetCachedCABPath(CurrentCAB, CurrentCABPath);
                 strcpy(buffer, CurrentCABPath);
-                SalamanderGeneral->SalPathAppend(buffer, CurrentCAB, MAX_PATH + CB_MAX_CABINET_NAME + 1);
-                DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer);
+                SalamanderGeneral->SalPathAppend(buffer, CurrentCAB, CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1);
+                DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer); // core service: UTF-8 path
                 if (attr != -1 && !(attr & FILE_ATTRIBUTE_DIRECTORY))
                 {
                     INT_PTR f = Open(buffer, _O_RDONLY | _O_EXCL, 0);
@@ -455,8 +576,9 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     HFDI hfdi;
     ERF err;
     Count = 0;
-    char rootDir[MAX_PATH + 2];
-    strcpy(rootDir, nameInArchive);
+    // 'nameInArchive' is a name inside the cabinet: UTF-8 since interface 104
+    char rootDir[U8_MAX_CAB_NAME];
+    lstrcpyn(rootDir, nameInArchive, U8_MAX_CAB_NAME);
     char* c = strrchr(rootDir, '\\');
     if (!c)
         c = rootDir;
@@ -471,12 +593,18 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     AllocateWholeFile = TRUE;
     TestAllocateWholeFile = TRUE;
 
+    // FDI caps the cabinet path/name at CB_MAX_CAB_PATH/CB_MAX_CABINET_NAME (fdi.h);
+    // 'fileName' is a UTF-8 path from the interface and can be longer (interface 104)
+    if (lstrlen(fileName) >= CB_MAX_CAB_PATH)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCABPath, fileName);
     char* arcName;
     if (!SalamanderGeneral->CutDirectory(CurrentCABPath, &arcName))
         return FALSE;
+    if (lstrlen(arcName) >= CB_MAX_CABINET_NAME)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCAB, arcName);
-    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, MAX_PATH + 2);
+    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, CB_MAX_CAB_PATH);
 
     memset(&err, 0, sizeof(ERF));
     hfdi = FDICreate(Malloc, Free, ::Open, ::Read, ::Write, ::Close, ::Seek, cpuUNKNOWN, &err);
@@ -571,12 +699,18 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
     AllocateWholeFile = TRUE;
     TestAllocateWholeFile = TRUE;
 
+    // FDI caps the cabinet path/name at CB_MAX_CAB_PATH/CB_MAX_CABINET_NAME (fdi.h);
+    // 'fileName' is a UTF-8 path from the interface and can be longer (interface 104)
+    if (lstrlen(fileName) >= CB_MAX_CAB_PATH)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCABPath, fileName);
     char* arcName;
     if (!SalamanderGeneral->CutDirectory(CurrentCABPath, &arcName))
         return FALSE;
+    if (lstrlen(arcName) >= CB_MAX_CABINET_NAME)
+        return Error(IDS_TOOLONGNAME);
     strcpy(CurrentCAB, arcName);
-    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, MAX_PATH + 2);
+    SalamanderGeneral->SalPathAddBackslash(CurrentCABPath, CB_MAX_CAB_PATH);
 
     memset(&err, 0, sizeof(ERF));
     hfdi = FDICreate(Malloc, Free, ::Open, ::Read, ::Write, ::Close, ::Seek, cpuUNKNOWN, &err);
@@ -625,8 +759,8 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
             {
                 GetCachedCABPath(CurrentCAB, CurrentCABPath);
                 strcpy(buffer, CurrentCABPath);
-                SalamanderGeneral->SalPathAppend(buffer, CurrentCAB, MAX_PATH + CB_MAX_CABINET_NAME + 1);
-                DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer);
+                SalamanderGeneral->SalPathAppend(buffer, CurrentCAB, CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1);
+                DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer); // core service: UTF-8 path
                 if (attr != -1 && !(attr & FILE_ATTRIBUTE_DIRECTORY))
                 {
                     INT_PTR f = Open(buffer, _O_RDONLY | _O_EXCL, 0);
@@ -756,19 +890,10 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
     const char* nextName;
     BOOL isDir;
     CQuadWord size;
-    char dir[MAX_PATH];
-    char* addDir;
-    int dirLen;
     int errorOccured;
 
-    lstrcpy(dir, targetDir);
-    addDir = dir + lstrlen(dir);
-    if (*(addDir - 1) != '\\')
-    {
-        *addDir++ = '\\';
-        *addDir = 0;
-    }
-    dirLen = lstrlen(dir);
+    // the former 'dir' buffer (MAX_PATH) was built from 'targetDir' here but never
+    // used; dropped - a UTF-8 target path can be long and would overflow it (104)
 
     ProgressTotal = CQuadWord(0, 0);
     while ((nextName = next(SalamanderGeneral->GetMsgBoxParent(), 1, &isDir, &size, NULL, nextParam, &errorOccured)) != NULL)
@@ -965,8 +1090,7 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(char* fileName)
         int i;
         for (i = 0; i < Files.Count; i++)
         {
-            if (CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
-                              fileName, -1, Files[i], -1) == CSTR_EQUAL)
+            if (EqualNamesU8(fileName, Files[i])) // both sides are UTF-8 (interface 104)
             {
                 ret = TRUE;
                 Files.Delete(i);
@@ -976,8 +1100,7 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(char* fileName)
         break;
     }
     case CA_UNPACK_ONE_FILE:
-        return CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
-                             fileName, -1, NameInArchive, -1) == CSTR_EQUAL;
+        return EqualNamesU8(fileName, NameInArchive); // both sides are UTF-8 (interface 104)
     case CA_UNPACK_WHOLE_ARCHIVE:
     {
         const char* name = SalamanderGeneral->SalPathFindFileName(fileName);
@@ -1006,7 +1129,7 @@ CPluginInterfaceForArchiver::UnpackFile(char* fileName, DWORD size, WORD date, W
     if (!DoThisFile(fileName))
         return 0;
 
-    char message[MAX_PATH + 32];
+    char message[U8_MAX_CAB_NAME + 64]; // 'fileName' is a UTF-8 name inside the cabinet
     lstrcpy(message, LoadStr(IDS_EXTRACTING));
     lstrcat(message, fileName);
     if (Action != CA_UNPACK_ONE_FILE)
@@ -1021,14 +1144,16 @@ CPluginInterfaceForArchiver::UnpackFile(char* fileName, DWORD size, WORD date, W
     }
 
     CFile* ret = new CFile;
-    if (!ret)
+    if (!ret || !ret->FileName)
     {
+        delete ret;
         Error(IDS_LOWMEM);
         Abort = TRUE;
         return -1;
     }
-    strncpy_s(ret->FileName, TargetDir, _TRUNCATE);
-    if (!SalamanderGeneral->SalPathAppend(ret->FileName, fileName + RootLen, MAX_PATH))
+    // TargetDir is UTF-8 and may be a long path (interface 104) -> U8_MAX_PATH buffer
+    lstrcpyn(ret->FileName, TargetDir, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(ret->FileName, fileName + RootLen, U8_MAX_PATH))
     {
         delete ret;
         ret = NULL;
@@ -1053,10 +1178,11 @@ CPluginInterfaceForArchiver::UnpackFile(char* fileName, DWORD size, WORD date, W
             return -1;
         }
     }
-    char nameInArc[MAX_PATH + MAX_PATH];
+    // cabinet path + cabinet name + the UTF-8 name inside the cabinet (display only)
+    char nameInArc[CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + U8_MAX_CAB_NAME + 2];
     strcpy(nameInArc, CurrentCABPath);
-    SalamanderGeneral->SalPathAppend(nameInArc, CurrentCAB, MAX_PATH + MAX_PATH);
-    SalamanderGeneral->SalPathAppend(nameInArc, fileName, MAX_PATH + MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, CurrentCAB, sizeof(nameInArc));
+    SalamanderGeneral->SalPathAppend(nameInArc, fileName, sizeof(nameInArc));
     char buf[100];
     FILETIME ft, lft;
     if (!DosDateTimeToFileTime(date, time, &lft))
@@ -1173,18 +1299,33 @@ CPluginInterfaceForArchiver::Open(char* pszFile, int oflag, int pmode)
         fileattrib |= FILE_FLAG_RANDOM_ACCESS;
 
     CFile* ret = new CFile;
-    if (!ret)
+    if (!ret || !ret->FileName)
     {
+        delete ret;
         Error(IDS_LOWMEM);
         return -1;
     }
 
     while (1)
     {
-        ret->Handle = CreateFile((LPTSTR)pszFile, fileaccess, FILE_SHARE_READ, NULL, filecreate, fileattrib, NULL);
+        // 'pszFile' is the cabinet path FDI built from the bytes we gave it (UTF-8)
+        // -> convert to a \\?\ wide path for the W API (interface 104)
+        WCHAR* wFile = CabPathToWExtAlloc(pszFile);
+        if (wFile != NULL)
+        {
+            ret->Handle = CreateFileW(wFile, fileaccess, FILE_SHARE_READ, NULL, filecreate, fileattrib, NULL);
+            DWORD lastErr = GetLastError();
+            free(wFile);
+            SetLastError(lastErr); // preserve the API's error across free()
+        }
+        else
+        {
+            ret->Handle = INVALID_HANDLE_VALUE;
+            SetLastError(ERROR_INVALID_NAME);
+        }
         if (ret->Handle != INVALID_HANDLE_VALUE)
         {
-            lstrcpyn(ret->FileName, pszFile, MAX_PATH);
+            lstrcpyn(ret->FileName, pszFile, U8_MAX_PATH);
             ret->Flags = 0;
             IOError = FALSE;
             ret->cabOffset = 0;
@@ -1458,7 +1599,7 @@ int CPluginInterfaceForArchiver::Close(INT_PTR hf)
     CloseHandle(file->Handle);
     // it was not successfully unpacked, so delete it
     if (file->Flags & FF_EXTRFILE)
-        DeleteFile(file->FileName);
+        DeleteFileU8(file->FileName);
     delete file;
     return 0;
 }
@@ -1556,8 +1697,15 @@ CPluginInterfaceForArchiver::Notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
         }
         if (FirstCABINET_INFO)
         {
-            strcpy(NextCAB, pfdin->psz1);
-            strcpy(NextDISK, pfdin->psz2);
+            // the next cabinet / disk names come from the CAB header, which stores them
+            // in the local ANSI code page -> UTF-8 (interface 104); they must fit into
+            // FDI's own CB_MAX_* buffers, so refuse names whose UTF-8 form is too long
+            if (!CabNameToU8(pfdin->psz1, 0, NextCAB, CB_MAX_CABINET_NAME) ||
+                !CabNameToU8(pfdin->psz2, 0, NextDISK, CB_MAX_DISK_NAME))
+            {
+                Error(IDS_TOOLONGNAME);
+                return -1;
+            }
             NextCABIndex = pfdin->iCabinet + 1;
             SetID = pfdin->setID;
         }
@@ -1570,21 +1718,26 @@ CPluginInterfaceForArchiver::Notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
 
     case fdintPARTIAL_FILE:
     {
+        // CAB format boundary -> UTF-8 (FDI reports no attributes here, so the
+        // encoding of the stored bytes has to be sniffed - see CabNameToU8)
+        char name[U8_MAX_CAB_NAME];
+        if (!CabNameToU8(pfdin->psz1, -1, name, U8_MAX_CAB_NAME))
+            return -1;
         if (Action == CA_LIST)
         {
-            if (FirstCAB && !ListFile(pfdin->psz1, 0, 0, 0, 0))
+            if (FirstCAB && !ListFile(name, 0, 0, 0, 0))
                 return -1;
         }
         else
         {
-            if (DoThisFile(pfdin->psz1) && (Action != CA_UNPACK_WHOLE_ARCHIVE || FirstCAB))
+            if (DoThisFile(name) && (Action != CA_UNPACK_WHOLE_ARCHIVE || FirstCAB))
             {
                 INT_PTR ret;
                 if (Silent & SF_CONTINUED)
                     ret = IDSKIP;
                 else
                 {
-                    ret = ContinuedFileDialog(SalamanderGeneral->GetMsgBoxParent(), pfdin->psz1);
+                    ret = ContinuedFileDialog(SalamanderGeneral->GetMsgBoxParent(), name);
                     if (ret == IDALL)
                     {
                         Silent |= SF_CONTINUED;
@@ -1603,13 +1756,18 @@ CPluginInterfaceForArchiver::Notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
 
     case fdintCOPY_FILE:
     {
+        // CAB format boundary -> UTF-8 (interface 104); _A_NAME_IS_UTF in 'attribs'
+        // tells whether the stored name is already UTF-8 or in the local ANSI code page
+        char name[U8_MAX_CAB_NAME];
+        if (!CabNameToU8(pfdin->psz1, pfdin->attribs, name, U8_MAX_CAB_NAME))
+            return -1;
         if (Action == CA_LIST)
         {
-            if (!ListFile(pfdin->psz1, pfdin->cb, pfdin->date, pfdin->time, pfdin->attribs))
+            if (!ListFile(name, pfdin->cb, pfdin->date, pfdin->time, pfdin->attribs))
                 return -1;
         }
         else
-            return UnpackFile(pfdin->psz1, pfdin->cb, pfdin->date, pfdin->time, pfdin->attribs);
+            return UnpackFile(name, pfdin->cb, pfdin->date, pfdin->time, pfdin->attribs);
         break;
     }
 
@@ -1625,9 +1783,9 @@ CPluginInterfaceForArchiver::Notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
         SetFileTime(file->Handle, NULL, NULL, &ft);
         CloseHandle(file->Handle);
         if (file->Flags & FF_SKIPFILE)
-            DeleteFile(file->FileName);
+            DeleteFileU8(file->FileName);
         else
-            SetFileAttributes(file->FileName, pfdin->attribs & FILE_ATTRIBUTE_MASK);
+            SetFileAttributesU8(file->FileName, pfdin->attribs & FILE_ATTRIBUTE_MASK);
         delete file;
         if (Action == CA_UNPACK_ONE_FILE)
         {
@@ -1643,12 +1801,20 @@ CPluginInterfaceForArchiver::Notify(FDINOTIFICATIONTYPE fdint, PFDINOTIFICATION 
         if (pfdin->fdie == FDIERROR_NONE)
         {
             firstTry = TRUE;
-            strcpy(CurrentCAB, pfdin->psz1);
+            // the next-cabinet name comes from the CAB header (local ANSI code page) -> UTF-8.
+            // Note: FDI itself keeps using the untouched psz1 bytes when it builds the path for
+            // our Open() callback (fdi.h forbids modifying psz1), which is why Open() also
+            // accepts an ANSI-encoded component - see CabPathToWExtAlloc().
+            if (!CabNameToU8(pfdin->psz1, 0, CurrentCAB, CB_MAX_CABINET_NAME))
+            {
+                Error(IDS_TOOLONGNAME);
+                return -1;
+            }
             char buffer[CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1];
             GetCachedCABPath(CurrentCAB, pfdin->psz3);
             strcpy(buffer, pfdin->psz3);
             SalamanderGeneral->SalPathAppend(buffer, CurrentCAB, CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1);
-            DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer);
+            DWORD attr = SalamanderGeneral->SalGetFileAttributes(buffer); // core service: UTF-8 path
             if (attr != -1 && !(attr & FILE_ATTRIBUTE_DIRECTORY))
                 break;
         }

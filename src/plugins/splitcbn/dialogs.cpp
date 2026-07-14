@@ -12,6 +12,35 @@
 
 // *****************************************************************************
 //
+//  UTF-8 helpers
+//
+//  The Split and Combine dialogs are created as Unicode windows (DialogBoxParamW) so that
+//  the file names, which are UTF-8 since plugin interface 104, can be displayed and edited
+//  correctly. These helpers move the texts between the controls and our UTF-8 buffers.
+//
+
+static void SetDlgItemTextU8(HWND hDlg, int id, const char* u8)
+{
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w != NULL)
+    {
+        SetDlgItemTextW(hDlg, id, w);
+        free(w);
+    }
+    else
+        SetDlgItemTextA(hDlg, id, u8); // not valid UTF-8 -> ANSI fallback
+}
+
+static void GetDlgItemTextU8(HWND hDlg, int id, char* u8, int u8Size)
+{
+    WCHAR w[3 * MAX_PATH];
+    u8[0] = 0;
+    if (GetDlgItemTextW(hDlg, id, w, _countof(w)) > 0)
+        SplWToU8(w, u8, u8Size); // on failure the buffer is emptied
+}
+
+// *****************************************************************************
+//
 //  SPLIT DIALOG
 //
 
@@ -23,6 +52,7 @@ namespace split
     static LPTSTR pszFileName;
     static CQuadWord qwFileSize;
     static LPTSTR pszTargetDir;
+    static int nTargetDirSize;
     static CQuadWord* pqwPartialSize;
 
     static HWND hDialog;
@@ -195,7 +225,7 @@ namespace split
     static INT_PTR CALLBACK SplitDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         CALL_STACK_MESSAGE4("SplitDlgProc( , 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
-        char text[MAX_PATH + 100];
+        char text[3 * MAX_PATH + 100]; // UTF-8 path (up to 3 bytes per character)
 
         switch (uMsg)
         {
@@ -213,7 +243,7 @@ namespace split
             SalamanderGUI->SetSubjectTruncatedText(GetDlgItem(hWnd, IDC_STATIC_TITLE), text,
                                                    pszFileName, FALSE, FALSE);
 
-            SetDlgItemText(hWnd, IDC_EDIT_DIR, pszTargetDir);
+            SetDlgItemTextU8(hWnd, IDC_EDIT_DIR, pszTargetDir);
             CheckDlgButton(hWnd, IDC_RADIO_SIZE, BST_CHECKED);
             SendMessage(hWnd, WM_COMMAND, IDC_RADIO_SIZE, 0);
             SendMessage(GetDlgItem(hWnd, IDC_EDIT_NUMBER), EM_SETLIMITTEXT, 3, 0);
@@ -257,7 +287,7 @@ namespace split
             }
 
             case IDOK:
-                GetDlgItemText(hWnd, IDC_EDIT_DIR, pszTargetDir, MAX_PATH);
+                GetDlgItemTextU8(hWnd, IDC_EDIT_DIR, pszTargetDir, nTargetDirSize);
                 EndDialog(hWnd, TRUE);
                 break;
 
@@ -299,10 +329,10 @@ namespace split
             case IDC_BUTTON_BROWSE:
             {
                 HWND parent = SalamanderGeneral->GetMsgBoxParent();
-                GetDlgItemText(hWnd, IDC_EDIT_DIR, text, MAX_PATH);
+                GetDlgItemTextU8(hWnd, IDC_EDIT_DIR, text, _countof(text));
                 if (SalamanderGeneral->GetTargetDirectory(hWnd, parent, LoadStr(IDS_SPLIT),
                                                           LoadStr(IDS_SELECTDIR), text, FALSE, text))
-                    SetDlgItemText(hWnd, IDC_EDIT_DIR, text);
+                    SetDlgItemTextU8(hWnd, IDC_EDIT_DIR, text);
                 break;
             }
 
@@ -313,8 +343,8 @@ namespace split
                 ConfigDialog(hWnd);
                 if (oldSplitToOther != configSplitToOther || oldSplitToSubdir != configSplitToSubdir)
                 {
-                    GetTargetDir(text, pszFileName, TRUE);
-                    SetDlgItemText(hWnd, IDC_EDIT_DIR, text);
+                    GetTargetDir(text, _countof(text), pszFileName, TRUE);
+                    SetDlgItemTextU8(hWnd, IDC_EDIT_DIR, text);
                 }
                 break;
             }
@@ -329,15 +359,17 @@ namespace split
 } // namespace split
 using namespace split;
 
-BOOL SplitDialog(LPTSTR fileName, CQuadWord& fileSize, LPTSTR targetDir,
+BOOL SplitDialog(LPTSTR fileName, CQuadWord& fileSize, LPTSTR targetDir, int targetDirSize,
                  CQuadWord* partialSize, HWND hParent)
 {
     CALL_STACK_MESSAGE4("SplitDialog(%s, %I64u, %s, , )", fileName, fileSize.Value, targetDir);
     pszFileName = fileName;
     qwFileSize = fileSize;
     pszTargetDir = targetDir;
+    nTargetDirSize = targetDirSize;
     pqwPartialSize = partialSize;
-    return (BOOL)DialogBoxParam(HLanguage, MAKEINTRESOURCE(IDD_SPLIT), hParent, SplitDlgProc, 0);
+    // Unicode dialog: the file names are UTF-8 (see the SetDlgItemTextU8 helpers)
+    return (BOOL)DialogBoxParamW(HLanguage, MAKEINTRESOURCEW(IDD_SPLIT), hParent, SplitDlgProc, 0);
 }
 
 // *****************************************************************************

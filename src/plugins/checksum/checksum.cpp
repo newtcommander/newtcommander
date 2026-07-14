@@ -275,7 +275,7 @@ CPluginInterface::GetInterfaceForMenuExt()
 //  CPluginInterfaceForMenuExt
 //
 
-char Focus_Path[MAX_PATH] = "";
+char Focus_Path[3 * MAX_PATH] = ""; // UTF-8 path (up to 3 bytes per character)
 
 BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstract* salamander,
                                                  HWND parent, int id, DWORD eventMask)

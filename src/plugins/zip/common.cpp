@@ -300,6 +300,72 @@ BOOL FindDataNameU8(const WIN32_FIND_DATAW* data, char* buf, int bufSize)
     return SplWToU8(data->cFileName, buf, bufSize) != 0;
 }
 
+BOOL U8ToOem(const char* u8, char* oem, int oemSize)
+{
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = WideCharToMultiByte(CP_OEMCP, 0, w, -1, oem, oemSize, NULL, NULL) != 0;
+    free(w);
+    return ret;
+}
+
+BOOL U8ToDlgA(const char* u8, char* ansi, int ansiSize)
+{
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = WideCharToMultiByte(CP_ACP, 0, w, -1, ansi, ansiSize, NULL, NULL) != 0;
+    free(w);
+    return ret;
+}
+
+BOOL DlgAToU8(const char* ansi, char* u8, int u8Size)
+{
+    int wlen = MultiByteToWideChar(CP_ACP, 0, ansi, -1, NULL, 0);
+    if (wlen <= 0)
+        return FALSE;
+    WCHAR* w = (WCHAR*)malloc(wlen * sizeof(WCHAR));
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = MultiByteToWideChar(CP_ACP, 0, ansi, -1, w, wlen) != 0 &&
+               SplWToU8(w, u8, u8Size) != 0;
+    free(w);
+    return ret;
+}
+
+BOOL SetDlgItemTextU8(HWND dlg, int item, const char* text)
+{
+    WCHAR* w = SplU8ToWAlloc(text);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetDlgItemTextW(dlg, item, w);
+    free(w);
+    return ret;
+}
+
+int GetDlgItemTextU8(HWND dlg, int item, char* buf, int bufSize)
+{
+    if (bufSize > 0)
+        *buf = 0;
+    HWND ctrl = GetDlgItem(dlg, item);
+    if (ctrl == NULL)
+        return 0;
+    int wlen = GetWindowTextLengthW(ctrl) + 1;
+    WCHAR* w = (WCHAR*)malloc(wlen * sizeof(WCHAR)); // may be a long path -> heap
+    if (w == NULL)
+        return 0;
+    int ret = 0;
+    if (GetWindowTextW(ctrl, w, wlen) > 0)
+    {
+        ret = SplWToU8(w, buf, bufSize);
+        if (ret > 0)
+            ret--; // without the terminator
+    }
+    free(w);
+    return ret;
+}
+
 //CExtInfo
 CExtInfo::CExtInfo(LPCTSTR pName, bool isDir, int nItem)
 {
@@ -410,7 +476,7 @@ CZipCommon::CZipCommon(const char* zipName, const char* zipRoot,
 
     WCHAR wDir[MAX_PATH + 1];
     DWORD ret = GetCurrentDirectoryW(MAX_PATH + 1, wDir);
-    if (!ret || ret > MAX_PATH || !SplWToU8(wDir, OriginalCurrentDir, sizeof(OriginalCurrentDir)))
+    if (!ret || ret > MAX_PATH || !SplWToU8(wDir, OriginalCurrentDir, (int)sizeof(OriginalCurrentDir)))
         *OriginalCurrentDir = 0;
 }
 
@@ -2565,11 +2631,11 @@ DWORD ExpandSfxSettings(CSfxSettings* settings, void* buffer, DWORD size)
     {
         // add default values
         CSfxLang* lang = NULL;
-        char file[MAX_PATH];
-        GetModuleFileName(DLLInstance, file, MAX_PATH);
+        char file[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+        GetModuleFileNameU8(DLLInstance, file, (DWORD)sizeof(file));
         SalamanderGeneral->CutDirectory(file);
-        SalamanderGeneral->SalPathAppend(file, "sfx", MAX_PATH);
-        SalamanderGeneral->SalPathAppend(file, settings->SfxFile, MAX_PATH);
+        SalamanderGeneral->SalPathAppend(file, "sfx", (int)sizeof(file));
+        SalamanderGeneral->SalPathAppend(file, settings->SfxFile, (int)sizeof(file));
         if (LoadSfxFileData(file, &lang) == 0)
         {
             strcpy(settings->Vendor, lang->Vendor);

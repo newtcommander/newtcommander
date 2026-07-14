@@ -279,7 +279,7 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
             char archName[MAX_PATH]; // name stored in the SFX header (OEM, the SFX module reads it)
             MakeFileName(1, Options.SeqNames, SalamanderGeneral->SalPathFindFileName(ZipName), archNameU8,
                          false);
-            if (!U8ToOem(archNameU8, archName, sizeof(archName)))
+            if (!U8ToOem(archNameU8, archName, (int)sizeof(archName)))
                 ErrorID = IDS_TOOLONGZIPNAME; // the volume name cannot be stored in the SFX header
             else if (!WriteSFXHeader(archName, 0, 0) ||
                      Write(TempFile, &EONewCentrDir, sizeof(CEOCentrDirRecord), NULL) || // just as a placeholder, we update it later
@@ -877,17 +877,6 @@ int CZipPack::WriteCentralHeader(CFileInfo* fileInfo, char* buffer, BOOL first, 
     return 0;
 }
 
-// UTF-8 -> OEM code page; FALSE when the name does not fit or cannot be stored
-BOOL U8ToOem(const char* u8, char* oem, int oemSize)
-{
-    WCHAR* w = SplU8ToWAlloc(u8);
-    if (w == NULL)
-        return FALSE;
-    BOOL ret = WideCharToMultiByte(CP_OEMCP, 0, w, -1, oem, oemSize, NULL, NULL) != 0;
-    free(w);
-    return ret;
-}
-
 // interface 104: fileInfo->Name is UTF-8; names with non-ASCII characters are
 // stored as UTF-8 and the caller must set the general purpose bit 11 (GPF_UTF8)
 // in the header ('isUTF8' says so); pure ASCII names keep the legacy (OEM) form,
@@ -1439,7 +1428,7 @@ int CZipPack::PackFiles()
     __UINT64 writePos;
     CDeflate* defObj = new CDeflate();
     int errorID = 0;
-    char progrTextBuf[MAX_PATH + 32];
+    char progrTextBuf[U8_MAX_NAME + MAX_PATH + 32]; // UTF-8 name of the packed file
     char* progrText;
     int progrPrefixLen; //"adding: "
     char* sour;
@@ -1484,7 +1473,7 @@ int CZipPack::PackFiles()
         if (next->Action != AF_ADD && next->Action != AF_OVERWRITE)
             continue;
         //TRACE_I("Packing file: " << next->Name);
-        lstrcpyn(progrText, next->Name + SourceLen + 1, MAX_PATH + 32 - progrPrefixLen);
+        lstrcpyn(progrText, next->Name + SourceLen + 1, (int)sizeof(progrTextBuf) - progrPrefixLen);
         Salamander->ProgressDialogAddText(progrTextBuf, TRUE);
         if (!Salamander->ProgressSetSize(CQuadWord(0, 0), CQuadWord(-1, -1), TRUE))
         {
@@ -2189,7 +2178,6 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
     const char* text;
     int flags;
     bool retry;
-    char pathBuf[MAX_PATH + 1];
     char* zipPath;
     char* dummy;
     bool testSpace = true;
@@ -2210,6 +2198,9 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
             return IDS_NODISPLAY;
         }
     }
+    char* pathBuf = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+    if (pathBuf == NULL)
+        return IDS_LOWMEM;
     if ((TempFile = (CFile*)malloc(sizeof(CFile))) == NULL ||
         (TempFile->FileName = (char*)malloc(lstrlen(TempName) + 1)) == NULL ||
         (TempFile->OutputBuffer = (char*)malloc(OUTPUT_BUFFER_SIZE)) == NULL)
@@ -2223,6 +2214,7 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
             free(TempFile);
             TempFile = NULL;
         }
+        free(pathBuf);
         return IDS_LOWMEM;
     }
     TempFile->InputBuffer = NULL;
@@ -2320,9 +2312,9 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
                 {
                     if (OverwriteAll)
                         overwrite = true;
-                    TempFile->File = CreateFile(TempName, GENERIC_WRITE, /*FILE_SHARE_READ*/ NULL, NULL,
-                                                overwrite ? CREATE_ALWAYS : CREATE_NEW,
-                                                FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+                    TempFile->File = CreateFileU8(TempName, GENERIC_WRITE, /*FILE_SHARE_READ*/ NULL, NULL,
+                                                  overwrite ? CREATE_ALWAYS : CREATE_NEW,
+                                                  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
                     if (TempFile->File != INVALID_HANDLE_VALUE)
                     {
                         lstrcpy(TempFile->FileName, TempName);
@@ -2330,6 +2322,7 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
                         TempFile->Flags = PE_NOSKIP;
                         TempFile->RealFilePointer = 0;
                         TempFile->BufferPosition = 0;
+                        free(pathBuf);
                         return 0; //success
                     }
                     overwrite = false;
@@ -2389,6 +2382,7 @@ int CZipPack::CreateNextFile(bool firstSfxDisk)
             }
         }
     } while (retry);
+    free(pathBuf);
     free(TempFile->FileName);
     free(TempFile->OutputBuffer);
     free(TempFile);
@@ -2469,11 +2463,11 @@ int CZipPack::WriteSfxExecutable(const char* sfxFile, const char* sfxPackage, BO
     CSfxFileHeader sfxHead;
 
     //copy exetutable
-    char package[MAX_PATH];
-    GetModuleFileName(DLLInstance, package, MAX_PATH);
+    char package[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+    GetModuleFileNameU8(DLLInstance, package, (DWORD)sizeof(package));
     SalamanderGeneral->CutDirectory(package);
-    SalamanderGeneral->SalPathAppend(package, "sfx", MAX_PATH);
-    SalamanderGeneral->SalPathAppend(package, sfxPackage, MAX_PATH);
+    SalamanderGeneral->SalPathAppend(package, "sfx", (int)sizeof(package));
+    SalamanderGeneral->SalPathAppend(package, sfxPackage, (int)sizeof(package));
     ret = CreateCFile(&sfx, package, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING,
                       FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, PE_NOSKIP, NULL,
                       false, false);
@@ -3064,10 +3058,13 @@ int CZipPack::WriteSFXECRec(QWORD offset)
     }
     DiskNum = 0;
 
-    char name[MAX_PATH];
-    lstrcpy(name, ZipName);
-    if (!SalamanderGeneral->SalPathRenameExtension(name, ".exe", MAX_PATH))
+    char* name = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+    if (name == NULL)
+        return ErrorID = IDS_LOWMEM;
+    lstrcpyn(name, ZipName, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathRenameExtension(name, ".exe", U8_MAX_PATH))
     {
+        free(name);
         Salamander->CloseProgressDialog();
         return IDS_TOOLONGZIPNAME;
     }
@@ -3076,6 +3073,7 @@ int CZipPack::WriteSFXECRec(QWORD offset)
     int ret = CreateCFile(&file, name, GENERIC_WRITE, FILE_SHARE_READ,
                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, PE_NOSKIP, NULL,
                           false, false);
+    free(name);
     if (ret)
     {
         if (ret == ERR_LOWMEM)

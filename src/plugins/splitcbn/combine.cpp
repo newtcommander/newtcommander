@@ -34,7 +34,7 @@ BOOL CombineFiles(TIndirectArray<char>& files, LPTSTR targetName,
 
     // sum sizes of all partial files (while simultaneously checking their accessibility)
     CQuadWord totalSize = CQuadWord(0, 0);
-    char text[MAX_PATH + 50];
+    char text[3 * MAX_PATH + 50]; // UTF-8 path (up to 3 bytes per character)
     int i;
     for (i = 0; i < files.Count; i++)
     {
@@ -53,7 +53,7 @@ BOOL CombineFiles(TIndirectArray<char>& files, LPTSTR targetName,
     // check available free space
     if (!bOnlyCrc)
     {
-        char dir[MAX_PATH];
+        char dir[3 * MAX_PATH];
         strncpy_s(dir, targetName, _TRUNCATE);
         SalamanderGeneral->CutDirectory(dir);
         if (!SalamanderGeneral->TestFreeSpace(parent, dir, totalSize, LoadStr(IDS_COMBINE)))
@@ -159,7 +159,12 @@ BOOL CombineFiles(TIndirectArray<char>& files, LPTSTR targetName,
         else
         {
             SalamanderSafeFile->SafeFileClose(&outfile);
-            DeleteFile(targetName);
+            WCHAR* wTargetName = SplU8ToWExtAlloc(targetName); // UTF-8 path -> W API
+            if (wTargetName != NULL)
+                DeleteFileW(wTargetName);
+            else
+                DeleteFileA(targetName);
+            free(wTargetName);
         }
     }
 
@@ -247,14 +252,15 @@ BOOL CombineFiles(TIndirectArray<char>& files, LPTSTR targetName,
 static BOOL AddFile(TIndirectArray<char>& files, LPTSTR sourceDir, LPTSTR name, BOOL bReverse)
 {
     CALL_STACK_MESSAGE1("AllocName( , , )");
-    char* str = (char*)malloc(strlen(sourceDir) + 2 + strlen(name));
+    int strSize = (int)(strlen(sourceDir) + 2 + strlen(name)); // UTF-8 sizes in bytes
+    char* str = (char*)malloc(strSize);
     if (str == NULL)
     {
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_OUTOFMEM), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
         return FALSE;
     }
     strcpy(str, sourceDir);
-    if (!SalamanderGeneral->SalPathAppend(str, name, MAX_PATH))
+    if (!SalamanderGeneral->SalPathAppend(str, name, strSize))
     {
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
         return FALSE;
@@ -308,7 +314,7 @@ static BOOL FindCrc(const char* text, LPCTSTR searchstring, UINT32& crc)
         return FALSE;
 }
 
-static BOOL FindName(const char* text, const char* text_locase, LPCTSTR searchstring, LPTSTR name)
+static BOOL FindName(const char* text, const char* text_locase, LPCTSTR searchstring, LPTSTR name, int nameSize)
 {
     CALL_STACK_MESSAGE2("FindName( , %s, )", searchstring);
     const char* p = strstr(text_locase, searchstring);
@@ -321,7 +327,7 @@ static BOOL FindName(const char* text, const char* text_locase, LPCTSTR searchst
             if (*p == '\"')
                 p++;
             char* q = name;
-            while (*p && *p != '\r' && *p != '\n' && *p != '\"' && (q - name < MAX_PATH))
+            while (*p && *p != '\r' && *p != '\n' && *p != '\"' && (q - name < nameSize - 1))
                 *q++ = *p++;
             *q = 0;
             return TRUE;
@@ -331,6 +337,26 @@ static BOOL FindName(const char* text, const char* text_locase, LPCTSTR searchst
     }
     else
         return FALSE;
+}
+
+// The name in our .bat file is OEM-encoded (see CharToOemW in SplitFile) -> convert it back
+// to UTF-8, which is what the plugin interface uses since version 104.
+static void OemNameToU8(char* name, int nameSize)
+{
+    size_t len = strlen(name);
+    if (len == 0)
+        return;
+    WCHAR* w = (WCHAR*)malloc((len + 1) * sizeof(WCHAR));
+    if (w == NULL)
+        return;
+    char* u8 = (char*)malloc(3 * (len + 1));
+    if (u8 != NULL && OemToCharW(name, w) && SplWToU8(w, u8, 3 * (int)(len + 1)) > 0 &&
+        (int)strlen(u8) < nameSize)
+    {
+        strcpy(name, u8);
+    }
+    free(u8);
+    free(w);
 }
 
 static BOOL FindTime(const char* text, LPCTSTR searchstring, FILETIME* ft)
@@ -355,15 +381,19 @@ static BOOL FindTime(const char* text, LPCTSTR searchstring, FILETIME* ft)
         return FALSE;
 }
 
-static void AnalyzeFile(LPTSTR fileName, LPTSTR origName, UINT32& origCrc, FILETIME* origTime,
+static void AnalyzeFile(LPTSTR fileName, LPTSTR origName, int origNameSize, UINT32& origCrc, FILETIME* origTime,
                         BOOL& bNameAcquired, BOOL& bCrcAcquired, BOOL& bTimeAcquired)
 {
     CALL_STACK_MESSAGE2("AnalyzeFile(%s, , , , )", fileName);
     bNameAcquired = bCrcAcquired = FALSE;
-    // load the file into a buffer
+    // load the file into a buffer; 'fileName' is UTF-8 -> open via the W API
     HANDLE hFile;
-    if ((hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                            FILE_FLAG_SEQUENTIAL_SCAN, NULL)) == INVALID_HANDLE_VALUE)
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    hFile = wFileName != NULL ? CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                                            FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+                              : INVALID_HANDLE_VALUE;
+    free(wFileName);
+    if (hFile == INVALID_HANDLE_VALUE)
         return;
     DWORD size = GetFileSize(hFile, NULL), numread;
     // j.r. 21.1.2003: when splitting to 999 parts I received a batch of 30KB
@@ -402,9 +432,11 @@ static void AnalyzeFile(LPTSTR fileName, LPTSTR origName, UINT32& origCrc, FILET
     // "filename" or "name"
     if (!bNameAcquired)
     {
-        bNameAcquired = FindName(text, text_locase, "filename", origName);
+        bNameAcquired = FindName(text, text_locase, "filename", origName, origNameSize);
         if (!bNameAcquired)
-            bNameAcquired = FindName(text, text_locase, "name", origName);
+            bNameAcquired = FindName(text, text_locase, "name", origName, origNameSize);
+        if (bNameAcquired)
+            OemNameToU8(origName, origNameSize); // the name in the .bat / .crc file is OEM-encoded
     }
     // "time"
     if (!bTimeAcquired)
@@ -422,12 +454,13 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
 
     TIndirectArray<char> files(100, 100, dtDelete);
 
-    char sourceDir[MAX_PATH];
-    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, sourceDir, MAX_PATH, NULL, NULL);
+    // the panel paths and names are UTF-8 since plugin interface 104 (up to 3 bytes per character)
+    char sourceDir[3 * MAX_PATH];
+    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, sourceDir, _countof(sourceDir), NULL, NULL);
 
     BOOL bTestCompanionFile = FALSE;
-    char companionFile[MAX_PATH];
-    char name1[MAX_PATH], name2[MAX_PATH];
+    char companionFile[3 * MAX_PATH];
+    char name1[3 * MAX_PATH], name2[3 * MAX_PATH];
     const CFileData* pfd;
     BOOL isDir;
 
@@ -465,8 +498,8 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
         if (!bAllSameNames)
             strcpy(name1, "combinedfile");
         strcpy(companionFile, sourceDir);
-        if (!SalamanderGeneral->SalPathAppend(companionFile, name1, MAX_PATH) ||
-            strlen(companionFile) + 1 >= MAX_PATH) // safety check for the strcat() below
+        if (!SalamanderGeneral->SalPathAppend(companionFile, name1, _countof(companionFile)) ||
+            strlen(companionFile) + 1 >= _countof(companionFile)) // safety check for the strcat() below
         {
             SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
             return FALSE;
@@ -525,7 +558,7 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
 
             lstrcpyn(name1, pfd->Name, (int)(ext - pfd->Name + 2));
             strcpy(companionFile, sourceDir);
-            if (!SalamanderGeneral->SalPathAppend(companionFile, name1, MAX_PATH))
+            if (!SalamanderGeneral->SalPathAppend(companionFile, name1, _countof(companionFile)))
             {
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
                 return FALSE;
@@ -562,7 +595,7 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
         { // missing extension - skip it, we will not extend anything
             bJustOneFile = TRUE;
             strcpy(companionFile, sourceDir);
-            if (!SalamanderGeneral->SalPathAppend(companionFile, "combinedfile", MAX_PATH))
+            if (!SalamanderGeneral->SalPathAppend(companionFile, "combinedfile", _countof(companionFile)))
             {
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
                 return FALSE;
@@ -581,24 +614,24 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
     if (bTestCompanionFile)
     { // inspect a potential BAT or CRC
         size_t ext = strlen(companionFile);
-        if (ext + 3 >= MAX_PATH) // safety check for the strcat() below
+        if (ext + 3 >= _countof(companionFile)) // safety check for the strcat() below
         {
             SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
             return FALSE;
         }
         strcat(companionFile, "bat");
-        AnalyzeFile(companionFile, name2, origCrc, &origTime, bName, bCrc, bTime);
+        AnalyzeFile(companionFile, name2, _countof(name2), origCrc, &origTime, bName, bCrc, bTime);
         if (!bName || !bCrc)
         {
             companionFile[ext] = 0;
             strcat(companionFile, "crc");
-            AnalyzeFile(companionFile, name2, origCrc, &origTime, bName, bCrc, bTime);
+            AnalyzeFile(companionFile, name2, _countof(name2), origCrc, &origTime, bName, bCrc, bTime);
         }
         companionFile[ext] = 0;
         if (bName)
         {
             strcpy(name1, sourceDir);
-            if (!SalamanderGeneral->SalPathAppend(name1, name2, MAX_PATH))
+            if (!SalamanderGeneral->SalPathAppend(name1, name2, _countof(name1)))
             {
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
                 return FALSE;
@@ -613,7 +646,7 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
         char* dot = _tcsrchr(name1, '.');
         if (dot == NULL) // ".cvspass" is an extension in Windows
         {
-            if (strlen(name1) + 4 >= MAX_PATH) // safety check for the strcat() below
+            if (strlen(name1) + 4 >= _countof(name1)) // safety check for the strcat() below
             {
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
                 return FALSE;
@@ -627,8 +660,8 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
         // but the previous code did not anticipate it, so I would have had to rewrite it all...
         // This code replaces the path in "name1", which points to the source panel, with the target panel path
         SalamanderGeneral->SalPathStripPath(name1);
-        GetTargetDir(name2, NULL, FALSE);
-        if (!SalamanderGeneral->SalPathAppend(name2, name1, MAX_PATH))
+        GetTargetDir(name2, _countof(name2), NULL, FALSE);
+        if (!SalamanderGeneral->SalPathAppend(name2, name1, _countof(name2)))
         {
             SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE), MSGBOX_ERROR);
             return FALSE;
@@ -636,11 +669,11 @@ BOOL CombineCommand(DWORD eventMask, HWND parent, CSalamanderForOperationsAbstra
         strcpy(name1, name2);
     }
 
-    if (!CombineDialog(files, name1, bCrc, origCrc, parent, salamander))
+    if (!CombineDialog(files, name1, _countof(name1), bCrc, origCrc, parent, salamander))
         return FALSE;
 
-    GetTargetDir(sourceDir, NULL, FALSE);
-    if (!MakePathAbsolute(name1, FALSE, sourceDir, !configCombineToOther, IDS_COMBINE))
+    GetTargetDir(sourceDir, _countof(sourceDir), NULL, FALSE);
+    if (!MakePathAbsolute(name1, _countof(name1), FALSE, sourceDir, !configCombineToOther, IDS_COMBINE))
         return FALSE;
 
     return CombineFiles(files, name1, FALSE, bCrc, origCrc, bTime, &origTime, parent, salamander);

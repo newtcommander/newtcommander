@@ -212,8 +212,10 @@ CAdvancedSEDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 BOOL CAdvancedSEDialog::OnInit(WPARAM wParam, LPARAM lParam)
 {
     CALL_STACK_MESSAGE3("CAdvancedSEDialog::OnInit(0x%IX, 0x%IX)", wParam, lParam);
-    ExtractIconEx(TmpSfxSettings.IconFile, TmpSfxSettings.IconIndex,
-                  &LargeIcon, &SmallIcon, 1);
+    WCHAR wIconFile[MAX_PATH]; // the icon file name is UTF-8 (interface 104)
+    if (SplU8ToW(TmpSfxSettings.IconFile, wIconFile, MAX_PATH) != 0)
+        ExtractIconExW(wIconFile, TmpSfxSettings.IconIndex,
+                       &LargeIcon, &SmallIcon, 1);
     SubClassSmallIcon(IDC_EXEICON, true);
 
     ResetValueControls();
@@ -526,39 +528,21 @@ BOOL CAdvancedSEDialog::OnChangeIcon(WORD wNotifyCode, WORD wID, HWND hwndCtl)
         FPickIconDlg PickIconDlg = (FPickIconDlg)GetProcAddress(Shell32DLL, (LPCSTR)62); // Min: XP (shell32.dll version 6.0)
         if (PickIconDlg)
         {
-            char file[MAX_PATH];
+            char file[MAX_PATH]; // UTF-8; the field in CSfxSettings is MAX_PATH bytes
             DWORD index = TmpSfxSettings.IconIndex;
-            WCHAR wfile[MAX_PATH];
+            WCHAR wfile[MAX_PATH]; // PickIconDlg (ordinal 62) is the W variant
 
-            lstrcpy(file, TmpSfxSettings.IconFile);
-            MultiByteToWideChar(CP_ACP, 0, file, -1, wfile, MAX_PATH);
-            wfile[MAX_PATH - 1] = 0;
+            if (SplU8ToW(TmpSfxSettings.IconFile, wfile, MAX_PATH) == 0)
+                *wfile = 0;
 
             if (PickIconDlg(Dlg, (LPSTR)wfile, MAX_PATH, &index))
             {
-                WideCharToMultiByte(CP_ACP, 0, wfile, -1, file, MAX_PATH, NULL, NULL);
-                file[MAX_PATH - 1] = 0;
-
-                /*
-        if (file[0] == '%')
-        {
-          char buf[MAX_PATH];
-          char * c = strchr(file + 1, '%');
-          if (c)
-          {
-            *c = 0;
-            int i = GetEnvironmentVariable(file + 1, buf, MAX_PATH);
-            if (i && i <= MAX_PATH)
-            {
-              if (PathAppend(buf, ++c)) lstrcpy(file, buf);
-            }
-          }
-        }
-        */
-                char buf[MAX_PATH];
-                DWORD ret = ExpandEnvironmentStrings(file, buf, MAX_PATH);
+                WCHAR wbuf[MAX_PATH];
+                DWORD ret = ExpandEnvironmentStringsW(wfile, wbuf, MAX_PATH);
                 if (ret != 0 && ret <= MAX_PATH)
-                    lstrcpy(file, buf);
+                    lstrcpynW(wfile, wbuf, MAX_PATH);
+                if (SplWToU8(wfile, file, MAX_PATH) == 0)
+                    *file = 0;
 
                 HICON iconLarge, iconSmall;
                 CIcon* icons;
@@ -580,9 +564,9 @@ BOOL CAdvancedSEDialog::OnChangeIcon(WORD wNotifyCode, WORD wID, HWND hwndCtl)
                 }
                 if (!errorID)
                 {
-                    if (ExtractIconEx(file, index, &iconLarge, &iconSmall, 1))
+                    if (ExtractIconExW(wfile, index, &iconLarge, &iconSmall, 1))
                     {
-                        lstrcpy(TmpSfxSettings.IconFile, file);
+                        lstrcpyn(TmpSfxSettings.IconFile, file, MAX_PATH);
                         TmpSfxSettings.IconIndex = index;
                         if (SmallIcon)
                             DestroyIcon(SmallIcon);
@@ -1005,19 +989,24 @@ BOOL CAdvancedSEDialog::OnImport()
             LoadStr(IDS_ALLFILES), 0, "*.*", 0);
     ofn.lpstrFilter = buf;
     ofn.nFilterIndex = 1;
-    char fileName[MAX_PATH];
+    char fileName[MAX_PATH]; // ANSI - the common file dialog is ANSI
+    char initDir[MAX_PATH];
     fileName[0] = 0;
     ofn.lpstrFile = fileName;
-    if (PackObject->Config.LastExportPath[0])
-        ofn.lpstrInitialDir = PackObject->Config.LastExportPath;
+    if (PackObject->Config.LastExportPath[0] &&
+        U8ToDlgA(PackObject->Config.LastExportPath, initDir, MAX_PATH))
+        ofn.lpstrInitialDir = initDir;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = "set";
 
     if (GetOpenFileName(&ofn))
     {
+        char fileNameU8[U8_MAX_NAME + MAX_PATH]; // the name from the dialog in UTF-8
+        if (!DlgAToU8(fileName, fileNameU8, (int)sizeof(fileNameU8)))
+            return TRUE;
         CFile* file;
-        int ret = PackObject->CreateCFile(&file, fileName, GENERIC_READ, FILE_SHARE_READ,
+        int ret = PackObject->CreateCFile(&file, fileNameU8, GENERIC_READ, FILE_SHARE_READ,
                                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, PE_NOSKIP, NULL,
                                           false, false);
         if (ret)
@@ -1051,8 +1040,8 @@ BOOL CAdvancedSEDialog::OnImport()
                     settings.SfxFile[0] = 0;
                 }
 
-                char zip2sfxDir[MAX_PATH];
-                if (GetModuleFileName(DLLInstance, zip2sfxDir, MAX_PATH - 1)) // -1 is the length difference between "zip2sfx\\" and "zip.spl"
+                char zip2sfxDir[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+                if (GetModuleFileNameU8(DLLInstance, zip2sfxDir, (DWORD)sizeof(zip2sfxDir) - 9)) // -9 is the length difference between "zip2sfx\\" and "zip.spl"
                 {
                     char* name = strrchr(zip2sfxDir, '\\');
                     if (name != NULL)
@@ -1089,7 +1078,7 @@ BOOL CAdvancedSEDialog::OnImport()
                         lstrcpy(settings.ExtractBtnText, lang->ButtonText);
                         lstrcpy(settings.Vendor, lang->Vendor);
                         lstrcpy(settings.WWW, lang->WWW);
-                        GetModuleFileName(DLLInstance, settings.IconFile, MAX_PATH);
+                        GetModuleFileNameU8(DLLInstance, settings.IconFile, MAX_PATH);
                         settings.IconIndex = -IDI_SFXICON;
                         // load them a second time to get the texts (these parameters are optional)
                         // if they are not provided, use the texts from the SFX package, either the specified
@@ -1108,7 +1097,7 @@ BOOL CAdvancedSEDialog::OnImport()
                         if (LoadFavSettings(&settings))
                         {
                             ResetValueControls();
-                            lstrcpy(PackObject->Config.LastExportPath, fileName);
+                            lstrcpyn(PackObject->Config.LastExportPath, fileNameU8, MAX_PATH);
                             SalamanderGeneral->CutDirectory(PackObject->Config.LastExportPath);
                         }
                     }
@@ -1163,12 +1152,12 @@ BOOL CAdvancedSEDialog::OnExport()
     CSfxSettings settings;
     if (!GetSettings(&settings))
         return TRUE;
-    char fullPath[MAX_PATH];
-    GetModuleFileName(DLLInstance, fullPath, MAX_PATH);
+    char fullPath[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+    GetModuleFileNameU8(DLLInstance, fullPath, (DWORD)sizeof(fullPath));
     SalamanderGeneral->CutDirectory(fullPath);
-    SalamanderGeneral->SalPathAppend(fullPath, "sfx", MAX_PATH);
-    SalamanderGeneral->SalPathAppend(fullPath, settings.SfxFile, MAX_PATH);
-    lstrcpy(settings.SfxFile, fullPath);
+    SalamanderGeneral->SalPathAppend(fullPath, "sfx", (int)sizeof(fullPath));
+    SalamanderGeneral->SalPathAppend(fullPath, settings.SfxFile, (int)sizeof(fullPath));
+    lstrcpyn(settings.SfxFile, fullPath, MAX_PATH);
     //lstrcpy(settings.IconFile, TmpSfxSettings.IconFile);
     //settings.IconIndex = TmpSfxSettings.IconIndex;
 
@@ -1180,24 +1169,29 @@ BOOL CAdvancedSEDialog::OnExport()
     sprintf(buf, "%s%c*.set%c", LoadStr(IDS_SETTINGSFILE), 0, 0);
     ofn.lpstrFilter = buf;
     ofn.nFilterIndex = 1;
-    char fileName[MAX_PATH];
+    char fileName[MAX_PATH]; // ANSI - the common file dialog is ANSI
+    char initDir[MAX_PATH];
     fileName[0] = 0;
     ofn.lpstrFile = fileName;
-    if (PackObject->Config.LastExportPath[0])
-        ofn.lpstrInitialDir = PackObject->Config.LastExportPath;
+    if (PackObject->Config.LastExportPath[0] &&
+        U8ToDlgA(PackObject->Config.LastExportPath, initDir, MAX_PATH))
+        ofn.lpstrInitialDir = initDir;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_EXPLORER | /*OFN_FILEMUSTEXIST | */ OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
     ofn.lpstrDefExt = "set";
 
     if (SalamanderGeneral->SafeGetSaveFileName(&ofn))
     {
+        char fileNameU8[U8_MAX_NAME + MAX_PATH]; // the name from the dialog in UTF-8
+        if (!DlgAToU8(fileName, fileNameU8, (int)sizeof(fileNameU8)))
+            return TRUE;
         // test whether it already exists
-        if (SalamanderGeneral->SalGetFileAttributes(fileName) == 0xFFFFFFFF ||
+        if (SalamanderGeneral->SalGetFileAttributes(fileNameU8) == 0xFFFFFFFF ||
             SalamanderGeneral->SalMessageBox(Dlg, LoadStr(IDS_EXPORTOVEWRITE), LoadStr(IDS_PLUGINNAME),
                                              MB_YESNO | MB_ICONQUESTION) == IDYES)
         {
             CFile* file;
-            int ret = PackObject->CreateCFile(&file, fileName, GENERIC_WRITE, FILE_SHARE_READ,
+            int ret = PackObject->CreateCFile(&file, fileNameU8, GENERIC_WRITE, FILE_SHARE_READ,
                                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, PE_NOSKIP, NULL,
                                               false, false);
             if (ret)
@@ -1213,7 +1207,7 @@ BOOL CAdvancedSEDialog::OnExport()
             if (PackObject->ExportSFXSettings(file, &settings))
             {
                 PackObject->CloseCFile(file);
-                lstrcpy(PackObject->Config.LastExportPath, fileName);
+                lstrcpyn(PackObject->Config.LastExportPath, fileNameU8, MAX_PATH);
                 SalamanderGeneral->CutDirectory(PackObject->Config.LastExportPath);
                 // notify the change on the path
                 SalamanderGeneral->PostChangeOnPathNotification(PackObject->Config.LastExportPath, FALSE);
@@ -1221,7 +1215,7 @@ BOOL CAdvancedSEDialog::OnExport()
             else
             {
                 PackObject->CloseCFile(file);
-                DeleteFile(ofn.lpstrFile);
+                DeleteFileU8(fileNameU8);
             }
         }
     }
@@ -1280,11 +1274,11 @@ BOOL CAdvancedSEDialog::OnPreview()
     {
         if (ret != IDS_NODISPLAY)
             SalamanderGeneral->SalMessageBox(Dlg, LoadStr(ret), LoadStr(IDS_ERROR), MB_OK | MB_ICONEXCLAMATION);
-        DeleteFile(tmpName);
+        DeleteFileU8(tmpName);
         return TRUE;
     }
 
-    HINSTANCE sfxHInstance = LoadLibraryEx(tmpName, NULL, LOAD_LIBRARY_AS_DATAFILE);
+    HINSTANCE sfxHInstance = LoadLibraryExU8(tmpName, LOAD_LIBRARY_AS_DATAFILE);
     if (sfxHInstance)
     {
         CALL_STACK_MESSAGE1("Preview SFX Dialog");
@@ -1318,7 +1312,7 @@ BOOL CAdvancedSEDialog::OnPreview()
     else
         TRACE_E("LoadLibraryEx failed");
 
-    DeleteFile(tmpName);
+    DeleteFileU8(tmpName);
 
     return TRUE;
 }
@@ -1370,8 +1364,8 @@ BOOL CAdvancedSEDialog::OnResetValues()
         HICON iconLarge, iconSmall;
         CIcon* icons;
         int count;
-        char file[MAX_PATH];
-        GetModuleFileName(DLLInstance, file, MAX_PATH);
+        char file[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+        GetModuleFileNameU8(DLLInstance, file, (DWORD)sizeof(file));
         int errorID = 0;
         switch (LoadIcons(file, -IDI_SFXICON, &icons, &count))
         {
@@ -1390,9 +1384,11 @@ BOOL CAdvancedSEDialog::OnResetValues()
         }
         if (!errorID)
         {
-            if (ExtractIconEx(file, -IDI_SFXICON, &iconLarge, &iconSmall, 1))
+            WCHAR wFile[MAX_PATH];
+            if (SplU8ToW(file, wFile, MAX_PATH) != 0 &&
+                ExtractIconExW(wFile, -IDI_SFXICON, &iconLarge, &iconSmall, 1))
             {
-                lstrcpy(TmpSfxSettings.IconFile, file);
+                lstrcpyn(TmpSfxSettings.IconFile, file, MAX_PATH);
                 TmpSfxSettings.IconIndex = -IDI_SFXICON;
                 if (SmallIcon)
                     DestroyIcon(SmallIcon);
@@ -1667,9 +1663,11 @@ BOOL CAdvancedSEDialog::LoadFavSettings(CSfxSettings* sfxSettings)
     }
     if (!errorID)
     {
-        if (ExtractIconEx(sfxSettings->IconFile, sfxSettings->IconIndex, &iconLarge, &iconSmall, 1))
+        WCHAR wIconFile[MAX_PATH]; // the icon file name is UTF-8 (interface 104)
+        if (SplU8ToW(sfxSettings->IconFile, wIconFile, MAX_PATH) != 0 &&
+            ExtractIconExW(wIconFile, sfxSettings->IconIndex, &iconLarge, &iconSmall, 1))
         {
-            lstrcpy(TmpSfxSettings.IconFile, sfxSettings->IconFile);
+            lstrcpyn(TmpSfxSettings.IconFile, sfxSettings->IconFile, MAX_PATH);
             TmpSfxSettings.IconIndex = sfxSettings->IconIndex;
             if (SmallIcon)
                 DestroyIcon(SmallIcon);

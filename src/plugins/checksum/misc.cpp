@@ -88,8 +88,13 @@ BOOL SafeOpenCreateFile(LPCTSTR fileName, DWORD desiredAccess, DWORD shareMode, 
     CALL_STACK_MESSAGE6("SafeOpenCreateFile(%s, 0x%X, 0x%X, 0x%X, 0x%X, , , )", fileName, desiredAccess,
                         shareMode, creationDisposition, flagsAndAttributes);
 
-    while ((*hFile = CreateFile(fileName, desiredAccess, shareMode, NULL, creationDisposition,
-                                flagsAndAttributes, NULL)) == INVALID_HANDLE_VALUE &&
+    // 'fileName' is UTF-8 since plugin interface 104 -> open via the W API (Unicode + long paths)
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+
+    while ((*hFile = wFileName != NULL ? CreateFileW(wFileName, desiredAccess, shareMode, NULL, creationDisposition,
+                                                     flagsAndAttributes, NULL)
+                                       : CreateFileA(fileName, desiredAccess, shareMode, NULL, creationDisposition,
+                                                     flagsAndAttributes, NULL)) == INVALID_HANDLE_VALUE &&
            ((silent != NULL) ? !*silent : 1))
     {
         int lastErr = GetLastError();
@@ -108,6 +113,7 @@ BOOL SafeOpenCreateFile(LPCTSTR fileName, DWORD desiredAccess, DWORD shareMode, 
         {
         case DIALOG_CANCEL:
         case DIALOG_FAIL:
+            free(wFileName);
             return FALSE;
 
         case DIALOG_RETRY:
@@ -118,9 +124,11 @@ BOOL SafeOpenCreateFile(LPCTSTR fileName, DWORD desiredAccess, DWORD shareMode, 
         case DIALOG_SKIP:
             if (skip != NULL)
                 *skip = TRUE;
+            free(wFileName);
             return TRUE;
         }
     }
+    free(wFileName);
     if (skip != NULL)
         *skip = (*hFile == INVALID_HANDLE_VALUE);
     return TRUE;

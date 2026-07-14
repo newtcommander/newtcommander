@@ -321,6 +321,77 @@ void GetInfo(char* buffer, const FILETIME* lastWrite, UINT64 size)
     sprintf(buffer, "%s, %s, %s", SalamanderGeneral->NumberToStr(number, qwsize), date, time);
 }
 
+// ****************************************************************************
+//
+// W-API file helpers
+//
+// Interface 104 hands us UTF-8 paths that may be longer than MAX_PATH. The -A
+// entry points would reinterpret them in the ANSI code page, so every file API
+// the plugin calls itself goes through UTF-16 + the \\?\ prefix (splunicode.h).
+//
+
+HANDLE CreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                    DWORD creationDisposition)
+{
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    if (wFileName == NULL)
+    {
+        ::SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = ::CreateFileW(wFileName, desiredAccess, shareMode, NULL, creationDisposition,
+                                FILE_ATTRIBUTE_NORMAL, NULL);
+    DWORD err = ::GetLastError();
+    free(wFileName);
+    ::SetLastError(err); // preserve CreateFileW's error across free()
+    return file;
+}
+
+BOOL DeleteFileU8(const char* fileName)
+{
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    if (wFileName == NULL)
+    {
+        ::SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::DeleteFileW(wFileName);
+    DWORD err = ::GetLastError();
+    free(wFileName);
+    ::SetLastError(err); // preserve DeleteFileW's error across free()
+    return ret;
+}
+
+BOOL RemoveDirectoryU8(const char* dirName)
+{
+    WCHAR* wDirName = SplU8ToWExtAlloc(dirName);
+    if (wDirName == NULL)
+    {
+        ::SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::RemoveDirectoryW(wDirName);
+    DWORD err = ::GetLastError();
+    free(wDirName);
+    ::SetLastError(err); // preserve RemoveDirectoryW's error across free()
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* fileName, DWORD fileAttributes)
+{
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    if (wFileName == NULL)
+    {
+        ::SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::SetFileAttributesW(wFileName, fileAttributes);
+    DWORD err = ::GetLastError();
+    free(wFileName);
+    ::SetLastError(err); // preserve SetFileAttributesW's error across free()
+    return ret;
+}
+
 BOOL SafeDeleteFile(const char* fileName, BOOL& silent)
 {
     int mbRet;
@@ -328,7 +399,7 @@ BOOL SafeDeleteFile(const char* fileName, BOOL& silent)
     do
     {
         mbRet = DIALOG_OK;
-        if (!::DeleteFile(fileName) && !silent)
+        if (!DeleteFileU8(fileName) && !silent)
         {
             DWORD err = ::GetLastError();
             mbRet = SalamanderGeneral->DialogError(SalamanderGeneral->GetMsgBoxParent(), BUTTONS_RETRYSKIPCANCEL,
@@ -364,7 +435,7 @@ BOOL SafeRemoveDirectory(const char* fileName, BOOL& silent)
     do
     {
         mbRet = DIALOG_OK;
-        if (!::RemoveDirectory(fileName) && !silent)
+        if (!RemoveDirectoryU8(fileName) && !silent)
         {
             DWORD err = ::GetLastError();
             mbRet = SalamanderGeneral->DialogError(SalamanderGeneral->GetMsgBoxParent(), BUTTONS_RETRYSKIPCANCEL,
@@ -817,6 +888,7 @@ void CalcSize(CSalamanderDirectoryAbstract const* dir, const char* mask, CQuadWo
     }
 }
 
+// 'archivePath' is a UTF-8 path inside the archive, a buffer of U8_MAX_PATH bytes
 int GatherItems(CSalamanderDirectoryAbstract const* dir, const char* mask, TIndirectArray<CArchiveItemInfo>* archiveItems, char* archivePath)
 {
     int archivePathLen = lstrlen(archivePath);
@@ -828,7 +900,7 @@ int GatherItems(CSalamanderDirectoryAbstract const* dir, const char* mask, TIndi
         CFileData const* fileData = dir->GetFile(i);
         if (SalamanderGeneral->AgreeMask(fileData->Name, mask, fileData->Ext[0] != 0) &&
             fileData->PluginData != 0 &&
-            SalamanderGeneral->SalPathAppend(archivePath, fileData->Name, MAX_PATH)) // reuse archivePath for the file name in the archive
+            SalamanderGeneral->SalPathAppend(archivePath, fileData->Name, U8_MAX_PATH)) // reuse archivePath for the file name in the archive
         {
             CArchiveItemInfo* aii = new CArchiveItemInfo(archivePath, fileData, FALSE);
             archivePath[archivePathLen] = '\0';
@@ -847,7 +919,7 @@ int GatherItems(CSalamanderDirectoryAbstract const* dir, const char* mask, TIndi
     {
         CFileData const* fileData = dir->GetDir(j);
         CSalamanderDirectoryAbstract const* subDir = dir->GetSalDir(j);
-        if (SalamanderGeneral->SalPathAppend(archivePath, fileData->Name, MAX_PATH))
+        if (SalamanderGeneral->SalPathAppend(archivePath, fileData->Name, U8_MAX_PATH))
         {
             // include directories in processing (but only those that have PluginData defined)
             if (SalamanderGeneral->AgreeMask(fileData->Name, mask,
@@ -911,16 +983,23 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                     char modmask[256];
                     SalamanderGeneral->PrepareMask(modmask, mask);
 
-                    char archivePath[MAX_PATH_LEN];
-                    archivePath[0] = '\0';
-
-                    TIndirectArray<CArchiveItemInfo> archiveItems(itemCount, 10, dtDelete);
-                    if (GatherItems(dir, modmask, &archiveItems, archivePath) != OPER_CANCEL)
+                    // paths inside the archive can be long, so keep them on the heap
+                    char* archivePath = (char*)malloc(U8_MAX_PATH);
+                    if (archivePath == NULL)
+                        Error(IDS_INSUFFICIENT_MEMORY);
+                    else
                     {
-                        C7zClient* client2 = ((CPluginDataInterface*)pluginData)->Get7zClient();
+                        archivePath[0] = '\0';
 
-                        salamander->ProgressDialogAddText(LoadStr(IDS_UNPACKING), FALSE);
-                        ret = client2->Decompress(salamander, fileName, targetDir, &archiveItems, pluginData->Password) != OPER_CANCEL;
+                        TIndirectArray<CArchiveItemInfo> archiveItems(itemCount, 10, dtDelete);
+                        if (GatherItems(dir, modmask, &archiveItems, archivePath) != OPER_CANCEL)
+                        {
+                            C7zClient* client2 = ((CPluginDataInterface*)pluginData)->Get7zClient();
+
+                            salamander->ProgressDialogAddText(LoadStr(IDS_UNPACKING), FALSE);
+                            ret = client2->Decompress(salamander, fileName, targetDir, &archiveItems, pluginData->Password) != OPER_CANCEL;
+                        }
+                        free(archivePath);
                     }
                     salamander->CloseProgressDialog();
                 }
@@ -971,20 +1050,20 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
 
     // test whether the archive exists (we need to distinguish between updating and creating a new archive)
     BOOL isNewArchive = FALSE;
-    HANDLE hArchive = ::CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hArchive = CreateFileU8(fileName, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
     if (hArchive == INVALID_HANDLE_VALUE)
     {
         isNewArchive = TRUE; // the file does not exist; this is a new archive
 
         // check whether the target path is writable
         hArchive = INVALID_HANDLE_VALUE;
-        hArchive = ::CreateFile(fileName, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+        hArchive = CreateFileU8(fileName, GENERIC_WRITE, FILE_SHARE_WRITE, CREATE_NEW);
         if (hArchive == INVALID_HANDLE_VALUE)
             return SysError(IDS_CANT_CREATE_ARCHIVE, ::GetLastError());
         else
         {
             ::CloseHandle(hArchive);
-            ::DeleteFile(fileName);
+            DeleteFileU8(fileName);
         }
     }
     else
@@ -1002,7 +1081,7 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
 
         // check whether the file is writable
         hArchive = INVALID_HANDLE_VALUE;
-        hArchive = ::CreateFile(fileName, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        hArchive = CreateFileU8(fileName, GENERIC_WRITE, FILE_SHARE_WRITE, OPEN_EXISTING);
         if (hArchive == INVALID_HANDLE_VALUE)
             return SysError(IDS_CANT_UPDATE_ARCHIVE, ::GetLastError(), FALSE, fileName);
         else
@@ -1103,6 +1182,7 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
         salamander->ProgressDialogAddText(LoadStr(IDS_PACKING), FALSE);
     else
         salamander->ProgressDialogAddText(LoadStr(IDS_UPDATING), FALSE);
+    // NOTE: 'password' comes from our own ANSI dialog, so it is in the ACP, not UTF-8
     BOOL ret = client.Update(salamander, fileName, sourcePath, isNewArchive, &fileList, &compressParams, passwordDefined,
                              GetUnicodeString(password)) == OPER_OK;
 
@@ -1111,9 +1191,8 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
     { // first lock the archive file so we cannot delete it ourselves (bug: https://forum.altap.cz/viewtopic.php?f=3&t=3859)
         while (1)
         {
-            hArchive = ::CreateFile(fileName, GENERIC_READ /* Using 0 was tested, but then the system allowed the file to be deleted */,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                    NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+            hArchive = CreateFileU8(fileName, GENERIC_READ /* Using 0 was tested, but then the system allowed the file to be deleted */,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING);
 
             if (hArchive != INVALID_HANDLE_VALUE)
                 break;
@@ -1142,8 +1221,8 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
                 CFileItem* fi = fileList[i];
                 if (fi->CanDelete && !fi->IsDir)
                 {
-                    // delete the file
-                    CSysString name2 = GetAnsiString(fi->FullPath);
+                    // delete the file (FullPath is UTF-16 inside 7za, the interface wants UTF-8)
+                    AString name2 = UStringToU8(fi->FullPath);
 
                     // drop the read-only attribute if needed
                     SalamanderGeneral->ClearReadOnlyAttr(name2);
@@ -1167,10 +1246,16 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
             }
 
             // files deleted (no cancel); continue with deletion, now empty directories are next
+            // buffer for the full UTF-8 name on disk (a long path does not fit into MAX_PATH)
+            char* sourceName = ret ? (char*)malloc(U8_MAX_PATH) : NULL;
+            if (ret && sourceName == NULL)
+            {
+                Error(IDS_INSUFFICIENT_MEMORY);
+                ret = FALSE;
+            }
             if (ret)
             {
                 // prepare the buffer for names
-                char sourceName[MAX_PATH + 1]; // buffer for the full name on disk
                 strcpy(sourceName, sourcePath);
                 char* endSource = sourceName + strlen(sourceName); // space for the names from the 'next' enumeration
                 if (endSource > sourceName && *(endSource - 1) != '\\')
@@ -1178,7 +1263,7 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
                     *endSource++ = '\\';
                     *endSource = 0;
                 }
-                int endSourceSize = MAX_PATH - (int)(endSource - sourceName); // maximum number of characters for a name from the 'next' enumeration
+                int endSourceSize = U8_MAX_PATH - (int)(endSource - sourceName); // maximum number of bytes for a name from the 'next' enumeration
 
                 // delete directories; if something remains inside, they will not be removed, which is correct
                 // because we iterate from leaves to the root, we can delete them this way
@@ -1193,7 +1278,7 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
                             strcpy_s(endSource, endSourceSize, name);
                             // drop the read-only attribute if needed
                             SalamanderGeneral->ClearReadOnlyAttr(sourceName, attr);
-                            ::RemoveDirectory(sourceName);
+                            RemoveDirectoryU8(sourceName);
                         }
                         else
                             TRACE_E("Unable to delete directory, its full name is too long: " << sourcePath << " : " << name);
@@ -1208,6 +1293,7 @@ BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract
                     }
                 }
             }
+            free(sourceName);
             ::CloseHandle(hArchive);
         }
     }
@@ -1378,35 +1464,44 @@ static BOOL TestArchive(CSalamanderForOperationsAbstract* salamander, HWND hPare
     const CFileData* cfd = SalamanderGeneral->GetPanelFocusedItem(PANEL_SOURCE, NULL);
     if (cfd == NULL)
         return FALSE;
-    char fileName[2 * MAX_PATH];
+
+    // the full archive path is a UTF-8 long path -> keep it on the heap
+    char* fileName = (char*)malloc(U8_MAX_PATH);
+    char* text = (char*)malloc(U8_MAX_PATH + 1024);
+    if (fileName == NULL || text == NULL)
+    {
+        free(fileName);
+        free(text);
+        return Error(IDS_INSUFFICIENT_MEMORY);
+    }
 
     C7zClient client;
 
     salamander->OpenProgressDialog(LoadStr(IDS_TESTING_ARCHIVE), FALSE, NULL, FALSE);
-    sprintf(fileName, LoadStr(IDS_TESTING_ARCHIVE_NAME), cfd->Name);
-    salamander->ProgressDialogAddText(fileName, FALSE);
+    _snprintf_s(text, U8_MAX_PATH + 1024, _TRUNCATE, LoadStr(IDS_TESTING_ARCHIVE_NAME), cfd->Name);
+    salamander->ProgressDialogAddText(text, FALSE);
 
-    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, fileName, 2 * MAX_PATH, NULL, NULL);
-    SalamanderGeneral->SalPathAppend(fileName, cfd->Name, 2 * MAX_PATH);
+    fileName[0] = '\0';
+    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, fileName, U8_MAX_PATH, NULL, NULL);
+    SalamanderGeneral->SalPathAppend(fileName, cfd->Name, U8_MAX_PATH);
     int ret = client.TestArchive(salamander, fileName);
     salamander->CloseProgressDialog();
 
     if (ret == OPER_OK)
     {
-        char text[1024];
-        text[0] = '\0';
-        sprintf(text, LoadStr(IDS_TESTARCHIVEOK), fileName);
+        _snprintf_s(text, U8_MAX_PATH + 1024, _TRUNCATE, LoadStr(IDS_TESTARCHIVEOK), fileName);
         SalamanderGeneral->SalMessageBox(hParent, text, LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
         ret = TRUE;
     }
     else if (ret == OPER_CONTINUE)
     {
-        char text[1024];
-        text[0] = '\0';
-        sprintf(text, LoadStr(IDS_TESTARCHIVECORRUPTED), fileName);
+        _snprintf_s(text, U8_MAX_PATH + 1024, _TRUNCATE, LoadStr(IDS_TESTARCHIVECORRUPTED), fileName);
         SalamanderGeneral->SalMessageBox(hParent, text, LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
         ret = FALSE;
     }
+
+    free(fileName);
+    free(text);
 
     return ret;
 }

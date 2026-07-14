@@ -155,6 +155,30 @@ void ReleaseLogWindow(HWND hWindow)
 // FlexWriteText
 //
 
+// Draws (or only measures) one text run using the W GDI: the log can contain file names
+// which are UTF-8 since plugin interface 104; the resource strings are ANSI (fallback).
+static void FlexTextOut(HDC hDC, int x, int y, const char* text, int len, SIZE* size, BOOL draw)
+{
+    size->cx = 0;
+    size->cy = 0;
+    WCHAR buf[512];
+    WCHAR* w = buf;
+    if (len + 1 > (int)(sizeof(buf) / sizeof(buf[0])))
+    {
+        w = (WCHAR*)malloc((len + 1) * sizeof(WCHAR));
+        if (w == NULL)
+            return;
+    }
+    int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, len, w, len + 1);
+    if (wlen == 0) // not valid UTF-8 (e.g. an ANSI resource string) -> fall back to ANSI
+        wlen = MultiByteToWideChar(CP_ACP, 0, text, len, w, len + 1);
+    GetTextExtentPoint32W(hDC, w, wlen, size);
+    if (draw)
+        TextOutW(hDC, x, y, w, wlen);
+    if (w != buf)
+        free(w);
+}
+
 BOOL FlexWriteText(HDC hDC, int x, int y, const char* text, int cchText, int* hitIndex)
 {
     // save the settings
@@ -177,7 +201,7 @@ BOOL FlexWriteText(HDC hDC, int x, int y, const char* text, int cchText, int* hi
             len = 0;
             while (*(text + ix + len) != '\t' && *(text + ix + len) != 0)
                 len++;
-            GetTextExtentPoint32(hDC, text + ix, len, &size);
+            FlexTextOut(hDC, x, y, text + ix, len, &size, hitIndex == NULL);
             if (hitIndex != NULL)
             {
                 if (hitX >= x && hitX < x + size.cx && link)
@@ -186,8 +210,6 @@ BOOL FlexWriteText(HDC hDC, int x, int y, const char* text, int cchText, int* hi
                     return TRUE;
                 }
             }
-            else
-                TextOut(hDC, x, y, text + ix, len);
             ix += len - 1;
             x += size.cx;
         }
@@ -240,7 +262,7 @@ BOOL FlexWriteText(HDC hDC, int x, int y, const char* text, int cchText, int* hi
                 len = 0;
                 while (*(text + ix + len) != '\t' && *(text + ix + len) != 0)
                     len++;
-                GetTextExtentPoint32(hDC, text + ix, len, &size);
+                FlexTextOut(hDC, x, y, text + ix, len, &size, hitIndex == NULL);
                 if (hitIndex != NULL)
                 {
                     if (hitX >= x && hitX < x + size.cx && link)
@@ -249,8 +271,6 @@ BOOL FlexWriteText(HDC hDC, int x, int y, const char* text, int cchText, int* hi
                         return TRUE;
                     }
                 }
-                else
-                    TextOut(hDC, x, y, text + ix, len);
                 ix += len - 1;
                 x += size.cx;
                 break;

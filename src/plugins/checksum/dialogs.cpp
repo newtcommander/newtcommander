@@ -29,6 +29,20 @@ CThreadQueue ThreadQueue("CheckSum Dialogs and Workers"); // list of all dialog 
 
 #define IDT_RESENDCLOSE 11
 
+// The file names are UTF-8 since plugin interface 104, so the listviews ask for the W
+// notifications (see WM_NOTIFYFORMAT) and the texts are handed over as UTF-16 here.
+// UTF-8 text (with an ANSI fallback for the resource strings) -> the listview buffer
+static void SetDispInfoText(NMLVDISPINFOW* plvdi, const char* text)
+{
+    if (plvdi->item.pszText == NULL || plvdi->item.cchTextMax <= 0)
+        return;
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, -1, plvdi->item.pszText, plvdi->item.cchTextMax) == 0 &&
+        MultiByteToWideChar(CP_ACP, 0, text, -1, plvdi->item.pszText, plvdi->item.cchTextMax) == 0)
+    {
+        plvdi->item.pszText[0] = 0;
+    }
+}
+
 // ****************************************************************************************************
 //
 //  CSFVMD5Dialog
@@ -300,9 +314,22 @@ INT_PTR CSFVMD5Dialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 delete lv; // not attached = automatic deallocation will not happen
         }
 
+        // the names are UTF-8 -> let the listview re-ask for the notification format (we want W, see WM_NOTIFYFORMAT)
+        SendMessage(GetDlgItem(HWindow, IDC_LIST_FILES), WM_NOTIFYFORMAT, (WPARAM)HWindow, NF_REQUERY);
+
         SetForegroundWindow(HWindow);
 
         SetTimer(HWindow, IDT_UPDATEUI, IDT_UPDATESUI_PERIOD, NULL);
+        break;
+    }
+
+    case WM_NOTIFYFORMAT:
+    {
+        if (lParam == NF_QUERY)
+        { // we want the W notifications so that the UTF-8 names can be shown as Unicode
+            SetWindowLongPtr(HWindow, DWLP_MSGRESULT, NFR_UNICODE);
+            return TRUE;
+        }
         break;
     }
 
@@ -471,12 +498,14 @@ void CCalculateDialog::RefreshUI()
     }
 }
 
-BOOL CCalculateDialog::AddDir(char (&path)[MAX_PATH + 50], size_t root, BOOL* ignoreAll)
+BOOL CCalculateDialog::AddDir(char (&path)[3 * MAX_PATH], size_t root, BOOL* ignoreAll)
 {
     if (StopReadingDirectories)
         return FALSE;
 
-    WIN32_FIND_DATA fd;
+    // 'path' is UTF-8 since plugin interface 104 -> enumerate via the W API (Unicode + long paths)
+    WIN32_FIND_DATAW fd;
+    char fileName[3 * MAX_PATH]; // fd.cFileName converted to UTF-8
     HANDLE hFind;
     size_t plen = strlen(path);
     strcat(path, "\\*");
@@ -489,15 +518,20 @@ BOOL CCalculateDialog::AddDir(char (&path)[MAX_PATH + 50], size_t root, BOOL* ig
     do
     {
         again = FALSE;
-        if ((hFind = HANDLES_Q(FindFirstFile(path, &fd))) != INVALID_HANDLE_VALUE)
+        WCHAR* wPath = SplU8ToWExtAlloc(path);
+        hFind = wPath != NULL ? FindFirstFileW(wPath, &fd) : INVALID_HANDLE_VALUE;
+        free(wPath);
+        if (hFind != INVALID_HANDLE_VALUE)
         {
             do
             {
-                if (fd.cFileName[0] != 0 && strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, ".."))
+                if (SplWToU8(fd.cFileName, fileName, SizeOf(fileName)) == 0)
+                    continue; // name we cannot represent in UTF-8 (should not happen)
+                if (fileName[0] != 0 && strcmp(fileName, ".") && strcmp(fileName, ".."))
                 {
-                    if (plen + 1 + strlen(fd.cFileName) < MAX_PATH)
+                    if (plen + 1 + strlen(fileName) < SizeOf(path) - 2) // room for the "\\*" appended by the recursion
                     {
-                        strcpy(path + plen + 1, fd.cFileName);
+                        strcpy(path + plen + 1, fileName);
                         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                             ret = AddDir(path, root, ignoreAll);
                         else
@@ -537,8 +571,8 @@ BOOL CCalculateDialog::AddDir(char (&path)[MAX_PATH + 50], size_t root, BOOL* ig
                         ret = FALSE;
                     }
                 }
-            } while (!StopReadingDirectories && ret && FindNextFile(hFind, &fd));
-            HANDLES(FindClose(hFind));
+            } while (!StopReadingDirectories && ret && FindNextFileW(hFind, &fd));
+            FindClose(hFind);
             if (StopReadingDirectories)
                 return FALSE;
         }
@@ -567,7 +601,7 @@ BOOL CCalculateDialog::GetFileList()
     totalSize = CQuadWord(0, 0);
 
     BOOL ret = TRUE;
-    char path[MAX_PATH + 50];
+    char path[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
     size_t root = strlen(SourcePath);
     if (root > 0 && SourcePath[root - 1] == '\\')
         root--;
@@ -575,7 +609,7 @@ BOOL CCalculateDialog::GetFileList()
     RefreshCounter = 0;
 
     strcpy(path, SourcePath);
-    SalamanderGeneral->SalPathAddBackslash(path, MAX_PATH); // if this fails, appending anything later would fail too (no need to handle here)
+    SalamanderGeneral->SalPathAddBackslash(path, SizeOf(path)); // if this fails, appending anything later would fail too (no need to handle here)
     char* pathEnd = path + strlen(path);
 
     BOOL ignoreAll = FALSE;
@@ -583,7 +617,7 @@ BOOL CCalculateDialog::GetFileList()
     {
         SEEDFILEINFO* cfi = (*pSeedFileList)[i];
 
-        if ((pathEnd - path) + strlen(cfi->Name) < MAX_PATH)
+        if ((size_t)(pathEnd - path) + strlen(cfi->Name) < SizeOf(path) - 2)
         {
             strcpy(pathEnd, cfi->Name);
             if (!cfi->bDir)
@@ -690,11 +724,11 @@ unsigned CCalculateThread::Body()
 
         // open the file
         HANDLE hFile;
-        char path[MAX_PATH];
+        char path[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
         strcpy(path, dialog->SourcePath);
         // should not happen - the name length was already verified in CCalculateDialog::GetFileList()
         // FILELISTITEM::Name does not change after being added to the array = no need for synchronized access
-        if (!SalamanderGeneral->SalPathAppend(path, dialog->FileList[i]->Name, MAX_PATH))
+        if (!SalamanderGeneral->SalPathAppend(path, dialog->FileList[i]->Name, SizeOf(path)))
         {
             TRACE_E("CCalculateThread::Body(): unexpected situation: SalPathAppend() has failed");
             break;
@@ -706,12 +740,14 @@ unsigned CCalculateThread::Body()
         {
             dialog->SetItemTextAndIcon(i, 2, LoadStr(IDS_SKIPPED));
             // advance progress by the size of the skipped file
-            WIN32_FIND_DATA fd;
+            WIN32_FIND_DATAW fd;
             memset(&fd, 0, sizeof(fd));
-            HANDLE find = HANDLES_Q(FindFirstFile(path, &fd));
+            WCHAR* wPath = SplU8ToWExtAlloc(path); // UTF-8 path -> W API
+            HANDLE find = wPath != NULL ? FindFirstFileW(wPath, &fd) : INVALID_HANDLE_VALUE;
+            free(wPath);
             if (find != INVALID_HANDLE_VALUE)
             {
-                HANDLES(FindClose(find));
+                FindClose(find);
                 CQuadWord size(fd.nFileSizeLow, fd.nFileSizeHigh);
                 if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
                     (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
@@ -741,12 +777,14 @@ unsigned CCalculateThread::Body()
                 {
                     dialog->SetItemTextAndIcon(i, 2, LoadStr(IDS_SKIPPED));
                     // advance progress by the size of the skipped file
-                    WIN32_FIND_DATA fd;
+                    WIN32_FIND_DATAW fd;
                     memset(&fd, 0, sizeof(fd));
-                    HANDLE find = HANDLES_Q(FindFirstFile(path, &fd));
+                    WCHAR* wPath = SplU8ToWExtAlloc(path); // UTF-8 path -> W API
+                    HANDLE find = wPath != NULL ? FindFirstFileW(wPath, &fd) : INVALID_HANDLE_VALUE;
+                    free(wPath);
                     if (find != INVALID_HANDLE_VALUE)
                     {
-                        HANDLES(FindClose(find));
+                        FindClose(find);
                         CQuadWord size(fd.nFileSizeLow, fd.nFileSizeHigh);
                         if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
                             (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
@@ -844,19 +882,31 @@ void CCalculateDialog::DeleteItem(int index)
         EnableButtons(FALSE);
 }
 
-BOOL CCalculateDialog::GetSaveFileName(LPTSTR buffer, LPCTSTR title)
+// resource (ANSI) string -> UTF-16
+static void ResStrToW(const char* str, WCHAR* buf, int bufChars)
 {
-    CALL_STACK_MESSAGE2("CCalculateDialog::GetSaveFileName(, %s)", title);
+    if (bufChars <= 0)
+        return;
+    if (MultiByteToWideChar(CP_ACP, 0, str, -1, buf, bufChars) == 0)
+        buf[0] = 0;
+}
+
+BOOL CCalculateDialog::GetSaveFileName(char* buffer, int bufferSize, const char* title)
+{
+    CALL_STACK_MESSAGE2("CCalculateDialog::GetSaveFileName(, , %s)", title);
 
     // obtain the default name; are all names identical?
-    char file1[MAX_PATH], file2[MAX_PATH], filter[MAX_PATH], *s;
-    GetItemText(0, 0, file1, MAX_PATH);
+    // the names are UTF-8 -> read them from our list (the listview would hand them back in ANSI)
+    char file1[3 * MAX_PATH], file2[3 * MAX_PATH];
+    file1[0] = 0;
+    if (FileList.Count > 0)
+        lstrcpyn(file1, FileList[0]->Name, SizeOf(file1));
     SalamanderGeneral->SalPathRemoveExtension(file1);
     BOOL allSame = TRUE;
     int i;
-    for (i = 1; i < ListView_GetItemCount(hList); i++)
+    for (i = 1; i < FileList.Count; i++)
     {
-        GetItemText(i, 0, file2, MAX_PATH);
+        lstrcpyn(file2, FileList[i]->Name, SizeOf(file2));
         SalamanderGeneral->SalPathRemoveExtension(file2);
         if (_stricmp(file1, file2))
         {
@@ -868,27 +918,35 @@ BOOL CCalculateDialog::GetSaveFileName(LPTSTR buffer, LPCTSTR title)
     // if not, try the last part of the path
     if (!allSame)
     {
-        const char* slash = _tcsrchr(SourcePath, '\\');
+        const char* slash = strrchr(SourcePath, '\\');
         if (slash != NULL && slash[1])
         {
-            lstrcpyn(buffer, slash + 1, MAX_PATH);
+            lstrcpyn(buffer, slash + 1, bufferSize);
         }
         else
             buffer[0] = 0; // no default name
     }
     else
     {
-        lstrcpyn(buffer, file1, MAX_PATH);
+        lstrcpyn(buffer, file1, bufferSize);
     }
 
-    // save dialog
-    OPENFILENAME ofn;
+    // save dialog: the names/paths are UTF-8 -> use the W common dialog
+    OPENFILENAMEW ofn;
+    WCHAR wFile[2 * MAX_PATH];
+    WCHAR wFilter[MAX_PATH];
+    WCHAR wTitle[MAX_PATH];
+    WCHAR wExt[MAX_PATH];
+    if (SplU8ToW(buffer, wFile, SizeOf(wFile)) == 0)
+        wFile[0] = 0;
+    WCHAR* wInitDir = SplU8ToWAlloc(SourcePath); // display form, the common dialog does not take "\\?\" paths
 
     memset(&ofn, 0, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = HWindow;
     ofn.hInstance = HLanguage;
     ofn.nFilterIndex = 1; // 1-based index
+    char filter[MAX_PATH];
     filter[0] = 0;
     int j, ind;
     for (j = 0, ind = 0; j < HT_COUNT; j++)
@@ -897,20 +955,36 @@ BOOL CCalculateDialog::GetSaveFileName(LPTSTR buffer, LPCTSTR title)
             ind++;
             if (HashInfo[j].Type == Config.HashType)
                 ofn.nFilterIndex = ind; // 1-based index
-            _tcscat(filter, LoadStr(HashInfo[j].idSaveAsFilter));
+            strcat(filter, LoadStr(HashInfo[j].idSaveAsFilter));
         }
-    ofn.lpstrFilter = s = filter;
-    while (NULL != (s = _tcschr(s, '|')))
-        *s++ = 0;
-    ofn.lpstrFile = buffer;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrInitialDir = SourcePath;
-    ofn.lpstrTitle = title;
+    ResStrToW(filter, wFilter, SizeOf(wFilter));
+    WCHAR* w = wFilter;
+    while (NULL != (w = wcschr(w, L'|')))
+        *w++ = 0;
+    if (title != NULL)
+        ResStrToW(title, wTitle, SizeOf(wTitle));
+    ofn.lpstrFilter = wFilter;
+    ofn.lpstrFile = wFile;
+    ofn.nMaxFile = SizeOf(wFile);
+    ofn.lpstrInitialDir = wInitDir;
+    ofn.lpstrTitle = title != NULL ? wTitle : NULL;
     ofn.Flags = OFN_PATHMUSTEXIST;
+    BOOL ret = TRUE;
     for (;;)
     {
-        if (!SalamanderGeneral->SafeGetSaveFileName(&ofn))
-            return FALSE; // Canceled
+        BOOL dlgOK = GetSaveFileNameW(&ofn);
+        if (!dlgOK && CommDlgExtendedError() == FNERR_INVALIDFILENAME)
+        { // Windows refuses to open the dialog for an invalid/non-existent path -> retry with the default one
+            wFile[0] = 0;
+            ofn.lpstrInitialDir = NULL;
+            dlgOK = GetSaveFileNameW(&ofn);
+        }
+        if (!dlgOK)
+        {
+            ret = FALSE; // Canceled
+            break;
+        }
+
         // Translate filter index into eHASH_TYPE
         int HashType = ofn.nFilterIndex - 1; // keep ofn.nFilterIndex unmodified
         int ind2 = ofn.nFilterIndex - 1;
@@ -928,40 +1002,52 @@ BOOL CCalculateDialog::GetSaveFileName(LPTSTR buffer, LPCTSTR title)
             }
         }
         Config.HashType = (eHASH_TYPE)HashType;
-        if (!buffer[ofn.nFileExtension] && ofn.nFileExtension)
+        ResStrToW(HashInfo[Config.HashType].sSaveAsExt, wExt, SizeOf(wExt)); // ".md5", ".sfv", ... (ASCII)
+        if (!wFile[ofn.nFileExtension] && ofn.nFileExtension)
         { // The filename ends with '.'
-            buffer[--ofn.nFileExtension] = 0;
+            wFile[--ofn.nFileExtension] = 0;
         }
-        else if (_tcscmp(buffer + ofn.nFileExtension, HashInfo[Config.HashType].sSaveAsExt + 1))
+        else if (wcscmp(wFile + ofn.nFileExtension, wExt + 1))
         { // The user did not enter any extension -> use the default one
-            _tcscat(buffer, HashInfo[Config.HashType].sSaveAsExt);
+            if (wcslen(wFile) + wcslen(wExt) < SizeOf(wFile))
+                wcscat(wFile, wExt);
         }
-        FILE* f = _tfopen(buffer, "r");
-        if (!f)
-            break;
-        fclose(f);
-        sprintf(file1, LoadStr(IDS_SAVE_OVERWRITE), buffer);
-        switch (SalamanderGeneral->SalMessageBox(HWindow, file1, LoadStr(IDS_SAVE_TITLE),
-                                                 MB_YESNOCANCEL | MB_ICONQUESTION))
+        if (GetFileAttributesW(wFile) == INVALID_FILE_ATTRIBUTES)
+            break; // the file does not exist -> no overwrite prompt
+        char name[3 * MAX_PATH], text[3 * MAX_PATH + 200];
+        if (SplWToU8(wFile, name, SizeOf(name)) == 0)
+            name[0] = 0;
+        _snprintf_s(text, _TRUNCATE, LoadStr(IDS_SAVE_OVERWRITE), name);
+        int res = SalamanderGeneral->SalMessageBox(HWindow, text, LoadStr(IDS_SAVE_TITLE),
+                                                   MB_YESNOCANCEL | MB_ICONQUESTION);
+        if (res == IDYES)
+            break; // overwrite
+        if (res == IDCANCEL)
         {
-        case IDYES:
-            return TRUE;
-        case IDCANCEL:
-            return FALSE;
+            ret = FALSE;
+            break;
         }
+        // IDNO -> let the user pick another name
     }
-    return TRUE;
+    free(wInitDir);
+    if (ret && SplWToU8(wFile, buffer, bufferSize) == 0)
+        ret = FALSE; // the chosen name does not fit into the buffer
+    return ret;
 }
 
 void CCalculateDialog::SaveHashes()
 {
     CALL_STACK_MESSAGE1("CCalculateDialog::SaveHashes()");
 
-    char filename[MAX_PATH];
-    if (GetSaveFileName(filename, LoadStr(IDS_SAVE_TITLE)))
+    char filename[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+    if (GetSaveFileName(filename, SizeOf(filename), LoadStr(IDS_SAVE_TITLE)))
     {
         FILE* f;
-        if ((f = _tfopen(filename, _T("w"))) == NULL)
+        // 'filename' is UTF-8 -> create via the W CRT API (Unicode + long paths)
+        WCHAR* wFileName = SplU8ToWExtAlloc(filename);
+        f = wFileName != NULL ? _wfopen(wFileName, L"w") : NULL;
+        free(wFileName);
+        if (f == NULL)
         {
             Error(HWindow, GetLastError(), IDS_SAVE_TITLE, IDS_ERRORCREATINGFILE);
             return;
@@ -980,11 +1066,13 @@ void CCalculateDialog::SaveHashes()
                 colInd++;
         }
         int i;
-        for (i = 0; i < ListView_GetItemCount(hList); i++)
+        for (i = 0; i < FileList.Count; i++)
         {
-            char name[MAX_PATH], hash[HASH_MAX_SIZE];
-            GetItemText(i, 0, name, SizeOf(name));
-            GetItemText(i, colInd, hash, SizeOf(hash));
+            // the name is UTF-8 -> read it from our list (the listview would hand it back in ANSI);
+            // it is written to the hash file as UTF-8
+            char name[3 * MAX_PATH], hash[HASH_MAX_SIZE];
+            lstrcpyn(name, FileList[i]->Name, SizeOf(name));
+            GetItemText(i, colInd, hash, SizeOf(hash)); // hashes are ASCII
             if (!hash[0] || !strcmp(hash, LoadStr(IDS_CANCELED)) || !strcmp(hash, LoadStr(IDS_SKIPPED)))
             { // Skip canceled / skipped files with empty hash/CRC
                 warn = TRUE;
@@ -1273,9 +1361,9 @@ INT_PTR CCalculateDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             LPNMHDR nmh = (LPNMHDR)lParam;
             switch (nmh->code)
             {
-            case LVN_GETDISPINFO:
+            case LVN_GETDISPINFOW:
             {
-                NMLVDISPINFO* plvdi = (NMLVDISPINFO*)nmh;
+                NMLVDISPINFOW* plvdi = (NMLVDISPINFOW*)nmh;
                 int index = plvdi->item.iItem;
                 if (index < 0 || index >= FileList.Count) // while the worker thread runs, the array is not modified
                     break;                                // array size does not change = no synchronization
@@ -1294,13 +1382,15 @@ INT_PTR CCalculateDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     {
                     case 0:
                     { // Name: once added to the array it never changes = access is not synchronized
-                        strcpy(plvdi->item.pszText, FileList[index]->Name);
+                        SetDispInfoText(plvdi, FileList[index]->Name);
                         break;
                     }
 
                     case 1:
                     { // Size: once added to the array it never changes = access is not synchronized
-                        SalamanderGeneral->NumberToStr(plvdi->item.pszText, FileList[index]->Size);
+                        char num[50];
+                        SalamanderGeneral->NumberToStr(num, FileList[index]->Size);
+                        SetDispInfoText(plvdi, num);
                         break;
                     }
 
@@ -1312,14 +1402,14 @@ INT_PTR CCalculateDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                             // while the worker thread runs: calculated data are acknowledged only up to ScrollIndex,
                             // ScrollIndex itself is calculating / verifying, items after it remain unprocessed (even if they might already be done)
                             if (index == ScrollIndex && col == 2)
-                                strcpy(plvdi->item.pszText, LoadStr(IDS_CALCULATING));
-                            else
+                                SetDispInfoText(plvdi, LoadStr(IDS_CALCULATING));
+                            else if (plvdi->item.cchTextMax > 0)
                                 plvdi->item.pszText[0] = 0;
                         }
                         else
                         {
                             if (col >= 2 && col - 2 < HT_COUNT && FileList[index]->Hashes[col - 2] != NULL)
-                                strcpy(plvdi->item.pszText, FileList[index]->Hashes[col - 2]);
+                                SetDispInfoText(plvdi, FileList[index]->Hashes[col - 2]);
                         }
                         break;
                     }
@@ -1432,7 +1522,11 @@ void CVerifyDialog::LTrimStr(char* str)
 char* CVerifyDialog::LoadFile(char* name)
 {
     CALL_STACK_MESSAGE2("CVerifyDialog::LoadFile(%s)", name);
-    HANDLE file = CreateFile(name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    // 'name' is UTF-8 since plugin interface 104 -> open via the W API (Unicode + long paths)
+    WCHAR* wName = SplU8ToWExtAlloc(name);
+    HANDLE file = wName != NULL ? CreateFileW(wName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)
+                                : INVALID_HANDLE_VALUE;
+    free(wName);
     if (file == INVALID_HANDLE_VALUE)
     {
         Error(HWindow, GetLastError(), IDS_VERIFYTITLE, IDS_ERROROPENING2, name);
@@ -1621,12 +1715,15 @@ BOOL CVerifyDialog::LoadSourceFile()
             if (info->fileName[0] != 0)
             {
                 // fetch file information and insert into the list
-                char path[MAX_PATH];
+                char path[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
                 strcpy(path, sourcePath);
-                if (SalamanderGeneral->SalPathAppend(path, info->fileName, MAX_PATH))
+                if (SalamanderGeneral->SalPathAppend(path, info->fileName, SizeOf(path)))
                 {
-                    WIN32_FIND_DATA fd;
-                    HANDLE hFind = HANDLES_Q(FindFirstFile(path, &fd));
+                    // the names stored in the hash file are treated as UTF-8 -> use the W API
+                    WIN32_FIND_DATAW fd;
+                    WCHAR* wPath = SplU8ToWExtAlloc(path);
+                    HANDLE hFind = wPath != NULL ? FindFirstFileW(wPath, &fd) : INVALID_HANDLE_VALUE;
+                    free(wPath);
                     info->bFileExist = (hFind != INVALID_HANDLE_VALUE);
                     if (info->bFileExist)
                     {
@@ -1646,7 +1743,7 @@ BOOL CVerifyDialog::LoadSourceFile()
                     AddFileListItem(info->fileName, info->size, info->bFileExist);
                     if (info->bFileExist)
                     {
-                        HANDLES(FindClose(hFind));
+                        FindClose(hFind);
                         totalSize += info->size + CQuadWord(FILE_SIZE_FIX, 0);
                     }
 
@@ -1902,7 +1999,7 @@ INT_PTR CVerifyDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             if (SalamanderGeneral->SalamanderIsNotBusy(NULL))
             {
-                lstrcpyn(Focus_Path, fileList[i]->fileName, MAX_PATH);
+                lstrcpyn(Focus_Path, fileList[i]->fileName, SizeOf(Focus_Path));
                 SalamanderGeneral->PostMenuExtCommand(CMD_FOCUSFILE, TRUE);
                 Sleep(500);        // switching to another window happens, so this Sleep should not hurt anything
                 Focus_Path[0] = 0; // after 0.5 seconds we no longer want the focus (handles hitting the start of Salamander's BUSY mode)
@@ -1923,9 +2020,9 @@ INT_PTR CVerifyDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             LPNMHDR nmh = (LPNMHDR)lParam;
             switch (nmh->code)
             {
-            case LVN_GETDISPINFO:
+            case LVN_GETDISPINFOW:
             {
-                NMLVDISPINFO* plvdi = (NMLVDISPINFO*)nmh;
+                NMLVDISPINFOW* plvdi = (NMLVDISPINFOW*)nmh;
                 int index = plvdi->item.iItem;
                 // while the worker thread runs, the array is not modified (item count + indices
                 // do not change = no need to synchronize access)
@@ -1942,20 +2039,24 @@ INT_PTR CVerifyDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (plvdi->item.mask & LVIF_TEXT)
                 {
                     int col = plvdi->item.iSubItem;
+                    if (plvdi->item.cchTextMax > 0)
+                        plvdi->item.pszText[0] = 0;
                     switch (col)
                     {
                     case 0: // Name: once added to the array it never changes = no synchronization needed
                     {
-                        strcpy(plvdi->item.pszText, FileList[index]->Name);
+                        SetDispInfoText(plvdi, FileList[index]->Name);
                         break;
                     }
 
                     case 1: // FileExist+Size: once added to the array it never changes = no synchronization needed
                     {
                         if (FileList[index]->FileExist)
-                            SalamanderGeneral->NumberToStr(plvdi->item.pszText, FileList[index]->Size);
-                        else
-                            plvdi->item.pszText[0] = 0;
+                        {
+                            char num[50];
+                            SalamanderGeneral->NumberToStr(num, FileList[index]->Size);
+                            SetDispInfoText(plvdi, num);
+                        }
                         break;
                     }
 
@@ -1969,21 +2070,17 @@ INT_PTR CVerifyDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 // while the worker thread runs: calculated data are acknowledged only up to ScrollIndex,
                                 // ScrollIndex itself is calculating / verifying, items after it remain unprocessed (even if they might already be done)
                                 if (index == ScrollIndex)
-                                    strcpy(plvdi->item.pszText, LoadStr(IDS_VERIFYING));
-                                else
-                                    plvdi->item.pszText[0] = 0;
+                                    SetDispInfoText(plvdi, LoadStr(IDS_VERIFYING));
                             }
                             else
                             {
                                 if (FileList[index]->Hashes[0] != NULL)
-                                    strcpy(plvdi->item.pszText, FileList[index]->Hashes[0]);
-                                else
-                                    plvdi->item.pszText[0] = 0;
+                                    SetDispInfoText(plvdi, FileList[index]->Hashes[0]);
                             }
                         }
                         else
                         {
-                            strcpy(plvdi->item.pszText, LoadStr(IDS_MISSING));
+                            SetDispInfoText(plvdi, LoadStr(IDS_MISSING));
                         }
                         break;
                     }
@@ -2084,7 +2181,8 @@ BOOL OpenCalculateDialog(HWND parent)
     }
 
     int nFiles, nDirs;
-    char sourcePath[MAX_PATH];
+    char sourcePath[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+    sourcePath[0] = 0;
 
     // Check if nothing is selected and no focus is set
     if (SalamanderGeneral->GetPanelSelection(PANEL_SOURCE, &nFiles, &nDirs))
@@ -2097,7 +2195,7 @@ BOOL OpenCalculateDialog(HWND parent)
 
         while (((nFiles || nDirs) ? (fd = SalamanderGeneral->GetPanelSelectedItem(PANEL_SOURCE, &index, &isDir)) != NULL : (fd = SalamanderGeneral->GetPanelFocusedItem(PANEL_SOURCE, &isDir)) != NULL))
         {
-            int fdNameLen = (int)strlen(fd->Name);
+            int fdNameLen = (int)strlen(fd->Name); // UTF-8 name (bytes)
             SEEDFILEINFO* cfi = (SEEDFILEINFO*)malloc(sizeof(SEEDFILEINFO) + fdNameLen);
             if (!cfi)
                 continue;
@@ -2144,8 +2242,8 @@ public:
 
     virtual unsigned Body();
 
-    char sourcePath[MAX_PATH];
-    char sourceFile[MAX_PATH];
+    char sourcePath[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+    char sourceFile[3 * MAX_PATH];
 
 private:
     HWND hParent;
@@ -2194,9 +2292,9 @@ BOOL OpenVerifyDialog(HWND parent)
     if (t != NULL)
     {
         // hand over data to the thread
-        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, t->sourcePath, MAX_PATH, NULL, NULL);
+        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, t->sourcePath, SizeOf(t->sourcePath), NULL, NULL);
         strcpy(t->sourceFile, t->sourcePath);
-        if (SalamanderGeneral->SalPathAppend(t->sourceFile, fd->Name, MAX_PATH))
+        if (SalamanderGeneral->SalPathAppend(t->sourceFile, fd->Name, SizeOf(t->sourceFile)))
         {
             // start the thread
             if (t->Create(ThreadQueue) != NULL)

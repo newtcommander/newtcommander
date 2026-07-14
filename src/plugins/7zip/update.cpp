@@ -182,7 +182,8 @@ STDMETHODIMP CArchiveUpdateCallback::GetStream(UInt32 index,
             throw S_OK;
 
         const CFileItem* fi = (*FileItems)[ui->FileItemIndex];
-        ProcessedFileName = GetAnsiString(fi->Name);
+        // the name is shown in Salamander's progress dialog -> UTF-8
+        ProcessedFileName = UStringToU8(fi->Name);
 
         // Show file name in the progress dialog
         SendMessage(hProgWnd, WM_7ZIP, WM_7ZIP_ADDTEXT, (LPARAM)(const char*)GetProcessedFile());
@@ -209,13 +210,14 @@ STDMETHODIMP CArchiveUpdateCallback::GetStream(UInt32 index,
         do
         {
             mbRet = DIALOG_OK;
-            if (!inStreamSpec->Open(GetAnsiString(fi->FullPath)))
+            // FullPath is UTF-16 inside 7za; the stream and Salamander want UTF-8
+            if (!inStreamSpec->Open(UStringToU8(fi->FullPath)))
             {
                 mbRet = DIALOG_SKIP;
                 if (!Silent)
                 {
                     DWORD err = ::GetLastError();
-                    AString fn = GetAnsiString(fi->FullPath);
+                    AString fn = UStringToU8(fi->FullPath);
                     // Warning: GetStream can get called from a parallel thread launched by 7za.dll!
                     CDialogErrorParams dep;
 
@@ -309,6 +311,7 @@ STDMETHODIMP CArchiveUpdateCallback::CryptoGetTextPassword2(Int32* passwordIsDef
         {
         case IDOK:
             PasswordIsDefined = true;
+            // 'pwd' comes from our own ANSI dialog, so it is in the ACP, not UTF-8
             Password = GetUnicodeString(pwd);
             break;
 

@@ -5,6 +5,10 @@
 
 #include "7za/CPP/Common/MyString.h"
 
+// buffer able to hold any long path in UTF-8 (interface 104: up to 3 bytes per
+// UTF-16 unit, see splunicode.h); always allocate these on the heap
+#define U8_MAX_PATH (3 * 32767 + 1)
+
 // Salamander general interface - valid from startup until the plugin is unloaded
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
 // interface for convenient work with files
@@ -212,6 +216,14 @@ BOOL SysError(int resID, DWORD err, BOOL quiet = FALSE, ...);
 BOOL Warning(int resID, BOOL quiet, ...);
 
 BOOL SafeDeleteFile(const char* fileName, BOOL& silent);
+
+// W-API file helpers: all take a UTF-8 interface path and call the W entry
+// point with the \\?\ prefix, so non-ASCII names and long paths work
+HANDLE CreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                    DWORD creationDisposition);
+BOOL DeleteFileU8(const char* fileName);
+BOOL RemoveDirectoryU8(const char* dirName);
+BOOL SetFileAttributesU8(const char* fileName, DWORD fileAttributes);
 
 extern CPluginInterface PluginInterface;
 

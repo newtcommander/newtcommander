@@ -181,9 +181,19 @@ BOOL CCommentDialog::OnInit(WPARAM wParam, LPARAM lParam)
     SetDlgItemText(Dlg, IDC_COMMENT, PackObject->Comment);
     SendDlgItemMessage(Dlg, IDC_COMMENT, EM_SETLIMITTEXT, MAX_ZIPCOMMENT - 1, 0);
 
-    char title[MAX_PATH + 128];
-    sprintf(title, LoadStr(IDS_COMMENTDLGTITLE), PackObject->ZipName);
-    SetWindowText(Dlg, title);
+    // the archive name is UTF-8 and may be a long path -> heap + W title
+    char* title = (char*)malloc(U8_MAX_PATH + 128);
+    if (title != NULL)
+    {
+        _snprintf_s(title, U8_MAX_PATH + 128, _TRUNCATE, LoadStr(IDS_COMMENTDLGTITLE), PackObject->ZipName);
+        WCHAR* wTitle = SplU8ToWAlloc(title);
+        if (wTitle != NULL)
+        {
+            SetWindowTextW(Dlg, wTitle);
+            free(wTitle);
+        }
+        free(title);
+    }
     SendMessage(Dlg, WM_SETICON, ICON_SMALL, (WPARAM)LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_COMMENT)));
 
     // disable the 'save' item
@@ -497,13 +507,13 @@ BOOL LoadSfxLangs(HWND dlg, char* selectedSfxFile, bool isConfig)
 BOOL LoadLangChache(HWND parent)
 {
     CALL_STACK_MESSAGE1("LoadLangChache()");
-    char path[MAX_PATH];
+    char path[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
     char* file;
-    GetModuleFileName(DLLInstance, path, MAX_PATH);
+    GetModuleFileNameU8(DLLInstance, path, (DWORD)sizeof(path));
     SalamanderGeneral->CutDirectory(path);
-    SalamanderGeneral->SalPathAppend(path, "sfx\\*.sfx", MAX_PATH);
-    WIN32_FIND_DATA fd;
-    HANDLE find = FindFirstFile(path, &fd);
+    SalamanderGeneral->SalPathAppend(path, "sfx\\*.sfx", (int)sizeof(path));
+    WIN32_FIND_DATAW fd;
+    HANDLE find = FindFirstFileU8(path, &fd);
     if (find == INVALID_HANDLE_VALUE)
     {
         int le = GetLastError();
@@ -531,7 +541,7 @@ BOOL LoadLangChache(HWND parent)
     }
 
     SalamanderGeneral->CutDirectory(path);
-    SalamanderGeneral->SalPathAddBackslash(path, MAX_PATH);
+    SalamanderGeneral->SalPathAddBackslash(path, (int)sizeof(path));
     file = path + lstrlen(path);
 
     CSfxLang* lang;
@@ -539,9 +549,9 @@ BOOL LoadLangChache(HWND parent)
     int le;
     do
     {
-        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+            FindDataNameU8(&fd, file, (int)(sizeof(path) - (file - path))))
         {
-            lstrcpy(file, fd.cFileName);
             int r = LoadSfxFileData(path, &lang);
             if (r || !SfxLanguages->Add(lang))
             {
@@ -569,7 +579,7 @@ BOOL LoadLangChache(HWND parent)
             }
         }
 
-        ret = FindNextFile(find, &fd);
+        ret = FindNextFileW(find, &fd);
         le = GetLastError();
         if (!ret && le != ERROR_NO_MORE_FILES)
         {

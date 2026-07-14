@@ -41,6 +41,7 @@ STDMETHODIMP CArchiveOpenCallbackImp::CryptoGetTextPassword(BSTR* password)
         if (res != IDOK)
             return E_ABORT;
 
+        // the password comes from our own ANSI dialog, so it is in the ACP, not UTF-8
         Password = GetUnicodeString(dlg.GetPassword());
     }
     StringToBstr(Password, password);

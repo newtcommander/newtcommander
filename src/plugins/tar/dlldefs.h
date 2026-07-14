@@ -17,3 +17,13 @@ extern CSalamanderSafeFileAbstract* SalamanderSafeFile;
 char* LoadStr(int resID);
 
 char* LoadErr(int resID, DWORD LastError);
+
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs must
+// be called through their W variants with the \\?\ prefix (see splunicode.h)
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition, DWORD flags);
+BOOL DeleteFileU8(const char* name);
+BOOL SetFileAttributesU8(const char* name, DWORD attrs);
+
+// format boundary (interface 104): decodes a name read from an archive/stream header
+// to UTF-8 in place (reallocates 'name'); see the definition in tardll.cpp
+BOOL ConvertNameToU8(char*& name);

@@ -613,35 +613,38 @@ MENU_TEMPLATE_ITEM AppendToSystemMenu[] =
     {
         if (LOWORD(wParam) == CM_OPENFILE)
         {
-            char file[MAX_PATH];
-            lstrcpy(file, "salupdate_en.txt");
-            OPENFILENAME ofn;
-            memset(&ofn, 0, sizeof(OPENFILENAME));
-            ofn.lStructSize = sizeof(OPENFILENAME);
+            // the script file may live under a Unicode / long path -> use the W common dialog
+            WCHAR file[2 * MAX_PATH];
+            lstrcpyW(file, L"salupdate_en.txt");
+            OPENFILENAMEW ofn;
+            memset(&ofn, 0, sizeof(OPENFILENAMEW));
+            ofn.lStructSize = sizeof(OPENFILENAMEW);
             ofn.hwndOwner = hWindow;
-            ofn.lpstrFilter = "*.txt\0*.txt\0*.*\0*.*\0";
+            ofn.lpstrFilter = L"*.txt\0*.txt\0*.*\0*.*\0";
             ofn.lpstrFile = file;
-            ofn.nMaxFile = MAX_PATH;
+            ofn.nMaxFile = _countof(file);
             ofn.nFilterIndex = 1;
-            //  ofn.lpstrFileTitle = file;
-            //  ofn.nMaxFileTitle = MAX_PATH;
             ofn.Flags = OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_LONGNAMES | OFN_EXPLORER;
 
-            char buf[MAX_PATH];
-            GetModuleFileName(DLLInstance, buf, MAX_PATH);
-            char* s = strrchr(buf, '\\');
+            WCHAR buf[MAX_PATH];
+            GetModuleFileNameW(DLLInstance, buf, _countof(buf));
+            WCHAR* s = wcsrchr(buf, L'\\');
             if (s != NULL)
             {
                 *s = 0;
                 ofn.lpstrInitialDir = buf;
             }
 
-            if (SalGeneral->SafeGetOpenFileName(&ofn))
+            if (GetOpenFileNameW(&ofn))
             {
-                ModulesCleanup();
-                ClearLogWindow();
-                if (LoadScripDataFromFile(file))
-                    ModulesCreateLog(NULL, TRUE);
+                char fileU8[3 * MAX_PATH]; // the rest of the plugin works with UTF-8 paths
+                if (SplWToU8(file, fileU8, _countof(fileU8)) > 0)
+                {
+                    ModulesCleanup();
+                    ClearLogWindow();
+                    if (LoadScripDataFromFile(fileU8))
+                        ModulesCreateLog(NULL, TRUE);
+                }
             }
             return 0;
         }

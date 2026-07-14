@@ -318,29 +318,30 @@ BOOL Error2(HWND hParent, int title, int error, ...)
     return FALSE;
 }
 
-void GetTargetDir(LPTSTR targetDir, LPTSTR subdirName, BOOL bSplit)
+void GetTargetDir(LPTSTR targetDir, int targetDirSize, LPTSTR subdirName, BOOL bSplit)
 {
     // This function returns the target directory for split or combine, respecting the configuration
     // configSplitToOther/configCombineToOther. If the target path would lead into an archive
     // or to a file system plugin, regardless of the configuration the source panel path is offered,
     // which is always guaranteed to be PATH_TYPE_WINDOWS (thanks to the menu enablers).
+    // 'targetDirSize' is in bytes (the paths are UTF-8 since plugin interface 104)
 
     int type;
     SalamanderGeneral->GetPanelPath(
         (bSplit ? configSplitToOther : configCombineToOther) ? PANEL_TARGET : PANEL_SOURCE,
-        targetDir, MAX_PATH, &type, NULL);
+        targetDir, targetDirSize, &type, NULL);
 
     if (type != PATH_TYPE_WINDOWS)
-        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, targetDir, MAX_PATH, NULL, NULL);
+        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, targetDir, targetDirSize, NULL, NULL);
 
     if (bSplit && configSplitToSubdir && subdirName != NULL)
     {
-        if (SalamanderGeneral->SalPathAppend(targetDir, subdirName, MAX_PATH))
+        if (SalamanderGeneral->SalPathAppend(targetDir, subdirName, targetDirSize))
             SalamanderGeneral->SalPathRemoveExtension(targetDir);
     }
 }
 
-BOOL MakePathAbsolute(char* path, BOOL pathIsDir, char* absRoot, BOOL activePreferred, int errorTitle)
+BOOL MakePathAbsolute(char* path, int pathSize, BOOL pathIsDir, char* absRoot, BOOL activePreferred, int errorTitle)
 {
     int type;
     char* secondPart;
@@ -348,7 +349,7 @@ BOOL MakePathAbsolute(char* path, BOOL pathIsDir, char* absRoot, BOOL activePref
 
     SalamanderGeneral->SalUpdateDefaultDir(!configCombineToOther);
     if (!SalamanderGeneral->SalParsePath(SalamanderGeneral->GetMsgBoxParent(), path, type, isDir, secondPart,
-                                         LoadStr(IDS_PATHERROR), NULL, TRUE, absRoot, NULL, NULL, MAX_PATH))
+                                         LoadStr(IDS_PATHERROR), NULL, TRUE, absRoot, NULL, NULL, pathSize))
         return FALSE;
 
     if (type != PATH_TYPE_WINDOWS) // only Windows paths are supported

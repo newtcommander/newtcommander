@@ -127,16 +127,18 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
     FILETIME ft;
     GetFileTime(file.HFile, NULL, NULL, &ft);
 
-    // obtain the base name of the files
-    char name[MAX_PATH];
-    strcpy(name, SalamanderGeneral->SalPathFindFileName(fileName));
+    // obtain the base name of the files (UTF-8 since plugin interface 104)
+    char name[3 * MAX_PATH];
+    lstrcpyn(name, SalamanderGeneral->SalPathFindFileName(fileName), _countof(name));
     if (!configIncludeFileExt)
         StripExtension(name);
 
     // determine the type of the target media
-    char text[MAX_PATH + 50]; // must be longer than MAX_PATH because of "too long name" (see below)
+    char text[3 * MAX_PATH + 50]; // must be longer than the path because of "too long name" (see below)
     SalamanderGeneral->GetRootPath(text, targetDir);
-    UINT driveType = GetDriveType(text);
+    WCHAR* wRoot = SplU8ToWAlloc(text); // the root path is UTF-8 -> W API
+    UINT driveType = wRoot != NULL ? GetDriveTypeW(wRoot) : GetDriveTypeA(text);
+    free(wRoot);
 
     BOOL abort = FALSE;
 
@@ -201,7 +203,7 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
 
     BOOL ret = TRUE;
     int partNum = 1;
-    char name2[MAX_PATH];
+    char name2[3 * MAX_PATH];
     char buf[50];
     CQuadWord thisPartSize;
     CQuadWord freeSpace;
@@ -216,8 +218,8 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
 
         // create the name of the target file
         sprintf(name2, "%s.%#03ld", name, partNum++);
-        strncpy_s(text, MAX_PATH, targetDir, _TRUNCATE);
-        if (!SalamanderGeneral->SalPathAppend(text, name2, MAX_PATH))
+        strncpy_s(text, _countof(text), targetDir, _TRUNCATE);
+        if (!SalamanderGeneral->SalPathAppend(text, name2, _countof(text) - 1))
         { // too long name - reported in SalamanderSafeFile->SafeFileCreate
             char* end = text + strlen(text);
             if (end > text && *(end - 1) != '\\')
@@ -242,7 +244,7 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
         fileProgress = CQuadWord(0, 0);
         if (!bSkip)
         {
-            char text2[MAX_PATH + 50];
+            char text2[3 * MAX_PATH + 50];
             sprintf(text2, "%s %s...", LoadStr(IDS_WRITING), name2);
             salamander->ProgressDialogAddText(text2, delayed);
 
@@ -270,7 +272,12 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
             SalamanderSafeFile->SafeFileClose(&outfile);
             if (ret == FALSE)
             {
-                DeleteFile(text);
+                WCHAR* wText = SplU8ToWExtAlloc(text); // UTF-8 path -> W API
+                if (wText != NULL)
+                    DeleteFileW(wText);
+                else
+                    DeleteFileA(text);
+                free(wText);
                 break;
             }
         }
@@ -305,7 +312,7 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
     if (ret != FALSE && configCreateBatchFile)
     {
         char* batfile = new char[MAX_BAT];
-        char* line = new char[4 * MAX_PATH];
+        char* line = new char[12 * MAX_PATH]; // room for two UTF-8 names (up to 3 bytes per character)
         int nparts = partNum - 1;
         int linenum = 1, partnum = 1;
         const char* origName = SalamanderGeneral->SalPathFindFileName(fileName);
@@ -385,10 +392,21 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
 
         if (ret)
         {
-            CQuadWord batSize((DWORD)strlen(batfile), 0);
+            // the batch file is consumed by cmd.exe -> OEM encoding; the names are UTF-8, so the
+            // conversion must go through UTF-16 (CharToOemA would corrupt them). Characters missing
+            // from the OEM code page cannot be expressed in a batch file.
+            WCHAR* wBatfile = SplU8ToWAlloc(batfile);
+            if (wBatfile != NULL)
+            {
+                CharToOemW(wBatfile, batfile);
+                free(wBatfile);
+            }
+            else
+                CharToOemA(batfile, batfile);
+
+            CQuadWord batSize((DWORD)strlen(batfile), 0); // the size is known only after the conversion
             bytesRemaining = batSize;
             thisPartSize = batSize;
-            CharToOem(batfile, batfile);
 
             SalamanderGeneral->GetDiskFreeSpace(&freeSpace, targetDir, NULL);
             if (driveType == DRIVE_REMOVABLE && freeSpace < batSize)
@@ -404,8 +422,8 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
                 {
                     strcpy(name2, name);
                     strcat(name2, ".bat");
-                    strncpy_s(text, MAX_PATH, targetDir, _TRUNCATE);
-                    if (!SalamanderGeneral->SalPathAppend(text, name2, MAX_PATH))
+                    strncpy_s(text, _countof(text), targetDir, _TRUNCATE);
+                    if (!SalamanderGeneral->SalPathAppend(text, name2, _countof(text) - 1))
                     { // too long name - reported in SalamanderSafeFile->SafeFileCreate
                         char* end = text + strlen(text);
                         if (end > text && *(end - 1) != '\\')
@@ -445,21 +463,30 @@ static BOOL SplitFile(LPTSTR fileName, LPTSTR targetDir, CQuadWord& qwPartSize,
 BOOL SplitCommand(HWND parent, CSalamanderForOperationsAbstract* salamander)
 {
     CALL_STACK_MESSAGE1("SplitCommand( , )");
-    // obtain information about the file
-    char targetdir[MAX_PATH];
+    // obtain information about the file (the panel paths and names are UTF-8 since plugin interface 104)
+    char targetdir[3 * MAX_PATH];
     const CFileData* pfd;
     BOOL isDir;
     pfd = SalamanderGeneral->GetPanelFocusedItem(PANEL_SOURCE, &isDir);
-    GetTargetDir(targetdir, pfd->Name, TRUE);
+    GetTargetDir(targetdir, _countof(targetdir), pfd->Name, TRUE);
 
     // determine the file size
-    char path[MAX_PATH];
-    WIN32_FIND_DATA wfd;
-    HANDLE hFind;
+    char path[3 * MAX_PATH];
+    WIN32_FIND_DATAW wfd;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
     CQuadWord qwFileSize;
-    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, path, MAX_PATH, NULL, NULL);
-    BOOL tooLong = !SalamanderGeneral->SalPathAppend(path, pfd->Name, MAX_PATH);
-    if (!tooLong && (hFind = FindFirstFile(path, &wfd)) != INVALID_HANDLE_VALUE)
+    SalamanderGeneral->GetPanelPath(PANEL_SOURCE, path, _countof(path), NULL, NULL);
+    BOOL tooLong = !SalamanderGeneral->SalPathAppend(path, pfd->Name, _countof(path));
+    if (!tooLong)
+    {
+        WCHAR* wPath = SplU8ToWExtAlloc(path); // UTF-8 path -> W API
+        if (wPath != NULL)
+        {
+            hFind = FindFirstFileW(wPath, &wfd);
+            free(wPath);
+        }
+    }
+    if (hFind != INVALID_HANDLE_VALUE)
     {
         FindClose(hFind);
         qwFileSize.Set(wfd.nFileSizeLow, wfd.nFileSizeHigh);
@@ -486,13 +513,13 @@ BOOL SplitCommand(HWND parent, CSalamanderForOperationsAbstract* salamander)
 
     // split dialog
     CQuadWord qwPartialSize;
-    if (!SplitDialog(pfd->Name, qwFileSize, targetdir, &qwPartialSize, parent))
+    if (!SplitDialog(pfd->Name, qwFileSize, targetdir, _countof(targetdir), &qwPartialSize, parent))
         return FALSE;
 
     // validation
-    char panelpath[MAX_PATH];
-    GetTargetDir(panelpath, NULL, TRUE);
-    if (!MakePathAbsolute(targetdir, TRUE, panelpath, !configSplitToOther, IDS_SPLIT))
+    char panelpath[3 * MAX_PATH];
+    GetTargetDir(panelpath, _countof(panelpath), NULL, TRUE);
+    if (!MakePathAbsolute(targetdir, _countof(targetdir), TRUE, panelpath, !configSplitToOther, IDS_SPLIT))
         return FALSE;
 
     // split the file

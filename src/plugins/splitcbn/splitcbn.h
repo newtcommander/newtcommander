@@ -59,8 +59,8 @@ void GetInfo(char* buffer, CQuadWord& size);
 void StripExtension(LPTSTR fileName);
 BOOL Error(int title, int error, ...);
 BOOL Error2(HWND hParent, int title, int error, ...);
-void GetTargetDir(LPTSTR targetDir, LPTSTR subdirName, BOOL bSplit);
-BOOL MakePathAbsolute(char* path, BOOL pathIsDir, char* absRoot, BOOL activePreferred, int errorTitle);
+void GetTargetDir(LPTSTR targetDir, int targetDirSize, LPTSTR subdirName, BOOL bSplit);
+BOOL MakePathAbsolute(char* path, int pathSize, BOOL pathIsDir, char* absRoot, BOOL activePreferred, int errorTitle);
 
 #define GETPARENT SalamanderGeneral->GetMsgBoxParent()
 

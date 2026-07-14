@@ -139,10 +139,16 @@ BOOL CNextVolumeDialog::OnInit(WPARAM wParam, LPARAM lParam)
     char buf[1024];
     sprintf(buf, LoadStr(IDS_NEXTVOLTEXT), CabNumber);
     SendDlgItemMessage(Dlg, IDC_TEXT, WM_SETTEXT, 0, (LPARAM)buf);
-    SendDlgItemMessage(Dlg, IDC_DISKNAME, WM_SETTEXT, 0, (LPARAM)DiskName);
-    SendDlgItemMessage(Dlg, IDC_CABNAME, WM_SETTEXT, 0, (LPARAM)VolumeName);
+    // VolumeName/VolumePath/DiskName are UTF-8 (interface 104), the dialog controls
+    // are ANSI (the dialog is created with the -A API) -> convert for display
+    char acp[MAX_PATH];
+    U8ToAcp(DiskName, acp, MAX_PATH);
+    SendDlgItemMessage(Dlg, IDC_DISKNAME, WM_SETTEXT, 0, (LPARAM)acp);
+    U8ToAcp(VolumeName, acp, MAX_PATH);
+    SendDlgItemMessage(Dlg, IDC_CABNAME, WM_SETTEXT, 0, (LPARAM)acp);
     SendDlgItemMessage(Dlg, IDC_FILENAME, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
-    SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)VolumePath);
+    U8ToAcp(VolumePath, acp, MAX_PATH);
+    SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)acp);
 
     CenterDlgToParent();
     return TRUE;
@@ -171,25 +177,33 @@ BOOL CNextVolumeDialog::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     CALL_STACK_MESSAGE3("CNextVolumeDialog::OnBrowse(0x%X, 0x%X, )", wNotifyCode,
                         wID);
     char path[MAX_PATH];
+    // the shell browse dialog and the dialog controls are ANSI; keep the whole
+    // exchange in an ANSI buffer and convert back to UTF-8 (interface 104) at the end.
+    // VolumePath itself is only CB_MAX_CAB_PATH bytes (FDI's cap), so it must never
+    // be handed to GetDlgItemText/SHGetPathFromIDList, which write up to MAX_PATH.
+    char acpPath[MAX_PATH];
 
-    GetDlgItemText(Dlg, IDC_FILENAME, VolumePath, MAX_PATH);
+    GetDlgItemText(Dlg, IDC_FILENAME, acpPath, MAX_PATH);
 
     BROWSEINFO bi;
     bi.hwndOwner = Dlg;
     bi.pidlRoot = NULL;
     bi.pszDisplayName = path;
     char buf[1024];
-    sprintf(buf, LoadStr(IDS_BROWSEFOLDERTEXT), VolumeName);
+    char acpName[MAX_PATH];
+    U8ToAcp(VolumeName, acpName, MAX_PATH);
+    sprintf(buf, LoadStr(IDS_BROWSEFOLDERTEXT), acpName);
     bi.lpszTitle = buf;
     bi.ulFlags = BIF_RETURNONLYFSDIRS;
     bi.lpfn = DirectoryBrowse;
-    bi.lParam = (LPARAM)VolumePath;
+    bi.lParam = (LPARAM)acpPath;
     LPITEMIDLIST res = SHBrowseForFolder(&bi);
     if (res != NULL)
     {
-        SHGetPathFromIDList(res, VolumePath);
-        SetDlgItemText(Dlg, IDC_FILENAME, VolumePath);
+        SHGetPathFromIDList(res, acpPath);
+        SetDlgItemText(Dlg, IDC_FILENAME, acpPath);
     }
+    AcpToU8(acpPath, VolumePath, CB_MAX_CAB_PATH);
     // release the item ID list
     IMalloc* alloc;
     if (SUCCEEDED(CoGetMalloc(1, &alloc)))
@@ -205,12 +219,16 @@ BOOL CNextVolumeDialog::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 BOOL CNextVolumeDialog::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CNextVolumeDialog::OnOK(0x%X, 0x%X, )", wNotifyCode, wID);
-    GetDlgItemText(Dlg, IDC_FILENAME, VolumePath, MAX_PATH);
-    SalamanderGeneral->SalPathAddBackslash(VolumePath, MAX_PATH);
+    // the edit control holds ANSI text -> UTF-8 for the core calls below and for
+    // FDI (VolumePath is FDI's CB_MAX_CAB_PATH cabinet-path buffer; interface 104)
+    char acpPath[MAX_PATH];
+    GetDlgItemText(Dlg, IDC_FILENAME, acpPath, MAX_PATH);
+    AcpToU8(acpPath, VolumePath, CB_MAX_CAB_PATH);
+    SalamanderGeneral->SalPathAddBackslash(VolumePath, CB_MAX_CAB_PATH);
 
-    char fullName[MAX_PATH];
+    char fullName[CB_MAX_CAB_PATH + CB_MAX_CABINET_NAME + 1];
     strcpy(fullName, VolumePath);
-    SalamanderGeneral->SalPathAppend(fullName, VolumeName, MAX_PATH);
+    SalamanderGeneral->SalPathAppend(fullName, VolumeName, sizeof(fullName));
 
     SalamanderGeneral->SalUpdateDefaultDir(TRUE);
     int err;
@@ -320,7 +338,10 @@ BOOL CContinuedFileDialog::OnInit(WPARAM wParam, LPARAM lParam)
 {
     CALL_STACK_MESSAGE3("CContinuedFileDialog::OnInit(0x%IX, 0x%IX)", wParam, lParam);
     SubClassStatic(IDS_FILENAME, TRUE);
-    SendDlgItemMessage(Dlg, IDS_FILENAME, WM_SETTEXT, 0, (LPARAM)File);
+    // 'File' is a UTF-8 name from the cabinet (interface 104), the control is ANSI
+    char acp[3 * MAX_PATH];
+    U8ToAcp(File, acp, sizeof(acp));
+    SendDlgItemMessage(Dlg, IDS_FILENAME, WM_SETTEXT, 0, (LPARAM)acp);
 
     CenterDlgToParent();
     return TRUE;

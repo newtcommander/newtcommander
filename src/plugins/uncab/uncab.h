@@ -13,6 +13,14 @@
 
 #define FILE_ATTRIBUTE_MASK (0x37)
 
+// buffer able to hold any long path in UTF-8 (interface 104: 3 bytes per
+// UTF-16 unit, see splunicode.h); always allocate these on the heap
+#define U8_MAX_PATH (3 * 32767 + 1)
+
+// a name stored in a cabinet is at most CB_MAX_FILENAME bytes in the format's
+// code page; converting it to UTF-8 can make it up to 3x longer (interface 104)
+#define U8_MAX_CAB_NAME (3 * CB_MAX_FILENAME + 1)
+
 // silent flags
 //#define SF_DATA       0x00010000
 #define SF_LONGNAMES 0x00020000
@@ -25,9 +33,20 @@
 struct CFile
 {
     HANDLE Handle;
-    char FileName[MAX_PATH];
+    char* FileName; // UTF-8 (interface 104); heap - an extract target can be a long path
     DWORD Flags;
     DWORD cabOffset; // for sfx archives
+
+    CFile()
+    {
+        Handle = INVALID_HANDLE_VALUE;
+        FileName = (char*)malloc(U8_MAX_PATH);
+        if (FileName != NULL)
+            *FileName = 0;
+        Flags = 0;
+        cabOffset = 0;
+    }
+    ~CFile() { free(FileName); }
 };
 
 // general Salamander interface - valid from startup until the plugin is unloaded
@@ -200,6 +219,18 @@ extern DWORD Options; // configuration
 
 char* LoadStr(int resID);
 void GetInfo(char* buffer, FILETIME* lastWrite, unsigned size);
+
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs must
+// be called through their W variants with the \\?\ prefix (see splunicode.h)
+BOOL DeleteFileU8(const char* name);
+BOOL SetFileAttributesU8(const char* name, DWORD attrs);
+
+// the plugin's own dialogs are still created with the -A API, so their controls
+// hold text in the local ANSI code page; convert on the way in and out so that
+// everything outside the dialogs stays UTF-8 (characters the ANSI code page
+// cannot represent become '?' - a display-only limitation of the -A dialogs)
+void U8ToAcp(const char* u8, char* buf, int bufSize);
+void AcpToU8(const char* acp, char* buf, int bufSize);
 
 #define DUMP_MEM_OBJECTS
 

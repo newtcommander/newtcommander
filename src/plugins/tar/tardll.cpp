@@ -89,6 +89,77 @@ char* LoadErr(int resID, DWORD LastError)
 }
 
 //
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition, DWORD flags)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = CreateFileW(w, access, share, NULL, disposition, flags, NULL);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return file;
+}
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    free(w);
+    return ret;
+}
+
+// TAR/CPIO/gzip format boundary (interface 104): these formats store names as raw bytes
+// and carry no encoding field. POSIX/GNU tar writes UTF-8 by convention, so bytes that
+// are already valid UTF-8 are passed through verbatim (name bytes must never be
+// rewritten - see doc\plugin-vnext-migration.md); anything else comes from a legacy
+// producer that used the system ANSI code page and is converted to UTF-8. Pure ASCII
+// takes neither branch. Reallocates 'name' when it converts (malloc'd, like the
+// original, so the callers keep using free()). Returns FALSE only when out of memory.
+BOOL ConvertNameToU8(char*& name)
+{
+    if (name == NULL || SplIsASCII(name))
+        return TRUE; // ASCII is already valid UTF-8, byte for byte
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0) > 0)
+        return TRUE; // valid UTF-8 (the POSIX/GNU convention) -> keep the bytes as they are
+
+    // legacy archive: read the bytes in the system ANSI code page
+    int wLen = MultiByteToWideChar(CP_ACP, 0, name, -1, NULL, 0);
+    if (wLen <= 0)
+        return TRUE; // undecodable either way -> leave the bytes untouched
+    WCHAR* w = (WCHAR*)malloc(wLen * sizeof(WCHAR));
+    if (w == NULL)
+        return FALSE;
+    char* u8 = NULL;
+    if (MultiByteToWideChar(CP_ACP, 0, name, -1, w, wLen) > 0)
+        u8 = SplWToU8Alloc(w);
+    free(w);
+    if (u8 == NULL)
+        return TRUE; // conversion failed -> leave the bytes untouched
+    free(name);
+    name = u8;
+    return TRUE;
+}
+
+//
 // ****************************************************************************
 //
 // Plugin initialization
@@ -404,9 +475,9 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
     // store the original cursor and show the hourglass (even though it should not take long...)
     HCURSOR hOldCur = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-    // open the input file
-    HANDLE file = CreateFile(name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    // open the input file ('name' is UTF-8 since interface 104 -> W API)
+    HANDLE file = CreateFileU8(name, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING,
+                               FILE_FLAG_SEQUENTIAL_SCAN);
     if (file == INVALID_HANDLE_VALUE)
     {
         int err = GetLastError();
@@ -448,8 +519,10 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
         return FALSE;
     }
 
-    // create the temporary file
-    FILE* fContents = fopen(tempFileName, "wt");
+    // create the temporary file (the name comes from the core: UTF-8 -> W CRT API)
+    WCHAR* wTempFileName = SplU8ToWExtAlloc(tempFileName);
+    FILE* fContents = wTempFileName != NULL ? _wfopen(wTempFileName, L"wt") : NULL;
+    free(wTempFileName);
     if (fContents == NULL)
     {
         char buff[500];
@@ -468,7 +541,7 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
     {
         SetCursor(hOldCur);
         fclose(fContents);
-        DeleteFile(tempFileName);
+        DeleteFileU8(tempFileName);
         free(buffer);
         CloseHandle(file);
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_ERR_MEMORY), LoadStr(IDS_ERR_RPMTITLE), MSGBOX_ERROR);
@@ -479,7 +552,7 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
     {
         SetCursor(hOldCur);
         fclose(fContents);
-        DeleteFile(tempFileName);
+        DeleteFileU8(tempFileName);
         free(buffer);
         CloseHandle(file);
         if (archive->GetErrorCode() == 0)

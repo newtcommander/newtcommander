@@ -31,9 +31,8 @@
 #include "add_del.h"
 #include "dialogs.h"
 
-// Used in CZipUnpack::ExtractFiles & CZipUnpack::ExtractSingleFile when testing archive. For simplicity reasons we assume this is enough ;-)
-
-#define ZIP_MAX_PATH 1024
+// interface 104: the paths below are UTF-8 and may be long paths, the buffers
+// are sized at run time (see CZipUnpack::ExtractFiles)
 
 CZipUnpack::CZipUnpack(const char* zipName, const char* zipRoot, CSalamanderForOperationsAbstract* salamander,
                        TIndirectArray2<char>* archiveVolumes) : CZipCommon(zipName, zipRoot, salamander, archiveVolumes), Passwords(8)
@@ -110,7 +109,7 @@ int CZipUnpack::UnpackArchive(const char* targetDir, SalEnumSelection next, void
                     QuickSortHeaders(0, extrFiles.Count - 1, extrFiles);
                 }
                 if (*OriginalCurrentDir)
-                    SetCurrentDirectory(targetDir);
+                    SetCurrentDirectoryU8(targetDir);
                 ErrorID = ExtractFiles(targetDir);
             }
         }
@@ -123,7 +122,6 @@ int CZipUnpack::UnpackOneFile(const char* nameInZip, const CFileData* fileData, 
 {
     CALL_STACK_MESSAGE3("CZipUnpack::UnpackOneFile(%s, , %s)", nameInZip, targetPath);
     CFileInfo fileInfo;
-    TCHAR targetDir[MAX_PATH + 1];
     int targetDirLen;
     char* sour;
     CZIPFileData* zipFileData = (CZIPFileData*)fileData->PluginData;
@@ -145,7 +143,13 @@ int CZipUnpack::UnpackOneFile(const char* nameInZip, const CFileData* fileData, 
         ErrorID = FindFile(nameInZip, &fileInfo, zipFileData->ItemNumber);
         if (!ErrorID)
         {
-            lstrcpy(targetDir, targetPath);
+            // target path + the name from the archive, both UTF-8 -> heap
+            int targetDirSize = lstrlen(targetPath) + fileInfo.NameLen +
+                                (newFileName != NULL ? lstrlen(newFileName) : 0) + 16;
+            TCHAR* targetDir = (TCHAR*)malloc(targetDirSize);
+            if (targetDir == NULL)
+                return ErrorID = IDS_LOWMEM;
+            lstrcpyn(targetDir, targetPath, targetDirSize);
             targetDirLen = lstrlen(targetDir);
             if (targetDirLen && targetDir[targetDirLen - 1] == '\\')
             {
@@ -194,6 +198,7 @@ int CZipUnpack::UnpackOneFile(const char* nameInZip, const CFileData* fileData, 
                     free(SlideWindow);
                 ErrorID = IDS_LOWMEM;
             }
+            free(targetDir);
             //free(fileInfo.Name); the destructor releases it
         }
     }
@@ -263,7 +268,7 @@ int CZipUnpack::UnpackWholeArchive(const char* mask, const char* targetDir)
                     QuickSortHeaders(0, extrFiles.Count - 1, extrFiles);
                 }
                 if (*OriginalCurrentDir && !Test)
-                    SetCurrentDirectory(targetDir);
+                    SetCurrentDirectoryU8(targetDir);
                 ErrorID = ExtractFiles(targetDir);
             }
         }
@@ -357,7 +362,7 @@ int CZipUnpack::PrepareMaskArray(TIndirectArray2<char>& maskArray, const char* m
     char* dest;
     char* newMask;
     int newMaskLen;
-    char buffer[MAX_PATH + 1];
+    char buffer[U8_MAX_NAME + 1]; // single mask (UTF-8)
 
     sour = masks;
     while (*sour)
@@ -372,7 +377,7 @@ int CZipUnpack::PrepareMaskArray(TIndirectArray2<char>& maskArray, const char* m
                 else
                     break;
             }
-            if (dest == buffer + MAX_PATH)
+            if (dest == buffer + U8_MAX_NAME)
                 return IDS_TOOLONGMASK;
             *dest++ = *sour++;
         }
@@ -1183,7 +1188,8 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
     if (success)
         *success = FALSE;
     localHeader = (CLocalFileHeader*)malloc(MAX_HEADER_SIZE);
-    pathBuf = (LPTSTR)malloc(sizeof(TCHAR) * (ZIP_MAX_PATH + 1));
+    // the name from the archive is UTF-8 and may be long -> size the buffer by the name
+    pathBuf = (LPTSTR)malloc(sizeof(TCHAR) * (fileInfo->NameLen + 2));
     if (!localHeader || !pathBuf)
     {
         if (localHeader)
@@ -1244,7 +1250,7 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
                     } while (retry);
                     if (!errorID)
                     {
-                        SetFileAttributes(targetDir, fileInfo->FileAttr & FILE_ATTTRIBUTE_MASK);
+                        SetFileAttributesU8(targetDir, fileInfo->FileAttr & FILE_ATTTRIBUTE_MASK);
                         if (success)
                         {
                             *success = TRUE;
@@ -1483,16 +1489,23 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
                         if (!Test)
                         {
                             char attr[101];
-                            char buf[MAX_PATH];
                             int len = lstrlen(ZipName);
-
-                            lstrcpy(buf, ZipName);
-                            *(buf + len++) = '\\';
-                            lstrcpyn(buf + len, fileInfo->Name, MAX_PATH - len);
-                            GetInfo(attr, &fileInfo->LastWrite, fileInfo->Size);
-                            result = SafeCreateCFile(&OutputFile, targetDir, buf, attr, GENERIC_WRITE,
-                                                     FILE_SHARE_READ, fileInfo->FileAttr & ~FILE_ATTRIBUTE_READONLY | FILE_FLAG_SEQUENTIAL_SCAN,
-                                                     DialogFlags, &Silent, &SkipAllIOErrors, fileInfo->Size);
+                            // name shown in the overwrite dialog: archive + name in archive (UTF-8) -> heap
+                            int bufSize = len + fileInfo->NameLen + 2;
+                            char* buf = (char*)malloc(bufSize);
+                            if (buf == NULL)
+                                result = ERR_LOWMEM;
+                            else
+                            {
+                                lstrcpy(buf, ZipName);
+                                *(buf + len++) = '\\';
+                                lstrcpyn(buf + len, fileInfo->Name, bufSize - len);
+                                GetInfo(attr, &fileInfo->LastWrite, fileInfo->Size);
+                                result = SafeCreateCFile(&OutputFile, targetDir, buf, attr, GENERIC_WRITE,
+                                                         FILE_SHARE_READ, fileInfo->FileAttr & ~FILE_ATTRIBUTE_READONLY | FILE_FLAG_SEQUENTIAL_SCAN,
+                                                         DialogFlags, &Silent, &SkipAllIOErrors, fileInfo->Size);
+                                free(buf);
+                            }
                         }
                         else
                         {
@@ -1578,9 +1591,9 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
                                             NULL, &fileInfo->LastWrite);
                                 CloseCFile(OutputFile);
                                 if (result || UserBreak)
-                                    DeleteFile(targetDir);
+                                    DeleteFileU8(targetDir);
                                 else
-                                    SetFileAttributes(targetDir, fileInfo->FileAttr & FILE_ATTTRIBUTE_MASK);
+                                    SetFileAttributesU8(targetDir, fileInfo->FileAttr & FILE_ATTTRIBUTE_MASK);
                             }
                             else
                                 remain = fileInfo->Size - ExtractedBytes;
@@ -1604,7 +1617,7 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
                                         if (!Test)
                                         {
                                             SalamanderGeneral->ClearReadOnlyAttr(targetDir);
-                                            DeleteFile(targetDir);
+                                            DeleteFileU8(targetDir);
                                         }
                                     }
                                     else
@@ -1628,7 +1641,7 @@ int CZipUnpack::ExtractSingleFile(char* targetDir, int targetDirLen,
                 }
             }
 #ifdef TRACE_ENABLE
-            if (dest - targetDir >= ZIP_MAX_PATH)
+            if (dest - targetDir >= U8_MAX_PATH)
                 TRACE_E("Max path length exceeded");
 #endif
         }
@@ -1658,13 +1671,21 @@ int CZipUnpack::ExtractFiles(const char* targetDir)
     int errorID = 0;
     int i;
 
+    // the target path and the names from the archive are UTF-8 and may be long ->
+    // size the buffers by the longest name we are going to extract
+    int maxNameLen = 0;
+    for (i = 0; i < ExtrFiles->Count; i++)
+        if ((int)(*ExtrFiles)[i]->NameLen > maxNameLen)
+            maxNameLen = (*ExtrFiles)[i]->NameLen;
+    int tempDirSize = lstrlen(targetDir) + maxNameLen + 16;
+
     InputBuffer = (char*)malloc(DECOMPRESS_INBUFFER_SIZE);
     InBufSize = DECOMPRESS_INBUFFER_SIZE;
     SlideWindow = (char*)malloc(SLIDE_WINDOW_SIZE);
     WinSize = SLIDE_WINDOW_SIZE;
     localHeader = (CLocalFileHeader*)malloc(MAX_HEADER_SIZE);
-    tempDir = (char*)malloc(sizeof(TCHAR) * (ZIP_MAX_PATH + 1));
-    progrTextBuf = (LPTSTR)malloc(sizeof(TCHAR) * (ZIP_MAX_PATH + 32));
+    tempDir = (char*)malloc(sizeof(TCHAR) * tempDirSize);
+    progrTextBuf = (LPTSTR)malloc(sizeof(TCHAR) * (maxNameLen + 128)); // + the "extracting" prefix
     if (!localHeader || !tempDir || !progrTextBuf ||
         !InputBuffer || !SlideWindow)
     {
@@ -1717,8 +1738,9 @@ int CZipUnpack::ExtractFiles(const char* targetDir)
         for (i = 0; i < ExtrFiles->Count && !errorID && !UserBreak; i++)
         {
             fileInfo = (*ExtrFiles)[i];
-            if (tempDirLen + 1 + fileInfo->NameLen - RootLen - (RootLen ? 1 : 0) >=
-                (DWORD)(Test ? ZIP_MAX_PATH : MAX_PATH - (fileInfo->IsDir ? 12 : 0)))
+            // long paths are supported (W API + \\?\), only the OS limit still applies
+            DWORD pathLen = tempDirLen + 1 + fileInfo->NameLen - RootLen - (RootLen ? 1 : 0);
+            if (pathLen >= (DWORD)tempDirSize || (!Test && pathLen >= U8_MAX_PATH))
             {
                 switch (ProcessError(IDS_TOOLONGNAME3, 0, fileInfo->Name + RootLen + (RootLen ? 1 : 0),
                                      PE_NORETRY | DialogFlags, &SkipAllLongNames))

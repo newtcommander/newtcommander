@@ -27,5 +27,6 @@
 #include "spl_menu.h"
 #include "spl_vers.h"
 #include "spl_file.h"
+#include "splunicode.h"
 #include "dbg.h"
 #include "arraylt.h"

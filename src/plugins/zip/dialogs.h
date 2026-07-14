@@ -171,16 +171,26 @@ INT_PTR ChangeDiskDialog(HWND parent, const char* text);
 class CChangeDiskDialog2 : public CDlgRoot
 {
     //int     VolumeNumber;
-    char* FileName;
-    char CurrentPath[MAX_PATH];
+    char* FileName;    // UTF-8, U8_MAX_PATH bytes (owned by the caller)
+    char* CurrentPath; // UTF-8, U8_MAX_PATH bytes (heap - long paths)
 
 public:
     CChangeDiskDialog2(HWND parent, /*int volNum,*/ char* fileName) : CDlgRoot(parent)
     {
         //VolumeNumber = volNumber;
         FileName = fileName;
-        strcpy(CurrentPath, FileName);
-        SalamanderGeneral->CutDirectory(CurrentPath);
+        CurrentPath = (char*)malloc(U8_MAX_PATH);
+        if (CurrentPath != NULL)
+        {
+            lstrcpyn(CurrentPath, FileName, U8_MAX_PATH);
+            SalamanderGeneral->CutDirectory(CurrentPath);
+        }
+    }
+
+    ~CChangeDiskDialog2()
+    {
+        if (CurrentPath != NULL)
+            free(CurrentPath);
     }
 
     INT_PTR Proceed();
@@ -197,9 +207,9 @@ class CChangeDiskDialog3 : public CDlgRoot
 {
     int VolumeNumber;
     bool Last;
-    char* OldName;
+    char* OldName; // UTF-8, U8_MAX_PATH bytes (owned by the caller)
     unsigned* Flags;
-    char CurrentPath[MAX_PATH];
+    char* CurrentPath; // UTF-8, U8_MAX_PATH bytes (heap - long paths)
 
 public:
     CChangeDiskDialog3(HWND parent, int volNum, bool last,
@@ -209,8 +219,18 @@ public:
         Last = last;
         OldName = fileName;
         Flags = flags;
-        strcpy(CurrentPath, OldName);
-        SalamanderGeneral->CutDirectory(CurrentPath);
+        CurrentPath = (char*)malloc(U8_MAX_PATH);
+        if (CurrentPath != NULL)
+        {
+            lstrcpyn(CurrentPath, OldName, U8_MAX_PATH);
+            SalamanderGeneral->CutDirectory(CurrentPath);
+        }
+    }
+
+    ~CChangeDiskDialog3()
+    {
+        if (CurrentPath != NULL)
+            free(CurrentPath);
     }
 
     INT_PTR Proceed();

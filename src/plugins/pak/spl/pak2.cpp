@@ -32,11 +32,22 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
     BOOL isDir;
     CQuadWord nextSize;
     const char* nextName;
-    char pakName[PAK_MAXPATH];
+    char pakName[PAK_MAXPATH]; // name inside the PAK: bounded by the format (ASCII, < PAK_MAXPATH)
     DWORD pakSize;
-    char sourName[MAX_PATH];
     BOOL skip;
     int errorOccured;
+    BOOL result;
+
+    // 'sourcePath' and 'PakFileName' are UTF-8 and may be long paths (interface 104) -> heap buffers
+    char* sourName = (char*)malloc(U8_MAX_PATH);
+    char* name1 = (char*)malloc(U8_MAX_PATH);
+    if (sourName == NULL || name1 == NULL)
+    {
+        free(sourName);
+        free(name1);
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        return FALSE;
+    }
 
     ProgressTotal = CQuadWord(0, 0);
     *del = FALSE;
@@ -48,7 +59,7 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
         if (isDir)
             continue;
         lstrcpy(sourName, sourcePath);
-        SalamanderGeneral->SalPathAppend(sourName, nextName, MAX_PATH);
+        SalamanderGeneral->SalPathAppend(sourName, nextName, U8_MAX_PATH);
         if (lstrlen(archiveRoot) + lstrlen(nextName) + 2 >= PAK_MAXPATH)
         {
             if (Silent & SF_LONGNAMES)
@@ -60,35 +71,37 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
             case DIALOG_SKIP:
                 break;
             default:
-                return FALSE;
+                result = FALSE;
+                goto l_done;
             }
             continue;
         }
         lstrcpy(pakName, archiveRoot);
         SalamanderGeneral->SalPathAppend(pakName, nextName, PAK_MAXPATH);
         if (!PakIFace->FindFile(pakName, &pakSize))
-            return FALSE;
+        {
+            result = FALSE;
+            goto l_done;
+        }
         if (pakSize != -1 && (Silent & SF_SKIPALL))
             continue;
         if (pakSize != -1)
         {
             if (!(Silent & SF_OVEWRITEALL))
             {
-                char name1[MAX_PATH + PAK_MAXPATH + 1];
                 char data1[100];
                 char data2[100];
                 FILETIME ft;
 
                 lstrcpy(name1, PakFileName);
-                SalamanderGeneral->SalPathAppend(name1, pakName, MAX_PATH + PAK_MAXPATH + 1);
+                SalamanderGeneral->SalPathAppend(name1, pakName, U8_MAX_PATH);
                 PakIFace->GetPakTime(&ft);
                 GetInfo(data1, &ft, pakSize);
                 HANDLE file;
                 file = INVALID_HANDLE_VALUE;
                 while (file == INVALID_HANDLE_VALUE && !skip)
                 {
-                    file = CreateFile(sourName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                    file = CreateFileU8(sourName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING);
                     if (file != INVALID_HANDLE_VALUE)
                         break;
                     if (Silent & SF_IOERRORS)
@@ -109,7 +122,8 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
                         break;
                     case DIALOG_CANCEL:
                     case DIALOG_FAIL:
-                        return FALSE;
+                        result = FALSE;
+                        goto l_done;
                     }
                 }
                 if (skip)
@@ -131,13 +145,17 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
                     break;
                 case DIALOG_CANCEL:
                 case DIALOG_FAIL:
-                    return FALSE;
+                    result = FALSE;
+                    goto l_done;
                 }
                 if (skip)
                     continue;
             }
             if (!PakIFace->MarkForDelete())
-                return FALSE;
+            {
+                result = FALSE;
+                goto l_done;
+            }
             *del = TRUE;
         }
         if (nextSize > CQuadWord(0x80000000, 0))
@@ -153,7 +171,8 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
                 break;
             case DIALOG_CANCEL:
             case DIALOG_FAIL:
-                return FALSE;
+                result = FALSE;
+                goto l_done;
             }
         }
         if (skip)
@@ -165,17 +184,24 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
             if (f)
                 delete f;
             SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
-            return FALSE;
+            result = FALSE;
+            goto l_done;
         }
         if (!files.Add(f))
         {
             delete f;
             SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
-            return FALSE;
+            result = FALSE;
+            goto l_done;
         }
         ProgressTotal += nextSize;
     }
-    return errorOccured != SALENUM_CANCEL; // cancel aborts the operation
+    result = errorOccured != SALENUM_CANCEL; // cancel aborts the operation
+
+l_done:
+    free(sourName);
+    free(name1);
+    return result;
 }
 
 BOOL CPluginInterfaceForArchiver::DelFilesToBeOverwritten(unsigned* deleted)
@@ -203,10 +229,19 @@ BOOL CPluginInterfaceForArchiver::AddFiles(TIndirectArray2<CFileInfo>& files, un
                         sourPath, archiveRoot);
     Abort = TRUE;
     CFileInfo* f;
-    char message[MAX_PATH + 32];
     BOOL skip;
     CQuadWord currentProgress = CQuadWord(deleted, 0);
     int i;
+    BOOL result = TRUE;
+
+    // f->Name is a UTF-8 full path and may be long (interface 104) -> heap buffer
+    char* message = (char*)malloc(U8_MAX_PATH + 64);
+    if (message == NULL)
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        return FALSE;
+    }
+
     for (i = 0; i < files.Count; i++)
     {
         skip = FALSE;
@@ -217,8 +252,7 @@ BOOL CPluginInterfaceForArchiver::AddFiles(TIndirectArray2<CFileInfo>& files, un
         IOFile = INVALID_HANDLE_VALUE;
         while (IOFile == INVALID_HANDLE_VALUE)
         {
-            IOFile = CreateFile(f->Name /* + sourPathLen*/, GENERIC_READ, FILE_SHARE_READ, NULL,
-                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+            IOFile = CreateFileU8(f->Name /* + sourPathLen*/, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
             if (IOFile != INVALID_HANDLE_VALUE)
                 break;
             if (Silent & SF_IOERRORS)
@@ -239,15 +273,19 @@ BOOL CPluginInterfaceForArchiver::AddFiles(TIndirectArray2<CFileInfo>& files, un
                 goto l_next;
             case DIALOG_CANCEL:
             case DIALOG_FAIL:
-                return FALSE;
+                result = FALSE;
+                goto l_done;
             }
         }
         IOFileName = f->Name;
         if (!Salamander->ProgressSetSize(CQuadWord(0, 0), CQuadWord(-1, -1), TRUE))
-            return FALSE;
+        {
+            result = FALSE;
+            goto l_done;
+        }
         Salamander->ProgressSetTotalSize(CQuadWord(f->Size, 0), ProgressTotal);
         BOOL ret;
-        char pakName[PAK_MAXPATH];
+        char pakName[PAK_MAXPATH]; // name inside the PAK: bounded by the format (ASCII)
         lstrcpy(pakName, archiveRoot);
         char* root;
         root = f->Name + lstrlen(sourPath);
@@ -257,15 +295,24 @@ BOOL CPluginInterfaceForArchiver::AddFiles(TIndirectArray2<CFileInfo>& files, un
         ret = PakIFace->AddFile(pakName, f->Size);
         CloseHandle(IOFile);
         if (!ret && Abort)
-            return FALSE;
+        {
+            result = FALSE;
+            goto l_done;
+        }
         f->Status = STATUS_OK;
 
     l_next:
         currentProgress += CQuadWord(f->Size, 0);
         if (!Salamander->ProgressSetSize(CQuadWord(f->Size, 0), currentProgress, TRUE))
-            return FALSE;
+        {
+            result = FALSE;
+            goto l_done;
+        }
     }
-    return TRUE;
+
+l_done:
+    free(message);
+    return result;
 }
 
 //#define DIR_DEPTH(i) (((CFileInfo *)(*files)[i])->DirDepth)
@@ -302,7 +349,13 @@ void CPluginInterfaceForArchiver::DeleteSourceFiles(TIndirectArray2<CFileInfo>& 
     if (files.Count == 0)
         return;
     CFileInfo* f;
-    char path[MAX_PATH];
+    // f->Name is a UTF-8 full path and may be long (interface 104) -> heap buffer
+    char* path = (char*)malloc(U8_MAX_PATH);
+    if (path == NULL)
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        return;
+    }
     SortByDirDepth(0, files.Count - 1, files);
     DWORD sourceDepth = ComputeDirDepth(sourcePath);
 
@@ -312,17 +365,18 @@ void CPluginInterfaceForArchiver::DeleteSourceFiles(TIndirectArray2<CFileInfo>& 
         f = files[i];
         if (f->Status == STATUS_OK)
         {
-            SalamanderGeneral->ClearReadOnlyAttr(f->Name);
-            DeleteFile(f->Name);
+            SalamanderGeneral->ClearReadOnlyAttr(f->Name); // core service: takes the UTF-8 path as is
+            DeleteFileU8(f->Name);
             lstrcpy(path, f->Name);
             while (ComputeDirDepth(path) > sourceDepth + 1)
             {
                 SalamanderGeneral->CutDirectory(path);
-                if (!RemoveDirectory(path))
+                if (!RemoveDirectoryU8(path))
                     break;
             }
         }
     }
+    free(path);
 }
 
 BOOL CPluginInterfaceForArchiver::PackToArchive(CSalamanderForOperationsAbstract* salamander, const char* fileName,
@@ -587,19 +641,29 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
 
     SalamanderGeneral->SetUserWorkedOnPanelPath(PANEL_SOURCE); // we treat this command as working with the path (it appears in Alt+F12)
 
-    char pakFile[MAX_PATH];
+    // the panel path is UTF-8 and may be a long path (interface 104) -> heap buffer
+    char* pakFile = (char*)malloc(U8_MAX_PATH);
     char* fileName;
     char* arch;
     BOOL selFiles = FALSE;
     int index = 0;
 
-    InterfaceForArchiver.Salamander = salamander;
-    if (!SalamanderGeneral->GetPanelPath(PANEL_SOURCE, pakFile, MAX_PATH, NULL, &arch))
+    if (pakFile == NULL)
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
         return FALSE;
+    }
+
+    InterfaceForArchiver.Salamander = salamander;
+    if (!SalamanderGeneral->GetPanelPath(PANEL_SOURCE, pakFile, U8_MAX_PATH, NULL, &arch))
+    {
+        free(pakFile);
+        return FALSE;
+    }
 
     if (!arch)
     {
-        SalamanderGeneral->SalPathAddBackslash(pakFile, MAX_PATH);
+        SalamanderGeneral->SalPathAddBackslash(pakFile, U8_MAX_PATH);
         fileName = pakFile + lstrlen(pakFile);
         selFiles = eventMask & MENU_EVENT_FILES_SELECTED;
     }
@@ -607,6 +671,7 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
     InterfaceForArchiver.PakIFace = PAKGetIFace();
     if (!InterfaceForArchiver.PakIFace)
     {
+        free(pakFile);
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
         return FALSE;
     }
@@ -661,10 +726,13 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
                     changesReported = TRUE;
                     // announce the change on the path where the modified PAK files reside (the notification happens after leaving
                     // the plugin code - after returning from this method)
-                    char pakFileDir[MAX_PATH];
-                    strcpy(pakFileDir, pakFile);
-                    SalamanderGeneral->CutDirectory(pakFileDir); // must work, because it is an existing file
-                    SalamanderGeneral->PostChangeOnPathNotification(pakFileDir, FALSE);
+                    char* pakFileDir = _strdup(pakFile); // UTF-8 full path, may be long (interface 104)
+                    if (pakFileDir != NULL)
+                    {
+                        SalamanderGeneral->CutDirectory(pakFileDir); // must work, because it is an existing file
+                        SalamanderGeneral->PostChangeOnPathNotification(pakFileDir, FALSE);
+                        free(pakFileDir);
+                    }
                 }
             }
             InterfaceForArchiver.PakIFace->ClosePak();
@@ -673,6 +741,8 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
     } while (selFiles); // loop until the GetSelectedItem method returns NULL
 
     PAKReleaseIFace(InterfaceForArchiver.PakIFace);
+    InterfaceForArchiver.PakFileName = NULL; // must not outlive the buffer below
+    free(pakFile);
 
     return TRUE;
 }

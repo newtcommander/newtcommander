@@ -978,8 +978,13 @@ BOOL CModules::BuildDataFromScript()
 BOOL LoadScripDataFromFile(const char* fileName)
 {
     char buff[1024];
-    HANDLE hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                              OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    // 'fileName' is UTF-8 (see the Open dialog in CMainDialogProc) -> open via the W API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    HANDLE hFile = wFileName != NULL ? CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                   OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+                                     : CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                   OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    free(wFileName);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         sprintf(buff, LoadStr(IDS_FILE_OPENERROR), fileName);

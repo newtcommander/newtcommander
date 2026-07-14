@@ -30,9 +30,10 @@ CDEBArchive::CDEBArchive(const char* fileName, CSalamanderForOperationsAbstract*
     controlArchive = dataArchive = NULL;
     bOK = FALSE;
 
-    // Open input file
-    HANDLE file = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    // Open input file ('fileName' is the archive path from the interface:
+    // UTF-8 since interface 104 -> W API with the \\?\ prefix)
+    HANDLE file = CreateFileU8(fileName, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING,
+                               FILE_FLAG_SEQUENTIAL_SCAN);
     if (file == INVALID_HANDLE_VALUE)
     {
         ShowError(IDS_GZERR_FOPEN);

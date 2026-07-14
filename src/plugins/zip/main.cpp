@@ -209,35 +209,32 @@ BOOL CPluginInterface::Release(HWND parent, BOOL force)
 void ValidateDefSfxFile()
 {
     // ensure the file exists; otherwise use the first available one as default
-    char path[MAX_PATH];
+    char path[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
     char* file;
-    GetModuleFileName(DLLInstance, path, MAX_PATH);
+    GetModuleFileNameU8(DLLInstance, path, (DWORD)sizeof(path));
     SalamanderGeneral->CutDirectory(path);
-    SalamanderGeneral->SalPathAppend(path, "sfx", MAX_PATH);
-    SalamanderGeneral->SalPathAddBackslash(path, MAX_PATH);
+    SalamanderGeneral->SalPathAppend(path, "sfx", (int)sizeof(path));
+    SalamanderGeneral->SalPathAddBackslash(path, (int)sizeof(path));
     file = path + lstrlen(path);
     lstrcpy(file, Config.DefSfxFile);
     DWORD attr = SalamanderGeneral->SalGetFileAttributes(path);
     if (attr == 0xFFFFFFFF || attr & FILE_ATTRIBUTE_DIRECTORY)
     {
-        WIN32_FIND_DATA fd;
+        WIN32_FIND_DATAW fd;
         lstrcpy(file, "*.sfx");
-        HANDLE find = FindFirstFile(path, &fd);
+        HANDLE find = FindFirstFileU8(path, &fd);
         while (find != INVALID_HANDLE_VALUE && fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            if (!FindNextFile(find, &fd))
+            if (!FindNextFileW(find, &fd))
             {
                 FindClose(find);
                 find = INVALID_HANDLE_VALUE;
             }
         }
-        if (find == INVALID_HANDLE_VALUE)
+        if (find == INVALID_HANDLE_VALUE || !FindDataNameU8(&fd, Config.DefSfxFile, MAX_PATH))
             *Config.DefSfxFile = 0;
-        else
-        {
-            lstrcpy(Config.DefSfxFile, fd.cFileName);
+        if (find != INVALID_HANDLE_VALUE)
             FindClose(find);
-        }
     }
 }
 
@@ -622,19 +619,24 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
     CALL_STACK_MESSAGE3("CPluginInterfaceForMenuExt::ExecuteMenuItem(, , %d, 0x%X)", id,
                         eventMask);
 
-    char zipFile[MAX_PATH];
+    char* zipFile = (char*)malloc(U8_MAX_PATH); // full path (UTF-8, long paths) -> heap
+    if (zipFile == NULL)
+        return FALSE;
     char* fileName;
     char* arch;
     BOOL selFiles = FALSE;
     int index = 0;
     BOOL ok = TRUE;
 
-    if (!SalamanderGeneral->GetPanelPath(PANEL_SOURCE, zipFile, MAX_PATH, NULL, &arch))
+    if (!SalamanderGeneral->GetPanelPath(PANEL_SOURCE, zipFile, U8_MAX_PATH, NULL, &arch))
+    {
+        free(zipFile);
         return FALSE;
+    }
 
     if (!arch)
     {
-        SalamanderGeneral->SalPathAddBackslash(zipFile, MAX_PATH);
+        SalamanderGeneral->SalPathAddBackslash(zipFile, U8_MAX_PATH);
         fileName = zipFile + lstrlen(zipFile);
         selFiles = eventMask & MENU_EVENT_FILES_SELECTED;
     }
@@ -663,7 +665,10 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
 
         if (!ok && SalamanderGeneral->ShowMessageBox(LoadStr(IDS_CONTINUE), LoadStr(IDS_PLUGINNAME),
                                                      MSGBOX_QUESTION) != IDYES)
+        {
+            free(zipFile);
             return FALSE;
+        }
         ok = TRUE;
 
         switch (id)
@@ -726,7 +731,7 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
             if (ok)
             {
                 char buf[1024];
-                sprintf(buf, unpack.AllFilesOK ? LoadStr(IDS_TESTOK) : LoadStr(IDS_TESTKO), zipFile);
+                _snprintf_s(buf, _TRUNCATE, unpack.AllFilesOK ? LoadStr(IDS_TESTOK) : LoadStr(IDS_TESTKO), zipFile);
                 SalamanderGeneral->ShowMessageBox(buf, LoadStr(IDS_PLUGINNAME), MSGBOX_INFO);
             }
             break;
@@ -740,14 +745,18 @@ BOOL CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstrac
                 changesReported = TRUE;
                 // notify the path containing the modified PAK files (notification happens after leaving
                 // the plugin code — once this method returns)
-                char zipFileDir[MAX_PATH];
-                strcpy(zipFileDir, zipFile);
-                SalamanderGeneral->CutDirectory(zipFileDir); // must succeed because the file exists
-                SalamanderGeneral->PostChangeOnPathNotification(zipFileDir, FALSE);
+                char* zipFileDir = _strdup(zipFile); // full path (UTF-8) -> heap
+                if (zipFileDir != NULL)
+                {
+                    SalamanderGeneral->CutDirectory(zipFileDir); // must succeed because the file exists
+                    SalamanderGeneral->PostChangeOnPathNotification(zipFileDir, FALSE);
+                    free(zipFileDir);
+                }
             }
         }
     } while (selFiles); // keep looping until GetSelectedItem returns NULL
 
+    free(zipFile);
     return TRUE;
 }
 

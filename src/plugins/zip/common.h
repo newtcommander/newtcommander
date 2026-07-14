@@ -19,6 +19,7 @@
 // doc\plugin-vnext-migration.md
 #define U8_MAX_PATH (3 * 32767 + 1) // full path in UTF-8
 #define U8_MAX_NAME (3 * MAX_PATH)  // single name component in UTF-8
+#define MAX_LONG_PATH_CHARS 32767   // OS limit of a path in UTF-16 units
 
 // UTF-8 -> W wrappers for the file APIs we call ourselves (splunicode.h)
 HANDLE CreateFileU8(const char* fileName, DWORD access, DWORD share,
@@ -35,6 +36,15 @@ HINSTANCE LoadLibraryExU8(const char* fileName, DWORD flags);
 DWORD GetModuleFileNameU8(HMODULE module, char* buf, DWORD bufSize);
 // UTF-16 name from WIN32_FIND_DATAW converted to UTF-8; returns FALSE on failure
 BOOL FindDataNameU8(const WIN32_FIND_DATAW* data, char* buf, int bufSize);
+// UTF-8 <-> dialog item text (paths must not go through the A text APIs)
+BOOL SetDlgItemTextU8(HWND dlg, int item, const char* text);
+int GetDlgItemTextU8(HWND dlg, int item, char* buf, int bufSize);
+// UTF-8 -> OEM code page (names stored in the SFX header); FALSE on failure
+BOOL U8ToOem(const char* u8, char* oem, int oemSize);
+// UTF-8 <-> ANSI, needed at the boundary of the ANSI common file dialog
+// (GetOpenFileName/GetSaveFileName); FALSE on failure
+BOOL U8ToDlgA(const char* u8, char* ansi, int ansiSize);
+BOOL DlgAToU8(const char* ansi, char* u8, int u8Size);
 
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
 extern CSalamanderSafeFileAbstract* SalamanderSafeFile;

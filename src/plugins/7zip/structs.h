@@ -6,6 +6,13 @@
 #include "Common/MyString.h"
 #include "Common/StringConvert.h"
 
+// Plugin interface 104: every char* name/path crossing the Salamander
+// interface is UTF-8, while 7za works with UTF-16 (UString/BSTR). Use these
+// two helpers at that boundary - 7za's GetUnicodeString()/GetAnsiString()
+// default to CP_ACP and would mangle (or drop) any non-ASCII name.
+inline UString U8ToUString(const char* u8) { return MultiByteToUnicodeString(u8, CP_UTF8); }
+inline AString UStringToU8(const UString& s) { return UnicodeStringToMultiByte(s, CP_UTF8); }
+
 struct CUpdateInfo
 {
     bool NewData;
@@ -33,15 +40,16 @@ struct CFileItem
 
     BOOL CanDelete; // TRUE if Overwrite was chosen when updating the archive, otherwise FALSE
 
+    // 'sourcePath', 'archiveRoot' and 'name' are UTF-8 strings from the interface
     CFileItem(const char* sourcePath, const char* archiveRoot, const char* name, DWORD attr, UINT64 size, FILETIME lastWrite, bool isDir)
     {
         // if archiveRoot is empty, the name must not start with a backslash '\'
         if (strlen(archiveRoot) > 0)
-            Name = GetUnicodeString(archiveRoot) + GetUnicodeString("\\") + GetUnicodeString(name);
+            Name = U8ToUString(archiveRoot) + UString(L"\\") + U8ToUString(name);
         else
-            Name = GetUnicodeString(name);
+            Name = U8ToUString(name);
 
-        FullPath = GetUnicodeString(sourcePath) + GetUnicodeString("\\") + GetUnicodeString(name);
+        FullPath = U8ToUString(sourcePath) + UString(L"\\") + U8ToUString(name);
         Attributes = attr;
         Size = size;
         LastWriteTime = CreationTime = LastAccessTime = lastWrite;

@@ -37,6 +37,46 @@ CSalamanderSafeFileAbstract* SalamanderSafeFile = NULL;
 // variable definition for "dbg.h"
 CSalamanderDebugAbstract* SalamanderDebug = NULL;
 
+// ****************************************************************************
+//
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = CreateFileW(w, access, share, NULL, disposition, FILE_ATTRIBUTE_NORMAL, NULL);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return file;
+}
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+BOOL RemoveDirectoryU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = RemoveDirectoryW(w);
+    free(w);
+    return ret;
+}
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     CALL_STACK_MESSAGE_NONE
@@ -408,6 +448,18 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
     CQuadWord currentProgress(0, 0);
     unsigned left = files.Count;
     CQuadWord q;
+    BOOL result = TRUE;
+
+    // 'targetDir' and 'arcFile' are UTF-8 and may be long paths (interface 104) -> heap buffers
+    char* targetName = (char*)malloc(U8_MAX_PATH);
+    char* arcName = (char*)malloc(U8_MAX_PATH);
+    if (targetName == NULL || arcName == NULL)
+    {
+        free(targetName);
+        free(arcName);
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        return FALSE;
+    }
 
     PakIFace->GetFirstFile(file, &size);
     while (*file && left)
@@ -423,7 +475,7 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
                 lstrcpy(message, LoadStr(IDS_EXTRACTING));
                 lstrcat(message, file);
                 Salamander->ProgressDialogAddText(message, TRUE);
-                if (lstrlen(targetDir) + lstrlen(file) - rootLen >= MAX_PATH)
+                if (lstrlen(targetDir) + lstrlen(file) - rootLen >= U8_MAX_PATH)
                 {
                     if (Silent & SF_LONGNAMES)
                         goto l_next;
@@ -435,16 +487,15 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
                         goto l_next;
                     case DIALOG_CANCEL:
                     case DIALOG_FAIL:
-                        return FALSE;
+                        result = FALSE;
+                        goto l_done;
                     }
                 }
-                char targetName[MAX_PATH];
                 lstrcpy(targetName, targetDir);
-                SalamanderGeneral->SalPathAppend(targetName, file + rootLen, MAX_PATH);
+                SalamanderGeneral->SalPathAppend(targetName, file + rootLen, U8_MAX_PATH);
                 IOFileName = targetName;
-                char arcName[MAX_PATH + PAK_MAXPATH];
                 lstrcpy(arcName, arcFile);
-                SalamanderGeneral->SalPathAppend(arcName, file, MAX_PATH + PAK_MAXPATH);
+                SalamanderGeneral->SalPathAppend(arcName, file, U8_MAX_PATH);
                 FILETIME ft;
                 PakIFace->GetPakTime(&ft);
                 char buf[100];
@@ -454,6 +505,7 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
                 bool allocate;
                 allocate = CQuadWord(2, 0) < q && q < CQuadWord(0, 0x80000000);
                 q += CQuadWord(0, 0x80000000);
+                // SafeFileCreate is a core service - it takes the UTF-8 path as is
                 IOFile = SalamanderSafeFile->SafeFileCreate(targetName, GENERIC_WRITE,
                                                             FILE_SHARE_READ, FILE_ATTRIBUTE_NORMAL, FALSE,
                                                             SalamanderGeneral->GetMsgBoxParent(), arcName, buf, &Silent, TRUE,
@@ -461,13 +513,17 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
                 if (skip)
                     goto l_next;
                 if (IOFile == INVALID_HANDLE_VALUE)
-                    return FALSE;
+                {
+                    result = FALSE;
+                    goto l_done;
+                }
                 BOOL ret;
                 Abort = TRUE;
                 if (!Salamander->ProgressSetSize(CQuadWord(0, 0), CQuadWord(-1, -1), TRUE))
                 {
                     CloseHandle(IOFile);
-                    return FALSE;
+                    result = FALSE;
+                    goto l_done;
                 }
                 Salamander->ProgressSetTotalSize(CQuadWord(size, 0), ProgressTotal);
                 ret = PakIFace->ExtractFile();
@@ -475,22 +531,33 @@ BOOL CPluginInterfaceForArchiver::UnpackFiles(TIndirectArray2<CFileInfo>& files,
                 CloseHandle(IOFile);
                 if (!ret)
                 {
-                    DeleteFile(targetName);
+                    DeleteFileU8(targetName);
                     if (Abort)
-                        return FALSE;
+                    {
+                        result = FALSE;
+                        goto l_done;
+                    }
                 }
 
             l_next:
                 currentProgress += CQuadWord(size, 0);
                 if (!Salamander->ProgressSetSize(CQuadWord(size, 0), currentProgress, TRUE))
-                    return FALSE;
+                {
+                    result = FALSE;
+                    goto l_done;
+                }
                 left--;
                 break;
             }
         }
         PakIFace->GetNextFile(file, &size);
     }
-    return TRUE;
+
+l_done:
+    IOFileName = NULL; // must not outlive the buffer below
+    free(targetName);
+    free(arcName);
+    return result;
 }
 
 BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract* salamander, const char* fileName,
@@ -586,23 +653,27 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
         DWORD size;
         if (PakIFace->FindFile(nameInArchive, &size) && size != -1)
         {
-            char targetName[MAX_PATH];
+            // 'targetDir' is UTF-8 and may be a long path (interface 104) -> heap buffer
+            char* targetName = (char*)malloc(U8_MAX_PATH);
             const char* name = strrchr(nameInArchive, '\\');
             if (name)
                 name++;
             else
                 name = nameInArchive;
-            if (lstrlen(targetDir) + lstrlen(name) + 1 >= MAX_PATH)
+            if (targetName == NULL)
+            {
+                SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+            }
+            else if (lstrlen(targetDir) + lstrlen(name) + 1 >= U8_MAX_PATH)
             {
                 SalamanderGeneral->ShowMessageBox(LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
             }
             else
             {
                 lstrcpy(targetName, targetDir);
-                SalamanderGeneral->SalPathAppend(targetName, name, MAX_PATH);
+                SalamanderGeneral->SalPathAppend(targetName, name, U8_MAX_PATH);
                 IOFileName = targetName;
-                IOFile = CreateFile(targetName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
-                                    FILE_ATTRIBUTE_NORMAL, NULL);
+                IOFile = CreateFileU8(targetName, GENERIC_WRITE, FILE_SHARE_READ, CREATE_ALWAYS);
                 if (IOFile == INVALID_HANDLE_VALUE)
                 {
                     char buf[1024];
@@ -622,9 +693,11 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
                     if (r)
                         ret = TRUE;
                     else
-                        DeleteFile(targetName);
+                        DeleteFileU8(targetName);
                 }
+                IOFileName = NULL; // must not outlive the buffer below
             }
+            free(targetName);
         }
         PakIFace->ClosePak();
     }

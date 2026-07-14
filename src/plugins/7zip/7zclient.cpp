@@ -183,13 +183,13 @@ BOOL C7zClient::FillItemData(IInArchive* archive, UINT32 index, C7zClient::CItem
     else
         ConvertPropVariantToUInt64(propVariant, itemData->PackedSize);
 
-    // method
+    // method (shown in a panel column -> must be UTF-8)
     if (archive->GetProperty(index, kpidMethod, &propVariant) != S_OK)
         itemData->SetMethod("Unknown");
     else if (propVariant.vt == VT_EMPTY)
         itemData->SetMethod("None");
     else
-        itemData->SetMethod(GetAnsiString(propVariant.bstrVal));
+        itemData->SetMethod(UStringToU8(propVariant.bstrVal));
 
     /*  // 06F10701 is the ID for 7zAES, i.e. encryption
 //  if (strstr(itemData->Method, "06F10701") != NULL)
@@ -206,9 +206,9 @@ BOOL C7zClient::AddFileDir(IInArchive* archive, UINT32 idx,
                            BOOL* reportTooLongPathErr, const char* archiveName)
 {
     NWindows::NCOM::CPropVariant propVariant;
-    // path
+    // path (7za keeps it in UTF-16, the panel/interface wants UTF-8)
     archive->GetProperty(idx, kpidPath, &propVariant);
-    CSysString path = GetAnsiString(propVariant.bstrVal);
+    AString path = UStringToU8(propVariant.bstrVal);
 
     BOOL ret = FALSE;
     LPTSTR p = NULL;
@@ -629,17 +629,28 @@ int C7zClient::DeleteMakeUpdateList(TIndirectArray<CArchiveItem>* archiveItems, 
 int C7zClient::Delete(CSalamanderForOperationsAbstract* salamander, const char* archiveName,
                       TIndirectArray<CArchiveItemInfo>* deleteList, bool passwordIsDefined, UString& password)
 {
-    char tmpName[MAX_PATH];
     DWORD err;
 
-    char srcPath[MAX_PATH];
+    // UTF-8 long paths do not fit into MAX_PATH -> keep both buffers on the heap
+    char* tmpName = (char*)malloc(U8_MAX_PATH);
+    char* srcPath = (char*)malloc(U8_MAX_PATH);
+    if (tmpName == NULL || srcPath == NULL)
+    {
+        free(tmpName);
+        free(srcPath);
+        Error(IDS_INSUFFICIENT_MEMORY);
+        return OPER_CANCEL;
+    }
+
     strcpy(srcPath, archiveName);
-    char* rbackslash = _tcsrchr(srcPath, '\\');
+    char* rbackslash = strrchr(srcPath, '\\');
     if (rbackslash != NULL)
         *rbackslash = '\0';
 
     if (!SalamanderGeneral->SalGetTempFileName(srcPath, "sal", tmpName, TRUE, &err))
     {
+        free(tmpName);
+        free(srcPath);
         SysError(IDS_CANT_CREATE_TMPFILE, err, FALSE);
         return OPER_CANCEL;
     }
@@ -648,7 +659,11 @@ int C7zClient::Delete(CSalamanderForOperationsAbstract* salamander, const char* 
     CMyComPtr<IInArchive> inArchive;
 
     if (!OpenArchive(archiveName, &inArchive, password))
+    {
+        free(tmpName);
+        free(srcPath);
         return OPER_CANCEL;
+    }
 
     int ret = OPER_CANCEL;
     TIndirectArray<CArchiveItem>* archiveItems = NULL;
@@ -730,7 +745,7 @@ int C7zClient::Delete(CSalamanderForOperationsAbstract* salamander, const char* 
             // close the open archive
             inArchive->Close();
             // delete it
-            if (::DeleteFile(archiveName))
+            if (DeleteFileU8(archiveName))
             {
                 DWORD err2;
                 // rename the tmp file to the archive
@@ -775,7 +790,10 @@ int C7zClient::Delete(CSalamanderForOperationsAbstract* salamander, const char* 
     }
 
     delete archiveItems;
-    ::DeleteFile(tmpName);
+    DeleteFileU8(tmpName);
+
+    free(tmpName);
+    free(srcPath);
 
     return ret;
 } /* C7zClient::Delete */
@@ -927,8 +945,9 @@ int C7zClient::UpdateMakeUpdateList(TIndirectArray<CFileItem>* fileList, TIndire
                     GetInfo(fifd, &fi->LastWriteTime, fi->Size);
                     GetInfo(aifd, &ai->LastWrite, ai->Size);
 
+                    // Salamander's overwrite dialog expects UTF-8 names
                     int userAct = SalamanderGeneral->DialogOverwrite(SalamanderGeneral->GetMsgBoxParent(), BUTTONS_YESALLSKIPCANCEL,
-                                                                     GetAnsiString(ai->Name), aifd, GetAnsiString(fi->FullPath), fifd);
+                                                                     UStringToU8(ai->Name), aifd, UStringToU8(fi->FullPath), fifd);
 
                     switch (userAct)
                     {
@@ -1078,13 +1097,21 @@ int C7zClient::Update(CSalamanderForOperationsAbstract* salamander, const char* 
                       const char* srcPath, BOOL isNewArchive, TIndirectArray<CFileItem>* fileList,
                       CCompressParams* compressParams, bool passwordIsDefined, UString password)
 {
-    char tmpName[MAX_PATH];
+    // UTF-8 long paths do not fit into MAX_PATH -> keep the buffer on the heap
+    char* tmpName = (char*)malloc(U8_MAX_PATH);
+    if (tmpName == NULL)
+    {
+        Error(IDS_INSUFFICIENT_MEMORY);
+        return OPER_CANCEL;
+    }
+
     // strip the filename from archiveName, leaving the target path where we will extract
-    lstrcpy(tmpName, archiveName);
+    strcpy(tmpName, archiveName);
     SalamanderGeneral->CutDirectory(tmpName, NULL);
     DWORD err;
     if (!SalamanderGeneral->SalGetTempFileName(tmpName, "sal", tmpName, TRUE, &err))
     {
+        free(tmpName);
         SysError(IDS_CANT_CREATE_TMPFILE, err, FALSE);
         return OPER_CANCEL;
     }
@@ -1201,7 +1228,7 @@ int C7zClient::Update(CSalamanderForOperationsAbstract* salamander, const char* 
                 // close the open archive
                 inArchive->Close();
                 // delete it
-                if (!::DeleteFile(archiveName))
+                if (!DeleteFileU8(archiveName))
                 {
                     Error(IDS_CANT_UPDATE_ARCHIVE, FALSE, archiveName);
                     throw OPER_CANCEL;
@@ -1269,7 +1296,8 @@ int C7zClient::Update(CSalamanderForOperationsAbstract* salamander, const char* 
     delete archiveItems;
     delete updateList;
 
-    ::DeleteFile(tmpName);
+    DeleteFileU8(tmpName);
+    free(tmpName);
 
     return ret;
 } /* C7zClient::Update */

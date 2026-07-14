@@ -3,14 +3,16 @@
 
 #pragma once
 
-BOOL SplitDialog(LPTSTR fileName,        // [in]     name of the file being split
+BOOL SplitDialog(LPTSTR fileName,        // [in]     name of the file being split (UTF-8)
                  CQuadWord& fileSize,    // [in]     its size
-                 LPTSTR targetDir,       // [in/out] target directory
+                 LPTSTR targetDir,       // [in/out] target directory (UTF-8)
+                 int targetDirSize,      // [in]     size of 'targetDir' in bytes
                  CQuadWord* partialSize, // [out]    size of a single part
                  HWND hParent);
 
-BOOL CombineDialog(TIndirectArray<char>& files, // [in/out] array of partial file names
-                   LPTSTR targetName,           // [in/out] name of the target file
+BOOL CombineDialog(TIndirectArray<char>& files, // [in/out] array of partial file names (UTF-8)
+                   LPTSTR targetName,           // [in/out] name of the target file (UTF-8)
+                   int targetNameSize,          // [in]     size of 'targetName' in bytes
                    BOOL bOrigCrcFound,          // [in]     flag indicating whether the original CRC was found
                    UINT32 origCrc,              // [in]     original CRC
                    HWND hParent, CSalamanderForOperationsAbstract* salamander);

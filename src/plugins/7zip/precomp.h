@@ -29,6 +29,10 @@
 #include <map>
 #include <vector>
 
+// UTF-8 <-> UTF-16 helpers for plugin interface 104; must come before the
+// spl_*.h headers (they redefine BOOL/TRUE/FALSE for the plugin C API)
+#include "splunicode.h"
+
 #if defined(_DEBUG) && defined(_MSC_VER) // without passing file+line to 'new' operator, list of memory leaks shows only 'crtdbg.h(552)'
 #define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif

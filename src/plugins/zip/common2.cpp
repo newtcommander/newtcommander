@@ -260,7 +260,7 @@ void CZipCommon::FindLastFile(char* lastFile)
     pathLen = lstrlen(buf);
     do
     {
-        if (!FindDataNameU8(&data, foundName, sizeof(foundName)))
+        if (!FindDataNameU8(&data, foundName, (int)sizeof(foundName)))
             continue;
         SplitPath2(foundName, path, name, ext);
         /*if (!*name)

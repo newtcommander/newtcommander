@@ -123,7 +123,7 @@ int CZipPack::PackToArchive(BOOL move, const char* sourcePath,
     Pack = true;
 
     if (*OriginalCurrentDir)
-        SetCurrentDirectory(sourcePath);
+        SetCurrentDirectoryU8(sourcePath);
     switch (Options.Action)
     {
     case PA_NORMAL:
@@ -299,7 +299,7 @@ int CZipPack::DeleteFromArchive(SalEnumSelection next, void* param)
                 if (ErrorID || UserBreak)
                 {
                     CloseCFile(TempFile);
-                    DeleteFile(TempName);
+                    DeleteFileU8(TempName);
                 }
                 else
                 {
@@ -317,10 +317,10 @@ int CZipPack::DeleteFromArchive(SalEnumSelection next, void* param)
 
                     CloseCFile(TempFile);
                     SalamanderGeneral->ClearReadOnlyAttr(ZipName);
-                    if (!DeleteFile(ZipName) ||
-                        !MoveFile(TempName, ZipName))
+                    if (!DeleteFileU8(ZipName) ||
+                        !MoveFileU8(TempName, ZipName))
                         ErrorID = IDS_ERRRESTORE;
-                    SetFileAttributes(ZipName, ZipAttr | FILE_ATTRIBUTE_ARCHIVE);
+                    SetFileAttributesU8(ZipName, ZipAttr | FILE_ATTRIBUTE_ARCHIVE);
                 }
             }
             else
@@ -350,11 +350,11 @@ BOOL CZipPack::LoadDefaults()
             DefLanguage = NULL;
         }
         lstrcpy(Options.SfxSettings.SfxFile, Config.DefSfxFile);
-        char file[MAX_PATH];
-        GetModuleFileName(DLLInstance, file, MAX_PATH);
+        char file[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+        GetModuleFileNameU8(DLLInstance, file, (DWORD)sizeof(file));
         SalamanderGeneral->CutDirectory(file);
-        SalamanderGeneral->SalPathAppend(file, "sfx", MAX_PATH);
-        SalamanderGeneral->SalPathAppend(file, Config.DefSfxFile, MAX_PATH);
+        SalamanderGeneral->SalPathAppend(file, "sfx", (int)sizeof(file));
+        SalamanderGeneral->SalPathAppend(file, Config.DefSfxFile, (int)sizeof(file));
         if (!DefLanguage && LoadSfxFileData(file, &DefLanguage))
         {
             char err[512];
@@ -378,7 +378,7 @@ BOOL CZipPack::LoadDefaults()
         }
         lstrcpy(Options.SfxSettings.TargetDir, "");
 
-        GetModuleFileName(DLLInstance, Options.SfxSettings.IconFile, MAX_PATH);
+        GetModuleFileNameU8(DLLInstance, Options.SfxSettings.IconFile, MAX_PATH);
         Options.SfxSettings.IconIndex = -IDI_SFXICON;
         int ret = LoadIcons(Options.SfxSettings.IconFile, Options.SfxSettings.IconIndex,
                             &Options.Icons, &Options.IconsCount);
@@ -447,7 +447,6 @@ int CZipPack::LoadExPackOptions(unsigned flags)
 int CZipPack::CreateSFX()
 {
     CALL_STACK_MESSAGE1("CZipPack::CreateSFX()");
-    char exeName[MAX_PATH];
 
     //MenuSfx = true;
     if (!*Config.DefSfxFile)
@@ -459,11 +458,17 @@ int CZipPack::CreateSFX()
     if (!LoadDefaults())
         return ErrorID = IDS_NODISPLAY;
 
-    lstrcpy(exeName, ZipName);
-    SalamanderGeneral->SalPathRenameExtension(exeName, ".exe", MAX_PATH);
+    char* exeName = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) of the created SFX -> heap
+    if (exeName == NULL)
+        return ErrorID = IDS_LOWMEM;
+    lstrcpyn(exeName, ZipName, U8_MAX_PATH);
+    SalamanderGeneral->SalPathRenameExtension(exeName, ".exe", U8_MAX_PATH);
     CCreateSFXDialog dlg(SalamanderGeneral->GetMainWindowHWND(), ZipName, exeName, &Options, this);
     if (dlg.Proceed() != IDOK)
+    {
+        free(exeName);
         return ErrorID = IDS_NODISPLAY;
+    }
 
     LastUsedSfxSet.Settings = Options.SfxSettings;
     // this name is only needed internally (it is checked for "" somewhere else)
@@ -481,20 +486,28 @@ int CZipPack::CreateSFX()
             ErrorID = IDS_LOWMEM;
         else
             ErrorID = IDS_NODISPLAY;
+        free(exeName);
         return ErrorID;
     }
     ErrorID = CheckArchiveForSFXCompatibility();
     if (ErrorID)
+    {
+        free(exeName);
         return ErrorID;
+    }
 
     if (TestIfExist(exeName))
+    {
+        free(exeName);
         return ErrorID;
+    }
 
     ret = CreateCFile(&TempFile, exeName, GENERIC_WRITE, FILE_SHARE_READ,
                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, PE_NOSKIP, NULL,
                       false, false);
     if (ret)
     {
+        free(exeName);
         if (ret == ERR_LOWMEM)
             return ErrorID = IDS_LOWMEM;
         else
@@ -528,7 +541,8 @@ int CZipPack::CreateSFX()
     Salamander->CloseProgressDialog();
     CloseCFile(TempFile);
     if (ErrorID)
-        DeleteFile(exeName);
+        DeleteFileU8(exeName);
+    free(exeName);
 
     return ErrorID;
 }

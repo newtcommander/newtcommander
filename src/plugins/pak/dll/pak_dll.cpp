@@ -164,8 +164,21 @@ BOOL CPakIface::OpenPak(const char* fileName, DWORD mode)
 
     while (PakFile == INVALID_HANDLE_VALUE)
     {
-        PakFile = CreateFile(fileName, mode, FILE_SHARE_READ, NULL, OPEN_ALWAYS,
-                             FILE_ATTRIBUTE_NORMAL, NULL);
+        // 'fileName' comes from the Salamander interface: UTF-8 since interface 104 -> W API
+        WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+        if (wFileName != NULL)
+        {
+            PakFile = CreateFileW(wFileName, mode, FILE_SHARE_READ, NULL, OPEN_ALWAYS,
+                                  FILE_ATTRIBUTE_NORMAL, NULL);
+            DWORD err = GetLastError();
+            free(wFileName);
+            SetLastError(err); // preserve the API's error across free()
+        }
+        else
+        {
+            PakFile = INVALID_HANDLE_VALUE;
+            SetLastError(ERROR_INVALID_NAME);
+        }
         if (PakFile != INVALID_HANDLE_VALUE)
             break;
         if (!HandleError(HE_RETRY, IDS_PAK_ERROPEN, LastErrorString(GetLastError(), buf)))
@@ -247,6 +260,10 @@ BOOL CPakIface::GetPakTime(FILETIME* lastWrite)
     return TRUE;
 }
 
+// Quake PAK stores entry names as plain ASCII (lowercase 7-bit, '/' separators,
+// max 0x38 bytes - see CPackEntry). ASCII is valid UTF-8 byte for byte, so the
+// names need no conversion at the format boundary of interface 104; they are
+// passed to (and matched against) the interface verbatim.
 BOOL CPakIface::GetName(const char* nameInPak, char* outName)
 {
     const char* sour = nameInPak;

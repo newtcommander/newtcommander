@@ -339,7 +339,6 @@ BOOL CPackDialog::OnInit(WPARAM wParam, LPARAM lParam)
 BOOL CPackDialog::OnMultiVol(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CPackDialog::OnMultiVol(0x%X, 0x%X, )", wNotifyCode, wID);
-    char name[MAX_PATH];
 
     switch (wNotifyCode)
     {
@@ -352,9 +351,14 @@ BOOL CPackDialog::OnMultiVol(WORD wNotifyCode, WORD wID, HWND hwndCtl)
                 EnableWindow(GetDlgItem(Dlg, IDC_SEQNAME), TRUE);
             if (SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED)
             {
-                MakeFileName(1, SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_GETCHECK, 0, 0) == BST_CHECKED,
-                             ZipFile, name, Config->WinZipNames && SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED);
-                SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)name);
+                char* name = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+                if (name != NULL)
+                {
+                    MakeFileName(1, SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_GETCHECK, 0, 0) == BST_CHECKED,
+                                 ZipFile, name, Config->WinZipNames && SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED);
+                    SetDlgItemTextU8(Dlg, IDC_ARCHIVE, name);
+                    free(name);
+                }
                 InvalidateRect(GetDlgItem(Dlg, IDC_ARCHIVE), NULL, TRUE);
                 UpdateWindow(GetDlgItem(Dlg, IDC_ARCHIVE));
             }
@@ -367,7 +371,7 @@ BOOL CPackDialog::OnMultiVol(WORD wNotifyCode, WORD wID, HWND hwndCtl)
             EnableWindow(GetDlgItem(Dlg, IDC_SEQNAME), FALSE);
             if (SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED)
             {
-                SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)ZipFile);
+                SetDlgItemTextU8(Dlg, IDC_ARCHIVE, ZipFile);
                 InvalidateRect(GetDlgItem(Dlg, IDC_ARCHIVE), NULL, TRUE);
                 UpdateWindow(GetDlgItem(Dlg, IDC_ARCHIVE));
             }
@@ -385,16 +389,20 @@ BOOL CPackDialog::OnMultiVol(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 BOOL CPackDialog::OnSeqName(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CPackDialog::OnSeqName(0x%X, 0x%X, )", wNotifyCode, wID);
-    char name[MAX_PATH];
 
     switch (wNotifyCode)
     {
     case BN_CLICKED:
         if (SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED)
         {
-            MakeFileName(1, SendDlgItemMessage(Dlg, wID, BM_GETCHECK, 0, 0) == BST_CHECKED,
-                         ZipFile, name, Config->WinZipNames && SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED);
-            SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)name);
+            char* name = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+            if (name != NULL)
+            {
+                MakeFileName(1, SendDlgItemMessage(Dlg, wID, BM_GETCHECK, 0, 0) == BST_CHECKED,
+                             ZipFile, name, Config->WinZipNames && SendDlgItemMessage(Dlg, IDC_SELFEXTR, BM_GETCHECK, 0, 0) == BST_UNCHECKED);
+                SetDlgItemTextU8(Dlg, IDC_ARCHIVE, name);
+                free(name);
+            }
             InvalidateRect(GetDlgItem(Dlg, IDC_ARCHIVE), NULL, TRUE);
             UpdateWindow(GetDlgItem(Dlg, IDC_ARCHIVE));
         }
@@ -406,19 +414,29 @@ BOOL CPackDialog::OnSeqName(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 BOOL CPackDialog::OnSelfExtr(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CPackDialog::OnSelfExtr(0x%X, 0x%X, )", wNotifyCode, wID);
-    char name[MAX_PATH];
     switch (wNotifyCode)
     {
     case BN_CLICKED:
         if (SendDlgItemMessage(Dlg, wID, BM_GETCHECK, 0, 0) == BST_CHECKED)
         {
             EnableWindow(GetDlgItem(Dlg, IDC_ADVANCED), TRUE);
-            char path[MAX_PATH + 4], ext[MAX_PATH];
-            SplitPath2(ZipFile, path, name, ext);
-            strcat(path, name);
-            strcat(path, ".exe");
-            *(path + MAX_PATH - 1) = 0; // just to be sure
-            SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)path);
+            // full paths (UTF-8) -> heap
+            char* path = (char*)malloc(U8_MAX_PATH + 8);
+            char* name = (char*)malloc(U8_MAX_PATH);
+            char* ext = (char*)malloc(U8_MAX_PATH);
+            if (path != NULL && name != NULL && ext != NULL)
+            {
+                SplitPath2(ZipFile, path, name, ext);
+                strcat(path, name);
+                strcat(path, ".exe");
+                SetDlgItemTextU8(Dlg, IDC_ARCHIVE, path);
+            }
+            if (path != NULL)
+                free(path);
+            if (name != NULL)
+                free(name);
+            if (ext != NULL)
+                free(ext);
             InvalidateRect(GetDlgItem(Dlg, IDC_ARCHIVE), NULL, TRUE);
             UpdateWindow(GetDlgItem(Dlg, IDC_ARCHIVE));
             SetWindowText(Dlg, LoadStr(IDS_CREAETARCH));
@@ -428,13 +446,18 @@ BOOL CPackDialog::OnSelfExtr(WORD wNotifyCode, WORD wID, HWND hwndCtl)
             EnableWindow(GetDlgItem(Dlg, IDC_ADVANCED), FALSE);
             if (SendDlgItemMessage(Dlg, IDC_MULTIVOL, BM_GETCHECK, 0, 0) == BST_CHECKED)
             {
-                MakeFileName(1, SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_GETCHECK, 0, 0) == BST_CHECKED,
-                             ZipFile, name, Config->WinZipNames);
-                SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)name);
+                char* name = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+                if (name != NULL)
+                {
+                    MakeFileName(1, SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_GETCHECK, 0, 0) == BST_CHECKED,
+                                 ZipFile, name, Config->WinZipNames);
+                    SetDlgItemTextU8(Dlg, IDC_ARCHIVE, name);
+                    free(name);
+                }
             }
             else
             {
-                SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)ZipFile);
+                SetDlgItemTextU8(Dlg, IDC_ARCHIVE, ZipFile);
             }
             InvalidateRect(GetDlgItem(Dlg, IDC_ARCHIVE), NULL, TRUE);
             UpdateWindow(GetDlgItem(Dlg, IDC_ARCHIVE));
@@ -707,7 +730,8 @@ BOOL CPackDialog::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 void CPackDialog::ResetControls()
 {
     CALL_STACK_MESSAGE1("CPackDialog::ResetControls()");
-    char archive[MAX_PATH + 4]; // leave room so the self-extractor suffix does not overflow the buffer
+    // full paths (UTF-8) -> heap; +8 leaves room for the self-extractor suffix
+    char* archive = (char*)malloc(U8_MAX_PATH + 8);
 
     if (PackOptions->Action & PA_MULTIVOL)
         SendDlgItemMessage(Dlg, IDC_MULTIVOL, BM_SETCHECK, (WPARAM)BST_CHECKED, 0);
@@ -721,7 +745,9 @@ void CPackDialog::ResetControls()
     SetWindowText(Dlg, Flags & PD_NEWARCHIVE || PackOptions->Action & (PA_MULTIVOL | PA_SELFEXTRACT)
                            ? LoadStr(IDS_CREAETARCH)
                            : LoadStr(IDS_ADDTOARCHIVE));
-    lstrcpy(archive, ZipFile);
+    if (archive == NULL)
+        return;
+    lstrcpyn(archive, ZipFile, U8_MAX_PATH);
     if (PackOptions->Action & PA_MULTIVOL)
     {
         MakeFileName(1, PackOptions->SeqNames, ZipFile, archive,
@@ -729,13 +755,21 @@ void CPackDialog::ResetControls()
     }
     if (PackOptions->Action & PA_SELFEXTRACT)
     {
-        char name[MAX_PATH], ext[MAX_PATH];
-        SplitPath2(ZipFile, archive, name, ext);
-        lstrcat(archive, name);
-        lstrcat(archive, ".exe");
-        *(archive + MAX_PATH - 1) = 0; // just to be sure
+        char* name = (char*)malloc(U8_MAX_PATH);
+        char* ext = (char*)malloc(U8_MAX_PATH);
+        if (name != NULL && ext != NULL)
+        {
+            SplitPath2(ZipFile, archive, name, ext);
+            lstrcat(archive, name);
+            lstrcat(archive, ".exe");
+        }
+        if (name != NULL)
+            free(name);
+        if (ext != NULL)
+            free(ext);
     }
-    SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)archive);
+    SetDlgItemTextU8(Dlg, IDC_ARCHIVE, archive);
+    free(archive);
 }
 
 INT_PTR PackDialog(HWND parent, CZipPack* packObject, CConfiguration* config,
@@ -1342,8 +1376,8 @@ BOOL CChangeDiskDialog2::OnInit(WPARAM wParam, LPARAM lParam)
 
     //sprintf(buf, LoadStr(IDS_CHDISKTEXT2), VolumeNumber);
     //SendDlgItemMessage(Dlg, IDC_CHDISKTEXT, WM_SETTEXT, 0, (LPARAM) Text);
-    SendDlgItemMessage(Dlg, IDC_FILENAME, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
-    SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)FileName);
+    SendDlgItemMessage(Dlg, IDC_FILENAME, EM_SETLIMITTEXT, MAX_LONG_PATH_CHARS, 0);
+    SetDlgItemTextU8(Dlg, IDC_FILENAME, FileName); // the name is UTF-8 (interface 104)
 
     CenterDlgToParent();
     return TRUE;
@@ -1368,8 +1402,11 @@ BOOL CChangeDiskDialog2::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     ofn.lpstrCustomFilter = NULL;
     ofn.nMaxCustFilter = 0;
     ofn.nFilterIndex = 1;
-    GetDlgItemText(Dlg, IDC_FILENAME, FileName, MAX_PATH - 1);
-    ofn.lpstrFile = FileName;
+    // the common file dialog is ANSI -> convert the name at this boundary
+    char fileNameA[MAX_PATH];
+    if (!U8ToDlgA(FileName, fileNameA, MAX_PATH))
+        *fileNameA = 0;
+    ofn.lpstrFile = fileNameA;
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrFileTitle = NULL;
     ofn.nMaxFileTitle = 0;
@@ -1385,7 +1422,9 @@ BOOL CChangeDiskDialog2::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 
     if (SalamanderGeneral->SafeGetOpenFileName(&ofn))
     {
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)FileName);
+        char fileNameU8[U8_MAX_NAME + MAX_PATH];
+        if (DlgAToU8(fileNameA, fileNameU8, (int)sizeof(fileNameU8)))
+            SetDlgItemTextU8(Dlg, IDC_FILENAME, fileNameU8);
     }
     /*
   else
@@ -1399,11 +1438,11 @@ BOOL CChangeDiskDialog2::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 BOOL CChangeDiskDialog2::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CChangeDiskDialog2::OnOK(0x%X, 0x%X, )", wNotifyCode, wID);
-    GetDlgItemText(Dlg, IDC_FILENAME, FileName, MAX_PATH - 1);
+    GetDlgItemTextU8(Dlg, IDC_FILENAME, FileName, U8_MAX_PATH);
 
     SalamanderGeneral->SalUpdateDefaultDir(TRUE);
     int err;
-    if (!SalamanderGeneral->SalGetFullName(FileName, &err, CurrentPath))
+    if (!SalamanderGeneral->SalGetFullName(FileName, &err, CurrentPath, NULL, U8_MAX_PATH))
     {
         char buffer[100];
         SalamanderGeneral->SalMessageBox(Dlg, SalamanderGeneral->GetGFNErrorText(err, buffer, 100),
@@ -1416,7 +1455,7 @@ BOOL CChangeDiskDialog2::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     {
         SalamanderGeneral->SalMessageBox(Dlg, LoadStr(IDS_NOTFOUND),
                                          LoadStr(IDS_ERROR), MB_OK | MB_ICONERROR);
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)FileName);
+        SetDlgItemTextU8(Dlg, IDC_FILENAME, FileName);
         return TRUE;
     }
 
@@ -1501,20 +1540,24 @@ BOOL CChangeDiskDialog3::OnInit(WPARAM wParam, LPARAM lParam)
 {
     CALL_STACK_MESSAGE3("CChangeDiskDialog3::OnInit(0x%IX, 0x%IX)", wParam, lParam);
     char buf[128];
-    char buf2[MAX_PATH + 1];
 
     sprintf(buf, LoadStr(IDS_CHDISKTEXT2), VolumeNumber);
     SendDlgItemMessage(Dlg, IDC_CHDISKTEXT, WM_SETTEXT, 0, (LPARAM)buf);
-    SendDlgItemMessage(Dlg, IDC_FILENAME, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
+    SendDlgItemMessage(Dlg, IDC_FILENAME, EM_SETLIMITTEXT, MAX_LONG_PATH_CHARS, 0);
     if (*Flags & CHD_SEQNAMES)
     {
+        char* buf2 = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
         SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_SETCHECK, (WPARAM)BST_CHECKED, 0);
-        RenumberName(VolumeNumber, OldName, buf2, Last, *Flags & CHD_WINZIP);
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)buf2);
+        if (buf2 != NULL)
+        {
+            RenumberName(VolumeNumber, OldName, buf2, Last, *Flags & CHD_WINZIP);
+            SetDlgItemTextU8(Dlg, IDC_FILENAME, buf2);
+            free(buf2);
+        }
     }
     else
     {
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)OldName);
+        SetDlgItemTextU8(Dlg, IDC_FILENAME, OldName);
         EnableWindow(GetDlgItem(Dlg, IDC_WINZIP), FALSE);
     }
     if (*Flags & CHD_WINZIP)
@@ -1531,21 +1574,27 @@ BOOL CChangeDiskDialog3::OnSeqNames(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CChangeDiskDialog3::OnSeqNames(0x%X, 0x%X, )",
                         wNotifyCode, wID);
-    char buf[MAX_PATH + 1];
-    char buf2[MAX_PATH + 1];
-
     if (SendDlgItemMessage(Dlg, wID, BM_GETCHECK, 0, 0) == BST_CHECKED)
     {
-        GetDlgItemText(Dlg, IDC_FILENAME, buf, MAX_PATH - 1);
+        char* buf = (char*)malloc(U8_MAX_PATH); // full paths (UTF-8) -> heap
+        char* buf2 = (char*)malloc(U8_MAX_PATH);
         *Flags |= CHD_SEQNAMES;
-        RenumberName(VolumeNumber, buf, buf2, Last, *Flags & CHD_WINZIP);
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)buf2);
+        if (buf != NULL && buf2 != NULL)
+        {
+            GetDlgItemTextU8(Dlg, IDC_FILENAME, buf, U8_MAX_PATH);
+            RenumberName(VolumeNumber, buf, buf2, Last, *Flags & CHD_WINZIP);
+            SetDlgItemTextU8(Dlg, IDC_FILENAME, buf2);
+        }
+        if (buf != NULL)
+            free(buf);
+        if (buf2 != NULL)
+            free(buf2);
         EnableWindow(GetDlgItem(Dlg, IDC_WINZIP), TRUE);
     }
     else
     {
         *Flags &= ~CHD_SEQNAMES;
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)OldName);
+        SetDlgItemTextU8(Dlg, IDC_FILENAME, OldName);
         EnableWindow(GetDlgItem(Dlg, IDC_WINZIP), FALSE);
     }
     return TRUE;
@@ -1555,16 +1604,19 @@ BOOL CChangeDiskDialog3::OnWinZip(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CChangeDiskDialog3::OnWinZip(0x%X, 0x%X, )",
                         wNotifyCode, wID);
-    char buf[MAX_PATH + 1];
-
     if (SendDlgItemMessage(Dlg, IDC_SEQNAME, BM_GETCHECK, 0, 0) == BST_CHECKED)
     {
+        char* buf = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
         if (SendDlgItemMessage(Dlg, wID, BM_GETCHECK, 0, 0) == BST_CHECKED)
             *Flags |= CHD_WINZIP;
         else
             *Flags &= ~CHD_WINZIP;
-        RenumberName(VolumeNumber, OldName, buf, Last, *Flags & CHD_WINZIP);
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)buf);
+        if (buf != NULL)
+        {
+            RenumberName(VolumeNumber, OldName, buf, Last, *Flags & CHD_WINZIP);
+            SetDlgItemTextU8(Dlg, IDC_FILENAME, buf);
+            free(buf);
+        }
     }
     return TRUE;
 }
@@ -1576,7 +1628,8 @@ BOOL CChangeDiskDialog3::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(ofn));
     char buf[128];
-    char buf2[MAX_PATH + 1];
+    char buf2[MAX_PATH + 1]; // ANSI - the common file dialog is ANSI
+    char nameU8[U8_MAX_NAME + MAX_PATH];
 
     ofn.lStructSize = sizeof(OPENFILENAME);
     ofn.hwndOwner = Dlg;
@@ -1589,7 +1642,9 @@ BOOL CChangeDiskDialog3::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     ofn.lpstrCustomFilter = NULL;
     ofn.nMaxCustFilter = 0;
     ofn.nFilterIndex = 1;
-    GetDlgItemText(Dlg, IDC_FILENAME, buf2, MAX_PATH - 1);
+    GetDlgItemTextU8(Dlg, IDC_FILENAME, nameU8, (int)sizeof(nameU8));
+    if (!U8ToDlgA(nameU8, buf2, MAX_PATH))
+        *buf2 = 0;
     ofn.lpstrFile = buf2;
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrFileTitle = NULL;
@@ -1606,7 +1661,8 @@ BOOL CChangeDiskDialog3::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 
     if (SalamanderGeneral->SafeGetOpenFileName(&ofn))
     {
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)buf2);
+        if (DlgAToU8(buf2, nameU8, (int)sizeof(nameU8)))
+            SetDlgItemTextU8(Dlg, IDC_FILENAME, nameU8);
     }
     /*
   else
@@ -1620,11 +1676,11 @@ BOOL CChangeDiskDialog3::OnBrowse(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 BOOL CChangeDiskDialog3::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CChangeDiskDialog3::OnOK(0x%X, 0x%X, )", wNotifyCode, wID);
-    GetDlgItemText(Dlg, IDC_FILENAME, OldName, MAX_PATH - 1);
+    GetDlgItemTextU8(Dlg, IDC_FILENAME, OldName, U8_MAX_PATH);
 
     SalamanderGeneral->SalUpdateDefaultDir(TRUE);
     int err;
-    if (!SalamanderGeneral->SalGetFullName(OldName, &err, CurrentPath))
+    if (!SalamanderGeneral->SalGetFullName(OldName, &err, CurrentPath, NULL, U8_MAX_PATH))
     {
         char buffer[100];
         SalamanderGeneral->SalMessageBox(Dlg, SalamanderGeneral->GetGFNErrorText(err, buffer, 100),
@@ -1637,7 +1693,7 @@ BOOL CChangeDiskDialog3::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
     {
         SalamanderGeneral->SalMessageBox(Dlg, LoadStr(IDS_NOTFOUND),
                                          LoadStr(IDS_ERROR), MB_OK | MB_ICONERROR);
-        SendDlgItemMessage(Dlg, IDC_FILENAME, WM_SETTEXT, 0, (LPARAM)OldName);
+        SetDlgItemTextU8(Dlg, IDC_FILENAME, OldName);
         return TRUE;
     }
 
@@ -1996,10 +2052,11 @@ CCreateSFXDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 BOOL CCreateSFXDialog::OnInit(WPARAM wParam, LPARAM lParam)
 {
     CALL_STACK_MESSAGE3("CCreateSFXDialog::OnInit(0x%IX, 0x%IX)", wParam, lParam);
-    SendDlgItemMessage(Dlg, IDC_ARCHIVE, WM_SETTEXT, 0, (LPARAM)ZipName);
-    SendDlgItemMessage(Dlg, IDC_ARCHIVE, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
-    SendDlgItemMessage(Dlg, IDC_NEWARCHIVE, WM_SETTEXT, 0, (LPARAM)ExeName);
-    SendDlgItemMessage(Dlg, IDC_NEWARCHIVE, EM_SETLIMITTEXT, MAX_PATH - 1, 0);
+    // the names are UTF-8 (interface 104) -> W text API
+    SetDlgItemTextU8(Dlg, IDC_ARCHIVE, ZipName);
+    SendDlgItemMessage(Dlg, IDC_ARCHIVE, EM_SETLIMITTEXT, MAX_LONG_PATH_CHARS, 0);
+    SetDlgItemTextU8(Dlg, IDC_NEWARCHIVE, ExeName);
+    SendDlgItemMessage(Dlg, IDC_NEWARCHIVE, EM_SETLIMITTEXT, MAX_LONG_PATH_CHARS, 0);
 
     if (!PackObject)
     {
@@ -2015,12 +2072,12 @@ BOOL CCreateSFXDialog::OnInit(WPARAM wParam, LPARAM lParam)
 BOOL CCreateSFXDialog::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 {
     CALL_STACK_MESSAGE3("CCreateSFXDialog::OnOK(0x%X, 0x%X, )", wNotifyCode, wID);
-    if (GetDlgItemText(Dlg, IDC_ARCHIVE, ZipName, MAX_PATH - 1) <= 0)
+    if (GetDlgItemTextU8(Dlg, IDC_ARCHIVE, ZipName, U8_MAX_PATH) <= 0)
     {
         SalamanderGeneral->SalMessageBox(Dlg, LoadStr(IDS_NOARCHIVETYPED), LoadStr(IDS_ERROR), MB_OK | MB_ICONEXCLAMATION);
         return TRUE;
     }
-    if (GetDlgItemText(Dlg, IDC_NEWARCHIVE, ExeName, MAX_PATH - 1) <= 0)
+    if (GetDlgItemTextU8(Dlg, IDC_NEWARCHIVE, ExeName, U8_MAX_PATH) <= 0)
     {
         SalamanderGeneral->SalMessageBox(Dlg, LoadStr(PackObject ? IDS_NOEXETYPED : IDS_NOARCHIVETYPED), LoadStr(IDS_ERROR), MB_OK | MB_ICONEXCLAMATION);
         return TRUE;

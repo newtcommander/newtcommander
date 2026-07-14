@@ -30,6 +30,9 @@
 #include "spl_menu.h"
 #include "spl_file.h"
 #include "spl_vers.h"
+
+#include "splunicode.h" // UTF-8 <-> UTF-16 helpers (plugin interface 104)
+
 #include "dbg.h"
 #include "arraylt.h"
 #include "mhandles.h"

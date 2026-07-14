@@ -304,7 +304,12 @@ private:
     BOOL IsTarHeader(const unsigned char* buffer, BOOL& finished,
                      EArchiveFormat& format);
     int ReadCpioName(unsigned long namesize, SCommonHeader& header);
-    void MakeFileInfo(const SCommonHeader& header, char* arcfiledata, char* arcfilename);
+    // 'arcfilename' must be able to hold the archive path (which may be a long UTF-8
+    // path since interface 104) plus the name inside the archive -> pass its size
+    void MakeFileInfo(const SCommonHeader& header, char* arcfiledata, char* arcfilename,
+                      int arcfilenameSize);
+    // allocates the "<archive>\<name in archive>" string for MakeFileInfo; free() it
+    char* AllocArcFileName(const SCommonHeader& header, int& size);
 
 public:
     CArchive(LPCTSTR fileName, CSalamanderForOperationsAbstract* salamander, DWORD offset, CQuadWord inputSize);

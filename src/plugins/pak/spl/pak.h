@@ -6,6 +6,10 @@
 // Salamander's general interface - valid from startup until the plugin shuts down
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
 
+// buffer able to hold any long path in UTF-8 (interface 104: 3 bytes per
+// UTF-16 unit, see splunicode.h); always allocate these on the heap
+#define U8_MAX_PATH (3 * 32767 + 1)
+
 #define STATUS_OK 1
 
 struct CFileInfo
@@ -189,3 +193,9 @@ char* LoadStr(int resID);
 void FreeFileInfo(void* file);
 void GetInfo(char* buffer, FILETIME* lastWrite, unsigned size);
 INT_PTR WINAPI OptimizeDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs
+// must be called through their W variants with the \\?\ prefix (splunicode.h)
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition);
+BOOL DeleteFileU8(const char* name);
+BOOL RemoveDirectoryU8(const char* name);

@@ -106,7 +106,9 @@ public:
     BOOL IsPasswordDefined() { return Encrypt; }
     char* GetPassword() { return Password; }
     BOOL GetNotAgain() { return NotAgain; }
-    void SetArchiveName(const char* archiveName) { lstrcpy(Archive, archiveName); }
+    // display only: this is an ANSI dialog, so a long or non-ASCII UTF-8 archive
+    // name is truncated/garbled here; a bounded copy at least keeps it safe
+    void SetArchiveName(const char* archiveName) { lstrcpyn(Archive, archiveName, MAX_PATH); }
     void SetTitle(const char* title) { Title = title; }
 
 protected:

@@ -62,7 +62,7 @@ private:
     ItemsToExtractMap& ItemsToExtract;
 
     const char* TargetDir;
-    char TargetFileName[MAX_PATH];
+    char* TargetFileName; // UTF-8 full path, U8_MAX_PATH bytes (allocated in the constructor)
 
     bool ExtractMode;
     struct CProcessedFileInfo

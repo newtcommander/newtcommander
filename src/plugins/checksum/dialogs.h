@@ -144,12 +144,12 @@ public:
     CCalculateDialog(HWND parent, BOOL alwaysOnTop, TSeedFileList* pFileList, const char* sourcePath);
 
 protected:
-    BOOL AddDir(char (&path)[MAX_PATH + 50], size_t root, BOOL* ignoreAll);
+    BOOL AddDir(char (&path)[3 * MAX_PATH], size_t root, BOOL* ignoreAll);
     BOOL GetFileList();
     virtual void OnThreadEnd();
     void EnableButtons(BOOL bEnable);
     virtual void DeleteItem(int index);
-    BOOL GetSaveFileName(LPTSTR buffer, LPCTSTR title = NULL);
+    BOOL GetSaveFileName(char* buffer, int bufferSize, const char* title = NULL);
     void SaveHashes();
     virtual INT_PTR DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
     void OnContextMenu(int x, int y, eHASH_TYPE forceCopyHash = HT_COUNT);
@@ -169,7 +169,7 @@ protected:
 struct FILEINFO
 {
     // nothing in this structure changes after it is added to the array = no synchronized access needed
-    char fileName[MAX_PATH];
+    char fileName[3 * MAX_PATH]; // UTF-8 (up to 3 bytes per character)
     char digest[DIGEST_MAX_SIZE];
     CQuadWord size;
     BOOL bFileExist;

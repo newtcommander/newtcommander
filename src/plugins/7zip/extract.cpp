@@ -31,11 +31,16 @@ CExtractCallbackImp::CExtractCallbackImp(HWND _hProgWnd, UString& password,
 
     OutFileStreamSpec = NULL;
     TargetDir = NULL;
+    // the extracted file's full path is UTF-8 and can be long -> heap buffer
+    TargetFileName = (char*)malloc(U8_MAX_PATH);
+    if (TargetFileName != NULL)
+        TargetFileName[0] = '\0';
     hProgWnd = _hProgWnd;
 }
 
 CExtractCallbackImp::~CExtractCallbackImp()
 {
+    free(TargetFileName);
     DeleteCriticalSection(&CSExtract);
 }
 
@@ -55,7 +60,8 @@ BOOL CExtractCallbackImp::Init(IInArchive* archive, const char* outDir,
 
     PasswordIsDefined = !Password.IsEmpty();
 
-    TargetFileName[0] = '\0';
+    if (TargetFileName != NULL)
+        TargetFileName[0] = '\0';
 
     // initialize variables for interacting with the user
     SilentDelete = silentDelete;
@@ -79,30 +85,31 @@ BOOL CExtractCallbackImp::Init(IInArchive* archive, const char* outDir,
     OverwriteSkip = FALSE;
     OverwriteCancel = FALSE;
 
-    return TRUE;
+    return TargetFileName != NULL; // FALSE when the constructor could not allocate the buffer
 }
 
 BOOL CExtractCallbackImp::InitTest()
 {
     NumErrors = 0;
-    TargetFileName[0] = '\0';
+    if (TargetFileName != NULL)
+        TargetFileName[0] = '\0';
 
     OverwriteCancel = FALSE;
     PasswordIsDefined = !Password.IsEmpty();
 
-    return TRUE;
+    return TargetFileName != NULL; // FALSE when the constructor could not allocate the buffer
 }
 
 void CExtractCallbackImp::Cleanup()
 {
     if (!WholeFile && OutFileStreamSpec != NULL)
     {
-        //    TRACE_I("Cleanup File: " << GetAnsiString(ProcessedFileInfo.FileName));
+        //    TRACE_I("Cleanup File: " << UStringToU8(ProcessedFileInfo.FileName));
 
         OutFileStream.Release();
 
         BOOL silent = FALSE;
-        SafeDeleteFile(GetAnsiString(ProcessedFileInfo.FileName), silent);
+        SafeDeleteFile(UStringToU8(ProcessedFileInfo.FileName), silent);
     }
 }
 
@@ -154,6 +161,11 @@ STDMETHODIMP CExtractCallbackImp::GetStream(UINT32 index, ISequentialOutStream**
         // if we are extracting a file
         if (askExtractMode == NArchive::NExtract::NAskMode::kExtract)
         {
+            if (TargetFileName == NULL)
+            {
+                Error(IDS_INSUFFICIENT_MEMORY);
+                throw E_ABORT;
+            }
 
             const CArchiveItemInfo* aii = ItemsToExtract[index];
             if (!aii)
@@ -183,10 +195,11 @@ STDMETHODIMP CExtractCallbackImp::GetStream(UINT32 index, ISequentialOutStream**
 
             // TODO: check for free space
 
-            _tcscpy(TargetFileName, TargetDir);
-            if (SalamanderGeneral->SalPathAppend(TargetFileName, aii->NameInArchive, MAX_PATH))
+            // TargetDir and NameInArchive are UTF-8 (interface 104)
+            strcpy(TargetFileName, TargetDir);
+            if (SalamanderGeneral->SalPathAppend(TargetFileName, aii->NameInArchive, U8_MAX_PATH))
             {
-                ProcessedFileInfo.FileName = GetUnicodeString(TargetFileName);
+                ProcessedFileInfo.FileName = U8ToUString(TargetFileName);
 
                 // Show file name in the progress dialog
                 SendMessage(hProgWnd, WM_7ZIP, WM_7ZIP_ADDTEXT, (LPARAM)GetName());
@@ -229,7 +242,8 @@ STDMETHODIMP CExtractCallbackImp::GetStream(UINT32 index, ISequentialOutStream**
                     // it is the result of the overwrite test - see above
 
                     // if the path we are extracting to does not exist -> create it
-                    LPTSTR lastComp = _tcsrchr(TargetFileName, '\\');
+                    // ('\\' cannot occur inside a UTF-8 multibyte sequence)
+                    char* lastComp = strrchr(TargetFileName, '\\');
                     if (lastComp != NULL)
                     {
                         *lastComp = '\0';
@@ -238,7 +252,7 @@ STDMETHODIMP CExtractCallbackImp::GetStream(UINT32 index, ISequentialOutStream**
 
                     OutFileStreamSpec = new CRetryableOutFileStream(hProgWnd);
                     CMyComPtr<ISequentialOutStream> outStreamLoc(OutFileStreamSpec);
-                    if (!OutFileStreamSpec->Open(GetAnsiString(ProcessedFileInfo.FileName), OPEN_ALWAYS))
+                    if (!OutFileStreamSpec->Open(UStringToU8(ProcessedFileInfo.FileName), OPEN_ALWAYS))
                     {
                         SysError(IDS_ERROR, ::GetLastError());
                         NumErrors++;
@@ -331,8 +345,9 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
         //buffer: "1\t&Start\t2\tE&xit"
 
         TCHAR msg[1024];
+        // ProcessedFileInfo.Name is already UTF-8 (it comes from the interface)
         _stprintf(msg, LoadStr(PasswordIsDefined ? IDS_ERROR_PROCESSING_FILE_PWD : IDS_ERROR_PROCESSING_FILE),
-                  (LPCTSTR)GetAnsiString(ProcessedFileInfo.Name));
+                  (const char*)ProcessedFileInfo.Name);
 
         MSGBOXEX_PARAMS mbep;
         ZeroMemory(&mbep, sizeof(mbep));
@@ -372,19 +387,19 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
     switch (mode)
     {
     case Cancel:
-        SafeDeleteFile(GetAnsiString(ProcessedFileInfo.FileName), DataErrorDeleteSilent);
+        SafeDeleteFile(UStringToU8(ProcessedFileInfo.FileName), DataErrorDeleteSilent);
         return FALSE;
 
     case Delete:
         // if cancel, bail out
-        if (!SafeDeleteFile(GetAnsiString(ProcessedFileInfo.FileName), DataErrorDeleteSilent))
+        if (!SafeDeleteFile(UStringToU8(ProcessedFileInfo.FileName), DataErrorDeleteSilent))
             return FALSE;
         break;
 
     case Keep:
         // keep the file, so set its attributes
         if (ExtractMode && ProcessedFileInfo.AttributesAreDefined)
-            SetFileAttributes(GetAnsiString(ProcessedFileInfo.FileName), ProcessedFileInfo.Attributes);
+            SetFileAttributesU8(UStringToU8(ProcessedFileInfo.FileName), ProcessedFileInfo.Attributes);
         break;
     }
 
@@ -475,7 +490,7 @@ STDMETHODIMP CExtractCallbackImp::SetOperationResult(INT32 resultEOperationResul
     OutFileStream.Release();
 
     if (ExtractMode && ProcessedFileInfo.AttributesAreDefined)
-        SetFileAttributes(GetAnsiString(ProcessedFileInfo.FileName), ProcessedFileInfo.Attributes);
+        SetFileAttributesU8(UStringToU8(ProcessedFileInfo.FileName), ProcessedFileInfo.Attributes);
 
     if (TargetDir && !ItemsToExtract.size())
     {
@@ -498,6 +513,7 @@ STDMETHODIMP CExtractCallbackImp::CryptoGetTextPassword(BSTR* password)
         {
         case IDOK:
             PasswordIsDefined = true;
+            // 'pwd' comes from our own ANSI dialog, so it is in the ACP, not UTF-8
             Password = GetUnicodeString(pwd);
             break;
 

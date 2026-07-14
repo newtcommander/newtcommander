@@ -26,9 +26,10 @@ CDecompressFile*
 CDecompressFile::CreateInstance(LPCTSTR fileName, DWORD inputOffset, CQuadWord inputSize)
 {
     CALL_STACK_MESSAGE2("CDecompressFile::CreateInstance(%s)", fileName);
-    // open the input file
-    HANDLE file = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    // open the input file ('fileName' is the archive path from the interface:
+    // UTF-8 since interface 104 -> W API with the \\?\ prefix)
+    HANDLE file = CreateFileU8(fileName, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING,
+                               FILE_FLAG_SEQUENTIAL_SCAN);
     if (file == INVALID_HANDLE_VALUE)
     {
         char txtbuf[1000];
@@ -166,6 +167,12 @@ void CDecompressFile::SetOldName(char* oldName)
     if (OldName != NULL)
         free(OldName);
     OldName = _strdup(oldName);
+    // format boundary (interface 104): the name stored in a stream header (the gzip
+    // ORIG_NAME field, ...) carries no encoding tag - decode it like an archive name.
+    // GetOldName() below builds the fallback name from the archive path, which the
+    // interface already hands us as UTF-8, so that path needs no conversion.
+    if (OldName != NULL)
+        ConvertNameToU8(OldName);
 }
 
 // reads a block from the input file
