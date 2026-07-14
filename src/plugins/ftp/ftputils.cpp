@@ -3321,3 +3321,172 @@ void FTPAS400AddFileNamePart(char* name)
         memcpy(mbrEnd + 1, "FILE/", 5);
     }
 }
+
+//*****************************************************************************
+//
+// interface 104 UTF-8 helpers (see ftputils.h / splunicode.h)
+//
+
+HANDLE FTPCreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                       LPSECURITY_ATTRIBUTES securityAttributes, DWORD creationDisposition,
+                       DWORD flagsAndAttributes, HANDLE templateFile)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = HANDLES_Q(CreateFileW(w, desiredAccess, shareMode, securityAttributes,
+                                        creationDisposition, flagsAndAttributes, templateFile));
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return file;
+}
+
+BOOL FTPDeleteFileU8(const char* fileName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL FTPSetFileAttributesU8(const char* fileName, DWORD attributes)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = SetFileAttributesW(w, attributes);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL FTPCreateDirectoryU8(const char* pathName, LPSECURITY_ATTRIBUTES securityAttributes)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = CreateDirectoryW(w, securityAttributes);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL FTPRemoveDirectoryU8(const char* pathName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = RemoveDirectoryW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+HANDLE FTPFindFirstFileU8(const char* pathName, WIN32_FIND_DATAW* data)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE find = HANDLES_Q(FindFirstFileW(w, data));
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return find;
+}
+
+char* FTPListingFieldToU8(const char* beg, int len)
+{
+    if (len < 0)
+        len = 0;
+    // fast path: pure ASCII, and valid UTF-8, are kept verbatim (covers ASCII
+    // and UTF-8 servers - the vast majority of names)
+    BOOL ascii = TRUE;
+    for (int i = 0; i < len; i++)
+        if ((unsigned char)beg[i] >= 0x80)
+        {
+            ascii = FALSE;
+            break;
+        }
+    if (ascii || (len > 0 && MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, beg, len, NULL, 0) > 0))
+    {
+        char* str = (char*)SalamanderGeneral->Alloc(len + 1);
+        if (str != NULL)
+        {
+            memcpy(str, beg, len);
+            str[len] = 0;
+        }
+        return str;
+    }
+    // legacy server: read the bytes in the system ANSI code page -> UTF-8
+    int wLen = MultiByteToWideChar(CP_ACP, 0, beg, len, NULL, 0);
+    if (wLen > 0)
+    {
+        WCHAR* w = (WCHAR*)malloc(wLen * sizeof(WCHAR));
+        if (w != NULL)
+        {
+            MultiByteToWideChar(CP_ACP, 0, beg, len, w, wLen);
+            int u8Len = WideCharToMultiByte(CP_UTF8, 0, w, wLen, NULL, 0, NULL, NULL);
+            if (u8Len > 0)
+            {
+                char* str = (char*)SalamanderGeneral->Alloc(u8Len + 1);
+                if (str != NULL)
+                {
+                    WideCharToMultiByte(CP_UTF8, 0, w, wLen, str, u8Len, NULL, NULL);
+                    str[u8Len] = 0;
+                }
+                free(w);
+                return str;
+            }
+            free(w);
+        }
+    }
+    // undecodable either way: keep the raw bytes so the item stays visible
+    char* str = (char*)SalamanderGeneral->Alloc(len + 1);
+    if (str != NULL)
+    {
+        memcpy(str, beg, len);
+        str[len] = 0;
+    }
+    return str;
+}
+
+const char* FTPU8NameToServer(const char* u8, char* buf, int bufSize)
+{
+    if (u8 == NULL || SplIsASCII(u8))
+        return u8; // ASCII is identical in every code page
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w == NULL)
+        return u8; // not valid UTF-8 (should not happen) -> send as-is
+    BOOL usedDefault = FALSE;
+    int n = WideCharToMultiByte(CP_ACP, 0, w, -1, buf, bufSize, NULL, &usedDefault);
+    free(w);
+    if (n > 0 && !usedDefault)
+        return buf; // representable in the ANSI code page (legacy-server round-trip)
+    return u8;      // not representable -> send UTF-8 verbatim (UTF-8 server)
+}

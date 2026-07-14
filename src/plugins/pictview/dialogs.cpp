@@ -1180,11 +1180,12 @@ COverwriteDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        SetWindowText(GetDlgItem(HWindow, IDS_SOURCENAME), SourceName);
-        SetWindowText(GetDlgItem(HWindow, IDS_TARGETNAME), TargetName);
+        // the names/attributes are UTF-8 since interface 104 -> set them as UTF-16
+        SetDlgItemTextU8(HWindow, IDS_SOURCENAME, SourceName);
+        SetDlgItemTextU8(HWindow, IDS_TARGETNAME, TargetName);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_SOURCEATTR), SourceAttr);
-        SetWindowText(GetDlgItem(HWindow, IDS_TARGETATTR), TargetAttr);
+        SetDlgItemTextU8(HWindow, IDS_SOURCEATTR, SourceAttr);
+        SetDlgItemTextU8(HWindow, IDS_TARGETATTR, TargetAttr);
         break;
     }
 
@@ -1605,7 +1606,10 @@ CExifDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (buf)
                 {
-                    f = _tfopen(FileName, _T("rb"));
+                    // 'FileName' is UTF-8; read the file ourselves via the W CRT (Unicode + long paths)
+                    WCHAR* wFileName = SplU8ToWExtAlloc(FileName);
+                    f = wFileName != NULL ? _wfopen(wFileName, L"rb") : NULL;
+                    free(wFileName);
                     if (f)
                     {
                         // fake APP1/EXIF marker
@@ -1624,15 +1628,13 @@ CExifDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             else
             {
-#ifdef _UNICODE
-                char FileNameA[_MAX_PATH];
-
-                WideCharToMultiByte(CP_ACP, 0, FileName, -1, FileNameA, sizeof(FileNameA), NULL, NULL);
-                FileNameA[sizeof(FileNameA) - 1] = 0;
-                getInfo(FileNameA, 0, ExifEnumProc, (LPARAM)this);
-#else
-                getInfo(FileName, 0, ExifEnumProc, (LPARAM)this);
-#endif
+                // EXIF.DLL opens the file itself and has an ANSI-only interface -> ANSI path
+                char* FileNameA = U8ToDLLPathAlloc(FileName);
+                if (FileNameA != NULL)
+                {
+                    getInfo(FileNameA, 0, ExifEnumProc, (LPARAM)this);
+                    free(FileNameA);
+                }
             }
             DisableNotification = FALSE;
             FillListView();

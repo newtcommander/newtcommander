@@ -226,10 +226,16 @@ CPluginInterfaceForThumbLoader::LoadThumbnail(const char* filename,
     BOOL stopFurtherLoaders = TRUE; // don't try next parsers
     // we must call thumbMaker->SetError() when error occures and stopFurtherLoaders is TRUE
 
-    // open the file
-    HANDLE hFile = HANDLES_Q(CreateFile(filename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
-    if (hFile != NULL)
+    // open the file - 'filename' is a UTF-8 path from the Salamander interface
+    // (plugin interface 104). Convert it to a UTF-16 extended-length path and use
+    // the W file API; an -A call would mis-handle non-ASCII names and long paths.
+    // HANDLES_Q stays at the call site so the handle tracker records this location.
+    WCHAR* wFilename = SplU8ToWExtAlloc(filename);
+    HANDLE hFile = wFilename == NULL ? INVALID_HANDLE_VALUE
+                                     : HANDLES_Q(CreateFileW(wFilename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+    free(wFilename);
+    if (hFile != NULL && hFile != INVALID_HANDLE_VALUE)
     {
         // read the DIB information (BITMAPFILEHEADER)
         BITMAPFILEHEADER bfh;

@@ -442,11 +442,21 @@ int LHAGetHeader(FILE* fp, LHA_HEADER* lpHeader)
     if (dir_length)
     {
         strcat(dirname, lpHeader->name);
-        strcpy(lpHeader->name, dirname);
+        lstrcpyn(lpHeader->name, dirname, sizeof(lpHeader->name)); // bounded (interface 104 buffer)
         name_length += dir_length;
     }
 
-    OemToChar(lpHeader->name, lpHeader->name); // češtiňka ... :-)
+    // LHA format boundary (interface 104): names are stored in the OEM code page ->
+    // convert OEM -> UTF-16 -> UTF-8 (the encoding crossing the plugin interface)
+    {
+        WCHAR wname[3 * MAX_PATH];
+        char u8name[3 * MAX_PATH];
+        if (MultiByteToWideChar(CP_OEMCP, 0, lpHeader->name, -1, wname, _countof(wname)) > 0 &&
+            SplWToU8(wname, u8name, sizeof(u8name)) > 0)
+            strcpy(lpHeader->name, u8name);
+        else
+            OemToChar(lpHeader->name, lpHeader->name); // fallback: legacy ACP behavior
+    }
 
     for (i = 0;; i++)
         if (lha_methods[i] == NULL)
@@ -1811,11 +1821,15 @@ int LHAOpenArchive(FILE*& f, LPCTSTR lpName)
 {
     CALL_STACK_MESSAGE2("LHAOpenArchive( , %s)", lpName);
 
-    if ((f = fopen(lpName, "rb")) == NULL)
+    // interface 104: the archive path is UTF-8 -> extended-length UTF-16 for _wfopen
+    WCHAR* wName = SplU8ToWExtAlloc(lpName);
+    if (wName == NULL || (f = _wfopen(wName, L"rb")) == NULL)
     {
+        free(wName);
         iLHAErrorStrId = IDS_OPENERROR;
         return FALSE;
     }
+    free(wName);
 
     LHA_HEADER hdr;
     if (LHAGetHeader(f, &hdr) != GH_ERROR)

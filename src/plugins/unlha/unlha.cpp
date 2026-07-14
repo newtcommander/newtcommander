@@ -37,6 +37,34 @@ char* LoadStr(int resID)
     return SalamanderGeneral->LoadStr(HLanguage, resID);
 }
 
+//
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
 //****************************************************************************
 
 int WINAPI SalamanderPluginGetReqVer()
@@ -308,12 +336,19 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
         return FALSE;
     }
 
-    char justName[MAX_PATH];
-    lstrcpy(justName, nameInArchive);
+    // interface 104: 'nameInArchive'/'targetDir' are UTF-8 and may be long paths
+    char justName[3 * MAX_PATH];
+    lstrcpyn(justName, nameInArchive, sizeof(justName));
     SalamanderGeneral->SalPathStripPath(justName);
-    char targetName[MAX_PATH];
-    lstrcpy(targetName, targetDir);
-    SalamanderGeneral->SalPathAppend(targetName, justName, MAX_PATH);
+    CU8PathBuf targetName;
+    if (!targetName.IsOk())
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        fclose(f);
+        return FALSE;
+    }
+    lstrcpyn(targetName, targetDir, U8_MAX_PATH);
+    SalamanderGeneral->SalPathAppend(targetName, justName, U8_MAX_PATH);
     BOOL skip;
     DWORD silent = 0;
 
@@ -347,7 +382,7 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     if (hdr.has_crc && crc != hdr.crc)
     {
         SalamanderGeneral->ClearReadOnlyAttr(targetName); // so a read-only file can be deleted
-        DeleteFile(targetName);
+        DeleteFileU8(targetName);                          // interface 104: UTF-8 target path -> W file API
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_CRCERROR), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
         return FALSE;
     }
@@ -376,8 +411,8 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
     if (!MakeFilesList(offsets, next, nextParam, targetDir))
         return FALSE;
 
-    char title[1024];
-    sprintf(title, LoadStr(IDS_EXTRPROGTITLE), SalamanderGeneral->SalPathFindFileName(fileName));
+    char title[3 * MAX_PATH]; // interface 104: filename is UTF-8, may be longer
+    _snprintf_s(title, _TRUNCATE, LoadStr(IDS_EXTRPROGTITLE), SalamanderGeneral->SalPathFindFileName(fileName));
     Salamander->OpenProgressDialog(title, TRUE, NULL, FALSE);
     Salamander->ProgressDialogAddText(LoadStr(IDS_PREPAREDATA), FALSE);
 
@@ -448,8 +483,8 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
     if (delArchiveWhenDone)
         archiveVolumes->Add(fileName, -2);
 
-    char title[1024];
-    sprintf(title, LoadStr(IDS_EXTRPROGTITLE), SalamanderGeneral->SalPathFindFileName(fileName));
+    char title[3 * MAX_PATH]; // interface 104: filename is UTF-8, may be longer
+    _snprintf_s(title, _TRUNCATE, LoadStr(IDS_EXTRPROGTITLE), SalamanderGeneral->SalPathFindFileName(fileName));
     Salamander->OpenProgressDialog(title, FALSE, NULL, TRUE);
 
     FILE* f;
@@ -469,11 +504,11 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
         unpacked = FALSE;
 
         const char* name = SalamanderGeneral->SalPathFindFileName(hdr.name);
-        char nameBuf[MAX_PATH];
+        char nameBuf[3 * MAX_PATH]; // interface 104: hdr.name is UTF-8
         int nameLen = (int)strlen(name);
         if (nameLen > 0 && name[nameLen - 1] == '\\') // due to SalPathFindFileName the '\\' can only be at the end; remove it before calling AgreeMask
         {
-            lstrcpyn(nameBuf, name, min(nameLen, MAX_PATH));
+            lstrcpyn(nameBuf, name, min(nameLen, (int)sizeof(nameBuf)));
             name = nameBuf;
         }
         BOOL nameHasExt = strchr(name, '.') != NULL; // ".cvspass" is considered an extension on Windows
@@ -523,9 +558,9 @@ void CPluginInterfaceForArchiver::UnpackInnerBody(FILE* f, const char* targetDir
 {
     CALL_STACK_MESSAGE4("CPluginInterfaceForArchiver::UnpackInnerBody( , %s, %s, , %ld)", targetDir, fileName, bDir);
 
-    char message[MAX_PATH + 32];
-    lstrcpy(message, LoadStr(IDS_UNPACKING));
-    lstrcat(message, hdr.name);
+    char message[3 * MAX_PATH + 32]; // interface 104: hdr.name is UTF-8
+    lstrcpyn(message, LoadStr(IDS_UNPACKING), sizeof(message));
+    lstrcpyn(message + strlen(message), hdr.name, sizeof(message) - (int)strlen(message));
     Salamander->ProgressDialogAddText(message, TRUE);
 
     if (hdr.method == LHA_UNKNOWNMETHOD && hdr.original_size)
@@ -536,9 +571,16 @@ void CPluginInterfaceForArchiver::UnpackInnerBody(FILE* f, const char* targetDir
         return;
     }
 
-    char targetName[MAX_PATH];
-    strncpy_s(targetName, targetDir, _TRUNCATE);
-    if (!SalamanderGeneral->SalPathAppend(targetName, hdr.name + RootLen, MAX_PATH))
+    // interface 104: 'targetDir'/hdr.name are UTF-8 and may be long paths -> heap
+    CU8PathBuf targetName;
+    if (!targetName.IsOk())
+    {
+        Abort = TRUE;
+        Ret = FALSE;
+        return;
+    }
+    lstrcpyn(targetName, targetDir, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(targetName, hdr.name + RootLen, U8_MAX_PATH))
     {
         if (!(Silent & SF_LONGNAMES))
             switch (SalamanderGeneral->DialogError(SalamanderGeneral->GetMsgBoxParent(), BUTTONS_SKIPCANCEL,
@@ -556,9 +598,15 @@ void CPluginInterfaceForArchiver::UnpackInnerBody(FILE* f, const char* targetDir
         return;
     }
 
-    char nameInArc[MAX_PATH + MAX_PATH];
-    lstrcpy(nameInArc, fileName);
-    SalamanderGeneral->SalPathAppend(nameInArc, hdr.name, MAX_PATH + MAX_PATH);
+    CU8PathBuf nameInArc; // interface 104: fileName+hdr.name is a UTF-8 path, may be long
+    if (!nameInArc.IsOk())
+    {
+        Abort = TRUE;
+        Ret = FALSE;
+        return;
+    }
+    lstrcpyn(nameInArc, fileName, U8_MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, hdr.name, U8_MAX_PATH);
     char buf[100];
     GetInfo(buf, &hdr.last_modified_filetime, hdr.original_size);
     BOOL skip;
@@ -590,12 +638,12 @@ void CPluginInterfaceForArchiver::UnpackInnerBody(FILE* f, const char* targetDir
 
         if (bCanceled || bCRCError)
         {
-            DeleteFile(targetName);
+            DeleteFileU8(targetName); // interface 104: UTF-8 target path -> W file API
             if (bCanceled)
                 Abort = TRUE;
         }
         else
-            SetFileAttributes(targetName, hdr.attribute);
+            SetFileAttributesU8(targetName, hdr.attribute); // interface 104: UTF-8 target path -> W file API
 
         if (!bCanceled)
         {
@@ -658,14 +706,17 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TDirectArray<int>& offsets, SalE
     const char* nextName;
     BOOL isDir;
     CQuadWord size;
-    char dir[MAX_PATH];
+    // interface 104: 'targetDir' is UTF-8 and may be a long path -> heap buffer
+    CU8PathBuf dir;
+    if (!dir.IsOk())
+        return FALSE;
     char* addDir;
     int dirLen;
     const CFileData* pfd;
     int errorOccured;
 
-    lstrcpy(dir, targetDir);
-    addDir = dir + lstrlen(dir);
+    lstrcpyn(dir, targetDir, U8_MAX_PATH);
+    addDir = dir.Buf + lstrlen(dir);
     if (*(addDir - 1) != '\\')
     {
         *addDir++ = '\\';
@@ -678,7 +729,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TDirectArray<int>& offsets, SalE
     {
         if (isDir)
         {
-            if (dirLen + lstrlen(nextName) + 1 >= MAX_PATH)
+            if (dirLen + lstrlen(nextName) + 1 >= U8_MAX_PATH)
             {
                 if (Silent & SF_LONGNAMES)
                     continue;
@@ -694,7 +745,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TDirectArray<int>& offsets, SalE
                     return FALSE;
                 }
             }
-            lstrcpy(addDir, nextName);
+            lstrcpyn(addDir, nextName, U8_MAX_PATH - (int)(addDir - dir.Buf));
             BOOL skip;
             if (SalamanderSafeFile->SafeFileCreate(dir, 0, 0, 0, TRUE, SalamanderGeneral->GetMsgBoxParent(), NULL, NULL,
                                                    &Silent, TRUE, &skip, NULL, 0, NULL, NULL) == INVALID_HANDLE_VALUE &&

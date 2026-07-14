@@ -141,10 +141,10 @@ BOOL RegOperationError(int lastError, int error, int title, int keyRoot, LPWSTR 
     int l = (int)strlen(strcpy(buf, LoadStr(error)));
     SG->GetErrorText(lastError, buf + l, 1024 - l);
 
-    char fullName[MAX_FULL_KEYNAME]; // buffer for the full REG name shown in an error dialog
-    l = WStrToStr(fullName, MAX_FULL_KEYNAME, PredefinedHKeys[keyRoot].KeyName) - 1;
+    char fullName[3 * MAX_FULL_KEYNAME]; // full REG name shown in an error dialog (UTF-8, interface 104)
+    l = WStrToU8(fullName, sizeof(fullName), PredefinedHKeys[keyRoot].KeyName) - 1;
     fullName[l++] = '\\';
-    l += WStrToStr(fullName + l, MAX_FULL_KEYNAME - l, keyName) - 1;
+    l += WStrToU8(fullName + l, (int)sizeof(fullName) - l, keyName) - 1;
     fullName[l] = 0; // just in case
 
     int res = skip ? SG->DialogError(GetParent(), BUTTONS_RETRYSKIPCANCEL, fullName, buf, LoadStr(title)) : SG->DialogError(GetParent(), BUTTONS_RETRYCANCEL, fullName, buf, LoadStr(title));

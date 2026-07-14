@@ -33,6 +33,8 @@
 #include "spl_vers.h"
 #include "spl_zlib.h"
 
+#include "splunicode.h" // interface 104: UTF-8 <-> UTF-16 helpers for W file APIs
+
 #include "dbg.h"
 #include "mhandles.h"
 #include "arraylt.h"

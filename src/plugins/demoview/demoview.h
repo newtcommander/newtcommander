@@ -140,8 +140,11 @@ protected:
 class CViewerWindow : public CWindow
 {
 public:
-    HANDLE Lock;                      // 'lock' object or NULL (set to the signaled state after the file is closed)
-    char Name[MAX_PATH];              // file name or ""
+    HANDLE Lock; // 'lock' object or NULL (set to the signaled state after the file is closed)
+    // Full path of the viewed file (UTF-8, plugin interface 104) or NULL. Held on
+    // the heap rather than in a char[MAX_PATH]: a path handed to ViewFile() can now
+    // exceed MAX_PATH, so a fixed buffer would be a latent truncation bug.
+    char* Name;
     CRendererWindow Renderer;         // viewer inner window
     HIMAGELIST HGrayToolBarImageList; // toolbar and menu in the gray variant (computed from the colored one)
     HIMAGELIST HHotToolBarImageList;  // toolbar and menu in the colored variant
@@ -158,6 +161,7 @@ public:
 
 public:
     CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex);
+    ~CViewerWindow();
 
     HANDLE GetLock();
 

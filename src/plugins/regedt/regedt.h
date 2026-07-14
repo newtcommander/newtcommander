@@ -132,9 +132,9 @@ public:
 
 class CPluginInterfaceForMenuExt : public CPluginInterfaceForMenuExtAbstract
 {
-    // used to focus items from a non-main thread
-    char Path[MAX_FULL_KEYNAME + 1];
-    char Name[MAX_KEYNAME];
+    // used to focus items from a non-main thread (UTF-8, plugin interface 104)
+    char Path[3 * MAX_FULL_KEYNAME + 1];
+    char Name[3 * MAX_KEYNAME];
 
 public:
     BOOL PostFocusCommand(const char* path, const char* name);

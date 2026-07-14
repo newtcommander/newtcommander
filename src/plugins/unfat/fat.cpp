@@ -190,9 +190,14 @@ BOOL CFATImage::ListImage(CSalamanderDirectoryAbstract* dir, HWND hParent)
             return FALSE;
     }
 
-    // the recursive AddDirectory function loads a directory and all of its subdirectories
-    char root[2 * MAX_PATH];
-    root[0] = 0;
+    // the recursive AddDirectory function loads a directory and all of its subdirectories;
+    // the accumulated path is UTF-8 and may be long (interface 104) -> heap buffer
+    CU8PathBuf root;
+    if (!root.IsOk())
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
     return AddDirectory(root, &rootDirFAT, dir, FirstRootDirSecNum, hParent);
 }
 
@@ -568,10 +573,10 @@ BOOL CFATImage::AddDirectory(char* root, TDirectArray<DWORD>* fat,
         {
             CDirStore* ds = &dirStore[i];
 
-            if (rootEnd - root + strlen(ds->Name) + 2 >= MAX_PATH)
+            if (rootEnd - root + strlen(ds->Name) + 2 >= U8_MAX_PATH)
             {
-                // we must not allow exceeding MAX_PATH
-                TRACE_E("The path len exceeds MAX_PATH. Skipping directory: " << ds->Name);
+                // guard the listing path buffer (interface 104: UTF-8, long paths)
+                TRACE_E("The path len exceeds the buffer. Skipping directory: " << ds->Name);
                 continue;
             }
 
@@ -750,9 +755,16 @@ BOOL CFATImage::UnpackFile(CSalamanderForOperationsAbstract* salamander, const c
         return FALSE;
     }
 
-    char targetName[2 * MAX_PATH];
-    strcpy(targetName, targetDir);
-    if (!SalamanderGeneral->SalPathAppend(targetName, fileData->Name, 2 * MAX_PATH))
+    // interface 104: 'targetDir'/'nameInArchive' are UTF-8 and may be long paths -> heap
+    CU8PathBuf targetName;
+    CU8PathBuf currentImgPath;
+    if (!targetName.IsOk() || !currentImgPath.IsOk())
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    lstrcpyn(targetName, targetDir, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(targetName, fileData->Name, U8_MAX_PATH))
     {
         TRACE_E("Name is too long, skipping");
         if (allowSkip)
@@ -769,17 +781,23 @@ BOOL CFATImage::UnpackFile(CSalamanderForOperationsAbstract* salamander, const c
         return FALSE;
     }
 
-    // "extracting: %s..."
-    char progressText[2 * MAX_PATH + 100];
-    sprintf(progressText, LoadStr(IDS_EXTRACTING), nameInArchive);
+    // "extracting: %s..." - 'nameInArchive' may be long (interface 104) -> heap buffer
+    char* progressText = (char*)malloc(U8_MAX_PATH + 100);
+    if (progressText == NULL)
+    {
+        TRACE_E(LOW_MEMORY);
+        free(clusterBuffer);
+        return FALSE;
+    }
+    _snprintf_s(progressText, U8_MAX_PATH + 100, _TRUNCATE, LoadStr(IDS_EXTRACTING), nameInArchive);
     salamander->ProgressDialogAddText(progressText, TRUE);
+    free(progressText);
 
     char fileInfo[200];
     GetFileInfo(fileInfo, 200, fileData);
 
-    char currentImgPath[2 * MAX_PATH];
-    strcpy(currentImgPath, archiveName);
-    if (!SalamanderGeneral->SalPathAppend(currentImgPath, nameInArchive, 2 * MAX_PATH))
+    lstrcpyn(currentImgPath, archiveName, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(currentImgPath, nameInArchive, U8_MAX_PATH))
     {
         TRACE_E("Name is too long, skipping");
         if (allowSkip)
@@ -894,7 +912,7 @@ EXIT:
     {
         // the file may have received a read-only attribute and DeleteFile would not be able to remove it
         SalamanderGeneral->ClearReadOnlyAttr(targetName);
-        if (!DeleteFile(targetName))
+        if (!DeleteFileU8(targetName)) // interface 104: UTF-8 target path -> W file API
             TRACE_E("DeleteFile failed");
     }
     else
@@ -904,7 +922,7 @@ EXIT:
         // this guarantees an exact copy, but it is not compatible with Salamander's Copy command
         // every plugin behaves differently; it is a mess
 
-        if (!SetFileAttributes(targetName, fileData->Attr))
+        if (!SetFileAttributesU8(targetName, fileData->Attr)) // interface 104: UTF-8 target path -> W file API
             TRACE_E("SetFileAttributes failed");
     }
     free(clusterBuffer);

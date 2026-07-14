@@ -275,7 +275,7 @@ CPluginInterfaceForViewer::ViewFile(const char *name, int left, int top, int wid
 class CViewerThread : public CThread
 {
 protected:
-    char Name[MAX_PATH];
+    char* Name; // full path of the file to view (UTF-8, may exceed MAX_PATH) - see CViewerWindow::Name
     int Left, Top, Width, Height;
     UINT ShowCmd;
     BOOL AlwaysOnTop;
@@ -296,7 +296,7 @@ public:
                   BOOL* success, int enumFilesSourceUID,
                   int enumFilesCurrentIndex) : CThread("DOP Viewer")
     {
-        lstrcpyn(Name, name, MAX_PATH);
+        Name = _strdup(name); // UTF-8 path of any length; freed in the destructor
         Left = left;
         Top = top;
         Width = width;
@@ -313,6 +313,10 @@ public:
         EnumFilesSourceUID = enumFilesSourceUID;
         EnumFilesCurrentIndex = enumFilesCurrentIndex;
     }
+
+    // the CThread object frees itself once its body finishes (or the caller deletes it
+    // when Create() fails), so the heap-allocated file name is released here
+    virtual ~CViewerThread() { free(Name); }
 
     virtual unsigned Body();
 };
@@ -387,7 +391,7 @@ CViewerThread::Body()
     }
 
     CALL_STACK_MESSAGE1("ViewerThreadBody::SetEvent");
-    BOOL openFile = *Success;
+    BOOL openFile = *Success && Name != NULL; // Name == NULL only when _strdup() ran out of memory
     SetEvent(Continue); // allow the main thread to continue; from here on the following variables are invalid:
     Continue = NULL;    // clearing is unnecessary, kept only for readability
     Lock = NULL;        // clearing is unnecessary, kept only for readability
@@ -502,9 +506,21 @@ CRendererWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             SetBkColor(hDC, RGB(70, 110, 200));
             SetTextColor(hDC, RGB(0, 0, 0));
-            int i;
-            for (i = 0; i < 12; i++)
-                TextOut(hDC, 5, 5 + i * 18, Viewer->Name, (int)strlen(Viewer->Name));
+            // Viewer->Name is a UTF-8 interface path: draw it through the W text API.
+            // TextOutA would render the bytes in the ANSI code page and garble any
+            // non-ASCII file name. Convert UTF-8 -> UTF-16 once and use TextOutW.
+            if (Viewer->Name != NULL)
+            {
+                WCHAR* wName = SplU8ToWAlloc(Viewer->Name);
+                if (wName != NULL)
+                {
+                    int nameLen = (int)wcslen(wName);
+                    int i;
+                    for (i = 0; i < 12; i++)
+                        TextOutW(hDC, 5, 5 + i * 18, wName, nameLen);
+                    free(wName);
+                }
+            }
 
             CSalamanderPNGAbstract* salamanderPNG = SalamanderGeneral->GetSalamanderPNG();
             // for simplicity we skip error handling
@@ -572,7 +588,7 @@ CRendererWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) : CWindow(ooStatic)
 {
     Lock = NULL;
-    Name[0] = 0;
+    Name = NULL; // heap-allocated in OpenFile(); NULL means "no file"
     Renderer.Viewer = this;
     HRebar = NULL;
     MainMenu = NULL;
@@ -585,6 +601,11 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
     EnumFilesCurrentIndex = enumFilesCurrentIndex;
 
     ZeroMemory(Enablers, sizeof(Enablers));
+}
+
+CViewerWindow::~CViewerWindow()
+{
+    free(Name);
 }
 
 BOOL CViewerWindow::IsMenuBarMessage(CONST MSG* lpMsg)
@@ -840,14 +861,24 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_DROPFILES: // drag&drop open file
     {
-        UINT drag;
-        char path[MAX_PATH];
-
-        drag = DragQueryFile((HDROP)wParam, 0xFFFFFFFF, NULL, 0); // how many files were dropped
+        UINT drag = DragQueryFile((HDROP)wParam, 0xFFFFFFFF, NULL, 0); // how many files were dropped
         if (drag > 0)
         {
-            DragQueryFile((HDROP)wParam, 0, path, MAX_PATH);
-            OpenFile(path);
+            // The dropped path may hold non-ASCII characters or exceed MAX_PATH, so
+            // query it with DragQueryFileW and hand OpenFile() a UTF-8 string (the
+            // encoding the Salamander interface uses for all names in version 104).
+            UINT lenW = DragQueryFileW((HDROP)wParam, 0, NULL, 0); // length without the terminator
+            WCHAR* pathW = (WCHAR*)malloc((lenW + 1) * sizeof(WCHAR));
+            if (pathW != NULL && DragQueryFileW((HDROP)wParam, 0, pathW, lenW + 1) > 0)
+            {
+                char* pathU8 = SplWToU8Alloc(pathW);
+                if (pathU8 != NULL)
+                {
+                    OpenFile(pathU8);
+                    free(pathU8);
+                }
+            }
+            free(pathW);
         }
         DragFinish((HDROP)wParam);
         break;
@@ -1082,33 +1113,52 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case CM_VIEWER_OPEN:
         {
-            char file[MAX_PATH];
-            file[0] = 0;
-            OPENFILENAME ofn;
-            memset(&ofn, 0, sizeof(OPENFILENAME));
-            ofn.lStructSize = sizeof(OPENFILENAME);
+            // Pick a file and hand OpenFile() a UTF-8 path (the encoding of every
+            // interface name in version 104). The Unicode common dialog is used
+            // directly: SalamanderGeneral->SafeGetOpenFileName() is an ANSI wrapper
+            // and could not return names outside the current ANSI code page.
+            WCHAR fileW[MAX_PATH];
+            fileW[0] = 0;
+            OPENFILENAMEW ofn;
+            memset(&ofn, 0, sizeof(ofn));
+            ofn.lStructSize = sizeof(ofn);
             ofn.hwndOwner = HWindow;
-            char filterBuf[100];
-            lstrcpyn(filterBuf, LoadStr(IDS_DOP_FILES_FILTER), 100);
-            char* s = filterBuf;
+            WCHAR filterBuf[100];
+            lstrcpynW(filterBuf, SalamanderGeneral->LoadStrW(HLanguage, IDS_DOP_FILES_FILTER), 100);
+            WCHAR* s = filterBuf;
             ofn.lpstrFilter = s;
             while (*s != 0) // create a double-null-terminated list
             {
-                if (*s == '|')
+                if (*s == L'|')
                     *s = 0;
                 s++;
             }
-            ofn.lpstrFile = file;
+            ofn.lpstrFile = fileW;
             ofn.nMaxFile = MAX_PATH;
             ofn.nFilterIndex = 1;
-            char curDir[MAX_PATH];
-            lstrcpyn(curDir, Name, MAX_PATH);
-            SalamanderGeneral->CutDirectory(curDir);
-            ofn.lpstrInitialDir = curDir[0] != 0 ? curDir : NULL;
+            // initial directory = the folder of the currently viewed file (Name is UTF-8)
+            WCHAR* curDirW = Name != NULL ? SplU8ToWAlloc(Name) : NULL;
+            if (curDirW != NULL)
+            {
+                WCHAR* lastSep = wcsrchr(curDirW, L'\\'); // strip the file-name component
+                if (lastSep != NULL)
+                    *lastSep = 0;
+                else
+                    curDirW[0] = 0;
+            }
+            ofn.lpstrInitialDir = (curDirW != NULL && curDirW[0] != 0) ? curDirW : NULL;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
 
-            if (SalamanderGeneral->SafeGetOpenFileName(&ofn))
-                OpenFile(file);
+            if (GetOpenFileNameW(&ofn))
+            {
+                char* fileU8 = SplWToU8Alloc(fileW); // back to the interface encoding
+                if (fileU8 != NULL)
+                {
+                    OpenFile(fileU8);
+                    free(fileU8);
+                }
+            }
+            free(curDirW);
             break;
         }
 
@@ -1187,7 +1237,9 @@ void CViewerWindow::OpenFile(const char* name, BOOL setLock)
         SetEvent(Lock);
         Lock = NULL; // from here on only the disk cache is responsible
     }
-    lstrcpyn(Name, name, MAX_PATH);
+    // keep the whole UTF-8 path (a full path is no longer bounded by MAX_PATH)
+    free(Name);
+    Name = _strdup(name);
     InvalidateRect(HWindow, NULL, TRUE);
     InvalidateRect(Renderer.HWindow, NULL, TRUE);
 }

@@ -87,11 +87,13 @@ static BOOL RestoreFile(const char* fileName, const char* sourcePath, const char
         return button != DIALOG_CANCEL;
     }
 
-    // get information from source file
+    // get information from source file (local disk: W file API, interface 104)
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     CQuadWord size(0, 0);
-    WIN32_FIND_DATA w32fd;
-    HANDLE hfind = FindFirstFile(srcpath, &w32fd);
+    WIN32_FIND_DATAW w32fd;
+    WCHAR* srcpathW = SplU8ToWExtAlloc(srcpath);
+    HANDLE hfind = srcpathW == NULL ? INVALID_HANDLE_VALUE : FindFirstFileW(srcpathW, &w32fd);
+    free(srcpathW);
     if (hfind != INVALID_HANDLE_VALUE)
     {
         attr = w32fd.dwFileAttributes;
@@ -154,7 +156,9 @@ static BOOL RestoreFile(const char* fileName, const char* sourcePath, const char
         IMPORT_CONTEXT ctx = {&srcfile, hProgressWnd};
         PVOID context;
         DWORD result;
-        if ((result = OpenEncryptedFileRaw(dstpath, CREATE_FOR_IMPORT, &context)) != ERROR_SUCCESS ||
+        // restore target lives on the local disk: use the W API (interface 104)
+        WCHAR* dstpathW = SplU8ToWExtAlloc(dstpath);
+        if ((result = dstpathW == NULL ? ERROR_INVALID_NAME : OpenEncryptedFileRawW(dstpathW, CREATE_FOR_IMPORT, &context)) != ERROR_SUCCESS ||
             (result = WriteEncryptedFileRaw(RestoreCallback, (PVOID)&ctx, context)) != ERROR_SUCCESS)
         {
             if (result != ERROR_CANCELLED) // return on cancel from user
@@ -165,6 +169,7 @@ static BOOL RestoreFile(const char* fileName, const char* sourcePath, const char
             ret = FALSE;
         }
         CloseEncryptedFileRaw(context);
+        free(dstpathW);
     }
     else // otherwise only copy
     {
@@ -190,22 +195,26 @@ static BOOL RestoreFile(const char* fileName, const char* sourcePath, const char
     }
     SalamanderSafeFile->SafeFileClose(&srcfile);
 
-    // set time and attributes
+    // set time and attributes (local disk target: W file API, interface 104)
+    WCHAR* dstpathW = SplU8ToWExtAlloc(dstpath);
     if (ret)
     {
-        HANDLE hf = CreateFile(dstpath, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+        HANDLE hf = dstpathW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(dstpathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
         if (hf != INVALID_HANDLE_VALUE)
         {
             SetFileTime(hf, times, times + 1, times + 2);
             CloseHandle(hf);
         }
-        SetFileAttributes(dstpath, attr | FILE_ATTRIBUTE_ENCRYPTED);
+        if (dstpathW != NULL)
+            SetFileAttributesW(dstpathW, attr | FILE_ATTRIBUTE_ENCRYPTED);
     }
     // on cancel remove incomplete file
     else if (Progress->GetWantCancel())
     {
-        DeleteFile(dstpath);
+        if (dstpathW != NULL)
+            DeleteFileW(dstpathW);
     }
+    free(dstpathW);
 
     return ret;
 }
@@ -237,34 +246,47 @@ static BOOL RestoreDir(const char* fileName, const char* sourcePath, const char*
         return skipped;
     }
 
-    // list and restore all files in directory
+    // list and restore all files in directory (local disk: W file API, names
+    // kept as UTF-8 for the interface, interface 104)
     BOOL ret = TRUE;
     HANDLE hFind;
-    static WIN32_FIND_DATA fd;
+    static WIN32_FIND_DATAW fd;
+    char fdNameU8[3 * MAX_PATH];
     int plen = (int)strlen(srcpath);
     strcat(srcpath, "\\*");
 
-    if ((hFind = HANDLES_Q(FindFirstFile(srcpath, &fd))) != INVALID_HANDLE_VALUE)
+    WCHAR* srcpathW = SplU8ToWExtAlloc(srcpath);
+    hFind = srcpathW == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(FindFirstFileW(srcpathW, &fd));
+    free(srcpathW);
+    if (hFind != INVALID_HANDLE_VALUE)
     {
         srcpath[plen] = 0;
         do
         {
-            if (fd.cFileName[0] != 0 && strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, ".."))
+            if (fd.cFileName[0] != 0 && wcscmp(fd.cFileName, L".") && wcscmp(fd.cFileName, L"..") &&
+                SplWToU8(fd.cFileName, fdNameU8, sizeof(fdNameU8)) > 0)
             {
                 if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                    ret = RestoreDir(fd.cFileName, srcpath, dstpath);
+                    ret = RestoreDir(fdNameU8, srcpath, dstpath);
                 else
-                    ret = RestoreFile(fd.cFileName, srcpath, dstpath);
+                    ret = RestoreFile(fdNameU8, srcpath, dstpath);
             }
-        } while (ret && FindNextFile(hFind, &fd));
+        } while (ret && FindNextFileW(hFind, &fd));
         HANDLES(FindClose(hFind));
     }
     srcpath[plen] = 0;
 
-    // set attribute
+    // set attribute (local disk target: W file API, interface 104)
     DWORD attr = SalamanderGeneral->SalGetFileAttributes(srcpath);
     if (attr != INVALID_FILE_ATTRIBUTES)
-        SetFileAttributes(dstpath, attr);
+    {
+        WCHAR* dstpathW = SplU8ToWExtAlloc(dstpath);
+        if (dstpathW != NULL)
+        {
+            SetFileAttributesW(dstpathW, attr);
+            free(dstpathW);
+        }
+    }
 
     return ret;
 }
@@ -273,23 +295,29 @@ static QWORD GetDirSize(char* path, char* dirname, BOOL* cancel)
 {
     SLOW_CALL_STACK_MESSAGE3("GetDirSize(%s, %s)", path, dirname);
 
+    // local disk enumeration on the W layer; recursion names kept as UTF-8 (interface 104)
     HANDLE hFind;
-    static WIN32_FIND_DATA fd;
+    static WIN32_FIND_DATAW fd;
+    char fdNameU8[3 * MAX_PATH];
     int plen1 = (int)strlen(path);
     SalamanderGeneral->SalPathAppend(path, dirname, MAX_PATH);
     int plen2 = (int)strlen(path);
     strcat(path, "\\*");
     QWORD total = 0;
 
-    if ((hFind = HANDLES_Q(FindFirstFile(path, &fd))) != INVALID_HANDLE_VALUE)
+    WCHAR* pathW = SplU8ToWExtAlloc(path);
+    hFind = pathW == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(FindFirstFileW(pathW, &fd));
+    free(pathW);
+    if (hFind != INVALID_HANDLE_VALUE)
     {
         path[plen2] = 0;
         do
         {
-            if (fd.cFileName[0] != 0 && strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, ".."))
+            if (fd.cFileName[0] != 0 && wcscmp(fd.cFileName, L".") && wcscmp(fd.cFileName, L"..") &&
+                SplWToU8(fd.cFileName, fdNameU8, sizeof(fdNameU8)) > 0)
             {
                 if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                    total += GetDirSize(path, fd.cFileName, cancel) + 1;
+                    total += GetDirSize(path, fdNameU8, cancel) + 1;
                 else
                     total += MAKEQWORD(fd.nFileSizeLow, fd.nFileSizeHigh) + 1;
             }
@@ -301,7 +329,7 @@ static QWORD GetDirSize(char* path, char* dirname, BOOL* cancel)
                 *cancel = TRUE;
                 return 0;
             }
-        } while (FindNextFile(hFind, &fd));
+        } while (FindNextFileW(hFind, &fd));
         HANDLES(FindClose(hFind));
     }
     path[plen1] = 0;

@@ -94,11 +94,12 @@ public:
 		return mythread;
 	}*/
 
+    // 'displayName'/'typeName' receive UTF-8 output (the tree stores UTF-8 names since plugin
+    // interface 104); the query goes through the W shell API so Unicode names work
     void LoadFileInfo(TCHAR* displayName, TCHAR* typeName)
     {
-        SHFILEINFO shfi;
-        TCHAR path[2 * MAX_PATH + 1];
-        //SHGetFileInfo(buff, 0, &shfi, sizeof shfi, SHGFI_ICON | SHGFI_SHELLICONSIZE | SHGFI_DISPLAYNAME | SHGFI_TYPENAME);
+        SHFILEINFOW shfi;
+        TCHAR path[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
         UINT flags = 0;
         if (displayName)
         {
@@ -112,23 +113,30 @@ public:
         }
         if (flags)
         {
-            int len = (int)this->GetFullName(path, 2 * MAX_PATH);
+            this->GetFullName(path, ARRAYSIZE(path));
+            WCHAR* wPath = SplU8ToWExtAlloc(path);
             DWORD_PTR result = 0;
-            if (len <= MAX_PATH)
+            if (wPath != NULL)
             {
-                result = SHGetFileInfo(path, 0, &shfi, sizeof shfi, flags);
+                result = SHGetFileInfoW(wPath, 0, &shfi, sizeof shfi, flags);
             }
             else
             {
-                result = SHGetFileInfo(this->_name, 0, &shfi, sizeof shfi, flags | SHGFI_USEFILEATTRIBUTES);
+                WCHAR* wName = SplU8ToWAlloc(this->_name);
+                if (wName != NULL)
+                    result = SHGetFileInfoW(wName, 0, &shfi, sizeof shfi, flags | SHGFI_USEFILEATTRIBUTES);
+                free(wName);
             }
+            free(wPath);
 
             if (result != 0)
             {
+                // caller buffers: displayName >= 3*MAX_PATH, typeName is _sftype[80] (MAX_TYPELEN);
+                // SplWToU8 safely truncates (empties the buffer) if a name does not fit
                 if (displayName)
-                    _tcscpy(displayName, shfi.szDisplayName);
+                    SplWToU8(shfi.szDisplayName, displayName, 3 * MAX_PATH);
                 if (typeName)
-                    _tcscpy(typeName, shfi.szTypeName);
+                    SplWToU8(shfi.szTypeName, typeName, 80);
             }
         }
     }

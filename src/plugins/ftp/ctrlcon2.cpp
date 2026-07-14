@@ -49,6 +49,7 @@ BOOL PrepareFTPCommand(char* buf, int bufSize, char* logBuf, int logBufSize,
 
     BOOL ret = TRUE;
     int len = 0;
+    char nameBuf[3 * MAX_PATH]; // interface 104: UTF-8 name -> server-encoding buffer (see FTPU8NameToServer)
     if (logBufSize > 0)
         logBuf[0] = 0;
     if (bufSize > 0)
@@ -71,8 +72,11 @@ BOOL PrepareFTPCommand(char* buf, int bufSize, char* logBuf, int logBufSize,
             len = _snprintf_s(buf, bufSize, _TRUNCATE, "NOOP");
             break;
         case ftpcmdChangeWorkingPath:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "CWD %s", args);
+        {
+            char* path = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "CWD %s", FTPU8NameToServer(path, nameBuf, sizeof(nameBuf)));
             break;
+        }
 
         case ftpcmdSetTransferMode:
         {
@@ -100,41 +104,76 @@ BOOL PrepareFTPCommand(char* buf, int bufSize, char* logBuf, int logBufSize,
         }
 
         case ftpcmdDeleteFile:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "DELE %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "DELE %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdDeleteDir:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "RMD %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "RMD %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdChangeAttrs:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "SITE CHMOD %03o %s", args);
+        {
+            int newAttr = va_arg(args, int);
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "SITE CHMOD %03o %s", newAttr, FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdChangeAttrsQuoted:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "SITE CHMOD %03o \"%s\"", args);
+        {
+            int newAttr = va_arg(args, int);
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "SITE CHMOD %03o \"%s\"", newAttr, FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdRestartTransfer:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "REST %s", args);
+            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "REST %s", args); // numeric restart offset, ASCII only
             break;
         case ftpcmdRetrieveFile:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "RETR %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "RETR %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdStoreFile:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "STOR %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "STOR %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdAppendFile:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "APPE %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "APPE %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdCreateDir:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "MKD %s", args);
+        {
+            char* path = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "MKD %s", FTPU8NameToServer(path, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdRenameFrom:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "RNFR %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "RNFR %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdRenameTo:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "RNTO %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "RNTO %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
         case ftpcmdGetSize:
-            len = _vsnprintf_s(buf, bufSize, _TRUNCATE, "SIZE %s", args);
+        {
+            char* name = va_arg(args, char*);
+            len = _snprintf_s(buf, bufSize, _TRUNCATE, "SIZE %s", FTPU8NameToServer(name, nameBuf, sizeof(nameBuf)));
             break;
+        }
 
         default:
         {
@@ -1951,12 +1990,12 @@ void CLogs::SaveLog(HWND parent, const char* itemName, int uid)
         }
 
         if (SalamanderGeneral->SalGetFileAttributes(fileName) != 0xFFFFFFFF) // so that a read-only file can be overwritten
-            SetFileAttributes(fileName, FILE_ATTRIBUTE_ARCHIVE);
-        HANDLE file = HANDLES_Q(CreateFile(fileName, GENERIC_WRITE,
-                                           FILE_SHARE_READ, NULL,
-                                           CREATE_ALWAYS,
-                                           FILE_FLAG_SEQUENTIAL_SCAN,
-                                           NULL));
+            FTPSetFileAttributesU8(fileName, FILE_ATTRIBUTE_ARCHIVE);
+        HANDLE file = FTPCreateFileU8(fileName, GENERIC_WRITE,
+                                      FILE_SHARE_READ, NULL,
+                                      CREATE_ALWAYS,
+                                      FILE_FLAG_SEQUENTIAL_SCAN,
+                                      NULL);
         if (file != INVALID_HANDLE_VALUE)
         {
             int sepLen = (int)strlen(LogsSeparator);
@@ -2008,7 +2047,7 @@ void CLogs::SaveLog(HWND parent, const char* itemName, int uid)
                 sprintf(buf, LoadStr(IDS_SAVELOGERROR), SalamanderGeneral->GetErrorText(err));
                 SalamanderGeneral->SalMessageBox(parent, buf, LoadStr(IDS_FTPERRORTITLE),
                                                  MB_OK | MB_ICONEXCLAMATION);
-                DeleteFile(fileName); // delete the file when an error occurs
+                FTPDeleteFileU8(fileName); // delete the file when an error occurs
             }
 
             // announce a change on the path (our file may have appeared)

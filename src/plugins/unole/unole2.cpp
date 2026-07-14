@@ -186,14 +186,14 @@ CPluginInterface::GetInterfaceForArchiver()
 
 int SortByExtDirsAsFiles = FALSE; // global variable that must be restored before calling ParseStorage
 
-BOOL ParseStorage(CSalamanderDirectoryAbstract* Dir, LPSTORAGE CF, LPMALLOC pIMalloc, char* path)
+BOOL ParseStorage(CSalamanderDirectoryAbstract* Dir, LPSTORAGE CF, LPMALLOC pIMalloc, char* path, int pathBufSize)
 {
     STATSTG element;
     HRESULT hr;
     IEnumSTATSTG* pIEnum;
     CFileData fileData;
     char* oldPath = path + strlen(path);
-    char name[MAX_PATH];
+    char name[3 * MAX_PATH]; // interface 104: stream name is UTF-8 (up to 3 bytes/UTF-16 unit)
     FILETIME* pFT;
     BOOL ret = TRUE;
     int tmp;
@@ -207,7 +207,10 @@ BOOL ParseStorage(CSalamanderDirectoryAbstract* Dir, LPSTORAGE CF, LPMALLOC pIMa
         if (FAILED(hr) || !element.pwcsName)
             break;
 
-        WideCharToMultiByte(CP_ACP, 0, element.pwcsName, -1, name, sizeof(name), NULL, NULL);
+        // OLE format boundary (interface 104): stream names are native UTF-16 ->
+        // convert directly to UTF-8 (the encoding crossing the plugin interface)
+        if (SplWToU8(element.pwcsName, name, sizeof(name)) == 0)
+            WideCharToMultiByte(CP_UTF8, 0, element.pwcsName, -1, name, sizeof(name), NULL, NULL);
         name[sizeof(name) - 1] = 0;
         fileData.Name = SalamanderGeneral->DupStr(name);
         if (!fileData.Name)
@@ -269,19 +272,17 @@ BOOL ParseStorage(CSalamanderDirectoryAbstract* Dir, LPSTORAGE CF, LPMALLOC pIMa
         {
             LPSTORAGE pSubStorage;
 
-            // concatenate path
+            // concatenate path (bounded: names are UTF-8 and may be long, interface 104)
             if (path != oldPath)
-            {
-                strcpy(oldPath, "\\");
-            }
-            strcat(oldPath, fileData.Name);
+                lstrcpyn(oldPath, "\\", pathBufSize - (int)(oldPath - path));
+            lstrcpyn(oldPath + strlen(oldPath), fileData.Name, pathBufSize - (int)(oldPath - path) - (int)strlen(oldPath));
 
             hr = CF->OpenStorage(element.pwcsName, NULL /*priority*/,
                                  /*STGM_READ | */ STGM_DIRECT | STGM_SHARE_EXCLUSIVE /*| STGM_SHARE_DENY_WRITE/*EXCLUSIVE*/, NULL /*skip*/,
                                  0 /*reserved*/, &pSubStorage);
             if (SUCCEEDED(hr))
             {
-                ret &= ParseStorage(Dir, pSubStorage, pIMalloc, path);
+                ret &= ParseStorage(Dir, pSubStorage, pIMalloc, path, pathBufSize);
                 pSubStorage->Release();
             }
             // restore path
@@ -300,22 +301,19 @@ BOOL ParseStorage(CSalamanderDirectoryAbstract* Dir, LPSTORAGE CF, LPMALLOC pIMa
 
 BOOL OpenStorage(const char* fileName, LPSTORAGE* ppStorage, LPMALLOC* ppIMalloc)
 {
-    OLECHAR* CFName = NULL;
     HRESULT hr;
-    int len;
 
-    len = (int)strlen(fileName) + 1;
-    CFName = new OLECHAR[len];
+    // interface 104: the archive path is UTF-8 -> convert to an extended-length ("\\?\")
+    // UTF-16 path for the file API (StgOpenStorage opens the file by this path)
+    WCHAR* CFName = SplU8ToWExtAlloc(fileName);
     if (!CFName)
     {
         SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
         return FALSE;
     }
-    MultiByteToWideChar(CP_ACP, 0, fileName, len, CFName, len);
-    CFName[len - 1] = 0;
 
     hr = StgOpenStorage(CFName, NULL, STGM_DIRECT | STGM_READ | STGM_SHARE_DENY_WRITE /*EXCLUSIVE*/, NULL, 0, ppStorage);
-    delete[] CFName;
+    free(CFName);
     if (FAILED(hr))
     {
         Error(hr, IDS_CANNOT_OPEN, fileName);
@@ -337,7 +335,6 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
 {
     CALL_STACK_MESSAGE2("CPluginInterfaceForArchiver::ListArchive(, %s, ,)", fileName);
     BOOL ret;
-    char path[MAX_PATH + 2];
     LPSTORAGE pStorage;
     LPMALLOC pIMalloc;
 
@@ -349,9 +346,18 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
     SalamanderGeneral->GetConfigParameter(SALCFG_SORTBYEXTDIRSASFILES, &SortByExtDirsAsFiles,
                                           sizeof(SortByExtDirsAsFiles), NULL);
 
-    // path is used to accumulate path inside the CF
+    // path accumulates the path inside the CF; UTF-8 names may be long (interface 104) -> heap
+    char* path = (char*)malloc(U8_MAX_PATH);
+    if (path == NULL)
+    {
+        SalamanderGeneral->ShowMessageBox(LoadStr(IDS_LOWMEM), LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
+        pStorage->Release();
+        pIMalloc->Release();
+        return FALSE;
+    }
     path[0] = 0;
-    ret = ParseStorage(dir, pStorage, pIMalloc, path);
+    ret = ParseStorage(dir, pStorage, pIMalloc, path, U8_MAX_PATH);
+    free(path);
     pStorage->Release();
     pIMalloc->Release();
     return ret;
@@ -410,27 +416,29 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     // extract the file
     if (!strchr(nameInArchive, '\\'))
     {
-        OLECHAR* StreamName = NULL;
         HRESULT hr;
-        char targetFileName[MAX_PATH];
-        char* pBuf;
         HANDLE hFile;
-        int len;
 
-        len = (int)strlen(nameInArchive) + 1;
-        StreamName = new OLECHAR[len];
-        pBuf = (char*)malloc(BUF_SIZE);
-        if (StreamName && pBuf)
+        // interface 104: the stream name is a UTF-8 name inside the compound file ->
+        // convert to UTF-16 for OpenStream (this is not a disk path, so no "\\?\")
+        OLECHAR* StreamName = SplU8ToWAlloc(nameInArchive);
+        // interface 104: 'targetDir'+name is a UTF-8 disk path that may be long -> heap
+        char* targetFileName = (char*)malloc(U8_MAX_PATH);
+        char* pBuf = (char*)malloc(BUF_SIZE);
+        if (StreamName && pBuf && targetFileName)
         {
-            MultiByteToWideChar(CP_ACP, 0, nameInArchive, len, StreamName, len);
-            StreamName[len - 1] = 0;
             hr = pStorage->OpenStream(StreamName, NULL, STGM_DIRECT | STGM_READ | STGM_SHARE_EXCLUSIVE, NULL, &pStream);
             if (SUCCEEDED(hr))
             {
-                strcpy(targetFileName, targetDir);
-                SalamanderGeneral->SalPathAddBackslash(targetFileName, MAX_PATH + 2);
-                strcat(targetFileName, nameInArchive);
-                hFile = CreateFile(targetFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, NULL, NULL);
+                lstrcpyn(targetFileName, targetDir, U8_MAX_PATH);
+                SalamanderGeneral->SalPathAddBackslash(targetFileName, U8_MAX_PATH);
+                strncat(targetFileName, nameInArchive, U8_MAX_PATH - strlen(targetFileName) - 1);
+                // interface 104: UTF-8 disk path -> extended-length UTF-16 for the file API
+                WCHAR* wTargetFileName = SplU8ToWExtAlloc(targetFileName);
+                hFile = wTargetFileName != NULL
+                            ? CreateFileW(wTargetFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_NEW, 0, NULL)
+                            : INVALID_HANDLE_VALUE;
+                free(wTargetFileName);
                 if (hFile != INVALID_HANDLE_VALUE)
                 {
                     for (;;)
@@ -481,7 +489,9 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
         if (pBuf)
             free(pBuf);
         if (StreamName)
-            delete[] StreamName;
+            free(StreamName);
+        if (targetFileName)
+            free(targetFileName);
     }
     else
     {

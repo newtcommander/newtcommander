@@ -113,6 +113,69 @@ char* LoadStr(int resID)
     return SalamanderGeneral->LoadStr(HLanguage, resID);
 }
 
+// ****************************************************************************
+// Local-disk file operations on the W layer for the UTF-8 paths coming from the
+// Salamander interface (plugin interface 104). Passing a UTF-8 path to an -A file
+// API would interpret the bytes in the legacy ANSI code page (wrong file for any
+// non-ASCII name) and could not reach paths beyond MAX_PATH; the correct pattern
+// is UTF-8 -> UTF-16 extended-length path (SplU8ToWExtAlloc) -> W file API. The
+// operation's last error is preserved across the free().
+
+BOOL DiskCopyFileU8(const char* existingFileName, const char* newFileName, BOOL failIfExists)
+{
+    WCHAR* wSrc = SplU8ToWExtAlloc(existingFileName);
+    WCHAR* wDst = SplU8ToWExtAlloc(newFileName);
+    BOOL ret;
+    if (wSrc == NULL || wDst == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        ret = FALSE;
+    }
+    else
+        ret = CopyFileW(wSrc, wDst, failIfExists);
+    DWORD err = GetLastError();
+    free(wSrc);
+    free(wDst);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL DiskDeleteFileU8(const char* fileName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    BOOL ret;
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        ret = FALSE;
+    }
+    else
+        ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL DiskMoveFileU8(const char* existingFileName, const char* newFileName)
+{
+    WCHAR* wSrc = SplU8ToWExtAlloc(existingFileName);
+    WCHAR* wDst = SplU8ToWExtAlloc(newFileName);
+    BOOL ret;
+    if (wSrc == NULL || wDst == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        ret = FALSE;
+    }
+    else
+        ret = MoveFileW(wSrc, wDst);
+    DWORD err = GetLastError();
+    free(wSrc);
+    free(wDst);
+    SetLastError(err);
+    return ret;
+}
+
 void OnConfiguration(HWND hParent)
 {
     static BOOL InConfiguration = FALSE;

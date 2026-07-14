@@ -66,14 +66,14 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 class CSalamanderCallback : public CSalamanderCallbackAbstract
 {
-    TCHAR FocusPathBuf[MAX_PATH];
+    TCHAR FocusPathBuf[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
 
 public:
     BOOL FocusFile(TCHAR const* fileName)
     {
         if (SalamanderGeneral->SalamanderIsNotBusy(NULL))
         {
-            lstrcpyn(FocusPathBuf, fileName, MAX_PATH);
+            lstrcpyn(FocusPathBuf, fileName, _countof(FocusPathBuf));
             SalamanderGeneral->PostMenuExtCommand(MENUCMD_FAKE_FOCUS, TRUE);
             Sleep(500);          // the switch to the panel happens, so this wait occurs in the viewer's inactive window and therefore does not matter
             FocusPathBuf[0] = 0; // after 0.5 second we no longer care about the focus (handles the case where we hit the beginning of Salamander's BUSY mode)
@@ -84,8 +84,8 @@ public:
     }
     BOOL DoFocusFile()
     {
-        char focusPath[MAX_PATH];
-        lstrcpyn(focusPath, FocusPathBuf, MAX_PATH);
+        char focusPath[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+        lstrcpyn(focusPath, FocusPathBuf, _countof(focusPath));
         FocusPathBuf[0] = 0;
         if (focusPath[0] != 0) // only if we were not unlucky (that is, we did not hit the start of Salamander's BUSY mode)
         {
@@ -101,8 +101,8 @@ public:
     }
     BOOL DoOpenFolder()
     {
-        char focusPath[MAX_PATH];
-        lstrcpyn(focusPath, FocusPathBuf, MAX_PATH);
+        char focusPath[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+        lstrcpyn(focusPath, FocusPathBuf, _countof(focusPath));
         FocusPathBuf[0] = 0;
         if (focusPath[0] != 0) // only if we did not enter at the start of Salamander's BUSY mode
         {
@@ -117,7 +117,7 @@ public:
     {
         if (SalamanderGeneral->SalamanderIsNotBusy(NULL))
         {
-            lstrcpyn(FocusPathBuf, path, MAX_PATH);
+            lstrcpyn(FocusPathBuf, path, _countof(FocusPathBuf));
             SalamanderGeneral->PostMenuExtCommand(MENUCMD_FAKE_OPEN, TRUE);
             Sleep(500);          // the switch to the panel happens, so this wait occurs in the viewer's inactive window and therefore does not matter
             FocusPathBuf[0] = 0; // after 0.5 second we no longer care about the focus (handles the case where we hit the beginning of Salamander's BUSY mode)
@@ -703,8 +703,8 @@ BOOL WINAPI CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperations
         // the current path is needed to convert relative paths to absolute ones
         int type;
         BOOL curPathIsDisk = FALSE;
-        char curPath[MAX_PATH] = "";
-        if (SalamanderGeneral->GetPanelPath(PANEL_SOURCE, curPath, MAX_PATH, &type, NULL))
+        char curPath[3 * MAX_PATH] = ""; // UTF-8 path (up to 3 bytes per character)
+        if (SalamanderGeneral->GetPanelPath(PANEL_SOURCE, curPath, _countof(curPath), &type, NULL))
         {
             if (type != PATH_TYPE_WINDOWS)
                 curPath[0] = 0; // we take only disk paths

@@ -13,7 +13,7 @@ class CZIconLoader
 {
 protected:
     DWORD _flags;
-    TCHAR _filename[2 * MAX_PATH + 1];
+    TCHAR _filename[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
 
     static DWORD_PTR WINAPI LoadIconThreadProc(CWorkerThread* mythread, LPVOID lpParam)
     {
@@ -25,7 +25,8 @@ protected:
     CZIconLoader(CZFile* file, DWORD flags)
     {
         int len = (int)file->GetFullName(this->_filename, ARRAYSIZE(CZIconLoader::_filename));
-        //if the path is too long for SHGetFileInfo() to handle...
+        //if the path is too long for SHGetFileInfo() to handle (the shell icon API does not take
+        //extended-length "\\?\" paths), fall back to querying by name + attributes
         if (len > MAX_PATH)
         {
             _tcscpy(this->_filename, file->GetName());
@@ -68,7 +69,7 @@ public:
     }
     static HICON LoadIconSync(CZFile* file, DWORD flags)
     {
-        TCHAR path[2 * MAX_PATH + 1];
+        TCHAR path[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
         file->GetFullName(path, ARRAYSIZE(path));
         return CZIconLoader::LoadIconSync(path, flags);
     }
@@ -76,8 +77,16 @@ public:
     {
         flags |= SHGFI_ICON;     //get the icon
         flags &= SHGFI_ICONMASK; //remove unwanted flags
-        SHFILEINFO shfi;
-        if (SHGetFileInfo(path, 0, &shfi, sizeof shfi, flags) == 0)
+        // 'path' is UTF-8 since plugin interface 104 -> query via the W shell API; use the plain
+        // wide form (not "\\?\") because the shell icon API rejects extended-length paths - the
+        // constructor already switched long paths to the name + SHGFI_USEFILEATTRIBUTES fallback
+        SHFILEINFOW shfi;
+        WCHAR* wPath = SplU8ToWAlloc(path);
+        if (wPath == NULL)
+            return NULL;
+        BOOL ok = SHGetFileInfoW(wPath, 0, &shfi, sizeof shfi, flags) != 0;
+        free(wPath);
+        if (!ok)
             return NULL;
         return shfi.hIcon;
     }

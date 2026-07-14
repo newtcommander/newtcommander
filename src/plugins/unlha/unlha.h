@@ -94,6 +94,37 @@ public:
 char* LoadStr(int resID);
 void GetInfo(char* buffer, FILETIME* lastWrite, unsigned size);
 
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs must
+// be called through their W variants with the \\?\ prefix (see splunicode.h)
+BOOL DeleteFileU8(const char* name);
+BOOL SetFileAttributesU8(const char* name, DWORD attrs);
+
+// buffer able to hold any long path in UTF-8 (interface 104: up to 3 bytes per
+// UTF-16 unit, see splunicode.h); too big for the stack, always heap-allocate
+#define U8_MAX_PATH (3 * 32767 + 1)
+
+// heap buffer for a full UTF-8 path built from interface strings (interface 104);
+// converts to char*, so it drops into the old 'char name[]' spots
+class CU8PathBuf
+{
+public:
+    char* Buf;
+
+    CU8PathBuf()
+    {
+        Buf = (char*)malloc(U8_MAX_PATH);
+        if (Buf != NULL)
+            *Buf = 0;
+    }
+    ~CU8PathBuf() { free(Buf); }
+    operator char*() const { return Buf; }
+    BOOL IsOk() const { return Buf != NULL; }
+
+private:
+    CU8PathBuf(const CU8PathBuf&);
+    CU8PathBuf& operator=(const CU8PathBuf&);
+};
+
 #define DUMP_MEM_OBJECTS
 
 #if defined(DUMP_MEM_OBJECTS) && defined(_DEBUG)

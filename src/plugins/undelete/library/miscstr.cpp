@@ -246,7 +246,10 @@ char* String<char>::NewFromASCII(const char* src)
 template <>
 char* String<char>::NewFromUnicode(const wchar_t* src, unsigned long srclen)
 {
-    int destlen = WideCharToMultiByte(CP_ACP, 0, src, srclen, NULL, 0, NULL, NULL);
+    // MFT/directory names are UTF-16; the plugin carries the char names as UTF-8
+    // so they reach Salamander as UTF-8 (plugin interface 104). One UTF-16 unit
+    // may need up to 3 UTF-8 bytes, so the byte length can exceed 'srclen'.
+    int destlen = WideCharToMultiByte(CP_UTF8, 0, src, srclen, NULL, 0, NULL, NULL);
     char* dest = new char[destlen + 1];
     if (dest)
         return CopyFromUnicode(dest, src, srclen, destlen + 1);
@@ -259,19 +262,18 @@ char* String<char>::CopyFromUnicode(char* dest, const wchar_t* src, unsigned lon
 {
     if (destlen)
         dest[0] = 0;
-    if (srclen)
+    if (srclen && destlen)
     {
-        if (destlen > srclen)
+        // dest holds UTF-8; reserve one byte for the terminator. The conversion
+        // is all-or-nothing, so an oversized name yields an empty string.
+        int written = WideCharToMultiByte(CP_UTF8, 0, src, srclen, dest, destlen - 1, NULL, NULL);
+        if (written <= 0)
         {
-            if (WideCharToMultiByte(CP_ACP, 0, src, srclen, dest, destlen, NULL, NULL) == 0)
-            {
-                DWORD err = GetLastError();
-                TRACE_E("WideCharToMultiByte error: " << err);
-            }
-            dest[srclen] = 0;
+            DWORD err = GetLastError();
+            TRACE_E("WideCharToMultiByte error: " << err);
+            written = 0;
         }
-        else
-            TRACE_E("CopyFromUnicode error: small dest buffer");
+        dest[written] = 0;
     }
     return dest;
 }
@@ -281,19 +283,18 @@ wchar_t* String<char>::CopyToUnicode(wchar_t* dest, const char* src, unsigned lo
 {
     if (destlen)
         dest[0] = 0;
-    if (srclen)
+    if (srclen && destlen)
     {
-        if (destlen > srclen)
+        // src is UTF-8 (plugin interface 104); the number of UTF-16 units never
+        // exceeds the byte count, so 'destlen' wchars is always enough here.
+        int written = MultiByteToWideChar(CP_UTF8, 0, src, srclen, dest, destlen - 1);
+        if (written <= 0)
         {
-            if (MultiByteToWideChar(CP_ACP, 0, src, srclen, dest, destlen) == 0)
-            {
-                DWORD err = GetLastError();
-                TRACE_E("MultiByteToWideChar error: " << err);
-            }
-            dest[srclen] = 0;
+            DWORD err = GetLastError();
+            TRACE_E("MultiByteToWideChar error: " << err);
+            written = 0;
         }
-        else
-            TRACE_E("CopyToUnicode error: small dest buffer");
+        dest[written] = 0;
     }
     return dest;
 }

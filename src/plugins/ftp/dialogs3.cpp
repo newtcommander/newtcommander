@@ -192,12 +192,12 @@ void CConfigPageServers::OnExportServer(CServerType* serverType)
         }
 
         if (SalamanderGeneral->SalGetFileAttributes(fileName) != 0xFFFFFFFF) // so a read-only file can be overwritten
-            SetFileAttributes(fileName, FILE_ATTRIBUTE_ARCHIVE);
-        HANDLE file = HANDLES_Q(CreateFile(fileName, GENERIC_WRITE,
-                                           FILE_SHARE_READ, NULL,
-                                           CREATE_ALWAYS,
-                                           FILE_FLAG_SEQUENTIAL_SCAN,
-                                           NULL));
+            FTPSetFileAttributesU8(fileName, FILE_ATTRIBUTE_ARCHIVE);
+        HANDLE file = FTPCreateFileU8(fileName, GENERIC_WRITE,
+                                      FILE_SHARE_READ, NULL,
+                                      CREATE_ALWAYS,
+                                      FILE_FLAG_SEQUENTIAL_SCAN,
+                                      NULL);
         if (file != INVALID_HANDLE_VALUE)
         {
             DWORD err = serverType->ExportToFile(file);
@@ -209,7 +209,7 @@ void CConfigPageServers::OnExportServer(CServerType* serverType)
                 sprintf(buf, LoadStr(IDS_SRVTYPEEXPORTERROR), SalamanderGeneral->GetErrorText(err));
                 SalamanderGeneral->SalMessageBox(HWindow, buf, LoadStr(IDS_FTPERRORTITLE),
                                                  MB_OK | MB_ICONEXCLAMATION);
-                DeleteFile(fileName); // delete the file if there was an error
+                FTPDeleteFileU8(fileName); // delete the file if there was an error
             }
         }
         else
@@ -266,11 +266,11 @@ void CConfigPageServers::OnImportServer()
                 ImpExpInitDir[s - fileName] = 0;
             }
 
-            HANDLE file = HANDLES_Q(CreateFile(fileName, GENERIC_READ,
-                                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                               OPEN_EXISTING,
-                                               FILE_FLAG_SEQUENTIAL_SCAN,
-                                               NULL));
+            HANDLE file = FTPCreateFileU8(fileName, GENERIC_READ,
+                                          FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                          OPEN_EXISTING,
+                                          FILE_FLAG_SEQUENTIAL_SCAN,
+                                          NULL);
             if (file != INVALID_HANDLE_VALUE)
             {
                 DWORD err;

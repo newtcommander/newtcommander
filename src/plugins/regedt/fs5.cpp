@@ -156,31 +156,31 @@ BOOL TestValue(HKEY hKey, int root, LPWSTR key, LPWSTR name,
                 return FALSE;
             }
 
-            // prompt to overwrite
-            char fullFSPath[MAX_FULL_KEYNAME];
-            char rootName[MAX_PREDEF_KEYNAME];
-            char path[MAX_KEYNAME];
-            char valueName[MAX_KEYNAME];
-            char sourceFullFSPath[MAX_FULL_KEYNAME];
+            // prompt to overwrite (paths shown through the UTF-8 interface, interface 104)
+            char fullFSPath[3 * MAX_FULL_KEYNAME];
+            char rootName[MAX_PREDEF_KEYNAME]; // predefined HKEY names are ASCII
+            char path[3 * MAX_KEYNAME];
+            char valueName[3 * MAX_KEYNAME];
+            char sourceFullFSPath[3 * MAX_FULL_KEYNAME];
             char sourceRootName[MAX_PREDEF_KEYNAME];
-            char sourcePath[MAX_KEYNAME];
-            char sourceValueName[MAX_KEYNAME];
+            char sourcePath[3 * MAX_KEYNAME];
+            char sourceValueName[3 * MAX_KEYNAME];
 
-            WStrToStr(rootName, MAX_PREDEF_KEYNAME, PredefinedHKeys[root].KeyName);
-            WStrToStr(path, MAX_KEYNAME, key);
+            WStrToU8(rootName, MAX_PREDEF_KEYNAME, PredefinedHKeys[root].KeyName);
+            WStrToU8(path, sizeof(path), key);
             if (name && name[0] != L'\0')
-                WStrToStr(valueName, MAX_KEYNAME, name);
+                WStrToU8(valueName, sizeof(valueName), name);
             else
                 strcpy(valueName, LoadStr(IDS_DEFAULTVALUE));
-            SalPrintf(fullFSPath, MAX_FULL_KEYNAME, "%s\\%s\\%s", rootName, path, valueName);
+            SalPrintf(fullFSPath, sizeof(fullFSPath), "%s\\%s\\%s", rootName, path, valueName);
 
-            WStrToStr(sourceRootName, MAX_PREDEF_KEYNAME, PredefinedHKeys[sourceRoot].KeyName);
-            WStrToStr(sourcePath, MAX_KEYNAME, sourceKey);
+            WStrToU8(sourceRootName, MAX_PREDEF_KEYNAME, PredefinedHKeys[sourceRoot].KeyName);
+            WStrToU8(sourcePath, sizeof(sourcePath), sourceKey);
             if (name[0] != L'\0')
-                WStrToStr(sourceValueName, MAX_KEYNAME, sourceName);
+                WStrToU8(sourceValueName, sizeof(sourceValueName), sourceName);
             else
                 strcpy(sourceValueName, LoadStr(IDS_DEFAULTVALUE));
-            SalPrintf(sourceFullFSPath, MAX_FULL_KEYNAME, "%s\\%s\\%s", sourceRootName, sourcePath, sourceValueName);
+            SalPrintf(sourceFullFSPath, sizeof(sourceFullFSPath), "%s\\%s\\%s", sourceRootName, sourcePath, sourceValueName);
 
             res = skip ? SG->DialogOverwrite(GetParent(), BUTTONS_YESALLSKIPCANCEL, fullFSPath, "", sourceFullFSPath, "") : SG->DialogOverwrite(GetParent(), BUTTONS_YESNOCANCEL, fullFSPath, "", sourceFullFSPath, "");
             switch (res)
@@ -435,8 +435,8 @@ BOOL CopyOrMoveKey(int sourceRoot, LPWSTR source, int targetRoot, LPWSTR target,
                     continue;
                 }
 
-                char nameA[MAX_KEYNAME];
-                WStrToStr(nameA, MAX_KEYNAME, name);
+                char nameA[3 * MAX_KEYNAME]; // UTF-8 name shown in the error dialog
+                WStrToU8(nameA, sizeof(nameA), name);
 
                 int res = SG->DialogError(GetParent(), BUTTONS_SKIPCANCEL, nameA, LoadStr(IDS_LONGNAME), LoadStr(errorTitle));
                 switch (res)
@@ -734,8 +734,8 @@ BOOL CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsNam
     cancelOrHandlePath = TRUE;
 
     WCHAR targetPathW[MAX_FULL_KEYNAME];
-    // target path specified via drag&drop
-    if (mode == 5 && MultiByteToWideChar(CP_ACP, 0, targetPath, -1, targetPathW, MAX_FULL_KEYNAME) <= 0)
+    // target path specified via drag&drop (UTF-8, plugin interface 104)
+    if (mode == 5 && U8ToWStr(targetPathW, MAX_FULL_KEYNAME, targetPath) <= 0)
         return TRUE;
 
     // just to be sure
@@ -921,7 +921,7 @@ BOOL CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsNam
 
             // this is a rename
             if (!copy)
-                WStrToStr(nextFocus, 2 * MAX_PATH, targetName);
+                WStrToU8(nextFocus, 2 * MAX_PATH, targetName); // focus name returned as UTF-8
             sourceEqualsTarget = TRUE;
         }
 
@@ -964,8 +964,8 @@ BOOL CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsNam
                         }
                         else
                         {
-                            char nameA[MAX_KEYNAME];
-                            WStrToStr(nameA, MAX_KEYNAME, pd->Name);
+                            char nameA[3 * MAX_KEYNAME]; // UTF-8 name shown in the error dialog
+                            WStrToU8(nameA, sizeof(nameA), pd->Name);
 
                             int res = SG->DialogError(GetParent(), BUTTONS_SKIPCANCEL, nameA, LoadStr(IDS_LONGNAME), LoadStr(errorTitle));
                             switch (res)

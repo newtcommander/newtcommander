@@ -31,6 +31,12 @@
 #define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
+// UTF-8 <-> UTF-16 helpers (plugin interface 104): every char* name/path
+// crossing the Salamander interface is UTF-8, so file names must be converted
+// to UTF-16 before they reach a W file API or a W text-drawing call. Include it
+// before the spl_* headers (it pulls in <windows.h> for the WCHAR helpers).
+#include "splunicode.h"
+
 #include "versinfo.rh2"
 
 #include "spl_com.h"

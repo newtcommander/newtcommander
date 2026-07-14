@@ -107,7 +107,7 @@ protected:
 
     BOOL _isDirty;
 
-    TCHAR _stitle[2 * MAX_PATH + 1];
+    TCHAR _stitle[3 * MAX_PATH + 1]; // UTF-8 name/path (up to 3 bytes per character)
     size_t _stitlelen;
     TCHAR _sftype[MAX_TYPELEN];
     size_t _sftypelen;
@@ -414,14 +414,14 @@ public:
 
         HFONT hfold;
         hfold = SelectFont(hdc, this->_hftitle);
-        GetTextExtentPoint32(hdc, this->_stitle, (int)this->_stitlelen, &sz);
+        ZGetTextExtentPoint32(hdc, this->_stitle, (int)this->_stitlelen, &sz);
         wsz.cx = max(sz.cx + 32 + TT_MARGIN_X + TT_MARGIN_X, wsz.cx);
         this->_headerheight += sz.cy;
 
         //Select normal font
         SelectFont(hdc, this->_hfnormal);
         //Check type length
-        GetTextExtentPoint32(hdc, this->_sftype, (int)this->_sftypelen, &sz);
+        ZGetTextExtentPoint32(hdc, this->_sftype, (int)this->_sftypelen, &sz);
         wsz.cx = max(sz.cx + 32 + TT_MARGIN_X + TT_MARGIN_X, wsz.cx);
 
         //Check normal font height
@@ -563,7 +563,7 @@ public:
         int linepos = TT_MARGIN_Y + max(16, szc.cy + TT_MARGIN_Y / 2);
         RECT rct = oR;
         rct.bottom = linepos + 1;
-        ExtTextOut(hdc, TT_MARGIN_X + TT_MARGIN_X + 32 + TT_MARGIN_X / 2, TT_MARGIN_Y + 0, ETO_OPAQUE, &rct, this->_stitle, (UINT)this->_stitlelen, NULL);
+        ZExtTextOut(hdc, TT_MARGIN_X + TT_MARGIN_X + 32 + TT_MARGIN_X / 2, TT_MARGIN_Y + 0, ETO_OPAQUE, &rct, this->_stitle, (UINT)this->_stitlelen, NULL);
 
         //Dividing line
         MoveToEx(hdc, TT_MARGIN_X + TT_MARGIN_X + 32, linepos, NULL);
@@ -578,7 +578,7 @@ public:
 
         rct.top = rct.bottom;
         rct.bottom = y;
-        ExtTextOut(hdc, TT_MARGIN_X + TT_MARGIN_X + 32 + TT_MARGIN_X / 2, TT_MARGIN_Y + this->_headerheight - szn.cy, ETO_OPAQUE, &rct, this->_sftype, (UINT)this->_sftypelen, NULL);
+        ZExtTextOut(hdc, TT_MARGIN_X + TT_MARGIN_X + 32 + TT_MARGIN_X / 2, TT_MARGIN_Y + this->_headerheight - szn.cy, ETO_OPAQUE, &rct, this->_sftype, (UINT)this->_sftypelen, NULL);
 
         for (int i = 0; i < TT_LINECOUNT; i++)
         {

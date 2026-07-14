@@ -26,4 +26,5 @@
 #include "spl_gen.h"
 #include "spl_arc.h"
 #include "spl_vers.h"
+#include "splunicode.h"
 #include "dbg.h"

@@ -198,7 +198,7 @@ protected:
             CZFile* f = cs->GetFile();
             if (f != NULL)
             {
-                TCHAR buff[2 * MAX_PATH + 1];
+                TCHAR buff[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
                 f->GetFullName(buff, ARRAYSIZE(buff));
                 int icmd = 0;
 #ifdef SALAMANDER
@@ -359,7 +359,7 @@ protected:
         //this->_diskmap->GetParentDir()
         this->_tooltip->SetDirInfo(this->_diskmap->GetRootDir(), this->_diskmap->GetViewDir());
 
-        TCHAR buff[MAX_PATH];
+        TCHAR buff[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
         this->_diskmap->GetSubDirName(buff, ARRAYSIZE(buff));
         CZString s(buff);
         this->_connector->DL_SetSubPath(&s);
@@ -566,7 +566,7 @@ public:
                 CZFile* f = csel->GetFile();
                 if (f != NULL)
                 {
-                    TCHAR buff[2 * MAX_PATH + 1];
+                    TCHAR buff[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
                     f->GetFullName(buff, ARRAYSIZE(buff));
                     return this->_shellmenu->InvokeDefaultCommand(buff);
                 }

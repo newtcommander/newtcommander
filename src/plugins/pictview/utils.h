@@ -7,3 +7,7 @@
 // compared to the function in Salamander this stripped-down variant omits the nextFocus parameter
 // and support for DefaultDir (paths such as "c:path...")
 BOOL SalGetFullName(LPTSTR name, int* errTextID, LPCTSTR curDir);
+
+// sets a dialog control's text from a UTF-8 string (interface 104) via the W API, so file
+// names outside the ACP display correctly; falls back to the A call on conversion failure
+void SetDlgItemTextU8(HWND hDlg, int idCtrl, const char* u8Text);

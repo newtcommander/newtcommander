@@ -26,7 +26,19 @@ static inline HRESULT WINAPI WpdGetStringValue(
     hr = values->GetStringValue(key, &pwz);
     if (SUCCEEDED(hr))
     {
-        s = pwz;
+        // WPD names are Unicode; the narrow CFxString carries them as UTF-8 so
+        // they reach Salamander as UTF-8 (plugin interface 104). A plain
+        // "s = pwz" would convert through the ANSI code page and lose characters.
+        int cch = ::WideCharToMultiByte(CP_UTF8, 0, pwz, -1, nullptr, 0, nullptr, nullptr);
+        if (cch > 0)
+        {
+            ::WideCharToMultiByte(CP_UTF8, 0, pwz, -1, s.GetBuffer(cch), cch, nullptr, nullptr);
+            s.ReleaseBuffer();
+        }
+        else
+        {
+            s.Empty();
+        }
         ::CoTaskMemFree(pwz);
     }
 

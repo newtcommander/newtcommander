@@ -881,7 +881,9 @@ BOOL CPluginFSInterface::CopyFile(FILE_RECORD_I<char>* record, char* filename, c
 
                 PVOID context;
                 DWORD result2;
-                if ((result2 = OpenEncryptedFileRaw(path, CREATE_FOR_IMPORT, &context)) != ERROR_SUCCESS ||
+                // restore target lives on the local disk: use the W API (interface 104)
+                WCHAR* pathW = SplU8ToWExtAlloc(path);
+                if ((result2 = pathW == NULL ? ERROR_INVALID_NAME : OpenEncryptedFileRawW(pathW, CREATE_FOR_IMPORT, &context)) != ERROR_SUCCESS ||
                     (result2 = WriteEncryptedFileRaw((PFE_IMPORT_FUNC)(EFIC_CONTEXT<char>::EncryptedFileImportCallback), (PVOID)&ctx, context)) != ERROR_SUCCESS)
                 // WriteEncryptedFileRaw is SLOOOOOW!!!
                 {
@@ -893,18 +895,24 @@ BOOL CPluginFSInterface::CopyFile(FILE_RECORD_I<char>* record, char* filename, c
                     ret = FALSE;
                 }
                 CloseEncryptedFileRaw(context);
+                free(pathW);
             }
 
-            // set time and attributes
+            // set time and attributes (local disk target: W file API, interface 104)
             if (ret)
             {
-                HANDLE hf = CreateFile(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-                if (hf != INVALID_HANDLE_VALUE)
+                WCHAR* pathW = SplU8ToWExtAlloc(path);
+                if (pathW != NULL)
                 {
-                    SetFileTime(hf, &record->TimeCreation, &record->TimeLastAccess, &record->TimeLastWrite);
-                    CloseHandle(hf);
+                    HANDLE hf = CreateFileW(pathW, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+                    if (hf != INVALID_HANDLE_VALUE)
+                    {
+                        SetFileTime(hf, &record->TimeCreation, &record->TimeLastAccess, &record->TimeLastWrite);
+                        CloseHandle(hf);
+                    }
+                    SetFileAttributesW(pathW, view ? FILE_ATTRIBUTE_ENCRYPTED : record->Attr);
+                    free(pathW);
                 }
-                SetFileAttributes(path, view ? FILE_ATTRIBUTE_ENCRYPTED : record->Attr);
             }
         }
         else
@@ -988,12 +996,17 @@ BOOL CPluginFSInterface::CopyFile(FILE_RECORD_I<char>* record, char* filename, c
             break; // we don't walk through all streams for encrypted files
     }
 
-    // remove file on error
+    // remove file on error (local disk target: W file API, interface 104)
     if (!ret && deleteTargetOnError)
     {
         *pathend = 0;
         SalamanderGeneral->ClearReadOnlyAttr(path);
-        DeleteFile(path);
+        WCHAR* pathW = SplU8ToWExtAlloc(path);
+        if (pathW != NULL)
+        {
+            DeleteFileW(pathW);
+            free(pathW);
+        }
     }
 
     SourcePath[oldlen] = 0;
@@ -1380,8 +1393,12 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
 BOOL CPluginFSInterface::GetTempDirOutsideRoot(HWND parent, char* buffer, char** ret)
 {
     char* tempdir = NULL; // return NULL for system TEMP
-    char path[MAX_PATH];
-    GetTempPath(MAX_PATH, path); // get system TEMP
+    // system TEMP may hold Unicode (user profile); keep it as UTF-8 (interface 104)
+    char path[3 * MAX_PATH];
+    WCHAR pathW[MAX_PATH];
+    GetTempPathW(MAX_PATH, pathW); // get system TEMP
+    if (SplWToU8(pathW, path, sizeof(path)) <= 0)
+        path[0] = 0;
     if (!Volume.IsImage && SalamanderGeneral->PathsAreOnTheSameVolume(Root, path, NULL))
     {
         while (ConfigTempPath[0] == 0 || SalamanderGeneral->PathsAreOnTheSameVolume(Root, ConfigTempPath, NULL))
@@ -1457,8 +1474,11 @@ CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
 
         if (newFileOK)
         {
-            HANDLE hFile = HANDLES_Q(CreateFile(tmpFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                NULL, OPEN_EXISTING, 0, NULL));
+            // disk-cache file lives on the local disk: W file API (interface 104)
+            WCHAR* tmpFileNameW = SplU8ToWExtAlloc(tmpFileName);
+            HANDLE hFile = tmpFileNameW == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(CreateFileW(tmpFileNameW, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                                                              NULL, OPEN_EXISTING, 0, NULL));
+            free(tmpFileNameW);
             if (hFile != INVALID_HANDLE_VALUE)
             { // ignore error, file size doesn't matter so much
                 DWORD err;

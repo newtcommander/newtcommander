@@ -344,8 +344,8 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
     if (errorOccured != SALENUM_CANCEL &&
         SalamanderGeneral->TestFreeSpace(hParent, targetDir, realTotalSize, LoadStr(IDS_PLUGINNAME)))
     {
-        char title[2 * MAX_PATH];
-        sprintf(title, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
+        char title[3 * MAX_PATH]; // interface 104: filename is UTF-8, may be longer
+        _snprintf_s(title, _TRUNCATE, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
         salamander->OpenProgressDialog(title, TRUE, NULL, FALSE);
         // set the maximum value for the TOTAL progress bar
         salamander->ProgressSetTotalSize(CQuadWord(-1, -1), totalSize);
@@ -396,8 +396,8 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
                     // set the maximum value for the FILE progress bar
                     salamander->ProgressSetTotalSize(COPY_MIN_FILE_SIZE, CQuadWord(-1, -1));
                     // "extracting: %s..."
-                    char progressText[2 * MAX_PATH + 100];
-                    sprintf(progressText, LoadStr(IDS_EXTRACTING), nameInArchive);
+                    char progressText[3 * MAX_PATH + 100]; // interface 104: nameInArchive is UTF-8
+                    _snprintf_s(progressText, _TRUNCATE, LoadStr(IDS_EXTRACTING), nameInArchive);
                     salamander->ProgressDialogAddText(progressText, TRUE);
 
                     CQuadWord size2 = COPY_MIN_FILE_SIZE;
@@ -462,8 +462,8 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
 
     BOOL ret = TRUE;
 
-    char title[2 * MAX_PATH];
-    sprintf(title, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
+    char title[3 * MAX_PATH]; // interface 104: filename is UTF-8, may be longer
+    _snprintf_s(title, _TRUNCATE, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
     salamander->OpenProgressDialog(title, FALSE, NULL, FALSE);
     CQuadWord totalSize;
     if (fileData->Size < COPY_MIN_FILE_SIZE)
@@ -625,8 +625,8 @@ BOOL ExtractArchive(CSalamanderDirectoryAbstract const* dir, CSalamanderMaskGrou
         SalamanderGeneral->SalPathAppend(dirName, path, MAX_PATH);
 
         // "extracting: %s..."
-        char progressText[MAX_PATH + 100];
-        sprintf(progressText, LoadStr(IDS_EXTRACTING), path);
+        char progressText[3 * MAX_PATH + 100]; // interface 104: path is UTF-8
+        _snprintf_s(progressText, _TRUNCATE, LoadStr(IDS_EXTRACTING), path);
         salamander->ProgressDialogAddText(progressText, TRUE);
 
         // create the target path
@@ -680,8 +680,8 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                     if (delArchiveWhenDone)
                         archiveVolumes->Add(fileName, -2);
 
-                    char title[2 * MAX_PATH];
-                    sprintf(title, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
+                    char title[3 * MAX_PATH]; // interface 104: filename is UTF-8, may be longer
+                    _snprintf_s(title, _TRUNCATE, LoadStr(IDS_EXTRACTING_ARCHIVE), SalamanderGeneral->SalPathFindFileName(fileName));
                     salamander->OpenProgressDialog(title, TRUE, NULL, FALSE);
                     // set the maximum value for the TOTAL progress bar
                     salamander->ProgressSetTotalSize(CQuadWord(-1, -1), totalSize);

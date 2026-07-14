@@ -289,8 +289,11 @@ public:
 #ifdef UNICODE
         WCHAR* wFileName = filename;
 #else
-        WCHAR wFileName[2 * MAX_PATH + 2];
-        int wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        // 'filename' is UTF-8 since plugin interface 104 -> convert via CP_UTF8 for the W shell API
+        WCHAR wFileName[3 * MAX_PATH + 2];
+        int wl = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        if (wl == 0)
+            wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
         if (wl == 0)
             return FALSE;
 #endif
@@ -341,8 +344,11 @@ public:
 #ifdef UNICODE
         WCHAR* wFileName = filename;
 #else
-        WCHAR wFileName[2 * MAX_PATH + 2];
-        int wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        // 'filename' is UTF-8 since plugin interface 104 -> convert via CP_UTF8 for the W shell API
+        WCHAR wFileName[3 * MAX_PATH + 2];
+        int wl = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        if (wl == 0)
+            wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
         if (wl == 0)
             return FALSE;
 #endif
@@ -477,8 +483,11 @@ MENU_TEMPLATE_ITEM FileMenu[] =
 #ifdef UNICODE
         WCHAR* wFileName = filename;
 #else
-        WCHAR wFileName[2 * MAX_PATH + 2];
-        int wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        // 'filename' is UTF-8 since plugin interface 104 -> convert via CP_UTF8 for the W shell API
+        WCHAR wFileName[3 * MAX_PATH + 2];
+        int wl = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, filename, -1, wFileName, ARRAYSIZE(wFileName));
+        if (wl == 0)
+            wl = MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, filename, -1, wFileName, ARRAYSIZE(wFileName));
         if (wl == 0)
             return FALSE;
 #endif

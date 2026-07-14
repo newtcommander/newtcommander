@@ -35,11 +35,23 @@
 // (otherwise it is compiled for current version of Salamander and later).
 // NOTE: the ideal is to define DEMOPLUG_COMPATIBLE_WITH_500 for whole plugin project
 //       in Project Settings. DemoPlug defines it here just to make adding/removing easier.
-#define DEMOPLUG_COMPATIBLE_WITH_500
+//
+// IMPORTANT (plugin interface 104): builds against THIS SDK must NOT define
+// DEMOPLUG_COMPATIBLE_WITH_500. Interface 104 widened CFileData::NameLen (9-bit
+// bitfield -> full 32-bit field), which changes the CFileData memory layout and
+// is an ABI break: a plugin reporting version 103 is refused at load. The ifdef
+// mechanism is kept only to show where a two-target plugin would branch; leave it
+// undefined so SalamanderPluginGetReqVer() returns LAST_VERSION_OF_SALAMANDER (104).
+//#define DEMOPLUG_COMPATIBLE_WITH_500
 
 #ifdef DEMOPLUG_COMPATIBLE_WITH_500
 #define SALSDK_COMPATIBLE_WITH_VER 103 // 103 = Open Salamander 5.0 (SDK will be defined to be compatible with version 5.0)
 #endif                                 // DEMOPLUG_COMPATIBLE_WITH_500
+
+// UTF-8 <-> UTF-16 helpers (plugin interface 104): every char* name/path crossing
+// the Salamander interface is UTF-8, so convert to UTF-16 before calling a W file
+// API or drawing a name with a W text API. Include before the spl_* headers.
+#include "splunicode.h"
 
 #include "versinfo.rh2"
 

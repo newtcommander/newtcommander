@@ -3,7 +3,22 @@
 
 #include "precomp.h"
 
+#include "utils.h"
+
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
+
+void SetDlgItemTextU8(HWND hDlg, int idCtrl, const char* u8Text)
+{
+    HWND hCtrl = GetDlgItem(hDlg, idCtrl);
+    if (hCtrl == NULL)
+        return;
+    WCHAR* w = SplU8ToWAlloc(u8Text);
+    if (w != NULL)
+        SetWindowTextW(hCtrl, w);
+    else
+        SetWindowTextA(hCtrl, u8Text != NULL ? u8Text : "");
+    free(w);
+}
 
 BOOL SalGetFullName(LPTSTR name, int* errTextID, LPCTSTR curDir)
 {

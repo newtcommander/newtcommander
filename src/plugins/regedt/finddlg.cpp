@@ -1400,8 +1400,8 @@ BOOL CFindThread::ScanKeyAux(int root, LPWSTR key, BOOL& skip, BOOL& skipAllErro
                     continue;
                 }
 
-                char nameA[MAX_KEYNAME];
-                WStrToStr(nameA, MAX_KEYNAME, name);
+                char nameA[3 * MAX_KEYNAME]; // UTF-8 name shown in the error dialog
+                WStrToU8(nameA, sizeof(nameA), name);
 
                 int res = SG->DialogError(GetParent(), BUTTONS_SKIPCANCEL, nameA, LoadStr(IDS_LONGNAME), LoadStr(IDS_SEARCHERROR));
                 switch (res)

@@ -255,8 +255,8 @@ void CControlConnectionSocket::DownloadOneFile(HWND parent, const char* fileName
                             // wait for the file to close in the disk cache; otherwise the file cannot be deleted
                             dataConnection->WaitForFileClose(5000); // max. 5 seconds
 
-                            SetFileAttributes(tgtFileName, FILE_ATTRIBUTE_NORMAL);
-                            DeleteFile(tgtFileName);
+                            FTPSetFileAttributesU8(tgtFileName, FILE_ATTRIBUTE_NORMAL);
+                            FTPDeleteFileU8(tgtFileName);
                             asciiMode = FALSE; // download again in binary mode
 
                             ok = FALSE; // repeat the download
@@ -271,8 +271,8 @@ void CControlConnectionSocket::DownloadOneFile(HWND parent, const char* fileName
                                 // wait for the file to close in the disk cache; otherwise the file cannot be deleted
                                 dataConnection->WaitForFileClose(5000); // max. 5 seconds
 
-                                SetFileAttributes(tgtFileName, FILE_ATTRIBUTE_NORMAL);
-                                DeleteFile(tgtFileName);
+                                FTPSetFileAttributesU8(tgtFileName, FILE_ATTRIBUTE_NORMAL);
+                                FTPDeleteFileU8(tgtFileName);
                                 ok = FALSE; // do not show any message; the user already confirmed the cancel
                             }
                         }
@@ -406,8 +406,8 @@ void CControlConnectionSocket::DownloadOneFile(HWND parent, const char* fileName
 
                         if (run) // go for another attempt; clean the target file just in case (it may have been created before the error/interruption)
                         {        // we are not in any critical section, so it does not matter if the disk operation stalls for a while
-                            SetFileAttributes(tgtFileName, FILE_ATTRIBUTE_NORMAL);
-                            DeleteFile(tgtFileName);
+                            FTPSetFileAttributesU8(tgtFileName, FILE_ATTRIBUTE_NORMAL);
+                            FTPDeleteFileU8(tgtFileName);
                         }
                         else // finish the download
                         {
@@ -421,12 +421,12 @@ void CControlConnectionSocket::DownloadOneFile(HWND parent, const char* fileName
                                     TRACE_E("CControlConnectionSocket::DownloadOneFile(): unexpected situation: file was not created, but its size is not null!");
 
                                 // we are not in any critical section, so it does not matter if the disk operation stalls for a while
-                                SetFileAttributes(tgtFileName, FILE_ATTRIBUTE_NORMAL); // so a read-only file can be overwritten
-                                HANDLE file = HANDLES_Q(CreateFile(tgtFileName, GENERIC_WRITE,
-                                                                   FILE_SHARE_READ, NULL,
-                                                                   CREATE_ALWAYS,
-                                                                   FILE_FLAG_SEQUENTIAL_SCAN,
-                                                                   NULL));
+                                FTPSetFileAttributesU8(tgtFileName, FILE_ATTRIBUTE_NORMAL); // so a read-only file can be overwritten
+                                HANDLE file = FTPCreateFileU8(tgtFileName, GENERIC_WRITE,
+                                                              FILE_SHARE_READ, NULL,
+                                                              CREATE_ALWAYS,
+                                                              FILE_FLAG_SEQUENTIAL_SCAN,
+                                                              NULL);
                                 if (file != INVALID_HANDLE_VALUE)
                                 {
                                     *newFileCreated = TRUE;

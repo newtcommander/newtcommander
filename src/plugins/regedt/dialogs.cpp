@@ -772,14 +772,18 @@ BOOL CRawEditValDialog::ExportToTempFile()
     SG->SalPathAddBackslash(strcpy(TempFile, TempDir), MAX_PATH);
     int tlen = (int)strlen(TempFile);
     TempFile[tlen++] = '_';
+    // the value name becomes part of the temp file name; keep it UTF-8 (the
+    // paths and the file APIs below are UTF-8/W, plugin interface 104)
     int len = min(MAX_PATH - tlen - 1, (int)wcslen(KeyName));
-    WStrToStr(TempFile + tlen, MAX_PATH, KeyName, len);
-    TempFile[len + tlen] = 0;
+    int nameBytes = WStrToU8(TempFile + tlen, MAX_PATH - tlen, KeyName, len);
+    TempFile[tlen + (nameBytes > 0 ? nameBytes : 0)] = 0;
     ReplaceUnsafeCharacters(TempFile + tlen);
 
-    // create/open the temp file
-    HANDLE file = CreateFile(TempFile, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    // create/open the temp file (local disk: W file API)
+    WCHAR* tempFileW = SplU8ToWExtAlloc(TempFile);
+    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                                                         CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free(tempFileW);
     if (file == INVALID_HANDLE_VALUE)
     {
         SG->RemoveTemporaryDir(TempDir);
@@ -805,9 +809,11 @@ BOOL CRawEditValDialog::ExportToTempFile()
 BOOL CRawEditValDialog::ImportFromTempFile()
 {
     CALL_STACK_MESSAGE1("CRawEditValDialog::ImportFromTempFile()");
-    // create/open the temp file
-    HANDLE file = CreateFile(TempFile, GENERIC_READ, FILE_SHARE_READ, NULL,
-                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    // create/open the temp file (local disk: W file API)
+    WCHAR* tempFileW = SplU8ToWExtAlloc(TempFile);
+    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_READ, FILE_SHARE_READ, NULL,
+                                                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free(tempFileW);
     if (file == INVALID_HANDLE_VALUE)
         return Error(IDS_OPENTEMP);
 

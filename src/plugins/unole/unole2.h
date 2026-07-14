@@ -88,6 +88,10 @@ extern HINSTANCE HLanguage;   // handle to SLG - language-dependent resources
 
 char* LoadStr(int resID);
 
+// buffer able to hold any long path in UTF-8 (interface 104: up to 3 bytes per
+// UTF-16 unit, see splunicode.h); too big for the stack, always heap-allocate
+#define U8_MAX_PATH (3 * 32767 + 1)
+
 #define DUMP_MEM_OBJECTS
 
 #if defined(DUMP_MEM_OBJECTS) && defined(_DEBUG)

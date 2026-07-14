@@ -76,7 +76,10 @@ BOOL ExportKey(LPWSTR fullName)
             if (SG->DialogQuestion(GetParent(), BUTTONS_YESNOCANCEL, file, LoadStr(IDS_OVERWRITE), LoadStr(IDS_OVERWRITETITLE)) != DIALOG_YES)
                 continue; // show the dialog again
             SG->ClearReadOnlyAttr(file);
-            if (!DeleteFile(file))
+            WCHAR* fileW = SplU8ToWExtAlloc(file); // local disk target: W file API (interface 104)
+            BOOL deleted = fileW != NULL && DeleteFileW(fileW);
+            free(fileW);
+            if (!deleted)
             {
                 Error(IDS_REPLACEERROR);
                 continue; // show the dialog again

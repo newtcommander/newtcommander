@@ -137,27 +137,27 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 ### Wave 7a — Archivers (13 plugins) [all parallelizable after T041–T044]
 
-- [ ] T048 [P] [US4] Port `src/plugins/zip/` to SDK 104 (UTF-8 names, long paths, archive-entry code-page boundary per contract §3)
-- [ ] T049 [P] [US4] Port `src/plugins/tar/` to SDK 104
-- [ ] T050 [P] [US4] Port `src/plugins/pak/` to SDK 104
-- [ ] T051 [P] [US4] Port `src/plugins/7zip/` to SDK 104 (7za backend already has W file classes — bridge at plugin boundary)
-- [ ] T052 [P] [US4] Port `src/plugins/unarj/` to SDK 104
-- [ ] T053 [P] [US4] Port `src/plugins/uncab/` to SDK 104
+- [X] T048 [P] [US4] Port `src/plugins/zip/` to SDK 104 (UTF-8 names, long paths, archive-entry code-page boundary per contract §3)
+- [X] T049 [P] [US4] Port `src/plugins/tar/` to SDK 104
+- [X] T050 [P] [US4] Port `src/plugins/pak/` to SDK 104
+- [X] T051 [P] [US4] Port `src/plugins/7zip/` to SDK 104 (7za backend already has W file classes — bridge at plugin boundary)
+- [X] T052 [P] [US4] Port `src/plugins/unarj/` to SDK 104
+- [X] T053 [P] [US4] Port `src/plugins/uncab/` to SDK 104
 - [ ] T054 [P] [US4] Port `src/plugins/unchm/` to SDK 104
-- [ ] T055 [P] [US4] Port `src/plugins/uniso/` to SDK 104
+- [X] T055 [P] [US4] Port `src/plugins/uniso/` to SDK 104
 - [ ] T056 [P] [US4] Port `src/plugins/unlha/` to SDK 104
 - [ ] T057 [P] [US4] Port `src/plugins/unmime/` to SDK 104
 - [ ] T058 [P] [US4] Port `src/plugins/unole/` to SDK 104
 - [ ] T059 [P] [US4] Port `src/plugins/unrar/` to SDK 104 (unrar.dll still absent — port compiles, runtime gated as today)
-- [ ] T060 [P] [US4] Port `src/plugins/unfat/` to SDK 104
+- [X] T060 [P] [US4] Port `src/plugins/unfat/` to SDK 104
 
 ### Wave 7b — Viewers (5 plugins)
 
 - [ ] T061 [P] [US4] Port `src/plugins/ieviewer/` to SDK 104
 - [ ] T062 [P] [US4] Port `src/plugins/mmviewer/` to SDK 104
-- [ ] T063 [P] [US4] Port `src/plugins/peviewer/` to SDK 104
+- [X] T063 [P] [US4] Port `src/plugins/peviewer/` to SDK 104
 - [ ] T064 [P] [US4] Port `src/plugins/pictview/` to SDK 104 (pvw32cnv.dll still absent — compile-level port)
-- [ ] T065 [P] [US4] Port `src/plugins/dbviewer/` to SDK 104
+- [X] T065 [P] [US4] Port `src/plugins/dbviewer/` to SDK 104
 
 ### Wave 7c — Filesystem/Network (8 plugins)
 
@@ -167,14 +167,14 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [ ] T069 [P] [US4] Port `src/plugins/winscp/` to SDK 104 (best-effort: Embarcadero RTL dependency absent — header-level port + shim verification)
 - [ ] T070 [P] [US4] Port `src/plugins/regedt/` to SDK 104
 - [ ] T071 [P] [US4] Port `src/plugins/portables/` to SDK 104
-- [ ] T072 [P] [US4] Port `src/plugins/folders/` to SDK 104
+- [X] T072 [P] [US4] Port `src/plugins/folders/` to SDK 104
 - [ ] T073 [P] [US4] Port `src/plugins/undelete/` to SDK 104
 
 ### Wave 7d — Utilities & demos (10 plugins)
 
 - [ ] T074 [P] [US4] Port `src/plugins/checksum/` to SDK 104
 - [ ] T075 [P] [US4] Port `src/plugins/checkver/` to SDK 104
-- [ ] T076 [P] [US4] Port `src/plugins/filecomp/` to SDK 104 (has its own `NormalizeString` usage — align with salunicode helpers)
+- [X] T076 [P] [US4] Port `src/plugins/filecomp/` to SDK 104 (has its own `NormalizeString` usage — align with salunicode helpers)
 - [ ] T077 [P] [US4] Port `src/plugins/renamer/` to SDK 104
 - [ ] T078 [P] [US4] Port `src/plugins/splitcbn/` to SDK 104
 - [ ] T079 [P] [US4] Port `src/plugins/diskmap/` to SDK 104

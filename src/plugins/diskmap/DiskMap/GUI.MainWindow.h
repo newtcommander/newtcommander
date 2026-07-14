@@ -491,7 +491,7 @@ public:
         CZStringBuffer* title = new CZStringBuffer(16 + this->_path->GetLength());
         title->Append(titleprefix.GetString(), titleprefix.GetLength());
         title->Append(this->_path);
-        SetWindowText(this->_hWnd, title->GetString());
+        ZSetWindowText(this->_hWnd, title->GetString()); // the title carries the UTF-8 path
         delete title;
 
         if (this->_dirLine)

@@ -399,7 +399,8 @@ protected:
                 hfold = SelectFont(bgdc, hfnormal);
                 CZFile* file = item->directory->GetFile();
                 bgRect.right = item->width;
-                ExtTextOut(bgdc, 5, 1, ETO_OPAQUE | ETO_CLIPPED, &bgRect, file->GetName(), (UINT)file->GetNameLen(), NULL);
+                // the directory name is UTF-8 since plugin interface 104 -> draw via the W GDI
+                ZExtTextOut(bgdc, 5, 1, ETO_OPAQUE | ETO_CLIPPED, &bgRect, file->GetName(), (UINT)file->GetNameLen(), NULL);
                 SelectFont(bgdc, hfold);
 
                 BYTE* titledta = bgTxt->LockBits();
@@ -505,7 +506,8 @@ protected:
 
                     CZFile* file = item->directory->GetFile();
 
-                    ExtTextOut(dc, item->x + 5, item->y + 3, ETO_CLIPPED, &rct, file->GetName(), (UINT)file->GetNameLen(), NULL);
+                    // the directory name is UTF-8 since plugin interface 104 -> draw via the W GDI
+                    ZExtTextOut(dc, item->x + 5, item->y + 3, ETO_CLIPPED, &rct, file->GetName(), (UINT)file->GetNameLen(), NULL);
                 }
                 SelectFont(dc, hfold);
 

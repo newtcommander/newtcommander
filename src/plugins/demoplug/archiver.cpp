@@ -410,11 +410,16 @@ CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract* sal
         lastComp = nameInArchive;
     if (SalamanderGeneral->SalPathAppend(name, lastComp, MAX_PATH))
     {
-        HANDLE file = HANDLES_Q(CreateFile(name, GENERIC_WRITE,
-                                           FILE_SHARE_READ, NULL,
-                                           CREATE_ALWAYS,
-                                           FILE_FLAG_SEQUENTIAL_SCAN,
-                                           NULL));
+        // 'name' is a UTF-8 target path (targetDir + entry name): create it via the
+        // W file API (an -A call would mishandle non-ASCII names and long paths)
+        WCHAR* wName = SplU8ToWExtAlloc(name);
+        HANDLE file = wName == NULL ? INVALID_HANDLE_VALUE
+                                    : HANDLES_Q(CreateFileW(wName, GENERIC_WRITE,
+                                                            FILE_SHARE_READ, NULL,
+                                                            CREATE_ALWAYS,
+                                                            FILE_FLAG_SEQUENTIAL_SCAN,
+                                                            NULL));
+        free(wName);
         if (file != INVALID_HANDLE_VALUE)
         {
             ULONG written;
@@ -672,13 +677,17 @@ CPluginInterfaceForArchiver::CanCloseArchive(CSalamanderForOperationsAbstract* s
 #endif // DEMOPLUG_QUIET
 }
 
+// Returns the "My Documents" path as UTF-8 (plugin interface 104) in a MAX_PATH
+// buffer. SHGetPathFromIDListW gives a UTF-16 path; converting it to UTF-8 lets it
+// be combined with interface paths and handed back to the core (GetCacheInfo).
 void GetMyDocumentsPath(char* path)
 {
     path[0] = 0;
     ITEMIDLIST* pidl = NULL;
     if (SHGetSpecialFolderLocation(NULL, CSIDL_PERSONAL, &pidl) == NOERROR)
     {
-        if (!SHGetPathFromIDList(pidl, path))
+        WCHAR pathW[MAX_PATH];
+        if (!SHGetPathFromIDListW(pidl, pathW) || SplWToU8(pathW, path, MAX_PATH) <= 0)
             path[0] = 0;
         IMalloc* alloc;
         if (SUCCEEDED(CoGetMalloc(1, &alloc)))
@@ -718,21 +727,28 @@ void ClearTEMPIfNeeded(HWND parent)
         {
             TIndirectArray<char> tmpDirs(10, 50);
 
-            WIN32_FIND_DATA data;
-            HANDLE find = HANDLES_Q(FindFirstFile(tmpDir, &data));
+            // enumerate on the W layer: 'tmpDir' is a UTF-8 pattern, and the found
+            // names are converted to UTF-8 before they enter interface calls below
+            // (DupStr/FocusNameInPanel/RemoveTemporaryDir all expect UTF-8)
+            WIN32_FIND_DATAW data;
+            WCHAR* wTmpDir = SplU8ToWExtAlloc(tmpDir);
+            HANDLE find = wTmpDir == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(FindFirstFileW(wTmpDir, &data));
+            free(wTmpDir);
             if (find != INVALID_HANDLE_VALUE)
             {
                 do
                 { // process all found directories (ignore search errors)
-                    if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && strlen(data.cFileName) > 3)
+                    char cFileName[3 * MAX_PATH]; // one name component: up to 3 UTF-8 bytes per UTF-16 unit
+                    if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+                        SplWToU8(data.cFileName, cFileName, sizeof(cFileName)) > 0 && strlen(cFileName) > 3)
                     {
-                        char* s = data.cFileName + 3;
+                        char* s = cFileName + 3;
                         while (*s != 0 && *s != '.' &&
                                (*s >= '0' && *s <= '9' || *s >= 'a' && *s <= 'f' || *s >= 'A' && *s <= 'F'))
                             s++;
                         if (SalamanderGeneral->StrICmp(s, ".tmp") == 0) // matches "SAL" + hex number + ".tmp" = almost certainly our directory
                         {
-                            char* tmp = SalamanderGeneral->DupStr(data.cFileName);
+                            char* tmp = SalamanderGeneral->DupStr(cFileName);
                             if (tmp != NULL)
                             {
                                 tmpDirs.Add(tmp);
@@ -744,7 +760,7 @@ void ClearTEMPIfNeeded(HWND parent)
                             }
                         }
                     }
-                } while (FindNextFile(find, &data));
+                } while (FindNextFileW(find, &data));
                 HANDLES(FindClose(find));
             }
 
@@ -832,10 +848,11 @@ CPluginInterfaceForArchiver::DeleteTmpCopy(const char* fileName, BOOL firstFile)
     // activity simulation (the window becomes visible after one second)
     Sleep(2000);
 
-    // regular file deletion
+    // regular file deletion - 'fileName' is a UTF-8 disk-cache path (interface 104),
+    // so delete it through the W file API
     SalamanderGeneral->ClearReadOnlyAttr(fileName);
 
-    if (DeleteFile(fileName))
+    if (DiskDeleteFileU8(fileName))
         TRACE_I("Temporary copy from disk-cache (" << fileName << ") was deleted.");
     else
         TRACE_I("Unable to delete temporary copy from disk-cache (" << fileName << ").");

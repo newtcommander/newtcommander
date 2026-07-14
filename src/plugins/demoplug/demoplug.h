@@ -37,6 +37,18 @@ void ReleaseViewer();
 BOOL InitFS();
 void ReleaseFS();
 
+// ****************************************************************************
+// Local-disk file operations for the UTF-8 paths that arrive from the Salamander
+// interface (plugin interface 104). They convert UTF-8 -> UTF-16 extended-length
+// path and call the W variant of the Win32 function, so Unicode names and paths
+// longer than MAX_PATH work; the last error of the operation is preserved.
+// A plugin that opens/enumerates files (CreateFileW/FindFirstFileW) does the same
+// conversion inline so it can keep the HANDLES() handle tracking at the call site.
+
+BOOL DiskCopyFileU8(const char* existingFileName, const char* newFileName, BOOL failIfExists);
+BOOL DiskDeleteFileU8(const char* fileName);
+BOOL DiskMoveFileU8(const char* existingFileName, const char* newFileName);
+
 // FS name assigned by Salamander after the plugin loads
 extern char AssignedFSName[MAX_PATH];
 extern int AssignedFSNameLen;
@@ -322,8 +334,11 @@ protected:
 class CViewerWindow : public CWindow
 {
 public:
-    HANDLE Lock;                      // 'lock' object or NULL (set to the signaled state after the file is closed)
-    char Name[MAX_PATH];              // file name or ""
+    HANDLE Lock; // 'lock' object or NULL (set to the signaled state after the file is closed)
+    // Full path of the viewed file (UTF-8, plugin interface 104) or NULL. Held on
+    // the heap rather than in a char[MAX_PATH]: a path handed to ViewFile() can now
+    // exceed MAX_PATH, so a fixed buffer would be a latent truncation bug.
+    char* Name;
     CRendererWindow Renderer;         // inner viewer window
     HIMAGELIST HGrayToolBarImageList; // toolbar and menu in the gray variant (computed from the colored one)
     HIMAGELIST HHotToolBarImageList;  // toolbar and menu in the colored variant
@@ -340,6 +355,7 @@ public:
 
 public:
     CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex);
+    ~CViewerWindow();
 
     HANDLE GetLock();
 

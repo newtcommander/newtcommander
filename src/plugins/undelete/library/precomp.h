@@ -43,6 +43,8 @@
 #include "winliblt.h"
 #include "auxtools.h"
 
+#include "splunicode.h"
+
 // old SDKs support
 #ifndef INVALID_FILE_ATTRIBUTES
 #define INVALID_FILE_ATTRIBUTES (DWORD(-1))

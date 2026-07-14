@@ -64,7 +64,18 @@ void WINAPI CWpdDevice::Update(IPortableDeviceManager* devMgr)
     hr = devMgr->GetDeviceFriendlyName(m_pwzPnpId, wz, &len);
     if (SUCCEEDED(hr))
     {
-        m_strFriendlyName = wz;
+        // the device name is Unicode; the narrow CFxString carries it as UTF-8
+        // so it reaches Salamander as UTF-8 (plugin interface 104)
+        int cch = ::WideCharToMultiByte(CP_UTF8, 0, wz, -1, nullptr, 0, nullptr, nullptr);
+        if (cch > 0)
+        {
+            ::WideCharToMultiByte(CP_UTF8, 0, wz, -1, m_strFriendlyName.GetBuffer(cch), cch, nullptr, nullptr);
+            m_strFriendlyName.ReleaseBuffer();
+        }
+        else
+        {
+            m_strFriendlyName.Empty();
+        }
     }
     else
     {

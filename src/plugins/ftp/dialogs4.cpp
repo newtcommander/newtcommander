@@ -906,11 +906,11 @@ void CSrvTypeTestParserDlg::LoadTextFromFile()
             initDir[s - fileName] = 0;
         }
 
-        HANDLE file = HANDLES_Q(CreateFile(fileName, GENERIC_READ,
-                                           FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                           OPEN_EXISTING,
-                                           FILE_FLAG_SEQUENTIAL_SCAN,
-                                           NULL));
+        HANDLE file = FTPCreateFileU8(fileName, GENERIC_READ,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                      OPEN_EXISTING,
+                                      FILE_FLAG_SEQUENTIAL_SCAN,
+                                      NULL);
         CQuadWord size;
         DWORD err = NO_ERROR;
         if (file != INVALID_HANDLE_VALUE &&

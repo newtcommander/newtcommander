@@ -14,6 +14,25 @@
 
 #define PVSF_SUPERFAST 0x8000000
 
+// DeleteFile/MoveFile on a UTF-8 path (interface 104) via the W API (Unicode + long paths)
+static BOOL DeleteFileU8(const char* u8Path)
+{
+    WCHAR* w = SplU8ToWExtAlloc(u8Path);
+    BOOL ret = w != NULL && DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+static BOOL MoveFileU8(const char* u8From, const char* u8To)
+{
+    WCHAR* wFrom = SplU8ToWExtAlloc(u8From);
+    WCHAR* wTo = SplU8ToWExtAlloc(u8To);
+    BOOL ret = wFrom != NULL && wTo != NULL && MoveFileW(wFrom, wTo);
+    free(wFrom);
+    free(wTo);
+    return ret;
+}
+
 #define FL_SKIP_ALL 1
 #define FL_SKIP 2
 #define FL_OVERWRITE_RO_ALL 4
@@ -246,19 +265,14 @@ void UpdateThumbnails(CSalamanderForOperationsAbstract* Salamander)
         flags &= FL_KEEP;
         memset(&oiei, 0, sizeof(oiei));
         oiei.cbSize = sizeof(oiei);
-#ifdef _UNICODE
-        char pathA[_MAX_PATH];
-
-        WideCharToMultiByte(CP_ACP, 0, path, -1, pathA, sizeof(pathA), NULL, NULL);
-        pathA[sizeof(pathA) - 1] = 0;
+        // 'path' is UTF-8, PVW32Cnv.dll wants ANSI (NULL -> the DLL just fails to open)
+        char* pathA = U8ToDLLPathAlloc(path);
         oiei.FileName = pathA;
-#else
-        oiei.FileName = path;
-#endif
 
         Salamander->ProgressDialogAddText(str ? str + 1 : path, TRUE /*update later*/);
         Salamander->ProgressSetSize(CQuadWord(0, 0), CQuadWord(0, ++pd.ind), FALSE /*update now*/);
         code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
+        free(pathA);
         if (code != PVC_OK)
         {
             if (!(flags & FL_NON_IMG_SKIP_ALL))
@@ -371,21 +385,17 @@ void UpdateThumbnails(CSalamanderForOperationsAbstract* Salamander)
                     if (SalamanderGeneral->SalGetTempFileName(newFile, _T("pv"), newFile, TRUE, NULL))
                     {
                         str = (LPTSTR)_tcsrchr(path, '\\');
-#ifdef _UNICODE
-                        char pathA[_MAX_PATH], newFileA[_MAX_PATH];
-
-                        WideCharToMultiByte(CP_ACP, 0, path, -1, pathA, sizeof(pathA), NULL, NULL);
-                        pathA[sizeof(pathA) - 1] = 0;
-                        WideCharToMultiByte(CP_ACP, 0, newFile, -1, newFileA, sizeof(newFileA), NULL, NULL);
-                        newFileA[sizeof(newFileA) - 1] = 0;
-                        if (!ReplaceThumbnail(pathA, newFileA, pd.wfd.Buffer, pd.wfd.Size))
+                        // EXIF.DLL has an ANSI-only interface -> ANSI paths (NULL fails the call)
+                        char* pathA = U8ToDLLPathAlloc(path);
+                        char* newFileA = U8ToDLLPathAlloc(newFile);
+                        BOOL replaced = pathA != NULL && newFileA != NULL &&
+                                        ReplaceThumbnail(pathA, newFileA, pd.wfd.Buffer, pd.wfd.Size);
+                        free(pathA);
+                        free(newFileA);
+                        if (!replaced)
                         {
-#else
-                        if (!ReplaceThumbnail(path, newFile, pd.wfd.Buffer, pd.wfd.Size))
-                        {
-#endif
                             // SalamanderGeneral->SalGetTempFileName created the file
-                            DeleteFile(newFile);
+                            DeleteFileU8(newFile);
                             _stprintf(newFile, LoadStr(IDS_REGENERATE_THUMB_WRITEFILE), str ? str + 1 : path);
                             SalamanderGeneral->ShowMessageBox(newFile, LoadStr(IDS_PLUGINNAME), MSGBOX_ERROR);
                         }
@@ -393,7 +403,7 @@ void UpdateThumbnails(CSalamanderForOperationsAbstract* Salamander)
                         {
                             do
                             {
-                                if (DeleteFile(path))
+                                if (DeleteFileU8(path))
                                     break;
                                 if (flags & FL_OVERWRITE_RO_ALL)
                                 {
@@ -455,11 +465,11 @@ void UpdateThumbnails(CSalamanderForOperationsAbstract* Salamander)
                             if (flags & FL_SKIP)
                             {
                                 // delete the temporary file
-                                DeleteFile(newFile);
+                                DeleteFileU8(newFile);
                             }
                             else
                             {
-                                MoveFile(newFile, path);
+                                MoveFileU8(newFile, path);
                                 SalamanderGeneral->CutDirectory(path);
                                 SalamanderGeneral->PostChangeOnPathNotification(path, FALSE);
                                 processed++;
@@ -527,7 +537,7 @@ int ExtractWinThumbnail(LPCTSTR filename, unsigned char** pptr)
     int ret = 0;
     ULONG nBytesRead;
     HANDLE hFind;
-    WIN32_FIND_DATA ffd;
+    WIN32_FIND_DATAW ffd; // used with FindFirstFileW (only ftLastWriteTime is read)
     WORD fileDate, fileTime;
 #pragma pack(push, 1)
     struct
@@ -582,15 +592,18 @@ int ExtractWinThumbnail(LPCTSTR filename, unsigned char** pptr)
     pwcFile = new OLECHAR[max(i + 9, j) + 1];
     lstrcpyn(pwcFile, filename, i);
 #else
-    i = MultiByteToWideChar(CP_ACP, 0, filename, (int)(tmp - filename), NULL, 0);
-    j = MultiByteToWideChar(CP_ACP, 0, filename, -1, NULL, 0);
+    // 'filename' is UTF-8 since plugin interface 104 -> decode it as UTF-8, not ACP
+    i = MultiByteToWideChar(CP_UTF8, 0, filename, (int)(tmp - filename), NULL, 0);
+    j = MultiByteToWideChar(CP_UTF8, 0, filename, -1, NULL, 0);
     pwcFile = new OLECHAR[max(i + 9, j) + 1];
-    MultiByteToWideChar(CP_ACP, 0, filename, (int)(tmp - filename), pwcFile, i);
+    MultiByteToWideChar(CP_UTF8, 0, filename, (int)(tmp - filename), pwcFile, i);
 #endif
     wcscpy(pwcFile + i, L"Thumbs.db");
 
-    // get the last modification time
-    hFind = FindFirstFile(filename, &ffd);
+    // get the last modification time (viewed file: open on the W layer)
+    WCHAR* wFindName = SplU8ToWExtAlloc(filename);
+    hFind = wFindName != NULL ? FindFirstFileW(wFindName, &ffd) : INVALID_HANDLE_VALUE;
+    free(wFindName);
     if (hFind != INVALID_HANDLE_VALUE)
     {
         FindClose(hFind);
@@ -616,7 +629,7 @@ int ExtractWinThumbnail(LPCTSTR filename, unsigned char** pptr)
 #ifdef _UNICODE
             wcscpy(pwcFile, filename);
 #else
-            MultiByteToWideChar(CP_ACP, 0, filename, -1, pwcFile, j);
+            MultiByteToWideChar(CP_UTF8, 0, filename, -1, pwcFile, j); // 'filename' is UTF-8
 #endif
             pwcFName = (LPWSTR)wcsrchr(pwcFile, '\\');
             if (!pwcFName)
@@ -743,17 +756,27 @@ int ExtractWinThumbnail(LPCTSTR filename, unsigned char** pptr)
     }
     else
     {
-        i = (int)_tcslen(filename);
-        i += 1 + 28; // NULL+strlen(":\5Q30lsldxJoudresxAaaqpcawXc")
-        tmp = (LPTSTR)malloc(i * sizeof(TCHAR));
-        if (tmp)
+        // the thumbnail is stored in an alternate data stream of the viewed file; build the
+        // "<path>:<stream>" name in UTF-16 and open it on the W layer (Unicode + long paths)
+        WCHAR* wFile = SplU8ToWExtAlloc(filename);
+        WCHAR* wStreamName = NULL;
+        if (wFile != NULL)
+        {
+            static const WCHAR stream[] = L":\5Q30lsldxJoudresxAaaqpcawXc";
+            wStreamName = (WCHAR*)malloc((wcslen(wFile) + wcslen(stream) + 1) * sizeof(WCHAR));
+            if (wStreamName != NULL)
+            {
+                wcscpy(wStreamName, wFile);
+                wcscat(wStreamName, stream);
+            }
+        }
+        free(wFile);
+        if (wStreamName != NULL)
         {
             HANDLE hFile;
 
-            _tcscpy(tmp, filename);
-            _tcscat(tmp, _T(":\5Q30lsldxJoudresxAaaqpcawXc"));
-            hFile = CreateFile(tmp, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-            free(tmp);
+            hFile = CreateFileW(wStreamName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+            free(wStreamName);
             if (hFile != INVALID_HANDLE_VALUE)
             {
                 CALL_STACK_MESSAGE1("ExtractWinThumbnail: Parsing ADS");
@@ -826,6 +849,15 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
     DWORD pictureFlags = 0;
 
     pvoi.DataSize = ExtractWinThumbnail(filename, &thumbData);
+
+    // 'filename' is UTF-8, PVW32Cnv.dll wants ANSI
+    char* filenameA = U8ToDLLPathAlloc(filename);
+    if (filenameA == NULL)
+    {
+        free(thumbData);
+        return FALSE; // the DLL cannot reach the file through an ANSI path
+    }
+
     for (;;)
     {
         pvoi.cbSize = sizeof(pvoi);
@@ -833,15 +865,7 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         //     pvoi.Flags  = PVFF_FAST | (G.IgnoreThumbnails ? 0 : PVOF_THUMBNAIL);
         pvoi.Flags = PVFF_FAST | (G.IgnoreThumbnails ? 0 : (fastThumbnail ? PVOF_THUMBNAIL : 0));
 
-#ifdef _UNICODE
-        char filenameA[_MAX_PATH];
-
-        WideCharToMultiByte(CP_ACP, 0, filename, -1, filenameA, sizeof(filenameA), NULL, NULL);
-        filenameA[sizeof(filenameA) - 1] = 0;
         pvoi.FileName = filenameA;
-#else
-        pvoi.FileName = filename;
-#endif
         if (pvoi.DataSize)
         {
             pvoi.Flags |= PVOF_USERDEFINED_INPUT;
@@ -857,12 +881,14 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         if (code != PVC_OK)
         {
             free(thumbData);
+            free(filenameA);
             return FALSE; // probably not a bitmap
         }
         if (pvii.Height * pvii.Width > G.MaxThumbImgSize * 1024 * 1024)
         {
             // image too large and presumably thumbnailing it would take too much time
             free(thumbData);
+            free(filenameA);
             PVW32DLL.PVCloseImage(hPVImage);
             return FALSE;
         }
@@ -913,7 +939,7 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
             {
                 SThumbExifInfo info;
 
-                getInfo(filename, &info);
+                getInfo(filenameA, &info); // EXIF.DLL has an ANSI-only interface
                 if ((info.flags & (TEI_WIDTH | TEI_HEIGHT)) == (TEI_WIDTH | TEI_HEIGHT))
                 {
                     if (((DWORD)info.Width != pvii.Width) || ((DWORD)info.Height != pvii.Height) || (info.Width < info.Height))
@@ -999,6 +1025,7 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         free(thumbData);
         PVW32DLL.PVCloseImage(hPVImage);
     }
+    free(filenameA);
     return TRUE;
 }
 

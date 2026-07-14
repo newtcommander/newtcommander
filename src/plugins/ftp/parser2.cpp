@@ -635,15 +635,15 @@ BOOL AssignStringToColumn(int col, TIndirectArray<CSrvTypeColumn>* columns, cons
 {
     if (col >= 0 && col < columns->Count) // "always true"
     {
-        char* str = (char*)SalamanderGeneral->Alloc((int)(end - beg) + 1);
+        // interface 104: names/text crossing the Salamander interface are UTF-8;
+        // decode the raw listing bytes (server encoding) here (see ftputils.cpp)
+        char* str = FTPListingFieldToU8(beg, (int)(end - beg));
         if (str == NULL)
         {
             TRACE_E(LOW_MEMORY);
             *lowMemErr = TRUE;
             return FALSE;
         }
-        memcpy(str, beg, end - beg);
-        str[end - beg] = 0;
 
         emptyCol[col] = FALSE;
         switch (columns->At(col)->Type)
@@ -653,9 +653,12 @@ BOOL AssignStringToColumn(int col, TIndirectArray<CSrvTypeColumn>* columns, cons
             if (file->Name != NULL)
                 SalamanderGeneral->Free(file->Name);
             file->Name = str;
-            if (end - beg > MAX_PATH - 5)
+            if ((int)strlen(file->Name) > MAX_PATH - 5)
             {
-                file->Name[MAX_PATH - 5] = 0; // file->Name can be at most MAX_PATH - 5 characters long (Salamander limitation - hopefully not an issue for viewing, the user must perform the operation in other software)
+                int cut = MAX_PATH - 5; // Salamander limitation on file->Name length (in bytes)
+                while (cut > 0 && ((unsigned char)file->Name[cut] & 0xC0) == 0x80)
+                    cut--; // do not split a UTF-8 multibyte sequence
+                file->Name[cut] = 0;
                 TRACE_E("Too long file or directory name, cutting to MAX_PATH-5 characters! Using name: " << file->Name);
             }
             break;

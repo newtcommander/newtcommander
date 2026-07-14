@@ -458,7 +458,7 @@ protected:
             {
                 SetTextColor(hdc, this->_textColorHot);
             }
-            ExtTextOut(hdc, xrc.left + 2, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &xrc, this->_sizestr->GetString(), (UINT)this->_sizestr->GetLength(), NULL);
+            ZExtTextOut(hdc, xrc.left + 2, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &xrc, this->_sizestr->GetString(), (UINT)this->_sizestr->GetLength(), NULL);
             rct.right = this->_sizeX;
         }
 
@@ -480,7 +480,7 @@ protected:
             {
                 //root string
                 trct.right = this->_rootX;
-                ExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
+                ZExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
                 trct.right = rct.right;
             }
             trct.left = this->_rootX;
@@ -497,27 +497,27 @@ protected:
                     int oR = trct.right;
                     int nr = this->_nodes[this->_mouseNode].xright;
                     trct.right = nr;
-                    ExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
+                    ZExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
                     trct.left = nr;
                     trct.right = oR;
                 }
                 else
                 {
                     //whole string highlighted
-                    ExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
+                    ZExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
                 }
             }
             if (!isLastNodeHighlighted)
             {
                 //normal - remaining part
                 SetTextColor(hdc, this->_textColor);
-                ExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
+                ZExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &trct, this->_pathstr, this->_pathlen, NULL);
             }
         }
         else
         {
             //root string only
-            ExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &rct, this->_pathstr, this->_pathlen, NULL);
+            ZExtTextOut(hdc, rct.left + 1, rct.top + texttop, ETO_OPAQUE | ETO_CLIPPED, &rct, this->_pathstr, this->_pathlen, NULL);
         }
 
         SelectFont(hdc, hfold);
@@ -539,7 +539,7 @@ protected:
     {
         if (this->_mouseNode >= NODEID_ROOT && this->_mouseNode <= NODEID_MAXP)
         {
-            TCHAR buff[MAX_PATH];
+            TCHAR buff[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
             size_t plen = this->_nodes[this->_mouseNode].strpos;
             size_t l = this->_path->GetSubString(0, plen, buff, ARRAYSIZE(buff));
             if (l > 0)

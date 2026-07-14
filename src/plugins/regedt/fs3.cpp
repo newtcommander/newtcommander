@@ -343,9 +343,11 @@ BOOL ExportValueData(int root, LPCWSTR key, LPCWSTR value, const char* tmpFileNa
         size /= 2;
     }
 
-    // create or open the temporary file
-    HANDLE file = CreateFile(tmpFileName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    // create or open the temporary file (local disk: W file API, plugin interface 104)
+    WCHAR* tmpFileNameW = SplU8ToWExtAlloc(tmpFileName);
+    HANDLE file = tmpFileNameW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tmpFileNameW, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                                                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    free(tmpFileNameW);
     if (file == INVALID_HANDLE_VALUE)
     {
         RegCloseKey(hKey);
@@ -1111,8 +1113,8 @@ BOOL CPluginFSInterface::EditNewFile()
         ret = RegQueryValueExW(hKey, valName, 0, &existType, NULL, 0);
         if (ret == ERROR_SUCCESS)
         {
-            char buf[MAX_FULL_KEYNAME * 2];
-            sprintf(buf, LoadStr(IDS_REPLACEVAL), fullNameA);
+            char buf[3 * MAX_FULL_KEYNAME + 200];
+            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_REPLACEVAL), fullNameA);
 
             if (SG->SalMessageBox(GetParent(), buf, LoadStr(IDS_QUESTION), MB_ICONQUESTION | MB_YESNOCANCEL) != IDYES)
             {

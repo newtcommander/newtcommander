@@ -277,3 +277,49 @@ void FTPAS400CutFileNamePart(char* mbrName, const char* name);
 // 2*MAX_PATH) to "???.file/???.mbr" (both names ??? are the same); if the name is in the form
 // "???1.???2.mbr", writes "???1.file.???2.mbr" into 'name'
 void FTPAS400AddFileNamePart(char* name);
+
+//*****************************************************************************
+//
+// interface 104: UTF-8 helpers (see splunicode.h and doc\plugin-vnext-migration.md)
+//
+// Local-disk boundary: every char* path crossing the Salamander plugin
+// interface is UTF-8 now, so the raw A file APIs (which use the system ANSI
+// code page) would open the wrong - or no - file. These wrappers convert the
+// UTF-8 path to an extended-length ("\\?\") wide path and call the W API. The
+// handle-returning wrappers register with the plugin HANDLES tracker exactly
+// like the original HANDLES_Q(CreateFile(...)) did, so the matching
+// HANDLES(CloseHandle(...)) / HANDLES(FindClose(...)) stay balanced.
+//
+
+HANDLE FTPCreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                       LPSECURITY_ATTRIBUTES securityAttributes, DWORD creationDisposition,
+                       DWORD flagsAndAttributes, HANDLE templateFile);
+BOOL FTPDeleteFileU8(const char* fileName);
+BOOL FTPSetFileAttributesU8(const char* fileName, DWORD attributes);
+BOOL FTPCreateDirectoryU8(const char* pathName, LPSECURITY_ATTRIBUTES securityAttributes);
+BOOL FTPRemoveDirectoryU8(const char* pathName);
+// enumeration: names come back wide in data->cFileName (transcode via SplWToU8);
+// close the returned handle with HANDLES(FindClose(...))
+HANDLE FTPFindFirstFileU8(const char* pathName, WIN32_FIND_DATAW* data);
+
+//
+// Protocol boundary (server names <-> UTF-8): the FTP plugin carries no
+// per-server charset setting, so names are converted heuristically and
+// symmetrically. Pure ASCII takes neither branch and is byte-for-byte
+// unchanged (the common case keeps the previous behavior exactly).
+//
+
+// Decode 'len' bytes of a raw listing field (in the server's encoding) into a
+// newly SalamanderGeneral->Alloc'd, null-terminated UTF-8 string. Valid UTF-8
+// (incl. ASCII) is kept verbatim (covers ASCII and UTF-8 servers); other bytes
+// are read in the system ANSI code page (legacy servers). Returns NULL on
+// allocation failure; free the result with SalamanderGeneral->Free.
+char* FTPListingFieldToU8(const char* beg, int len);
+
+// Encode a UTF-8 name/path into the bytes an FTP server expects (inverse of
+// FTPListingFieldToU8). ASCII passes through; otherwise the name is written in
+// the system ANSI code page when it is representable there (reverses the
+// legacy path), else the UTF-8 bytes are sent verbatim (accepted by UTF-8
+// servers). 'buf' (size 'bufSize') receives the result; returns 'buf', or the
+// original 'u8' when no conversion is needed or on failure.
+const char* FTPU8NameToServer(const char* u8, char* buf, int bufSize);

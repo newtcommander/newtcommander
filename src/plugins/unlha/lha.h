@@ -45,7 +45,7 @@ struct LHA_HEADER
     FILETIME last_modified_filetime; // last_modified_stamp converted to FILETIME
     unsigned char attribute;
     unsigned char header_level;
-    char name[MAX_PATH];
+    char name[3 * MAX_PATH]; // interface 104: holds the UTF-8 name (up to 3 bytes/OEM char)
     unsigned short crc;
     BOOL has_crc;
     unsigned char extend_type;

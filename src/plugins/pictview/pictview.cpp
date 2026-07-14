@@ -457,13 +457,16 @@ const char* WINAPI GetExtText(int msgID)
 // UTF-16 -> ANSI usable by the A file APIs (must fit MAX_PATH and map without losses)
 static char* WToANSIPathAlloc(const WCHAR* w)
 {
-    BOOL usedDefault = FALSE;
-    int len = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, NULL, 0, NULL, &usedDefault);
-    if (len <= 0 || usedDefault || len > MAX_PATH)
+    int len = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, NULL, 0, NULL, NULL);
+    if (len <= 0 || len > MAX_PATH)
         return NULL;
     char* a = (char*)malloc(len);
-    if (a != NULL &&
-        WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, a, len, NULL, &usedDefault) <= 0)
+    if (a == NULL)
+        return NULL;
+    // usedDefault is only meaningful on the real conversion, not on the length query
+    BOOL usedDefault = FALSE;
+    if (WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, a, len, NULL, &usedDefault) <= 0 ||
+        usedDefault) // a character outside the ACP -> the A path would be wrong
     {
         free(a);
         a = NULL;
