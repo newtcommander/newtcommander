@@ -13,6 +13,7 @@
 #include "dbviewer.rh"
 #include "dbviewer.rh2"
 #include "lang\lang.rh"
+#include "splunicode.h"
 
 #define UTF8_DETECT_BUF_SIZE 65536
 
@@ -168,7 +169,7 @@ CParserInterfaceDBF::CParserInterfaceDBF()
     DbfHdr = NULL;
     DbfFields = NULL;
     Record = NULL;
-    FileName[0] = 0;
+    FileName = NULL;
 }
 
 CParserStatusEnum
@@ -217,7 +218,15 @@ CParserInterfaceDBF::OpenFile(const char* fileName)
     }
 
     if (status == psOK)
-        lstrcpyn(FileName, fileName, MAX_PATH);
+    {
+        free(FileName);
+        FileName = _strdup(fileName); // full path, no MAX_PATH cap (long paths)
+        if (FileName == NULL)
+        {
+            CloseFile();
+            status = psOOM;
+        }
+    }
 
     return status;
 }
@@ -236,7 +245,8 @@ void CParserInterfaceDBF::CloseFile()
     }
     DbfHdr = NULL;
     DbfFields = NULL;
-    FileName[0] = 0;
+    free(FileName);
+    FileName = NULL;
 }
 
 BOOL CParserInterfaceDBF::GetFileInfo(HWND hEdit)
@@ -253,13 +263,22 @@ BOOL CParserInterfaceDBF::GetFileInfo(HWND hEdit)
     SetWindowText(hEdit, "");
     DWORD tab = 80;
     SendMessage(hEdit, EM_SETTABSTOPS, 1, (LPARAM)&tab);
-    sprintf(buff, "%s\r\n\r\n", FileName);
-    SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)buff);
+    // FileName is UTF-8: push it to the edit control as UTF-16 (edit controls are Unicode windows)
+    WCHAR* wFileName = SplU8ToWAlloc(FileName);
+    if (wFileName != NULL)
+        SendMessageW(hEdit, EM_REPLACESEL, FALSE, (LPARAM)wFileName);
+    else
+        SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)FileName);
+    free(wFileName);
+    SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)"\r\n\r\n");
 
-    // obtain file information (size, date & time)
-    HANDLE file = CreateFile(FileName, GENERIC_READ,
-                             FILE_SHARE_READ | FILE_SHARE_WRITE,
-                             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    // obtain file information (size, date & time); FileName is UTF-8 -> W API
+    WCHAR* wPath = SplU8ToWExtAlloc(FileName);
+    HANDLE file = wPath != NULL ? CreateFileW(wPath, GENERIC_READ,
+                                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
+                                : INVALID_HANDLE_VALUE;
+    free(wPath);
     if (file != INVALID_HANDLE_VALUE)
     {
         FILETIME fileTime;
@@ -801,7 +820,7 @@ BOOL CParserInterfaceDBF::IsRecordDeleted()
 CParserInterfaceCSV::CParserInterfaceCSV(CCSVConfig* config)
 {
     Csv = NULL;
-    FileName[0] = 0;
+    FileName = NULL;
     Config = config;
     IsUTF8 = IsUnicode = FALSE;
 }
@@ -872,7 +891,10 @@ CParserInterfaceCSV::OpenFile(const char* fileName)
         break;
     }
 
-    FILE* f = fopen(fileName, "r");
+    // fileName is UTF-8 since plugin interface 104 -> open via the W CRT API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    FILE* f = wFileName != NULL ? _wfopen(wFileName, L"r") : fopen(fileName, "r");
+    free(wFileName);
     if (f)
     {
         WORD w;
@@ -934,7 +956,15 @@ CParserInterfaceCSV::OpenFile(const char* fileName)
     }
 
     if (status == psOK)
-        lstrcpyn(FileName, fileName, MAX_PATH);
+    {
+        free(FileName);
+        FileName = _strdup(fileName); // full path, no MAX_PATH cap (long paths)
+        if (FileName == NULL)
+        {
+            CloseFile();
+            status = psOOM;
+        }
+    }
 
     return status;
 }
@@ -946,7 +976,8 @@ void CParserInterfaceCSV::CloseFile()
         delete Csv;
         Csv = NULL;
     }
-    FileName[0] = 0;
+    free(FileName);
+    FileName = NULL;
 }
 
 BOOL CParserInterfaceCSV::GetFileInfo(HWND hEdit)
@@ -963,13 +994,22 @@ BOOL CParserInterfaceCSV::GetFileInfo(HWND hEdit)
     SetWindowText(hEdit, "");
     DWORD tab = 80;
     SendMessage(hEdit, EM_SETTABSTOPS, 1, (LPARAM)&tab);
-    sprintf(buff, "%s\r\n\r\n", FileName);
-    SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)buff);
+    // FileName is UTF-8: push it to the edit control as UTF-16 (edit controls are Unicode windows)
+    WCHAR* wFileName = SplU8ToWAlloc(FileName);
+    if (wFileName != NULL)
+        SendMessageW(hEdit, EM_REPLACESEL, FALSE, (LPARAM)wFileName);
+    else
+        SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)FileName);
+    free(wFileName);
+    SendMessage(hEdit, EM_REPLACESEL, FALSE, (LPARAM)"\r\n\r\n");
 
-    // obtain file information (size, date & time)
-    HANDLE file = CreateFile(FileName, GENERIC_READ,
-                             FILE_SHARE_READ | FILE_SHARE_WRITE,
-                             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    // obtain file information (size, date & time); FileName is UTF-8 -> W API
+    WCHAR* wPath = SplU8ToWExtAlloc(FileName);
+    HANDLE file = wPath != NULL ? CreateFileW(wPath, GENERIC_READ,
+                                              FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
+                                : INVALID_HANDLE_VALUE;
+    free(wPath);
     if (file != INVALID_HANDLE_VALUE)
     {
         FILETIME fileTime;

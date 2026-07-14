@@ -195,8 +195,12 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
         {
             if (SUCCEEDED(currentFolder->GetDisplayNameOf(idList, SHGDN_INFOLDER, &str)))
             {
-                char name[MAX_PATH];
-                if (SUCCEEDED(StrRetToBuf(&str, idList, name, MAX_PATH)))
+                // shell display names are natively Unicode: take them wide and
+                // hand them to Salamander as UTF-8 (plugin interface 104)
+                WCHAR nameW[MAX_PATH];
+                char name[3 * MAX_PATH];
+                if (SUCCEEDED(StrRetToBufW(&str, idList, nameW, MAX_PATH)) &&
+                    SplWToU8(nameW, name, sizeof(name)) > 0)
                 {
                     file.Name = SalamanderGeneral->DupStr(name);
                     if (file.Name == NULL)

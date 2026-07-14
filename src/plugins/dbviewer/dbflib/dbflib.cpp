@@ -19,10 +19,31 @@
 #define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
+// splunicode.h pulls in <windows.h>, which must be seen BEFORE DBFLib.h - that
+// header defines its own BOOL/TRUE/FALSE macros that would break the SDK typedefs
+#include "splunicode.h"
+
 #include "DBFLib.h"
 
 #define strend(x) (x + strlen(x))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+
+/* Opens a file whose name is UTF-8 (plugin interface 104) via the W CRT API;
+   falls back to fopen for names that are not valid UTF-8 */
+static FILE* OpenFileU8(const char* name, const char* mode)
+{
+    WCHAR* wname = SplU8ToWExtAlloc(name);
+    if (wname == NULL)
+        return fopen(name, mode);
+    WCHAR wmode[8];
+    int i;
+    for (i = 0; mode[i] != 0 && i < 7; i++)
+        wmode[i] = (WCHAR)mode[i];
+    wmode[i] = 0;
+    FILE* f = _wfopen(wname, wmode);
+    free(wname);
+    return f;
+}
 
 /*****************************************************************************
  * cDBF::cDBF - open DBF file, parses header and opens memo file, if it exists
@@ -48,14 +69,14 @@ cDBF::cDBF(const char* filename, BOOL readOnly) : fields(NULL), status(DBFE_OK),
     };
     U32 nBytesRead, pos;
     int i;
-    char memo[_MAX_PATH], *s;
+    char *memo, *s;
 
     /* Ensure we have a proper structure alignment */
     _ASSERT(sizeof(DBFFILE_HDR) == 32);
     _ASSERT(sizeof(DBFFILE_FIELD) == 32);
     _ASSERT(sizeof(DBF7FILE_HDR) == 68);
 
-    f = fopen(filename, readOnly ? "rb" : "rb+");
+    f = OpenFileU8(filename, readOnly ? "rb" : "rb+");
     if (!f)
     {
         status = DBFE_FILE_NOT_FOUND;
@@ -318,7 +339,13 @@ cDBF::cDBF(const char* filename, BOOL readOnly) : fields(NULL), status(DBFE_OK),
     }
     currField = -1; /* to force seek on first GetRecord */
 
-    /* Look for memo file */
+    /* Look for memo file; the name is built on the heap (no _MAX_PATH cap) */
+    memo = (char*)malloc(strlen(filename) + 8); /* room for an appended ".fpt"/".dbt" */
+    if (!memo)
+    {
+        status = DBFE_OOM;
+        return;
+    }
     strcpy(memo, filename);
     s = strrchr(memo, '.');
     if (!s)
@@ -328,7 +355,7 @@ cDBF::cDBF(const char* filename, BOOL readOnly) : fields(NULL), status(DBFE_OK),
     {
     case DBF_FOXPRO:
         strcpy(s, ".fpt");
-        fmemo = fopen(memo, "rb");
+        fmemo = OpenFileU8(memo, "rb");
         if (fmemo)
         {
             U8 tmp[2];
@@ -358,7 +385,7 @@ cDBF::cDBF(const char* filename, BOOL readOnly) : fields(NULL), status(DBFE_OK),
     case DBF_DBASE5:
         memoBlockSize = 512;
         strcpy(s, ".dbt");
-        fmemo = fopen(memo, "rb");
+        fmemo = OpenFileU8(memo, "rb");
         if (fmemo)
         {
             U8 tmp;
@@ -393,6 +420,7 @@ cDBF::cDBF(const char* filename, BOOL readOnly) : fields(NULL), status(DBFE_OK),
         break;
     }
 
+    free(memo);
     return;
 } /* ::cDBF */
 

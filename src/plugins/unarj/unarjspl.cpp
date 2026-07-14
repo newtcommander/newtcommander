@@ -42,6 +42,43 @@ DWORD Options;
 
 const char* CONFIG_OPTIONS = "Options";
 
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+
+static BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+static BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    free(w);
+    return ret;
+}
+
+// case-insensitive compare of two UTF-8 names done on the UTF-16 form
+static BOOL EqualNamesU8(const char* name1, const char* name2)
+{
+    WCHAR* w1 = SplU8ToWAlloc(name1);
+    WCHAR* w2 = SplU8ToWAlloc(name2);
+    BOOL eq;
+    if (w1 != NULL && w2 != NULL)
+        eq = CompareStringW(LOCALE_USER_DEFAULT, NORM_IGNORECASE, w1, -1, w2, -1) == CSTR_EQUAL;
+    else
+        eq = lstrcmpi(name1, name2) == 0; // fallback for invalid UTF-8
+    free(w1);
+    free(w2);
+    return eq;
+}
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     CALL_STACK_MESSAGE_NONE
@@ -384,8 +421,7 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
                 for (i = 0; i < files.Count; i++)
                 {
                     if (!(header.Attr & FILE_ATTRIBUTE_DIRECTORY || header.FileType == FT_DIRECTORY) &&
-                        CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
-                                      header.FileName, -1, files[i], -1) == CSTR_EQUAL)
+                        EqualNamesU8(header.FileName, files[i]))
                     {
                         match = TRUE;
                         files.Delete(i);
@@ -408,9 +444,9 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
                     SetFileTime(TargetFile, NULL, NULL, &header.Time);
                     CloseHandle(TargetFile);
                     if (!ret)
-                        DeleteFile(TargetName);
+                        DeleteFileU8(TargetName);
                     else
-                        SetFileAttributes(TargetName, header.Attr);
+                        SetFileAttributesU8(TargetName, header.Attr);
                 }
                 if (Abort)
                 {
@@ -460,8 +496,8 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     RootLen = 0;
     AllocateWholeFile = TRUE;
     TestAllocateWholeFile = TRUE;
-    char justName[MAX_PATH];
-    lstrcpy(justName, nameInArchive);
+    char justName[3 * ARJ_MAX_PATH]; // name in archive is UTF-8 (interface 104)
+    lstrcpyn(justName, nameInArchive, sizeof(justName));
     SalamanderGeneral->SalPathStripPath(justName);
 
     // extract files
@@ -483,8 +519,7 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
             TargetFile = INVALID_HANDLE_VALUE;
             op = PFO_SKIP;
             if (!(header.Attr & FILE_ATTRIBUTE_DIRECTORY || header.FileType == FT_DIRECTORY) &&
-                CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
-                              nameInArchive, -1, header.FileName, -1) == CSTR_EQUAL)
+                EqualNamesU8(nameInArchive, header.FileName))
             {
                 match = TRUE;
                 if (header.Flags & FF_EXTFILE)
@@ -492,7 +527,7 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
                     ContinuedFileDialog(SalamanderGeneral->GetMsgBoxParent(), header.FileName);
                     goto UOF_NEXT;
                 }
-                if (lstrlen(justName) + lstrlen(targetDir) + 2 > MAX_PATH)
+                if (lstrlen(justName) + lstrlen(targetDir) + 2 > (int)sizeof(TargetName))
                 {
                     Error(IDS_TOOLONGNAME);
                     goto UOF_NEXT;
@@ -500,7 +535,7 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
                 char buf[100];
                 GetInfo(buf, &header.Time, header.Size);
                 lstrcpy(TargetName, targetDir);
-                SalamanderGeneral->SalPathAppend(TargetName, justName, MAX_PATH);
+                SalamanderGeneral->SalPathAppend(TargetName, justName, sizeof(TargetName));
                 BOOL skip;
                 CQuadWord q = CQuadWord(header.Size, 0);
                 bool allocate = CQuadWord(2, 0) < q && q < CQuadWord(0, 0x80000000);
@@ -524,11 +559,11 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
                 CloseHandle(TargetFile);
                 if (r)
                 {
-                    SetFileAttributes(TargetName, header.Attr);
+                    SetFileAttributesU8(TargetName, header.Attr);
                     ret = TRUE;
                 }
                 else
-                    DeleteFile(TargetName);
+                    DeleteFileU8(TargetName);
             }
             if (match || !r)
                 break;
@@ -620,9 +655,9 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                 SetFileTime(TargetFile, NULL, NULL, &header.Time);
                 CloseHandle(TargetFile);
                 if (!ret)
-                    DeleteFile(TargetName);
+                    DeleteFileU8(TargetName);
                 else
-                    SetFileAttributes(TargetName, header.Attr);
+                    SetFileAttributesU8(TargetName, header.Attr);
             }
             if (Abort)
             {
@@ -868,12 +903,12 @@ BOOL CPluginInterfaceForArchiver::ErrorProc(int error, BOOL flags)
 void CPluginInterfaceForArchiver::SwitchToFirstVol(const char* arcName)
 {
     CALL_STACK_MESSAGE2("CPluginInterfaceForArchiver::SwitchToFirstVol(%s)", arcName);
-    lstrcpy(ArcFileName, arcName);
+    lstrcpyn(ArcFileName, arcName, sizeof(ArcFileName));
     char* ext = PathFindExtension(ArcFileName);
     if (lstrlen(ext) > 3 &&
         isdigit(ext[2]) && isdigit(ext[3]))
     {
-        char oldExt[MAX_PATH];
+        char oldExt[3 * MAX_PATH]; // extension lies within the last component (max 765 UTF-8 bytes)
         lstrcpy(oldExt, ext);
         lstrcpy(ext, ".arj");
         DWORD attr = SalamanderGeneral->SalGetFileAttributes(ArcFileName);
@@ -890,11 +925,15 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
     const char* nextName;
     BOOL isDir;
     CQuadWord size;
-    char dir[MAX_PATH];
     char* addDir;
     int dirLen;
     int errorOccured;
 
+    // heap buffer: targetDir may be a long path (UTF-8, interface 104)
+    int dirBufSize = lstrlen(targetDir) + 2 + 3 * ARJ_MAX_PATH;
+    char* dir = (char*)malloc(dirBufSize);
+    if (dir == NULL)
+        return Error(IDS_LOWMEM);
     lstrcpy(dir, targetDir);
     addDir = dir + lstrlen(dir);
     if (*(addDir - 1) != '\\')
@@ -909,7 +948,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
     {
         if (isDir)
         {
-            if (dirLen + lstrlen(nextName) + 1 >= MAX_PATH)
+            if (dirLen + lstrlen(nextName) + 1 >= dirBufSize)
             {
                 if (Silent & SF_LONGNAMES)
                     continue;
@@ -921,6 +960,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
                     continue;
                 case DIALOG_CANCEL:
                 case DIALOG_FAIL:
+                    free(dir);
                     return FALSE;
                 }
             }
@@ -930,6 +970,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
                                                    &Silent, TRUE, &skip, NULL, 0, NULL, NULL) == INVALID_HANDLE_VALUE &&
                 !skip)
             {
+                free(dir);
                 return FALSE;
             }
         }
@@ -937,7 +978,10 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
         {
             char* str = new char[RootLen + lstrlen(nextName) + 2];
             if (!str)
+            {
+                free(dir);
                 return Error(IDS_LOWMEM);
+            }
             lstrcpy(str, ArcRoot);
             char* ptr = str + RootLen;
             if (RootLen && *(ptr - 1) != '\\')
@@ -946,11 +990,13 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<char>& files, Sa
             if (!files.Add(str))
             {
                 delete str;
+                free(dir);
                 return Error(IDS_LOWMEM);
             }
             ProgressTotal += size;
         }
     }
+    free(dir);
     return errorOccured != SALENUM_CANCEL && // check that no error occurred and the user did not request to cancel the operation (Cancel button)
            SalamanderGeneral->TestFreeSpace(SalamanderGeneral->GetMsgBoxParent(), targetDir, ProgressTotal, LoadStr(IDS_PLUGINNAME));
 }
@@ -959,7 +1005,7 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(CARJHeaderData* hdr, const char* ar
 {
     CALL_STACK_MESSAGE3("CPluginInterfaceForArchiver::DoThisFile(, %s, %s)", arcName,
                         targetDir);
-    char message[MAX_PATH + 32];
+    char message[3 * ARJ_MAX_PATH + 100]; // name in archive is UTF-8 (interface 104)
 
     lstrcpy(message, LoadStr(IDS_EXTRACTING));
     lstrcat(message, hdr->FileName);
@@ -974,7 +1020,7 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(CARJHeaderData* hdr, const char* ar
             Abort = TRUE;
         return FALSE;
     }
-    if (lstrlen(targetDir) + lstrlen(hdr->FileName) - RootLen >= MAX_PATH)
+    if (lstrlen(targetDir) + lstrlen(hdr->FileName) - (int)RootLen >= (int)sizeof(TargetName))
     {
         if (Silent & SF_LONGNAMES)
             return FALSE;
@@ -991,10 +1037,17 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(CARJHeaderData* hdr, const char* ar
         }
     }
     lstrcpy(TargetName, targetDir);
-    SalamanderGeneral->SalPathAppend(TargetName, hdr->FileName + RootLen, MAX_PATH);
-    char nameInArc[MAX_PATH + ARJ_MAX_PATH];
+    SalamanderGeneral->SalPathAppend(TargetName, hdr->FileName + RootLen, sizeof(TargetName));
+    // heap buffer: arcName may be a long path (UTF-8, interface 104)
+    int nameInArcSize = lstrlen(arcName) + 2 + 3 * ARJ_MAX_PATH;
+    char* nameInArc = (char*)malloc(nameInArcSize);
+    if (nameInArc == NULL)
+    {
+        Abort = TRUE;
+        return FALSE;
+    }
     lstrcpy(nameInArc, arcName);
-    SalamanderGeneral->SalPathAppend(nameInArc, hdr->FileName, MAX_PATH + ARJ_MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, hdr->FileName, nameInArcSize);
     char buf[100];
     GetInfo(buf, &hdr->Time, hdr->Size);
     BOOL skip;
@@ -1008,6 +1061,7 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(CARJHeaderData* hdr, const char* ar
                                                     hdr->Attr & FILE_ATTRIBUTE_DIRECTORY || hdr->FileType == FT_DIRECTORY,
                                                     SalamanderGeneral->GetMsgBoxParent(), nameInArc, buf, &Silent, TRUE, &skip, NULL, 0,
                                                     allocate ? &q : NULL, NULL);
+    free(nameInArc);
     if (skip)
         return FALSE;
     if (TargetFile == INVALID_HANDLE_VALUE)

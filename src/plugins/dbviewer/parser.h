@@ -104,10 +104,10 @@ private:
 
     // the following variables are valid if Dbf != NULL
 
-    _dbf_header* DbfHdr;     // data extracted from the opened database
-    _dbf_field* DbfFields;   // pointer to the list of columns
-    char* Record;            // buffer used for retrieving records from the database
-    char FileName[MAX_PATH]; // path to the opened file
+    _dbf_header* DbfHdr;   // data extracted from the opened database
+    _dbf_field* DbfFields; // pointer to the list of columns
+    char* Record;          // buffer used for retrieving records from the database
+    char* FileName;        // path to the opened file (UTF-8, heap; NULL when closed)
 
 public:
     // constructor
@@ -144,8 +144,8 @@ struct CCSVConfig;
 class CParserInterfaceCSV : public CParserInterfaceAbstract
 {
 private:
-    CCSVParserBase* Csv;     // interface to the CSV library
-    char FileName[MAX_PATH]; // path to the opened file
+    CCSVParserBase* Csv; // interface to the CSV library
+    char* FileName;      // path to the opened file (UTF-8, heap; NULL when closed)
     const CCSVConfig* Config;
     BOOL IsUnicode;
     BOOL IsUTF8;

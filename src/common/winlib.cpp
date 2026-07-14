@@ -1039,6 +1039,20 @@ void CTransferInfo::EditLine(int ctrlID, TCHAR* buffer, DWORD bufferSizeInChars,
         {
         case ttDataToWindow:
         {
+#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)
+            // feature 004: narrow buffers carry UTF-8 - set the control as wide
+            // text so accented/Unicode names survive; A fallback for invalid UTF-8
+            WCHAR* w = SalU8ToWAlloc(buffer);
+            if (w != NULL)
+            {
+                SendMessageW(HWindow, EM_LIMITTEXT, bufferSizeInChars - 1, 0);
+                SendMessageW(HWindow, WM_SETTEXT, 0, (LPARAM)w);
+                free(w);
+                if (select)
+                    SendMessage(HWindow, EM_SETSEL, 0, -1);
+                break;
+            }
+#endif // INSIDE_SALAMANDER && !_UNICODE
             SendMessage(HWindow, EM_LIMITTEXT, bufferSizeInChars - 1, 0);
             SendMessage(HWindow, WM_SETTEXT, 0, (LPARAM)buffer);
             if (select)
@@ -1048,6 +1062,23 @@ void CTransferInfo::EditLine(int ctrlID, TCHAR* buffer, DWORD bufferSizeInChars,
 
         case ttDataFromWindow:
         {
+#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)
+            // read as wide and store UTF-8; when the UTF-8 result would not fit
+            // the caller's buffer, fall back to the legacy A read (truncation
+            // semantics identical to the pre-004 behavior)
+            int wchars = GetWindowTextLengthW(HWindow) + 1;
+            WCHAR* w = (WCHAR*)malloc(wchars * sizeof(WCHAR));
+            if (w != NULL)
+            {
+                GetWindowTextW(HWindow, w, wchars);
+                if (SalWToU8(w, -1, buffer, bufferSizeInChars) != 0)
+                {
+                    free(w);
+                    break;
+                }
+                free(w);
+            }
+#endif // INSIDE_SALAMANDER && !_UNICODE
             SendMessage(HWindow, WM_GETTEXT, bufferSizeInChars, (LPARAM)buffer);
             break;
         }

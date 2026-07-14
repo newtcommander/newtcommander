@@ -29,7 +29,7 @@ public:
 
     ~CMMIO() { Close(); }
 
-    BOOL Open(char* fname);
+    BOOL Open(const char* fname); // fname is UTF-8 (plugin interface 104)
     void Close(void);
 
     BOOL IsOpened(void) const { return m_hmmio != NULL; }

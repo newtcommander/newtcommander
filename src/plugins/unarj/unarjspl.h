@@ -3,6 +3,10 @@
 
 #pragma once
 
+// buffer size able to hold any long path in UTF-8 (interface 104;
+// 3 bytes per UTF-16 unit, see splunicode.h)
+#define U8_MAX_PATH (3 * 32767 + 1)
+
 // silent flags
 #define SF_DATA 0x00010000
 #define SF_LONGNAMES 0x00020000
@@ -24,14 +28,14 @@ class CPluginInterfaceForArchiver : public CPluginInterfaceForArchiverAbstract
 {
 protected:
     CSalamanderForOperationsAbstract* Salamander;
-    char ArcFileName[MAX_PATH];
+    char ArcFileName[U8_MAX_PATH]; // UTF-8, long-path capable
     BOOL List;
     DWORD Silent;
     BOOL Abort;
     CQuadWord ProgressTotal;
     const char* ArcRoot;
     DWORD RootLen;
-    char TargetName[MAX_PATH];
+    char TargetName[U8_MAX_PATH]; // UTF-8, long-path capable
     HANDLE TargetFile;
     BOOL UnPackWholeArchive;
     BOOL NotWholeArchListed;

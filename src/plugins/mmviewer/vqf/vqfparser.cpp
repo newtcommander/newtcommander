@@ -10,6 +10,7 @@
 #include "..\mmviewer.rh2"
 #include "..\lang\lang.rh"
 #include "..\output.h"
+#include "splunicode.h"
 
 char* LoadStr(int resID);
 
@@ -41,7 +42,10 @@ CParserVQF::OpenFile(const char* fileName)
 {
     CloseFile();
 
-    f = fopen(fileName, "rb");
+    // fileName is UTF-8 since plugin interface 104 -> open via the W CRT API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    f = wFileName != NULL ? _wfopen(wFileName, L"rb") : fopen(fileName, "rb");
+    free(wFileName);
 
     if (!f)
         return preOpenError;

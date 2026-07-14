@@ -19,6 +19,7 @@
 #include "arraylt.h"
 
 #include "csvlib.h"
+#include "splunicode.h"
 
 // only an optimization detail
 extern BOOL IsAlphaNumeric[256]; // TRUE/FALSE array for characters (FALSE = not a letter or digit)
@@ -172,7 +173,10 @@ CCSVParser<CChar>::CCSVParser(const char* filename,
 
     Buffer = NULL;
 
-    File = fopen(filename, "rb");
+    // 'filename' is UTF-8 since plugin interface 104 -> open via the W CRT API
+    WCHAR* wFilename = SplU8ToWExtAlloc(filename);
+    File = wFilename != NULL ? _wfopen(wFilename, L"rb") : fopen(filename, "rb");
+    free(wFilename);
     if (File == NULL)
     {
         Status = (CCSVParserStatus)(GetLastError() | CSVE_SYSTEM_ERROR);

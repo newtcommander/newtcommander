@@ -70,7 +70,7 @@ struct CARJHeaderData
     DWORD Size;
     DWORD CompSize;
     DWORD Attr;
-    char FileName[ARJ_MAX_PATH];
+    char FileName[3 * ARJ_MAX_PATH]; // UTF-8 (interface 104); 3x for OEM->UTF-8 expansion
 };
 
 BOOL WINAPI ARJOpenArchive(CARJOpenData* openData);

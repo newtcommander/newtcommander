@@ -3332,17 +3332,43 @@ void GetCommandLineParamExpandEnvVars(const char* argv, char* target, DWORD targ
     }
     else
     {
-        DWORD auxRes = ExpandEnvironmentStrings(argv, target, targetSize); // uzivatele si prali moznost predavat jako parametr env promenne
-        if (auxRes == 0 || auxRes > targetSize)
+        // feature 004: expand through the W API - the A variant would destroy
+        // UTF-8 bytes it interprets as the active code page
+        BOOL expanded = FALSE;
+        WCHAR* argvW = SalU8ToWAlloc(argv, -1);
+        if (argvW != NULL)
+        {
+            DWORD needed = ExpandEnvironmentStringsW(argvW, NULL, 0);
+            if (needed > 0)
+            {
+                WCHAR* expW = (WCHAR*)malloc(needed * sizeof(WCHAR));
+                if (expW != NULL)
+                {
+                    if (ExpandEnvironmentStringsW(argvW, expW, needed) > 0 &&
+                        SalWToU8(expW, -1, target, targetSize) != 0)
+                    {
+                        expanded = TRUE;
+                    }
+                    free(expW);
+                }
+            }
+            free(argvW);
+        }
+        if (!expanded)
         {
             TRACE_E("ExpandEnvironmentStrings failed.");
             // pokud expanze selze, pouzijeme retezec bez expanze
             lstrcpyn(target, argv, targetSize);
         }
     }
-    if (!IsPluginFSPath(target) && GetCurrentDirectory(MAX_PATH, curDir))
+    if (!IsPluginFSPath(target))
     {
-        SalGetFullName(target, NULL, curDir, NULL, NULL, targetSize);
+        WCHAR curDirW[MAX_PATH];
+        if (GetCurrentDirectoryW(_countof(curDirW), curDirW) != 0 &&
+            SalWToU8(curDirW, -1, curDir, MAX_PATH) != 0)
+        {
+            SalGetFullName(target, NULL, curDir, NULL, NULL, targetSize);
+        }
     }
 }
 
@@ -3368,6 +3394,41 @@ BOOL ParseCommandLineParameters(LPSTR cmdLine, CCommandLineParams* cmdLineParams
         ConfigurationNameIgnoreIfNotExists = FALSE;
     }
     OpenReadmeInNotepad[0] = 0;
+
+    // feature 004: WinMain hands us the ANSI command line, which destroys names
+    // that the active code page cannot represent (e.g. decomposed accents). Take
+    // the real command line from the OS and convert it to UTF-8 (our internal
+    // encoding); the A version is used only if the wide one is unconvertible.
+    char* cmdLineU8 = NULL;
+    const WCHAR* cmdLineW = GetCommandLineW();
+    if (cmdLineW != NULL)
+    {
+        const WCHAR* argsW = cmdLineW; // skip the program name (the A variant is passed without it)
+        if (*argsW == L'"')
+        {
+            argsW++;
+            while (*argsW != 0 && *argsW != L'"')
+                argsW++;
+            if (*argsW == L'"')
+                argsW++;
+        }
+        else
+        {
+            while (*argsW != 0 && *argsW != L' ')
+                argsW++;
+        }
+        while (*argsW == L' ')
+            argsW++;
+        cmdLineU8 = SalWToU8Alloc(argsW, -1);
+        if (cmdLineU8 != NULL)
+            cmdLine = cmdLineU8;
+    }
+    struct CCmdLineU8Free
+    {
+        char* P;
+        ~CCmdLineU8Free() { free(P); }
+    } cmdLineU8Free = {cmdLineU8};
+
     if (GetCmdLine(buf, _countof(buf), argv, p, cmdLine))
     {
         int i;

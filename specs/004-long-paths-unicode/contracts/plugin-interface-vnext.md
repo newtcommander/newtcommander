@@ -18,7 +18,19 @@ guaranteed to legacy binaries. Mechanics evidence:
 | Core's per-plugin record | `BuiltForVersion` (`plugins1.cpp:2226-2239`) | unchanged field; `BuiltForVersion >= 104` ⇔ **UTF-8/long-path semantics**, else **legacy semantics + shim** |
 
 No new export names; no change to `SalamanderPluginEntry` signature.
-The existing too-old gate (`plugins1.cpp:2240`) is untouched.
+
+**Implementation amendment (2026-07-14)**: because the `NameLen`
+widening changes the in-memory `CFileData` layout, binaries built for
+interface ≤ 103 cannot be given live core structures without full
+marshalling of every `CFileData` crossing — a corruption risk if done
+partially. The implementation therefore raises `PLUGIN_REQVER` to 104:
+old binaries are **refused cleanly at load** with the standard
+too-old-plugin message (the documented migration path is a rebuild
+against the 104 SDK). The `pluglegacy` string helpers remain available
+for a future full-marshalling shim should on-disk 103 plugins need
+supporting. FR-014's detect-and-refuse semantics thus apply at load
+time for old binaries; FR-015 regression safety is preserved by
+refusing rather than corrupting.
 
 ## 2. String semantics by negotiated version
 

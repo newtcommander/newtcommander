@@ -118,12 +118,22 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 ### SDK, loader, shell (prerequisites within US4)
 
 - [X] T041 [US4] Loader capability gate: record UTF-8/long-path semantics per plugin from `BuiltForVersion >= 104` in `CPluginData::InitDLL` (`src/plugins1.cpp:2193-2306`), keep the existing too-old gate; expose capability to call sites via `src/plugins.h`
-- [ ] T042 [US4] Legacy adaptation shim per `contracts/plugin-interface-vnext.md` §2: new `src/pluglegacy.cpp` + `src/pluglegacy.h` — UTF-8→system-ACP conversion (no best-fit) with lossless check for every core→plugin string, legacy-layout `CFileData` materialization for `<104` binaries, ACP→UTF-8 on return; wire into plugin call surfaces in `src/plugins2.cpp`/`src/plugins3.cpp`
-- [ ] T043 [US4] FR-014 refusal UX: per-item "name/path not representable by plugin X" skip dialog (strings in `src/lang/`), continue-with-remaining semantics in the operation drivers (`src/worker.cpp`, archive op entry points in `src/fileswn*.cpp`)
-- [ ] T044 [P] [US4] SDK v-next finalization: UTF-8 semantics + limits documented in `src/plugins/shared/spl_base.h`, `spl_com.h`, `spl_gen.h`, `spl_fs.h`, `spl_gui.h`; add plugin-callable conversion/normalization helpers to `CSalamanderGeneralAbstract` (contract §2); update `src/plugins/shared/spl_vers.h` version-history comment block
-- [ ] T045 [P] [US4] Third-party migration guide `doc/plugin-vnext-migration.md` (contract §4 steps, byte-vs-glyph rules, helper usage)
+- [X] T042 [US4] Legacy adaptation shim per `contracts/plugin-interface-vnext.md` §2: new `src/pluglegacy.cpp` + `src/pluglegacy.h` — UTF-8→system-ACP conversion (no best-fit) with lossless check for every core→plugin string, legacy-layout `CFileData` materialization for `<104` binaries, ACP→UTF-8 on return; wire into plugin call surfaces in `src/plugins2.cpp`/`src/plugins3.cpp`
+- [X] T043 [US4] FR-014 refusal UX: per-item "name/path not representable by plugin X" skip dialog (strings in `src/lang/`), continue-with-remaining semantics in the operation drivers (`src/worker.cpp`, archive op entry points in `src/fileswn*.cpp`)
+- [X] T044 [P] [US4] SDK v-next finalization: UTF-8 semantics + limits documented in `src/plugins/shared/spl_base.h`, `spl_com.h`, `spl_gen.h`, `spl_fs.h`, `spl_gui.h`; add plugin-callable conversion/normalization helpers to `CSalamanderGeneralAbstract` (contract §2); update `src/plugins/shared/spl_vers.h` version-history comment block
+- [X] T045 [P] [US4] Third-party migration guide `doc/plugin-vnext-migration.md` (contract §4 steps, byte-vs-glyph rules, helper usage)
 - [ ] T046 [US4] Shell integration W: clipboard `CF_HDROP` build/parse with long/Unicode paths, drag & drop, context menus, `ShellExecuteExW`/`CreateProcessW` launches — `src/shellib.cpp` (incl. `:450` compare path), `src/shellsup.cpp`, `src/execute.cpp`
-- [ ] T047 [US4] Plugin config persistence: plugin-facing registry helpers (`SalRegQueryValueEx` family exposed via `spl_gen.h:3321`) deliver UTF-8 under v-next and ACP under shim, on top of T014
+- [X] T047 [US4] Plugin config persistence: plugin-facing registry helpers (`SalRegQueryValueEx` family exposed via `spl_gen.h:3321`) deliver UTF-8 under v-next and ACP under shim, on top of T014
+
+> **T042/T043/T047 implementation notes (2026-07-14)**: the CFileData layout
+> break makes a live-structure shim for <=103 binaries unsafe; per the contract
+> amendment, old binaries are refused cleanly at load (`PLUGIN_REQVER=104`,
+> standard too-old message) - `pluglegacy.cpp` string helpers remain for future
+> full-marshalling work. FR-014 per-item refusal string `IDS_PLUGINCANTHANDLENAME`
+> added for in-plugin skip flows. Plugin config registry values round-trip
+> byte-consistently through the W8 facade (ACP-tolerant read fallback); storing
+> plugin-written strings as native UTF-16 REG_SZ works by construction since the
+> facade converts UTF-8 payloads.
 
 ### Wave 7a — Archivers (13 plugins) [all parallelizable after T041–T044]
 

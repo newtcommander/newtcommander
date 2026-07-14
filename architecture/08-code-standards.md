@@ -1,4 +1,4 @@
-# Coding Standards
+﻿# Coding Standards
 
 This document describes the coding standards and conventions used in the Open Salamander codebase.
 
@@ -110,3 +110,31 @@ A typical `precomp.h` (e.g., the main Salamander shell) includes:
 4. **Common project headers** -- `trace.h`, `messages.h`, `handles.h`, `heap.h`, `array.h`, `winlib.h`, `multimon.h`, `sheets.h`, and other shared infrastructure.
 
 Plugin projects have their own `precomp.h` that typically includes the plugin SDK headers (`spl_com.h`, `spl_base.h`, etc.) plus whichever common headers the plugin needs.
+
+## String Encoding Convention (since feature 004)
+
+Since feature `004-long-paths-unicode` (plugin interface 104), every
+`char*` string that carries a **file name or path** inside the core
+application and across the plugin interface is **UTF-8**, not the
+active ANSI code page. Key rules:
+
+- Convert to UTF-16 only at OS boundaries. Use the shared layer:
+  `src/common/salunicode.h` (UTF-8<->UTF-16, NFC matching, collation),
+  `src/common/salpath.h` (`CSalPathBuf`, extended-length `\?\`
+  normalization), `src/common/salfileio.h` (W-API file I/O wrappers:
+  `SalCreateFile`, `SalFindFirstFile`, ...). Plugins use the
+  header-only `src/plugins/shared/splunicode.h`.
+- Never call `-A` Win32 file APIs with these strings; never convert
+  through `CP_ACP` (that was the pre-004 data-loss bug).
+- Lengths are BYTE counts (`CFileData::NameLen`); a single path
+  component may need up to 3x255 bytes. `MAX_PATH` remains valid only
+  for single 8.3 components and non-path uses; full paths use
+  `SAL_MAX_PATH_UTF8`/dynamic buffers.
+- Stored names are never normalized or case-folded; NFC normalization
+  is applied to transient copies for matching/collation only
+  (FR-006..FR-009 in `specs/004-long-paths-unicode/spec.md`).
+- GDI does not honor per-process UTF-8: draw/measure name-bearing text
+  via the W GDI calls after conversion.
+- Registry string values cross `SalRegSetValueExW8`/`SalRegQueryValueExW8`
+  as UTF-8 and are stored natively as UTF-16 `REG_SZ`.
+

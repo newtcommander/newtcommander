@@ -1952,18 +1952,28 @@ BOOL CFilesWindow::ChangeDir(const char* newDir, int suggestedTopIndex, const ch
                         suggestedFocusName, mode, convertFSPathToInternal, showNewDirPathInErrBoxes);
 
     // backup the string (it could change during execution - e.g. Name from CFileData from panel)
-    char backup[MAX_PATH];
+    char backup[SAL_FIND_NAME_U8];
     if (suggestedFocusName != NULL)
     {
-        lstrcpyn(backup, suggestedFocusName, MAX_PATH);
+        lstrcpyn(backup, suggestedFocusName, _countof(backup));
         suggestedFocusName = backup;
     }
 
     MainWindow->CancelPanelsUI(); // cancel QuickSearch and QuickEdit
-    char absFSPath[MAX_PATH];
-    char path[2 * MAX_PATH];
+    char absFSPath[MAX_PATH];       // plugin FS paths keep the legacy convention
+    char* path = (char*)malloc(SAL_MAX_PATH_UTF8); // long-path capable (feature 004)
+    if (path == NULL)
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    struct CPathFree // frees 'path' on every return route below
+    {
+        char* P;
+        ~CPathFree() { free(P); }
+    } pathFree = {path};
     char errBuf[3 * MAX_PATH + 100];
-    GetGeneralPath(path, 2 * MAX_PATH, TRUE);
+    GetGeneralPath(path, SAL_MAX_PATH_UTF8, TRUE);
     BOOL sendDirectlyToPlugin = FALSE;
     CChangeDirDlg dlg(HWindow, path, MainWindow->GetActivePanel()->Is(ptPluginFS) ? &sendDirectlyToPlugin : NULL);
 
@@ -1982,7 +1992,7 @@ CHANGE_AGAIN:
         {
             convertFSPathToInternal = TRUE; // after input from user, conversion to internal format is necessary
             // postprocessing will be done only for path, which is not to be sent directly to plugin
-            if (!sendDirectlyToPlugin && !PostProcessPathFromUser(HWindow, path))
+            if (!sendDirectlyToPlugin && !PostProcessPathFromUser(HWindow, path, SAL_MAX_PATH_UTF8))
                 goto CHANGE_AGAIN;
         }
         BOOL sendDirectlyToPluginLocal = sendDirectlyToPlugin;
@@ -1992,7 +2002,7 @@ CHANGE_AGAIN:
 
         UpdateWindow(MainWindow->HWindow);
         if (newDir != NULL)
-            lstrcpyn(path, newDir, 2 * MAX_PATH);
+            lstrcpyn(path, newDir, SAL_MAX_PATH_UTF8);
         else // do not set focus and top-index for a path from the dialog
         {
             suggestedTopIndex = -1;
@@ -2128,7 +2138,7 @@ CHANGE_AGAIN:
             int errTextID;
             const char* text = NULL;                 // caution: textFailReason must be set
             int textFailReason = CHPPFR_INVALIDPATH; // if text != NULL, textFailReason contains the error code
-            char curPath[2 * MAX_PATH];
+            char curPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
             curPath[0] = 0;
             if (sendDirectlyToPluginLocal)
                 errTextID = IDS_INCOMLETEFILENAME;
@@ -2138,12 +2148,12 @@ CHANGE_AGAIN:
                 //        if (!SalGetFullName(path, &errTextID, (MainWindow->GetActivePanel()->Is(ptDisk) ||
                 //                            MainWindow->GetActivePanel()->Is(ptZIPArchive)) ? curPath : NULL))
                 if (Is(ptDisk) || Is(ptZIPArchive))
-                    GetGeneralPath(curPath, 2 * MAX_PATH); // because of FTP plugin - relative path in "target panel path" when connecting
+                    GetGeneralPath(curPath, _countof(curPath)); // because of FTP plugin - relative path in "target panel path" when connecting
             }
             BOOL callNethood = FALSE;
             if (sendDirectlyToPluginLocal ||
                 !SalGetFullName(path, &errTextID, (Is(ptDisk) || Is(ptZIPArchive)) ? curPath : NULL, NULL,
-                                &callNethood, 2 * MAX_PATH))
+                                &callNethood, SAL_MAX_PATH_UTF8))
             {
                 sendDirectlyToPluginLocal = FALSE;
                 if ((errTextID == IDS_SERVERNAMEMISSING || errTextID == IDS_SHARENAMEMISSING) && callNethood)
@@ -2221,7 +2231,7 @@ CHANGE_AGAIN:
             {
                 if (*path != 0 && path[1] == ':')
                     path[0] = UpperCase[path[0]]; // "c:" path will be "C:"
-                char copy[2 * MAX_PATH + 10];
+                char copy[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
                 int len = GetRootPath(copy, path);
 
                 if (!CheckAndRestorePath(copy))
@@ -2256,9 +2266,9 @@ CHANGE_AGAIN:
                         DWORD copyAttr;
                         int copyLen;
                         copyLen = (int)strlen(copy);
-                        if (copyLen >= MAX_PATH)
+                        if (copyLen >= SAL_MAX_PATH_UTF8 - 1) // long paths are supported since feature 004
                         {
-                            if (*end != 0 && !SalPathAppend(copy, end + 1, 2 * MAX_PATH)) // if extending the part of the path processed so far leaves no room for the rest, use the original form of the path
+                            if (*end != 0 && !SalPathAppend(copy, end + 1, SAL_MAX_PATH_UTF8)) // if extending the part of the path processed so far leaves no room for the rest, use the original form of the path
                                 strcpy(copy, path);
                             text = LoadStr(IDS_TOOLONGPATH);
                             textFailReason = CHPPFR_INVALIDPATH;
@@ -2274,10 +2284,16 @@ CHANGE_AGAIN:
                             pathEndsWithSpaceOrDot = FALSE;
                         }
 
-                        WIN32_FIND_DATA find;
+                        WIN32_FIND_DATAW findW; // W enumeration: 'copy' is UTF-8 (feature 004)
+                        char findNameU8[SAL_FIND_NAME_U8];
+                        findNameU8[0] = 0;
                         HANDLE h;
                         if (!pathEndsWithSpaceOrDot)
-                            h = HANDLES_Q(FindFirstFile(copy, &find));
+                        {
+                            h = SalFindFirstFile(copy, &findW);
+                            if (h != INVALID_HANDLE_VALUE)
+                                SalConvertFindDataW(&findW, NULL, findNameU8, sizeof(findNameU8), NULL, 0);
+                        }
                         else
                             h = INVALID_HANDLE_VALUE;
                         DWORD err;
@@ -2297,16 +2313,19 @@ CHANGE_AGAIN:
                                     memcpy(st, s, end - s);
                                     st[end - s] = 0;
                                     s = end;
-                                    if ((int)strlen(copy) >= MAX_PATH) // path is too long, stop
+                                    if ((int)strlen(copy) >= SAL_MAX_PATH_UTF8 - 1) // path is too long, stop
                                     {
                                         h = INVALID_HANDLE_VALUE;
                                         break;
                                     }
                                     else
                                     {
-                                        h = HANDLES_Q(FindFirstFile(copy, &find));
+                                        h = SalFindFirstFile(copy, &findW);
                                         if (h != INVALID_HANDLE_VALUE)
+                                        {
+                                            SalConvertFindDataW(&findW, NULL, findNameU8, sizeof(findNameU8), NULL, 0);
                                             break; // accessible component found, continue
+                                        }
                                         err = GetLastError();
                                         if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND ||
                                             err == ERROR_BAD_PATHNAME || err == ERROR_INVALID_NAME)
@@ -2315,9 +2334,11 @@ CHANGE_AGAIN:
                                 }
                                 if (*end == 0 && h == INVALID_HANDLE_VALUE) // no other accessible component found; try listing the current path
                                 {
-                                    if ((int)strlen(copy) < MAX_PATH && SalPathAppend(copy, "*.*", MAX_PATH + 10))
+                                    if ((int)strlen(copy) < SAL_MAX_PATH_UTF8 - 5 && SalPathAppend(copy, "*.*", SAL_MAX_PATH_UTF8))
                                     {
-                                        h = HANDLES_Q(FindFirstFile(copy, &find));
+                                        h = SalFindFirstFile(copy, &findW);
+                                        if (h != INVALID_HANDLE_VALUE)
+                                            SalConvertFindDataW(&findW, NULL, findNameU8, sizeof(findNameU8), NULL, 0);
                                         CutDirectory(copy);
                                         if (h != INVALID_HANDLE_VALUE) // the path can be listed
                                         {
@@ -2357,14 +2378,14 @@ CHANGE_AGAIN:
                             if (h != INVALID_HANDLE_VALUE)
                             {
                                 HANDLES(FindClose(h));
-                                int len2 = (int)strlen(find.cFileName); // must fit (only the size of letters is changed - result of FindFirstFile)
+                                int len2 = (int)strlen(findNameU8); // must fit (only the size of letters is changed - result of the enumeration)
                                 if ((int)strlen(st + 1) != len2)        // for example, for "aaa  " it returns "aaa"; reproduce: Paste (text without outer quotes): "   "   %TEMP%\aaa   "   "
                                 {
-                                    TRACE_E("CFilesWindow::ChangeDir(): unexpected situation: FindFirstFile returned name with "
+                                    TRACE_E("CFilesWindow::ChangeDir(): unexpected situation: enumeration returned name with "
                                             "different length: \""
-                                            << find.cFileName << "\" for \"" << (st + 1) << "\"");
+                                            << findNameU8 << "\" for \"" << (st + 1) << "\"");
                                 }
-                                memcpy(st + 1, find.cFileName, len2);
+                                memcpy(st + 1, findNameU8, len2);
                                 st += 1 + len2;
                                 *st = 0;
                             }
@@ -2373,14 +2394,14 @@ CHANGE_AGAIN:
 
                             // copy containts the "translated" path
                             if (!pathEndsWithSpaceOrDot)
-                                copyAttr = find.dwFileAttributes;
+                                copyAttr = findW.dwFileAttributes;
                             if ((copyAttr & FILE_ATTRIBUTE_DIRECTORY) == 0)
                             { // file -> is it an archive?
                                 if (PackerFormatConfig.PackIsArchive(copy))
                                 {
                                     if ((int)strlen(*end != 0 ? end + 1 : end) >= MAX_PATH) // path in the archive is too long
                                     {
-                                        if (!SalPathAppend(copy, end + 1, 2 * MAX_PATH)) // if extending the archive name would leave no room for the path inside the archive, use the original form of the path
+                                        if (!SalPathAppend(copy, end + 1, SAL_MAX_PATH_UTF8)) // if extending the archive name would leave no room for the path inside the archive, use the original form of the path
                                             strcpy(copy, path);
                                         text = LoadStr(IDS_TOOLONGPATH);
                                         textFailReason = CHPPFR_INVALIDPATH;

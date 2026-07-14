@@ -23,6 +23,31 @@ DWORD ExecuteAssociationTlsIndex = TLS_OUT_OF_INDEXES; // allows only one call a
 
 BOOL DragFromPluginFSEffectIsFromPlugin = FALSE;
 
+// converts a name from a legacy ANSI clipboard format (CP_ACP) to allocated
+// UTF-8 (feature 004); ASCII fast path just copies bytes; free() the result;
+// returns NULL on conversion failure or low memory
+static char* LegacyAToU8Alloc(const char* s, int len)
+{
+    if (len == -1)
+        len = (int)strlen(s);
+    if (SalIsASCII(s, len))
+    {
+        char* copy = (char*)malloc(len + 1);
+        if (copy != NULL)
+        {
+            memcpy(copy, s, len);
+            copy[len] = 0;
+        }
+        return copy;
+    }
+    WCHAR* w = ConvertAllocA2U(s, len);
+    if (w == NULL)
+        return NULL;
+    char* u8 = SalWToU8Alloc(w);
+    free(w);
+    return u8;
+}
+
 //*****************************************************************************
 //
 // CCopyMoveRecord
@@ -57,12 +82,17 @@ char* CCopyMoveRecord::AllocChars(const char* name)
     if (name == NULL)
         return NULL;
 
-    int l = (int)strlen(name);
-    char* newName = (char*)malloc(l + 1);
-    if (newName != NULL)
-        memcpy(newName, name, l + 1);
-    else
-        TRACE_E(LOW_MEMORY);
+    // narrow names come from legacy ANSI clipboard formats: store as UTF-8 (feature 004)
+    char* newName = LegacyAToU8Alloc(name, -1);
+    if (newName == NULL) // conversion failed: keep the original bytes (legacy behavior)
+    {
+        int l = (int)strlen(name);
+        newName = (char*)malloc(l + 1);
+        if (newName != NULL)
+            memcpy(newName, name, l + 1);
+        else
+            TRACE_E(LOW_MEMORY);
+    }
     return newName;
 }
 
@@ -71,15 +101,20 @@ char* CCopyMoveRecord::AllocChars(const wchar_t* name)
     if (name == NULL)
         return NULL;
 
-    int l = lstrlenW(name);
-    char* newName = (char*)malloc(l + 1);
-    if (newName != NULL)
+    // wide names are stored as UTF-8 (feature 004)
+    char* newName = SalWToU8Alloc(name);
+    if (newName == NULL) // invalid UTF-16 (unpaired surrogates): legacy CP_ACP conversion
     {
-        WideCharToMultiByte(CP_ACP, 0, name, l + 1, newName, l + 1, NULL, NULL);
-        newName[l] = 0;
+        int l = lstrlenW(name);
+        newName = (char*)malloc(l + 1);
+        if (newName != NULL)
+        {
+            WideCharToMultiByte(CP_ACP, 0, name, l + 1, newName, l + 1, NULL, NULL);
+            newName[l] = 0;
+        }
+        else
+            TRACE_E(LOW_MEMORY);
     }
-    else
-        TRACE_E(LOW_MEMORY);
     return newName;
 }
 
@@ -411,7 +446,7 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                             prefixBuf[0] = 0;
                             if (data->fWide)
                             {
-                                char mulbyteName[MAX_PATH];
+                                char mulbyteName[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR (feature 004)
                                 wchar_t* prefix = prefixBuf;
                                 const wchar_t* fileW = (wchar_t*)(((char*)data) + data->pFiles);
                                 while (1) // double null terminated, assumes no empty strings (start)
@@ -420,13 +455,18 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                     {
                                         if (namesList != NULL) // add the common path of all names to namesList
                                         {
-                                            if (WideCharToMultiByte(CP_ACP, 0, prefix, prefixLen + 1, mulbyteName, MAX_PATH, NULL, NULL) == 0)
+                                            // the path is stored as UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
+                                            if (SalWToU8(prefix, prefixLen, mulbyteName, 3 * MAX_PATH) == 0 &&
+                                                WideCharToMultiByte(CP_ACP, 0, prefix, prefixLen + 1, mulbyteName, MAX_PATH, NULL, NULL) == 0)
                                             {
                                                 DWORD err = GetLastError();
                                                 TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
                                                 mulbyteName[0] = 0;
                                             }
-                                            strcpy(namesList->SrcPath, mulbyteName);
+                                            if (strlen(mulbyteName) < MAX_PATH) // SrcPath has MAX_PATH; "" == conversion failed
+                                                strcpy(namesList->SrcPath, mulbyteName);
+                                            else
+                                                namesList->SrcPath[0] = 0;
                                             if (prefixLen < 3)
                                                 SalPathAddBackslash(namesList->SrcPath, MAX_PATH);
                                         }
@@ -475,17 +515,22 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                         {
                                             if (s > fileW && *(s - 1) == L'\\')
                                                 s--; // optional trimming of the trailing backslash
-                                            int len;
-                                            if ((len = WideCharToMultiByte(CP_ACP, 0, lastBackslash + 1,
-                                                                           (int)(s - (lastBackslash + 1)), mulbyteName,
-                                                                           MAX_PATH, NULL, NULL)) == 0)
+                                            // names are stored as UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
+                                            if (SalWToU8(lastBackslash + 1, (int)(s - (lastBackslash + 1)),
+                                                         mulbyteName, 3 * MAX_PATH) == 0)
                                             {
-                                                DWORD err = GetLastError();
-                                                TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
-                                                mulbyteName[0] = 0;
+                                                int len;
+                                                if ((len = WideCharToMultiByte(CP_ACP, 0, lastBackslash + 1,
+                                                                               (int)(s - (lastBackslash + 1)), mulbyteName,
+                                                                               MAX_PATH, NULL, NULL)) == 0)
+                                                {
+                                                    DWORD err = GetLastError();
+                                                    TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
+                                                    mulbyteName[0] = 0;
+                                                }
+                                                else
+                                                    mulbyteName[min(MAX_PATH - 1, len)] = 0;
                                             }
-                                            else
-                                                mulbyteName[min(MAX_PATH - 1, len)] = 0;
                                             char* add = DupStr(mulbyteName);
                                             if (add != NULL)
                                             {
@@ -524,7 +569,14 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                     {
                                         if (namesList != NULL) // add the common path of all names to namesList
                                         {
-                                            strcpy(namesList->SrcPath, prefix);
+                                            // legacy ANSI list: the path is stored as UTF-8 (feature 004)
+                                            char* prefixU8 = LegacyAToU8Alloc(prefix, prefixLen == -1 ? 0 : prefixLen);
+                                            if (prefixU8 != NULL && strlen(prefixU8) < MAX_PATH)
+                                                strcpy(namesList->SrcPath, prefixU8);
+                                            else
+                                                strcpy(namesList->SrcPath, prefix); // conversion failed: keep the original bytes
+                                            if (prefixU8 != NULL)
+                                                free(prefixU8);
                                             if (prefixLen < 3)
                                                 SalPathAddBackslash(namesList->SrcPath, MAX_PATH);
                                         }
@@ -572,11 +624,19 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                         {
                                             if (s > fileA && *(s - 1) == '\\')
                                                 s--; // optional trimming of the trailing backslash
-                                            char* add = (char*)malloc(s - (lastBackslash + 1) + 1);
+                                            // legacy ANSI list: names are stored as UTF-8 (feature 004)
+                                            char* add = LegacyAToU8Alloc(lastBackslash + 1, (int)(s - (lastBackslash + 1)));
+                                            if (add == NULL) // conversion failed: keep the original bytes
+                                            {
+                                                add = (char*)malloc(s - (lastBackslash + 1) + 1);
+                                                if (add != NULL)
+                                                {
+                                                    memcpy(add, lastBackslash + 1, s - (lastBackslash + 1));
+                                                    add[s - (lastBackslash + 1)] = 0;
+                                                }
+                                            }
                                             if (add != NULL)
                                             {
-                                                memcpy(add, lastBackslash + 1, s - (lastBackslash + 1));
-                                                add[s - (lastBackslash + 1)] = 0;
                                                 namesList->Names.Add(add);
                                                 if (!namesList->Names.IsGood())
                                                 {
@@ -1389,7 +1449,7 @@ LPITEMIDLIST GetItemIdListForFileName(LPSHELLFOLDER folder, const char* fileName
                     {
                         if (folder->GetDisplayNameOf(idList, SHGDN_FORPARSING, &str) == NOERROR)
                         {
-                            char buf[MAX_PATH];
+                            char buf[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR (feature 004)
                             char* name;
                             switch (str.uType)
                             {
@@ -1401,8 +1461,12 @@ LPITEMIDLIST GetItemIdListForFileName(LPSHELLFOLDER folder, const char* fileName
                                 break;
                             case STRRET_WSTR:
                             {
-                                WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
-                                buf[MAX_PATH - 1] = 0;
+                                // compared names are UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
+                                if (SalWToU8(str.pOleStr, -1, buf, 3 * MAX_PATH) == 0)
+                                {
+                                    WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
+                                    buf[MAX_PATH - 1] = 0;
+                                }
                                 name = buf;
                                 if (alloc->DidAlloc(str.pOleStr) == 1)
                                     alloc->Free(str.pOleStr);
@@ -1441,18 +1505,40 @@ LPITEMIDLIST GetItemIdListForFileName(LPSHELLFOLDER folder, const char* fileName
             TRACE_E("GetItemIdListForFileName(): unable to find PIDL usign enumeration, trying to get it using ParseDisplayName...");
     }
 
-    OLECHAR olePath[MAX_PATH];
-    if (addUNCPrefix)
-        olePath[0] = olePath[1] = L'\\';
-    MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, fileName, -1, olePath + (addUNCPrefix ? 2 : 0),
-                        MAX_PATH - (addUNCPrefix ? 2 : 0));
-    olePath[MAX_PATH - 1] = 0;
+    // the name is UTF-8 (feature 004): build the wide parsing name on the heap
+    // (long-path capable); CP_ACP fallback for invalid UTF-8
+    OLECHAR olePathFallback[MAX_PATH];
+    OLECHAR* olePath = NULL;
+    WCHAR* nameW = SalU8ToWAlloc(fileName);
+    if (nameW != NULL)
+    {
+        int lw = lstrlenW(nameW);
+        olePath = (OLECHAR*)malloc((lw + 3) * sizeof(OLECHAR));
+        if (olePath != NULL)
+        {
+            if (addUNCPrefix)
+                olePath[0] = olePath[1] = L'\\';
+            memcpy(olePath + (addUNCPrefix ? 2 : 0), nameW, (lw + 1) * sizeof(OLECHAR));
+        }
+        free(nameW);
+    }
+    if (olePath == NULL) // invalid UTF-8 or low memory: legacy CP_ACP conversion
+    {
+        olePath = olePathFallback;
+        if (addUNCPrefix)
+            olePath[0] = olePath[1] = L'\\';
+        MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, fileName, -1, olePath + (addUNCPrefix ? 2 : 0),
+                            MAX_PATH - (addUNCPrefix ? 2 : 0));
+        olePath[MAX_PATH - 1] = 0;
+    }
 
     LPITEMIDLIST pidl;
     ULONG chEaten;
     HRESULT ret;
-    if (SUCCEEDED((ret = folder->ParseDisplayName(NULL, NULL, olePath, &chEaten,
-                                                  &pidl, NULL))))
+    ret = folder->ParseDisplayName(NULL, NULL, olePath, &chEaten, &pidl, NULL);
+    if (olePath != olePathFallback)
+        free(olePath);
+    if (SUCCEEDED(ret))
     {
         return pidl;
     }
@@ -1640,7 +1726,7 @@ BOOL GetShellFolder(const char* dir, IShellFolder*& shellFolderObj, LPITEMIDLIST
                                             ret = shellFolderObj->GetDisplayNameOf(idList, SHGDN_FORPARSING, &str);
                                             if (ret == NOERROR)
                                             {
-                                                char buf[MAX_PATH];
+                                                char buf[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR (feature 004)
                                                 char* name;
                                                 switch (str.uType)
                                                 {
@@ -1652,8 +1738,12 @@ BOOL GetShellFolder(const char* dir, IShellFolder*& shellFolderObj, LPITEMIDLIST
                                                     break;
                                                 case STRRET_WSTR:
                                                 {
-                                                    WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
-                                                    buf[MAX_PATH - 1] = 0;
+                                                    // compared names are UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
+                                                    if (SalWToU8(str.pOleStr, -1, buf, 3 * MAX_PATH) == 0)
+                                                    {
+                                                        WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
+                                                        buf[MAX_PATH - 1] = 0;
+                                                    }
                                                     name = buf;
                                                     if (alloc->DidAlloc(str.pOleStr) == 1)
                                                         alloc->Free(str.pOleStr);
@@ -1742,7 +1832,7 @@ BOOL GetShellFolder(const char* dir, IShellFolder*& shellFolderObj, LPITEMIDLIST
                                                             ret = folder2->GetDisplayNameOf(idList, SHGDN_FORPARSING, &str);
                                                             if (ret == NOERROR)
                                                             {
-                                                                char buf[MAX_PATH];
+                                                                char buf[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR (feature 004)
                                                                 char* name;
                                                                 switch (str.uType)
                                                                 {
@@ -1754,8 +1844,12 @@ BOOL GetShellFolder(const char* dir, IShellFolder*& shellFolderObj, LPITEMIDLIST
                                                                     break;
                                                                 case STRRET_WSTR:
                                                                 {
-                                                                    WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
-                                                                    buf[MAX_PATH - 1] = 0;
+                                                                    // compared names are UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
+                                                                    if (SalWToU8(str.pOleStr, -1, buf, 3 * MAX_PATH) == 0)
+                                                                    {
+                                                                        WideCharToMultiByte(CP_ACP, 0, str.pOleStr, -1, buf, MAX_PATH, NULL, NULL);
+                                                                        buf[MAX_PATH - 1] = 0;
+                                                                    }
                                                                     name = buf;
                                                                     if (alloc->DidAlloc(str.pOleStr) == 1)
                                                                         alloc->Free(str.pOleStr);
@@ -2144,15 +2238,15 @@ void OpenSpecFolder(HWND hOwnerWindow, int specFolder)
     if (SHGetSpecialFolderLocation(NULL, specFolder, &pidl) == NOERROR && pidl != NULL)
     {
         CShellExecuteWnd shellExecuteWnd;
-        SHELLEXECUTEINFO se;
-        memset(&se, 0, sizeof(SHELLEXECUTEINFO));
-        se.cbSize = sizeof(SHELLEXECUTEINFO);
+        SHELLEXECUTEINFOW se; // W variant (feature 004); only the PIDL is passed, no names
+        memset(&se, 0, sizeof(SHELLEXECUTEINFOW));
+        se.cbSize = sizeof(SHELLEXECUTEINFOW);
         se.fMask = SEE_MASK_IDLIST;
-        se.lpVerb = "open";
-        se.hwnd = shellExecuteWnd.Create(hOwnerWindow, "SEW: OpenSpecFolder specFolder=%d verb=%s", specFolder, se.lpVerb);
+        se.lpVerb = L"open";
+        se.hwnd = shellExecuteWnd.Create(hOwnerWindow, "SEW: OpenSpecFolder specFolder=%d verb=open", specFolder);
         se.nShow = SW_SHOWNORMAL;
         se.lpIDList = pidl;
-        ShellExecuteEx(&se);
+        ShellExecuteExW(&se);
 
         IMalloc* alloc;
         if (SUCCEEDED(CoGetMalloc(1, &alloc)))
@@ -2232,15 +2326,15 @@ void OpenFolderAndFocusItem(HWND hOwnerWindow, const char* dir, const char* item
             if (pidl != NULL)
             {
                 CShellExecuteWnd shellExecuteWnd;
-                SHELLEXECUTEINFO se;
-                memset(&se, 0, sizeof(SHELLEXECUTEINFO));
-                se.cbSize = sizeof(SHELLEXECUTEINFO);
+                SHELLEXECUTEINFOW se; // W variant (feature 004); only the PIDL is passed, no names
+                memset(&se, 0, sizeof(SHELLEXECUTEINFOW));
+                se.cbSize = sizeof(SHELLEXECUTEINFOW);
                 se.fMask = SEE_MASK_IDLIST;
-                se.lpVerb = "open";
-                se.hwnd = shellExecuteWnd.Create(hOwnerWindow, "SEW: OpenFolderAndFocusItem verb=%s", se.lpVerb);
+                se.lpVerb = L"open";
+                se.hwnd = shellExecuteWnd.Create(hOwnerWindow, "SEW: OpenFolderAndFocusItem verb=open");
                 se.nShow = SW_SHOWNORMAL;
                 se.lpIDList = pidl;
-                ShellExecuteEx(&se);
+                ShellExecuteExW(&se);
 
                 IMalloc* alloc;
                 if (SUCCEEDED(CoGetMalloc(1, &alloc)))
@@ -2382,11 +2476,12 @@ void ResolveNetHoodPath(char* path)
     lstrcpyn(name, path, MAX_PATH);
     if (SalPathAppend(name, "desktop.ini", MAX_PATH))
     {
-        HANDLE hFile = HANDLES_Q(CreateFile(name, GENERIC_READ,
-                                            FILE_SHARE_WRITE | FILE_SHARE_READ, NULL,
-                                            OPEN_EXISTING,
-                                            FILE_FLAG_SEQUENTIAL_SCAN,
-                                            NULL));
+        // the path is UTF-8 (feature 004): open through the W file layer
+        HANDLE hFile = SalCreateFile(name, GENERIC_READ,
+                                     FILE_SHARE_WRITE | FILE_SHARE_READ, NULL,
+                                     OPEN_EXISTING,
+                                     FILE_FLAG_SEQUENTIAL_SCAN,
+                                     NULL);
         if (hFile != INVALID_HANDLE_VALUE)
         {
             if (GetFileSize(hFile, NULL) <= 1000) // so far all had 92 bytes, so 1000 bytes should be more than enough
@@ -2429,29 +2524,35 @@ void ResolveNetHoodPath(char* path)
         lstrcpyn(name, path, MAX_PATH);
         if (SalPathAppend(name, "target.lnk", MAX_PATH))
         {
-            WIN32_FIND_DATA data;
-            HANDLE find = HANDLES_Q(FindFirstFile(name, &data));
-            if (find != INVALID_HANDLE_VALUE) // the file exists and we have its 'data'
+            WIN32_FIND_DATAW dataW;
+            HANDLE find = SalFindFirstFile(name, &dataW); // the path is UTF-8 (feature 004)
+            if (find != INVALID_HANDLE_VALUE)             // the file exists and we have its 'dataW'
             {
                 HANDLES(FindClose(find));
 
                 HCURSOR oldCur = SetCursor(LoadCursor(NULL, IDC_WAIT));
-                IShellLink* link;
+                IShellLinkW* link; // W interface: the link target may contain any Unicode (feature 004)
                 if (CoCreateInstance(CLSID_ShellLink, NULL,
-                                     CLSCTX_INPROC_SERVER, IID_IShellLink,
+                                     CLSCTX_INPROC_SERVER, IID_IShellLinkW,
                                      (LPVOID*)&link) == S_OK)
                 {
                     IPersistFile* fileInt;
                     if (link->QueryInterface(IID_IPersistFile, (LPVOID*)&fileInt) == S_OK)
                     {
                         OLECHAR oleName[MAX_PATH];
-                        MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, oleName, MAX_PATH);
+                        // the name is UTF-8 (feature 004); CP_ACP fallback for invalid UTF-8
+                        if (SalU8ToW(name, -1, oleName, MAX_PATH) == 0)
+                            MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, oleName, MAX_PATH);
                         oleName[MAX_PATH - 1] = 0;
                         if (fileInt->Load(oleName, STGM_READ) == S_OK)
                         {
-                            if (link->GetPath(name, MAX_PATH, &data, SLGP_UNCPRIORITY) == NOERROR)
-                            {                       // do not call Resolve here; it is not that critical and would slow things down
-                                strcpy(path, name); // bingo, we finally know where the link points
+                            WCHAR tgtW[MAX_PATH];
+                            char tgt[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR
+                            if (link->GetPath(tgtW, MAX_PATH, &dataW, SLGP_UNCPRIORITY) == NOERROR &&
+                                SalWToU8(tgtW, -1, tgt, 3 * MAX_PATH) != 0 &&
+                                (int)strlen(tgt) < MAX_PATH) // callers provide only MAX_PATH for 'path'
+                            {                      // do not call Resolve here; it is not that critical and would slow things down
+                                strcpy(path, tgt); // bingo, we finally know where the link points
                             }
                         }
                         fileInt->Release();
@@ -2674,7 +2775,14 @@ STDMETHODIMP CTextDataObject::GetData(FORMATETC* formatEtc, STGMEDIUM* medium)
                 const char* ptr2 = (const char*)HANDLES(GlobalLock(Data));
                 if (ptr2 != NULL)
                 {
-                    int len = MultiByteToWideChar(CP_ACP, 0, ptr2, -1, NULL, 0);
+                    // the text carries UTF-8 (panel paths, feature 004); CP_ACP fallback for invalid UTF-8
+                    BOOL isUTF8 = TRUE;
+                    int len = SalU8ToW(ptr2, -1, NULL, 0);
+                    if (len == 0)
+                    {
+                        isUTF8 = FALSE;
+                        len = MultiByteToWideChar(CP_ACP, 0, ptr2, -1, NULL, 0);
+                    }
                     if (len > 0)
                     {
                         dataDup = NOHANDLES(GlobalAlloc(GMEM_MOVEABLE | GMEM_DDESHARE, len * sizeof(WCHAR)));
@@ -2683,10 +2791,10 @@ STDMETHODIMP CTextDataObject::GetData(FORMATETC* formatEtc, STGMEDIUM* medium)
                             WCHAR* ptr1 = (WCHAR*)HANDLES(GlobalLock(dataDup));
                             if (ptr1 != NULL)
                             {
-                                if (ConvertA2U(ptr2, -1, ptr1, len))
+                                if (isUTF8 ? SalU8ToW(ptr2, -1, ptr1, len) != 0 : ConvertA2U(ptr2, -1, ptr1, len) != 0)
                                     ok = TRUE;
                                 else
-                                    TRACE_E("ConvertA2U() failed to make unicode translation for our ANSI text.");
+                                    TRACE_E("Failed to make unicode translation for our text.");
                                 HANDLES(GlobalUnlock(dataDup));
                             }
                         }

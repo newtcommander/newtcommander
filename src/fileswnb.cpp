@@ -801,10 +801,18 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_USER_CHANGEDIR:
     {
         // postprocessing provedeme jen u cest, ktere jsme ziskali jako text (a ne primo dropnutim adresare)
-        char buff[2 * MAX_PATH];
-        strcpy_s(buff, (char*)lParam);
-        if (!(BOOL)wParam || PostProcessPathFromUser(HWindow, buff))
+        // (heap buffer: the path may be long - feature 004; this is a window procedure,
+        //  so a SAL_MAX_PATH_UTF8-sized stack buffer is not an option)
+        char* buff = (char*)malloc(SAL_MAX_PATH_UTF8);
+        if (buff == NULL)
+        {
+            TRACE_E(LOW_MEMORY);
+            return 0;
+        }
+        lstrcpyn(buff, (char*)lParam, SAL_MAX_PATH_UTF8);
+        if (!(BOOL)wParam || PostProcessPathFromUser(HWindow, buff, SAL_MAX_PATH_UTF8))
             ChangeDir(buff, -1, NULL, 3 /*change-dir*/, NULL, (BOOL)wParam);
+        free(buff);
         return 0;
     }
 

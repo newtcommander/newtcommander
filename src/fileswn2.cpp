@@ -1647,7 +1647,7 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
 
     //TRACE_I("change-to-disk: begin");
 
-    if (strlen(path) >= MAX_PATH - 2)
+    if (strlen(path) >= SAL_MAX_PATH_UTF8 - 2) // long paths are supported since feature 004
     {
         SalMessageBox(parent, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORCHANGINGDIR),
                       MB_OK | MB_ICONEXCLAMATION);
@@ -1657,12 +1657,12 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
     }
 
     // we make backup copies
-    char backup[MAX_PATH];
-    lstrcpyn(backup, path, MAX_PATH); // must be done before UpdateDefaultDir (it may point to DefaultDir[])
-    char backup2[MAX_PATH];
+    char backup[SAL_MAX_PATH_UTF8];
+    lstrcpyn(backup, path, _countof(backup)); // must be done before UpdateDefaultDir (it may point to DefaultDir[])
+    char backup2[SAL_FIND_NAME_U8];
     if (suggestedFocusName != NULL)
     {
-        lstrcpyn(backup2, suggestedFocusName, MAX_PATH);
+        lstrcpyn(backup2, suggestedFocusName, _countof(backup2));
         suggestedFocusName = backup2;
     }
 
@@ -1681,7 +1681,8 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
     int errTextID;
     //  if (!SalGetFullName(backup, &errTextID, MainWindow->GetActivePanel()->Is(ptDisk) ?
     //                      MainWindow->GetActivePanel()->GetPath() : NULL))
-    if (!SalGetFullName(backup, &errTextID, Is(ptDisk) ? GetPath() : NULL)) // for the FTP plugin - relative path in "target panel path" during connect
+    if (!SalGetFullName(backup, &errTextID, Is(ptDisk) ? GetPath() : NULL, NULL, NULL,
+                        _countof(backup))) // for the FTP plugin - relative path in "target panel path" during connect
     {
         SalMessageBox(parent, LoadStr(errTextID), LoadStr(IDS_ERRORCHANGINGDIR),
                       MB_OK | MB_ICONEXCLAMATION);
@@ -1717,8 +1718,22 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
     BOOL detachFS;
     if (PrepareCloseCurrentPath(parent, canForce, TRUE, detachFS, tryCloseReason))
     { // change within "ptDisk" or we can close the current path, we try to open a new one
-        char changedPath[MAX_PATH];
-        strcpy(changedPath, path);
+        // heap buffer: 'path' may be long (feature 004) - a fixed MAX_PATH buffer
+        // overflowed here; freed by the guard below on every return route
+        char* changedPath = (char*)malloc(SAL_MAX_PATH_UTF8);
+        if (changedPath == NULL)
+        {
+            TRACE_E(LOW_MEMORY);
+            if (failReason != NULL)
+                *failReason = CHPPFR_INVALIDPATH;
+            return FALSE;
+        }
+        struct CChangedPathFree
+        {
+            char* P;
+            ~CChangedPathFree() { free(P); }
+        } changedPathFree = {changedPath};
+        lstrcpyn(changedPath, path, SAL_MAX_PATH_UTF8);
         BOOL tryNet = !CriticalShutdown && ((!Is(ptDisk) && !Is(ptZIPArchive)) || !HasTheSameRootPath(path, GetPath()));
 
     _TRY_AGAIN:
@@ -1946,7 +1961,7 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
                 int msgboxRes = (int)CDriveSelectErrDlg(parent, text, changedPath).Execute();
                 if (msgboxRes == IDCANCEL && CutDirectory(CheckPathRootWithRetryMsgBox))
                 { // to allow entering the root when a volume is mounted (F:\DRIVE_CD -> F:\)
-                    lstrcpyn(changedPath, CheckPathRootWithRetryMsgBox, MAX_PATH);
+                    lstrcpyn(changedPath, CheckPathRootWithRetryMsgBox, SAL_MAX_PATH_UTF8);
                     msgboxRes = IDRETRY;
                 }
                 CheckPathRootWithRetryMsgBox[0] = 0;

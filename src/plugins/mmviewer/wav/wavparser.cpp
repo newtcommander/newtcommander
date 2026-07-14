@@ -12,6 +12,7 @@
 #include "..\mmviewer.rh2"
 #include "..\lang\lang.rh"
 #include "..\output.h"
+#include "splunicode.h"
 
 char* LoadStr(int resID);
 char* FStr(const char* format, ...);
@@ -68,11 +69,27 @@ void CMMIO::Close(void)
     }
 }
 
-BOOL CMMIO::Open(char* fname)
+BOOL CMMIO::Open(const char* fname)
 {
     Close();
 
-    m_hmmio = mmioOpen(fname, NULL, MMIO_ALLOCBUF | MMIO_READ);
+    // fname is UTF-8 -> use the W API; note: mmio does not take \\?\-prefixed
+    // paths, so the display-form wide path is used (no long-path support here)
+    WCHAR* wFname = SplU8ToWAlloc(fname);
+    if (wFname != NULL)
+    {
+        m_hmmio = mmioOpenW(wFname, NULL, MMIO_ALLOCBUF | MMIO_READ);
+        free(wFname);
+    }
+    else
+    {
+        // mmioOpenA wants a non-const buffer
+        char* fnameCpy = _strdup(fname);
+        if (fnameCpy == NULL)
+            return FALSE;
+        m_hmmio = mmioOpenA(fnameCpy, NULL, MMIO_ALLOCBUF | MMIO_READ);
+        free(fnameCpy);
+    }
 
     return IsOpened();
 }
@@ -221,11 +238,7 @@ HRESULT CMMIO::ResetFile()
 CParserResultEnum
 CParserWAV::OpenFile(const char* fileName)
 {
-    // mmioOpen wants a non-const char ;-0
-    char fnamecpy[MAX_PATH];
-    strcpy(fnamecpy, fileName);
-
-    if (!mmio.Open(fnamecpy))
+    if (!mmio.Open(fileName))
         return preOpenError;
 
     return preOK;

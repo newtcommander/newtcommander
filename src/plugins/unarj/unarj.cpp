@@ -64,7 +64,7 @@ extern LPTSTR PathFindExtension(LPTSTR pszPath);
 //
 
 HANDLE ArcFile = INVALID_HANDLE_VALUE;
-char ArcName[MAX_PATH];
+char ArcName[U8_MAX_PATH]; // UTF-8, long-path capable (interface 104)
 DWORD ArcFileSize;
 DWORD ArcFilePos;
 
@@ -456,7 +456,13 @@ int ReadHeader(BOOL first, CARJHeaderData* headerData)
     if ((arj_flags & PATHSYM_FLAG) != 0)
         DecodePath(headerData->FileName);
     EnsureBackslashes(headerData->FileName);
-    OemToChar(headerData->FileName, headerData->FileName);
+    // ARJ stores names in the OEM code page; interface 104 wants UTF-8
+    WCHAR wName[ARJ_MAX_PATH];
+    if (MultiByteToWideChar(CP_OEMCP, 0, headerData->FileName, -1, wName, ARJ_MAX_PATH) == 0 ||
+        SplWToU8(wName, headerData->FileName, sizeof(headerData->FileName)) == 0)
+    {
+        Error(AE_BADDATA); // cannot represent the name, treat as damaged header
+    }
 
     /*hdr_comment = (char *)&header[first_hdr_size + strlen(hdr_filename) + 1];
   lstrcpyn(comment, hdr_comment, sizeof(comment));
@@ -546,8 +552,15 @@ void OpenArcFile()
     CALL_STACK_MESSAGE1("OpenArcFile()");
     while (1)
     {
-        ArcFile = CreateFile(ArcName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+        WCHAR* wArcName = SplU8ToWExtAlloc(ArcName); // UTF-8 -> \\?\ wide path
+        if (wArcName != NULL)
+        {
+            ArcFile = CreateFileW(wArcName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                                  FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+            free(wArcName);
+        }
+        else
+            ArcFile = INVALID_HANDLE_VALUE;
         if (ArcFile != INVALID_HANDLE_VALUE)
             break; // ok
         if (!ErrorProc(AE_OPEN, EF_RETRY))
@@ -680,7 +693,7 @@ void NextVolume(BOOL forceQuestion)
     CloseHandle(ArcFile);
     ArcFile = INVALID_HANDLE_VALUE;
 
-    char prevName[MAX_PATH];
+    char prevName[3 * MAX_PATH]; // name component only (max 255 UTF-16 units -> up to 765 UTF-8 bytes)
     char* ptr = strrchr(ArcName, '\\');
     if (!ptr)
         ptr = ArcName;

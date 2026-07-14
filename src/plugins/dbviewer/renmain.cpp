@@ -10,6 +10,7 @@
 #include "renderer.h"
 #include "dialogs.h"
 #include "dbviewer.h"
+#include "splunicode.h"
 
 #define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
@@ -211,7 +212,7 @@ CRendererWindow::~CRendererWindow()
 
 void CRendererWindow::OnFileOpen()
 {
-    char file[MAX_PATH];
+    char file[3 * MAX_PATH]; // UTF-8 path from the Open dialog (may exceed MAX_PATH)
     file[0] = 0;
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -226,7 +227,7 @@ void CRendererWindow::OnFileOpen()
         s++;
     }
     ofn.lpstrFile = file;
-    ofn.nMaxFile = MAX_PATH;
+    ofn.nMaxFile = _countof(file);
     ofn.nFilterIndex = 1;
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
@@ -242,9 +243,12 @@ void CRendererWindow::OnFileReOpen()
     if (!Database.IsOpened())
         return;
 
-    char path[MAX_PATH];
-    lstrcpy(path, Database.GetFileName());
+    // copy to the heap: OpenFile() frees the name inside Database.Close(); no MAX_PATH cap
+    char* path = SalGeneral->DupStr(Database.GetFileName());
+    if (path == NULL)
+        return;
     OpenFile(path, FALSE);
+    SalGeneral->Free(path);
 }
 
 void CRendererWindow::OnGoto()
@@ -268,17 +272,29 @@ void CRendererWindow::OnGoto()
 
 void CRendererWindow::SetViewerTitle()
 {
-    char title[MAX_PATH + 300];
-    if (Database.IsOpened())
+    // build the title on the heap (file name is UTF-8, path may exceed MAX_PATH)
+    const char* fileName = Database.IsOpened() ? Database.GetFileName() : NULL;
+    size_t titleSize = (fileName != NULL ? strlen(fileName) : 0) + 400;
+    char* title = (char*)malloc(titleSize);
+    if (title == NULL)
+        return;
+    if (fileName != NULL)
     {
-        sprintf(title, "%s - %s", Database.GetFileName(), LoadStr(IDS_PLUGINNAME));
+        sprintf(title, "%s - %s", fileName, LoadStr(IDS_PLUGINNAME));
         if (UseCodeTable || Database.GetIsUnicode())
             sprintf(title + strlen(title), " - [%s]", Coding);
     }
     else
         sprintf(title, "%s", LoadStr(IDS_PLUGINNAME));
 
-    SetWindowText(GetParent(HWindow), title);
+    // set as UTF-16 so non-ASCII file names survive; A call is the fallback
+    WCHAR* titleW = SplU8ToWAlloc(title);
+    if (titleW != NULL)
+        SetWindowTextW(GetParent(HWindow), titleW);
+    else
+        SetWindowTextA(GetParent(HWindow), title);
+    free(titleW);
+    free(title);
 }
 
 BOOL CRendererWindow::OpenFile(const char* name, BOOL useDefaultConfig)
@@ -1537,13 +1553,18 @@ CRendererWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_DROPFILES:
     {
         UINT drag;
-        char path[MAX_PATH];
+        WCHAR pathW[2048]; // dropped paths may exceed MAX_PATH
+        char path[3 * MAX_PATH];
 
         drag = DragQueryFile((HDROP)wParam, 0xFFFFFFFF, NULL, 0); // how many files were dropped
         if (drag > 0)
         {
-            DragQueryFile((HDROP)wParam, 0, path, MAX_PATH);
-            OpenFile(path, TRUE);
+            // query as UTF-16 and convert to UTF-8 (OpenFile expects UTF-8 names)
+            if (DragQueryFileW((HDROP)wParam, 0, pathW, _countof(pathW)) > 0 &&
+                SplWToU8(pathW, path, sizeof(path)) > 0)
+            {
+                OpenFile(path, TRUE);
+            }
         }
         DragFinish((HDROP)wParam);
         break;

@@ -1,4 +1,4 @@
-# Plugin Architecture
+﻿# Plugin Architecture
 
 ## Plugin System Overview
 
@@ -246,6 +246,18 @@ The `src/plugins/shared/` directory is not a plugin itself but contains:
 - Debug helpers (`dbg.h`)
 
 ---
+
+## Plugin Interface 104 (UTF-8 + Long Paths)
+
+Plugin interface version 104 (feature `004-long-paths-unicode`)
+changed the string contract: all `char*` names/paths crossing the
+interface are UTF-8, `CFileData::NameLen` widened from a 9-bit
+bitfield to a full 32-bit byte count (ABI/layout break), and paths may
+reach the OS maximum (~32k chars). Binaries built for interface <= 103
+are refused at load (`PLUGIN_REQVER = 104`) because the layout change
+would corrupt memory; the migration path is a rebuild against the 104
+SDK - see `doc/plugin-vnext-migration.md` and
+`specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md`.
 
 ## Plugin Loading Mechanism
 

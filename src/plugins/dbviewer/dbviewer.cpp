@@ -677,9 +677,9 @@ unsigned WINAPI ViewerThreadBody(void* param)
     }
 
     CALL_STACK_MESSAGE1("ViewerThreadBody::SetEvent");
-    char name[MAX_PATH];
-    strcpy(name, data->Name);
-    BOOL openFile = data->Success;
+    // copy the name to the heap before releasing 'data' (UTF-8 path may exceed MAX_PATH)
+    char* name = _strdup(data->Name);
+    BOOL openFile = data->Success && name != NULL;
     SetEvent(data->Continue); // let the main thread continue; data is invalid from this point (=NULL)
     data = NULL;
 
@@ -688,6 +688,8 @@ unsigned WINAPI ViewerThreadBody(void* param)
     {
         CALL_STACK_MESSAGE1("ViewerThreadBody::OpenFile");
         window->Renderer.OpenFile(name, TRUE);
+        free(name);
+        name = NULL;
 
         CALL_STACK_MESSAGE1("ViewerThreadBody::message-loop");
         // message loop
@@ -702,6 +704,8 @@ unsigned WINAPI ViewerThreadBody(void* param)
             }
         }
     }
+    else
+        free(name);
     if (window != NULL)
         delete window;
 

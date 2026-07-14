@@ -574,7 +574,7 @@ BOOL CFilesWindow::IsTextOnClipboard()
     return text;
 }
 
-BOOL CFilesWindow::PostProcessPathFromUser(HWND parent, char (&buff)[2 * MAX_PATH])
+BOOL CFilesWindow::PostProcessPathFromUser(HWND parent, char* buff, int buffSize)
 {
     if (!IsFileURLPath(buff) && IsPluginFSPath(buff))
         return TRUE; // let the FS plugin handle the processing
@@ -590,7 +590,7 @@ BOOL CFilesWindow::PostProcessPathFromUser(HWND parent, char (&buff)[2 * MAX_PAT
         char path[MAX_PATH];
         DWORD pathLen = _countof(path);
         if (PathCreateFromUrl(buff, path, &pathLen, 0) == S_OK)
-            strcpy_s(buff, path);
+            lstrcpyn(buff, path, buffSize);
         else
         {
             SalMessageBox(parent, LoadStr(IDS_THEPATHISINVALID), LoadStr(IDS_ERRORCHANGINGDIR),
@@ -607,17 +607,24 @@ BOOL CFilesWindow::PostProcessPathFromUser(HWND parent, char (&buff)[2 * MAX_PAT
 
     // expand ENV variables (as frequently requested on the forum and for internal use)
     // if an ENV variable does not exist, a directory with the same name gets a chance to be expanded
-    char expandedBuff[_countof(buff) + 1];
-    DWORD auxRes = ExpandEnvironmentStrings(buff, expandedBuff, _countof(expandedBuff));
-    if (auxRes == 0 || auxRes > _countof(buff))
+    char* expandedBuff = (char*)malloc(buffSize + 1); // 'buff' may be a long path (feature 004)
+    if (expandedBuff == NULL)
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    DWORD auxRes = ExpandEnvironmentStrings(buff, expandedBuff, buffSize + 1);
+    if (auxRes == 0 || auxRes > (DWORD)buffSize)
     {
         TRACE_E("ExpandEnvironmentStrings failed.");
+        free(expandedBuff);
         return FALSE;
     }
     else
     {
-        strcpy(buff, expandedBuff);
+        lstrcpyn(buff, expandedBuff, buffSize);
     }
+    free(expandedBuff);
 
     return TRUE;
 }
@@ -667,7 +674,7 @@ void CFilesWindow::ClipboardPastePath()
     }
     else
         TRACE_E("OpenClipboard() has failed!");
-    if (changePath && PostProcessPathFromUser(HWindow, buff))
+    if (changePath && PostProcessPathFromUser(HWindow, buff, _countof(buff)))
         ChangeDir(buff); // change path
 }
 

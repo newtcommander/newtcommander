@@ -12,6 +12,7 @@
 #include "pefile.h"
 #include "cfgdlg.h"
 #include "cfg.h"
+#include "splunicode.h"
 
 // Plugin interface object; its methods are called from Salamander.
 CPluginInterface PluginInterface;
@@ -281,15 +282,21 @@ CPluginInterface::GetInterfaceForViewer()
 BOOL MapFileToMemory(LPCTSTR name, HANDLE& hFile, HANDLE& hFileMapping,
                      LPVOID& lpFileBase, DWORD& fileSize, BOOL quietMode)
 {
-    hFile = CreateFile(name, GENERIC_READ, FILE_SHARE_READ, NULL,
-                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    // 'name' is UTF-8 since plugin interface 104; open via the W API (long paths + Unicode)
+    WCHAR* wName = SplU8ToWExtAlloc(name);
+    hFile = wName != NULL ? CreateFileW(wName, GENERIC_READ, FILE_SHARE_READ, NULL,
+                                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0)
+                          : CreateFileA(name, GENERIC_READ, FILE_SHARE_READ, NULL,
+                                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    free(wName);
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
         if (!quietMode)
         {
             TCHAR buff[2000];
-            _stprintf(buff, LoadStr(IDS_ERR_OPEN_FILE), name);
+            _sntprintf(buff, _countof(buff), LoadStr(IDS_ERR_OPEN_FILE), name);
+            buff[_countof(buff) - 1] = 0;
             SalGeneral->SalMessageBox(SalGeneral->GetMsgBoxParent(), buff,
                                       LoadStr(IDS_PLUGIN_NAME), MB_OK | MB_ICONEXCLAMATION);
         }
@@ -302,7 +309,8 @@ BOOL MapFileToMemory(LPCTSTR name, HANDLE& hFile, HANDLE& hFileMapping,
         if (!quietMode)
         {
             TCHAR buff[2000];
-            _stprintf(buff, LoadStr(IDS_ERR_OPEN_FILE), name);
+            _sntprintf(buff, _countof(buff), LoadStr(IDS_ERR_OPEN_FILE), name);
+            buff[_countof(buff) - 1] = 0;
             SalGeneral->SalMessageBox(SalGeneral->GetMsgBoxParent(), buff,
                                       LoadStr(IDS_PLUGIN_NAME), MB_OK | MB_ICONEXCLAMATION);
         }
@@ -316,7 +324,8 @@ BOOL MapFileToMemory(LPCTSTR name, HANDLE& hFile, HANDLE& hFileMapping,
         if (!quietMode)
         {
             TCHAR buff[2000];
-            _stprintf(buff, LoadStr(IDS_ERR_OPEN_FILE), name);
+            _sntprintf(buff, _countof(buff), LoadStr(IDS_ERR_OPEN_FILE), name);
+            buff[_countof(buff) - 1] = 0;
             SalGeneral->SalMessageBox(SalGeneral->GetMsgBoxParent(), buff,
                                       LoadStr(IDS_PLUGIN_NAME), MB_OK | MB_ICONEXCLAMATION);
         }
@@ -330,7 +339,8 @@ BOOL MapFileToMemory(LPCTSTR name, HANDLE& hFile, HANDLE& hFileMapping,
         if (!quietMode)
         {
             TCHAR buff[2000];
-            _stprintf(buff, LoadStr(IDS_ERR_OPEN_FILE), name);
+            _sntprintf(buff, _countof(buff), LoadStr(IDS_ERR_OPEN_FILE), name);
+            buff[_countof(buff) - 1] = 0;
             SalGeneral->SalMessageBox(SalGeneral->GetMsgBoxParent(), buff,
                                       LoadStr(IDS_PLUGIN_NAME), MB_OK | MB_ICONEXCLAMATION);
         }
@@ -384,12 +394,17 @@ BOOL CPluginInterfaceForViewer::ViewFile(LPCTSTR name, int left, int top, int wi
         CSalamanderPluginInternalViewerData vData;
 
         // Create a temporary file and pour the module dump into it.
-        FILE* outStream = _tfopen(tempFileName, _T("w"));
+        // tempFileName is UTF-8 (TEMP dir may contain non-ASCII) -> use _wfopen
+        WCHAR* wTempFileName = SplU8ToWExtAlloc(tempFileName);
+        FILE* outStream = wTempFileName != NULL ? _wfopen(wTempFileName, L"w")
+                                                : _tfopen(tempFileName, _T("w"));
+        free(wTempFileName);
         if (!DumpFileInfo(lpFileBase, fileSize, outStream))
         {
             TCHAR buff[2000];
             SetCursor(hOldCur);
-            _stprintf(buff, LoadStr(IDS_EXCEPTION), name);
+            _sntprintf(buff, _countof(buff), LoadStr(IDS_EXCEPTION), name);
+            buff[_countof(buff) - 1] = 0;
             SalGeneral->SalMessageBox(SalGeneral->GetMsgBoxParent(), buff,
                                       LoadStr(IDS_PLUGIN_NAME), MB_OK | MB_ICONEXCLAMATION);
             SetCursor(LoadCursor(NULL, IDC_WAIT));
@@ -401,7 +416,8 @@ BOOL CPluginInterfaceForViewer::ViewFile(LPCTSTR name, int left, int top, int wi
         vData.Size = sizeof(vData);
         vData.FileName = tempFileName;
         vData.Mode = 0; // text mode
-        _stprintf(caption, _T("%s - %s"), name, LoadStr(IDS_PLUGIN_NAME));
+        _sntprintf(caption, _countof(caption), _T("%s - %s"), name, LoadStr(IDS_PLUGIN_NAME));
+        caption[_countof(caption) - 1] = 0;
         vData.Caption = caption;
         vData.WholeCaption = TRUE;
         if (!SalGeneral->ViewFileInPluginViewer(NULL, &vData, TRUE, NULL, _T("pe_dump.txt"), err))

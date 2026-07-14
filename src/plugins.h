@@ -5,7 +5,12 @@
 #pragma once
 
 // when changing this header search for "BuiltForVersion" - tests for older plugin versions will no longer make sense and should be removed
-#define PLUGIN_REQVER 103 // ("5.0") load only plugins that return at least this required Salamander version
+// feature 004: interface 104 changed the CFileData layout (NameLen bitfield ->
+// 32-bit), so binaries built for <= 103 would corrupt memory if loaded; they
+// are refused with the standard too-old message (rebuild against the 104 SDK
+// is the documented migration path, see
+// specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md)
+#define PLUGIN_REQVER 104 // load only plugins that return at least this required Salamander version
 
 // first plugin interface version with UTF-8 names + long paths (feature 004,
 // see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md);

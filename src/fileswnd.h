@@ -1444,7 +1444,7 @@ public:
     // postprocesses of the user provided path: trims surrounding white spaces and quotes, removes file:// and
     // expands environment variables; returns FALSE on error (processing should stop); 'parent' is
     // the parent for error message boxes
-    BOOL PostProcessPathFromUser(HWND parent, char (&buff)[2 * MAX_PATH]);
+    BOOL PostProcessPathFromUser(HWND parent, char* buff, int buffSize); // buff: UTF-8 path, long-path capable (feature 004)
 
     // if disable==FALSE, opens a dialog with selection options
     // if disable==TRUE, the filter is turned off

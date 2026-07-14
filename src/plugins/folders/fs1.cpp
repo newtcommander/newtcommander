@@ -365,8 +365,15 @@ void WINAPI GetRowText()
 
     if (SUCCEEDED(pluginData->GetDetailsHelper(realIndex, &di)))
     {
-        StrRetToBuf(&di.str, di.pidl, TransferBuffer, TRANSFER_BUFFER_MAX);
-        *TransferLen = (int)strlen(TransferBuffer);
+        // column texts cross the interface as UTF-8 (plugin interface 104)
+        WCHAR bufW[TRANSFER_BUFFER_MAX];
+        if (SUCCEEDED(StrRetToBufW(&di.str, di.pidl, bufW, TRANSFER_BUFFER_MAX)) &&
+            SplWToU8(bufW, TransferBuffer, TRANSFER_BUFFER_MAX) > 0)
+        {
+            *TransferLen = (int)strlen(TransferBuffer);
+        }
+        else
+            *TransferLen = 0;
     }
     else
     {
@@ -445,7 +452,10 @@ BOOL CPluginDataInterface::GetShellColumns()
             break;
 
         CShellColumn col;
-        StrRetToBuf(&di.str, NULL, col.Name, SAL_ARRAYSIZE(col.Name));
+        WCHAR colNameW[COLUMN_NAME_MAX];
+        StrRetToBufW(&di.str, NULL, colNameW, SAL_ARRAYSIZE(colNameW));
+        if (SplWToU8(colNameW, col.Name, sizeof(col.Name)) <= 0)
+            col.Name[0] = 0; // does not fit as UTF-8 or invalid: leave empty
         col.Fmt = di.fmt;
         col.Char = di.cxChar;
         col.Flags = SHCOLSTATE_ONBYDEFAULT; // columns shown by default

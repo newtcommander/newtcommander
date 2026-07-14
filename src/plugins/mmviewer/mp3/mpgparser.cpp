@@ -13,6 +13,7 @@
 #include "mpeghead.h"
 #include "id3tagv1.h"
 #include "id3tagv2.h"
+#include "splunicode.h"
 
 struct MPEG_INFO : public MPEGHEAD_DECODED
 {
@@ -35,7 +36,10 @@ CParserMPG::OpenFile(const char* fileName)
 {
     CloseFile();
 
-    f = fopen(fileName, "rb");
+    // fileName is UTF-8 since plugin interface 104 -> open via the W CRT API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    f = wFileName != NULL ? _wfopen(wFileName, L"rb") : fopen(fileName, "rb");
+    free(wFileName);
 
     if (!f)
         return preOpenError;

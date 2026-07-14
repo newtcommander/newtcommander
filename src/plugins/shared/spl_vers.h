@@ -193,7 +193,9 @@
 //   102 - 4.0
 //   103 - 5.0
 //   104 - 5.0 build 184: UTF-8 names + long paths (ABI break in CFileData::NameLen,
-//         see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md)
+//         see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md);
+//         plugins built for <= 103 are refused at load, rebuild against this SDK,
+//         third-party migration guide: doc\plugin-vnext-migration.md
 
 #define LAST_VERSION_OF_SALAMANDER 104
 #define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Open Salamander 5.0 build 184 (" SAL_VER_PLATFORM ") or later."
