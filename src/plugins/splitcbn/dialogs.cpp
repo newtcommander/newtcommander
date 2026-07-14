@@ -382,6 +382,7 @@ namespace combine
 
     static TIndirectArray<char>* files;
     static LPTSTR targetName;
+    static int nTargetNameSize;
     static BOOL bOrigCrcFound;
     static UINT32 origCrc;
     static UINT uDragMsg;
@@ -395,7 +396,7 @@ namespace combine
     {
         int index;
         //HICON hIcon;
-        char text[MAX_PATH];
+        char text[3 * MAX_PATH]; // UTF-8 name (up to 3 bytes per character)
     };
 
     static BOOL AddFile(LPTSTR fullName, BOOL bUpdateArray = TRUE)
@@ -414,14 +415,14 @@ namespace combine
             files->Add(dup);
         }
 
-        char dir[MAX_PATH];
-        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, dir, MAX_PATH, NULL, NULL);
+        char dir[3 * MAX_PATH];
+        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, dir, _countof(dir), NULL, NULL);
         const char* name = SalamanderGeneral->SalPathFindFileName(fullName);
         ITEMDATA* pid = new ITEMDATA;
         if ((name - fullName - 1) == (int)strlen(dir) && !_memicmp(dir, fullName, name - fullName - 1))
-            strcpy(pid->text, name);
+            lstrcpyn(pid->text, name, _countof(pid->text));
         else
-            strcpy(pid->text, fullName);
+            lstrcpyn(pid->text, fullName, _countof(pid->text));
         pid->index = (int)SendMessage(hLB, LB_GETCOUNT, 0, 0) - 1;
         SendMessage(hLB, LB_INSERTSTRING, pid->index, 1);
         /*SHFILEINFO sfi;
@@ -494,11 +495,19 @@ namespace combine
         EnableButtons();
     }
 
+    // the resource (ANSI) filter/title of the common dialogs -> UTF-16
+    static void ResStrToW(const char* str, WCHAR* buf, int bufChars)
+    {
+        if (bufChars > 0 && MultiByteToWideChar(CP_ACP, 0, str, -1, buf, bufChars) == 0)
+            buf[0] = 0;
+    }
+
     static void OnAdd()
     {
         CALL_STACK_MESSAGE1("OnAdd()");
-        OPENFILENAME ofn;
-        char* filenames = new char[MAX_PATH * 100];
+        // the names may be non-ASCII / long -> use the W common dialog
+        OPENFILENAMEW ofn;
+        WCHAR* filenames = new WCHAR[MAX_PATH * 100];
         if (filenames == NULL)
         {
             SalamanderGeneral->SalMessageBox(hDialog, LoadStr(IDS_OUTOFMEM), LoadStr(IDS_COMBINE),
@@ -510,20 +519,23 @@ namespace combine
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = hDialog;
         ofn.hInstance = HLanguage;
-        char filter[100];
-        strcpy(filter, LoadStr(IDS_ADDFILTER));
-        memcpy(filter + strlen(filter) + 1, "*.*\0\0", 5);
+        WCHAR filter[100];
+        ResStrToW(LoadStr(IDS_ADDFILTER), filter, _countof(filter));
+        memcpy(filter + wcslen(filter) + 1, L"*.*\0\0", 5 * sizeof(WCHAR));
+        WCHAR title[100];
+        ResStrToW(LoadStr(IDS_ADDTITLE), title, _countof(title));
         ofn.lpstrFilter = filter;
         ofn.lpstrCustomFilter = NULL;
         ofn.lpstrFile = filenames;
         ofn.nMaxFile = MAX_PATH * 100;
-        ofn.lpstrTitle = LoadStr(IDS_ADDTITLE);
-        char initdir[MAX_PATH];
-        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, initdir, MAX_PATH, NULL, NULL);
-        ofn.lpstrInitialDir = initdir;
+        ofn.lpstrTitle = title;
+        char initdir[3 * MAX_PATH];
+        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, initdir, _countof(initdir), NULL, NULL);
+        WCHAR* wInitDir = SplU8ToWAlloc(initdir);
+        ofn.lpstrInitialDir = wInitDir;
         ofn.Flags = OFN_ALLOWMULTISELECT | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_READONLY | OFN_NOCHANGEDIR;
 
-        if (SalamanderGeneral->SafeGetOpenFileName(&ofn))
+        if (GetOpenFileNameW(&ofn))
         {
             SendMessage(hLB, WM_SETREDRAW, FALSE, 0);
             int i = ofn.nFileOffset;
@@ -531,17 +543,21 @@ namespace combine
                 filenames[i - 1] = 0;
             while (filenames[i])
             {
-                char fullname[MAX_PATH];
-                strcpy(fullname, filenames);
-                if (!SalamanderGeneral->SalPathAppend(fullname, filenames + i, MAX_PATH))
+                char fullname[3 * MAX_PATH]; // the rest of the plugin works with UTF-8 paths
+                char name[3 * MAX_PATH];
+                if (SplWToU8(filenames, fullname, _countof(fullname)) == 0 ||
+                    SplWToU8(filenames + i, name, _countof(name)) == 0 ||
+                    !SalamanderGeneral->SalPathAppend(fullname, name, _countof(fullname)))
                 {
                     SalamanderGeneral->SalMessageBox(hDialog, LoadStr(IDS_TOOLONGNAME2), LoadStr(IDS_COMBINE),
                                                      MB_OK | MB_ICONEXCLAMATION);
+                    free(wInitDir);
                     delete[] filenames;
                     return;
                 }
                 if (!AddFile(fullname))
                 {
+                    free(wInitDir);
                     delete[] filenames;
                     return;
                 }
@@ -552,33 +568,39 @@ namespace combine
             SendMessage(hLB, WM_SETREDRAW, TRUE, 0);
         }
 
+        free(wInitDir);
         delete[] filenames;
     }
 
     static void OnBrowse()
     {
         CALL_STACK_MESSAGE1("OnBrowse()");
-        OPENFILENAME ofn;
-        char filename[MAX_PATH];
+        // the names may be non-ASCII / long -> use the W common dialog
+        OPENFILENAMEW ofn;
+        WCHAR filename[2 * MAX_PATH];
         filename[0] = 0;
         ZeroMemory(&ofn, sizeof(ofn));
         ofn.lStructSize = sizeof(ofn);
         ofn.hwndOwner = hDialog;
         ofn.hInstance = HLanguage;
-        char filter[100];
-        strcpy(filter, LoadStr(IDS_ADDFILTER));
-        memcpy(filter + strlen(filter) + 1, "*.*\0\0", 5);
+        WCHAR filter[100];
+        ResStrToW(LoadStr(IDS_ADDFILTER), filter, _countof(filter));
+        memcpy(filter + wcslen(filter) + 1, L"*.*\0\0", 5 * sizeof(WCHAR));
+        WCHAR title[100];
+        ResStrToW(LoadStr(IDS_BROWSETITLE), title, _countof(title));
         ofn.lpstrFilter = filter;
         ofn.lpstrCustomFilter = NULL;
         ofn.lpstrFile = filename;
-        ofn.nMaxFile = MAX_PATH;
-        ofn.lpstrTitle = LoadStr(IDS_BROWSETITLE);
-        char initdir[MAX_PATH];
-        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, initdir, MAX_PATH, NULL, NULL);
-        ofn.lpstrInitialDir = initdir;
+        ofn.nMaxFile = _countof(filename);
+        ofn.lpstrTitle = title;
+        char initdir[3 * MAX_PATH];
+        SalamanderGeneral->GetPanelPath(PANEL_SOURCE, initdir, _countof(initdir), NULL, NULL);
+        WCHAR* wInitDir = SplU8ToWAlloc(initdir);
+        ofn.lpstrInitialDir = wInitDir;
         ofn.Flags = OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-        if (SalamanderGeneral->SafeGetSaveFileName(&ofn))
-            SetDlgItemText(hDialog, IDC_EDIT_TARGET, filename);
+        if (GetSaveFileNameW(&ofn))
+            SetDlgItemTextW(hDialog, IDC_EDIT_TARGET, filename);
+        free(wInitDir);
     }
 
     static void OnCRC(HWND parent)
@@ -603,7 +625,15 @@ namespace combine
 
             if (pid && (pid->index >= 0))
             {
-                GetTextExtentPoint32(hDC, pid->text, (int)strlen(pid->text), &sz);
+                // the name is UTF-8 -> measure it via the W GDI
+                WCHAR* w = SplU8ToWAlloc(pid->text);
+                if (w != NULL)
+                {
+                    GetTextExtentPoint32W(hDC, w, (int)wcslen(w), &sz);
+                    free(w);
+                }
+                else
+                    GetTextExtentPoint32A(hDC, pid->text, (int)strlen(pid->text), &sz);
                 if (sz.cx > minWidth)
                     minWidth = sz.cx;
             }
@@ -654,7 +684,7 @@ namespace combine
             UpdateHorizontalScrollbar(hLB);
 
             HWND hEdit = GetDlgItem(hWnd, IDC_EDIT_TARGET);
-            SetWindowText(hEdit, targetName);
+            SetDlgItemTextU8(hWnd, IDC_EDIT_TARGET, targetName);
             SetFocus(GetDlgItem(hWnd, IDC_EDIT_TARGET));
             SendMessage(hEdit, EM_SETSEL, 0, -1);
 
@@ -692,7 +722,7 @@ namespace combine
                 break;
 
             case IDOK:
-                GetDlgItemText(hWnd, IDC_EDIT_TARGET, targetName, MAX_PATH);
+                GetDlgItemTextU8(hWnd, IDC_EDIT_TARGET, targetName, nTargetNameSize);
                 EndDialog(hWnd, TRUE);
                 break;
 
@@ -777,7 +807,15 @@ namespace combine
                 r.left += 21;
                 SetTextColor(hDC, GetSysColor(selected ? COLOR_HIGHLIGHTTEXT : COLOR_WINDOWTEXT));
                 SetBkMode(hDC, TRANSPARENT);
-                DrawText(hDC, pid->text, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+                // the name is UTF-8 -> draw it via the W GDI
+                WCHAR* w = SplU8ToWAlloc(pid->text);
+                if (w != NULL)
+                {
+                    DrawTextW(hDC, w, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+                    free(w);
+                }
+                else
+                    DrawTextA(hDC, pid->text, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
                 r.left -= 21;
             }
             if (focused)
@@ -847,17 +885,19 @@ namespace combine
 } // namespace combine
 using namespace combine;
 
-BOOL CombineDialog(TIndirectArray<char>& f, LPTSTR t, BOOL b, UINT32 c, HWND hParent,
+BOOL CombineDialog(TIndirectArray<char>& f, LPTSTR t, int tSize, BOOL b, UINT32 c, HWND hParent,
                    CSalamanderForOperationsAbstract* sal)
 {
     CALL_STACK_MESSAGE4("CombineDialog( , %s, %ld, %X, , )", t, b, c);
     files = &f;
     targetName = t;
+    nTargetNameSize = tSize;
     bOrigCrcFound = b;
     origCrc = c;
     salamander = sal;
     uDragMsg = 0xffffffff;
-    return (BOOL)DialogBoxParam(HLanguage, MAKEINTRESOURCE(IDD_COMBINE), hParent, CombineDlgProc, 0);
+    // Unicode dialog: the file names are UTF-8 (see the SetDlgItemTextU8 helpers)
+    return (BOOL)DialogBoxParamW(HLanguage, MAKEINTRESOURCEW(IDD_COMBINE), hParent, CombineDlgProc, 0);
 }
 
 // *****************************************************************************

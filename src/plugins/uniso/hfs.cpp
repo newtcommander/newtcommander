@@ -455,13 +455,20 @@ int CHFS::UnpackFile(CSalamanderForOperationsAbstract* salamander, const char* s
         UInt64 size = fileData->Size.Value;
         DWORD attrs = fileData->Attr;
         HANDLE hFile;
-        char name[MAX_PATH], fileInfo[100];
+        // the target path is UTF-8 and may be long (interface 104) -> heap buffer
+        CU8PathBuf name;
+        char fileInfo[100];
         FILETIME ft;
         BOOL bFileComplete = TRUE;
         CQuadWord qwSize;
 
-        strncpy_s(name, path, _TRUNCATE);
-        if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, MAX_PATH))
+        if (!name.IsOk())
+        {
+            Error(IDS_INSUFFICIENT_MEMORY);
+            return UNPACK_ERROR; // this function reports errors by returning, not by throwing
+        }
+        lstrcpyn(name, path, U8_MAX_PATH);
+        if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, U8_MAX_PATH))
         {
             Error(IDS_ERR_TOO_LONG_NAME, FALSE);
             return UNPACK_ERROR;
@@ -568,12 +575,12 @@ int CHFS::UnpackFile(CSalamanderForOperationsAbstract* salamander, const char* s
             // because it was created with the read-only attribute, we must clear
             // the R attribute so the file can be deleted
             attrs &= ~FILE_ATTRIBUTE_READONLY;
-            if (!SetFileAttributes(name, attrs))
+            if (!SetFileAttributesU8(name, attrs))
                 Error(LoadStr(IDS_CANT_SET_ATTRS), GetLastError());
 
             // the user cancelled the operation
             // delete the incomplete file afterwards
-            if (!DeleteFile(name))
+            if (!DeleteFileU8(name))
                 Error(LoadStr(IDS_CANT_DELETE_TEMP_FILE), GetLastError());
         }
         else

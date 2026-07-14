@@ -14,6 +14,7 @@
 #include "markdown.h"
 
 #pragma comment(lib, "comsuppw.lib")
+#pragma comment(lib, "shlwapi.lib") // UrlCreateFromPathW(), PathCreateFromUrlW()
 
 // plugin interface object, its methods are called from Salamander
 CPluginInterface PluginInterface;

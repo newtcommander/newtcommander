@@ -8,6 +8,7 @@
 #include <tchar.h>
 #include <windows.h>
 #include <CommDlg.h>
+#include <cderr.h> // FNERR_* error codes from CommDlgExtendedError()
 #include <crtdbg.h>
 #include <ostream>
 #include <commctrl.h>

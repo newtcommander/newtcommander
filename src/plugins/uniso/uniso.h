@@ -160,6 +160,50 @@ BOOL SysError(int title, int error, ...);
 
 BOOL Warning(int resID, BOOL quiet, ...);
 
+// buffer able to hold any long path in UTF-8 (interface 104: 3 bytes per
+// UTF-16 unit, see splunicode.h); always allocate these on the heap
+#define U8_MAX_PATH (3 * 32767 + 1)
+
+// a single name component is at most 255 UTF-16 units -> up to 765 UTF-8 bytes
+#define U8_MAX_NAME (3 * 256 + 1)
+
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs must
+// be called through their W variants with the \\?\ prefix (see splunicode.h)
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition, DWORD flags);
+BOOL DeleteFileU8(const char* name);
+BOOL SetFileAttributesU8(const char* name, DWORD attrs);
+
+// heap buffer for a full UTF-8 path built from interface strings - a target path is no
+// longer bounded by MAX_PATH (interface 104) and U8_MAX_PATH is far too big for the
+// stack. RAII, so it is also released by the throw/catch the UnpackFile()
+// implementations use. Converts to char*, so it drops into the old 'char name[]' spots.
+class CU8PathBuf
+{
+public:
+    char* Buf;
+
+    CU8PathBuf()
+    {
+        Buf = (char*)malloc(U8_MAX_PATH);
+        if (Buf != NULL)
+            *Buf = 0;
+    }
+    ~CU8PathBuf() { free(Buf); }
+    operator char*() const { return Buf; }
+    BOOL IsOk() const { return Buf != NULL; }
+
+private:
+    CU8PathBuf(const CU8PathBuf&);
+    CU8PathBuf& operator=(const CU8PathBuf&);
+};
+
+// format boundary (interface 104): the plain ISO9660 / XDVDFS name fields hold plain
+// bytes with no encoding tag. Bytes that already are valid UTF-8 are kept verbatim,
+// anything else is decoded from the system ANSI code page. Converts 'name' in place
+// when it fits into 'bufSize'; the Joliet/UDF/HFS+ paths do not need this - their
+// names come from real Unicode fields and are converted directly (SplWToU8).
+void EnsureU8Name(char* name, int bufSize);
+
 // Helpers
 #define LOWDWORD(x) (DWORD)(x)
 #define HIDWORD(x) (DWORD)((x) >> 32)

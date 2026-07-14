@@ -105,7 +105,7 @@ void SetFileAttrs(const char* name, DWORD attrs, BOOL quiet)
 {
     if (Options.ClearReadOnly)
         attrs &= ~FILE_ATTRIBUTE_READONLY;
-    if (!SetFileAttributes(name, attrs))
+    if (!SetFileAttributesU8(name, attrs)) // 'name' is UTF-8 (interface 104) -> W API
     { // set attributes - always clear Archive attribute, clearing of Read-Only attribute depends on settings
         DWORD err = GetLastError();
         Error(LoadStr(IDS_CANT_SET_ATTRS), err, quiet);
@@ -826,7 +826,8 @@ BOOL CISOImage::Open(const char* fileName, BOOL quiet /* = FALSE*/)
 
     strcpy(FileName, fileName);
 
-    HANDLE hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    // 'fileName' is the image path from the interface: UTF-8 since interface 104 -> W API
+    HANDLE hFile = CreateFileU8(fileName, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, 0);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         char errStr[MAX_PATH];
@@ -1479,7 +1480,7 @@ BOOL CISOImage::UnpackDir(const char* dirName, const CFileData* fileData)
     if (Options.ClearReadOnly) // clear ReadOnly Attribute if needed
         attrs &= ~FILE_ATTRIBUTE_READONLY;
 
-    if (!SetFileAttributes(dirName, attrs))
+    if (!SetFileAttributesU8(dirName, attrs)) // 'dirName' is UTF-8 (interface 104) -> W API
     {
         DWORD err = GetLastError();
         Error(LoadStr(IDS_CANT_SET_ATTRS), err);

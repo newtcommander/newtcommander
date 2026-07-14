@@ -110,7 +110,8 @@ void CBufferedFile::Unlock() {
 
 BOOL CBufferedFile::Create(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, DWORD dwCreationDispostion, DWORD dwFlagsAndAttributes)
 {
-    File = CreateFile(lpFileName, dwDesiredAccess, dwShareMode, NULL, dwCreationDispostion, dwFlagsAndAttributes, NULL);
+    // 'lpFileName' is UTF-8 since interface 104 -> W API with the \?\ prefix
+    File = CreateFileU8(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDispostion, dwFlagsAndAttributes);
     if (File == INVALID_HANDLE_VALUE)
     {
         File = NULL;

@@ -16,6 +16,7 @@
 #include <exdisp.h>
 #include <process.h>
 #include <objbase.h>
+#include <shlwapi.h> // UrlCreateFromPathW(), PathCreateFromUrlW()
 #include <exdispid.h> // IExplorer Dispatch Events
 
 #if defined(_DEBUG) && defined(_MSC_VER) // without passing file+line to 'new' operator, list of memory leaks shows only 'crtdbg.h(552)'
@@ -29,5 +30,7 @@
 #include "spl_gen.h"
 #include "spl_view.h"
 #include "spl_vers.h"
+
+#include "splunicode.h" // UTF-8 <-> UTF-16 helpers (plugin interface 104)
 
 #include "auxtools.h"

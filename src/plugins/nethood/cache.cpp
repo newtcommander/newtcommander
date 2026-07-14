@@ -2111,7 +2111,7 @@ void CNethoodCacheEnumerationThread::ProcessShareInfo(
     NETRESOURCE sNetResource = {
         0,
     };
-    TCHAR szRemoteName[MAX_PATH];
+    TCHAR szRemoteName[3 * MAX_PATH];
 
     sNetResource.dwScope = RESOURCE_GLOBALNET;
     sNetResource.dwType = RESOURCETYPE_DISK;
@@ -2123,13 +2123,17 @@ void CNethoodCacheEnumerationThread::ProcessShareInfo(
                     pszServerName, sShareInfo.shi1_netname);
     sNetResource.lpComment = sShareInfo.shi1_remark;
 #else
-    StringCchPrintf(szRemoteName, COUNTOF(szRemoteName), "%s\\%ls",
-                    pszServerName, sShareInfo.shi1_netname);
-    char szComment[MAX_PATH];
+    // NetShareEnum returns Unicode names, the cache holds them as UTF-8
+    // (plugin interface 104); pszServerName is already UTF-8
+    char szNetName[3 * MAX_PATH];
+    if (SplWToU8(sShareInfo.shi1_netname, szNetName, COUNTOF(szNetName)) <= 0)
+        return;
+    StringCchPrintf(szRemoteName, COUNTOF(szRemoteName), "%s\\%s",
+                    pszServerName, szNetName);
+    char szComment[3 * MAX_PATH];
     if (sShareInfo.shi1_remark && *sShareInfo.shi1_remark != L'\0')
     {
-        if (WideCharToMultiByte(CP_ACP, 0, sShareInfo.shi1_remark,
-                                -1, szComment, COUNTOF(szComment), NULL, NULL) > 0)
+        if (SplWToU8(sShareInfo.shi1_remark, szComment, COUNTOF(szComment)) > 0)
         {
             sNetResource.lpComment = szComment;
         }
@@ -2297,6 +2301,50 @@ DWORD CNethoodCacheEnumerationThread::ExtendWNetError(__in DWORD dwError)
     return dwError;
 }
 
+// Converts the UTF-8 strings of a NETRESOURCE into a wide NETRESOURCEW
+// (plugin interface 104 hands us UTF-8, WNet is enumerated on the W layer).
+// Call FreeNetResourceW on the result.
+static BOOL NetResourceU8ToW(__in const NETRESOURCE* pSrc, __out NETRESOURCEW* pDst)
+{
+    ZeroMemory(pDst, sizeof(*pDst));
+    pDst->dwScope = pSrc->dwScope;
+    pDst->dwType = pSrc->dwType;
+    pDst->dwDisplayType = pSrc->dwDisplayType;
+    pDst->dwUsage = pSrc->dwUsage;
+    if (pSrc->lpLocalName != NULL && (pDst->lpLocalName = SplU8ToWAlloc(pSrc->lpLocalName)) == NULL)
+        return FALSE;
+    if (pSrc->lpRemoteName != NULL && (pDst->lpRemoteName = SplU8ToWAlloc(pSrc->lpRemoteName)) == NULL)
+        return FALSE;
+    if (pSrc->lpComment != NULL && (pDst->lpComment = SplU8ToWAlloc(pSrc->lpComment)) == NULL)
+        return FALSE;
+    if (pSrc->lpProvider != NULL && (pDst->lpProvider = SplU8ToWAlloc(pSrc->lpProvider)) == NULL)
+        return FALSE;
+    return TRUE;
+}
+
+static void FreeNetResourceW(__inout NETRESOURCEW* pNetResourceW)
+{
+    free(pNetResourceW->lpLocalName);
+    free(pNetResourceW->lpRemoteName);
+    free(pNetResourceW->lpComment);
+    free(pNetResourceW->lpProvider);
+    ZeroMemory(pNetResourceW, sizeof(*pNetResourceW));
+}
+
+// Appends the UTF-8 form of 'w' to the string area of the enumeration buffer
+// and returns the pointer to it (NULL when 'w' is NULL or does not fit).
+static char* PackNetResourceString(__in_opt const WCHAR* w, __inout char*& pDst, __in char* pEnd)
+{
+    if (w == NULL || pDst >= pEnd)
+        return NULL;
+    int cb = SplWToU8(w, pDst, (int)(pEnd - pDst));
+    if (cb <= 0)
+        return NULL;
+    char* pRes = pDst;
+    pDst += cb;
+    return pRes;
+}
+
 DWORD CNethoodCacheEnumerationThread::OpenEnum(
     __in DWORD dwScope,
     __in DWORD dwType,
@@ -2305,8 +2353,20 @@ DWORD CNethoodCacheEnumerationThread::OpenEnum(
     __out HANDLE* phEnum)
 {
     DWORD dwError;
+    NETRESOURCEW sNetResourceW;
+    NETRESOURCEW* pNetResourceW = NULL;
 
-    dwError = WNetOpenEnum(dwScope, dwType, dwUsage, pNetResource, phEnum);
+    if (pNetResource != NULL)
+    {
+        if (!NetResourceU8ToW(pNetResource, &sNetResourceW))
+        {
+            FreeNetResourceW(&sNetResourceW);
+            return ERROR_NO_NETWORK;
+        }
+        pNetResourceW = &sNetResourceW;
+    }
+
+    dwError = WNetOpenEnumW(dwScope, dwType, dwUsage, pNetResourceW, phEnum);
     if (IsLogonFailure(dwError))
     {
         // Access to the network resource was denied; try to
@@ -2330,10 +2390,13 @@ DWORD CNethoodCacheEnumerationThread::OpenEnum(
         if (dwError == NO_ERROR)
         {
             // Try once more.
-            dwError = WNetOpenEnum(dwScope, dwType, dwUsage,
-                                   pNetResource, phEnum);
+            dwError = WNetOpenEnumW(dwScope, dwType, dwUsage,
+                                    pNetResourceW, phEnum);
         }
     }
+
+    if (pNetResourceW != NULL)
+        FreeNetResourceW(pNetResourceW);
 
     return dwError;
 }
@@ -2346,8 +2409,48 @@ DWORD CNethoodCacheEnumerationThread::EnumResource(
 {
     DWORD dwError;
 
-    cEntries = -1;
-    dwError = WNetEnumResource(hEnum, &cEntries, pBuffer, &cbBuffer);
+    // The enumeration runs on the W layer, the names are handed over as UTF-8
+    // (plugin interface 104). The wide buffer takes two thirds of the caller's
+    // buffer: UTF-8 never needs more than 1.5x the bytes of its UTF-16 source
+    // and the NETRESOURCE(W) arrays have the same size, so the converted result
+    // always fits into the caller's buffer.
+    cEntries = 0;
+
+    DWORD cbBufferW = (cbBuffer / 3) * 2;
+    if (cbBufferW < sizeof(NETRESOURCEW) + 8 * sizeof(WCHAR))
+        return ERROR_INSUFFICIENT_BUFFER;
+
+    BYTE* pBufferW = new BYTE[cbBufferW];
+    if (pBufferW == NULL)
+        return ERROR_NOT_ENOUGH_MEMORY;
+
+    DWORD cEntriesW = (DWORD)-1;
+    DWORD cb = cbBufferW;
+    dwError = WNetEnumResourceW(hEnum, &cEntriesW, pBufferW, &cb);
+    if ((dwError == NO_ERROR || dwError == ERROR_MORE_DATA) && cEntriesW > 0 &&
+        cEntriesW != (DWORD)-1)
+    {
+        const NETRESOURCEW* pSrc = reinterpret_cast<const NETRESOURCEW*>(pBufferW);
+        char* pDst = reinterpret_cast<char*>(pBuffer + cEntriesW); // string area
+        char* pEnd = reinterpret_cast<char*>(pBuffer) + cbBuffer;
+
+        DWORD i;
+        for (i = 0; i < cEntriesW; i++)
+        {
+            pBuffer[i].dwScope = pSrc[i].dwScope;
+            pBuffer[i].dwType = pSrc[i].dwType;
+            pBuffer[i].dwDisplayType = pSrc[i].dwDisplayType;
+            pBuffer[i].dwUsage = pSrc[i].dwUsage;
+            pBuffer[i].lpLocalName = PackNetResourceString(pSrc[i].lpLocalName, pDst, pEnd);
+            pBuffer[i].lpRemoteName = PackNetResourceString(pSrc[i].lpRemoteName, pDst, pEnd);
+            pBuffer[i].lpComment = PackNetResourceString(pSrc[i].lpComment, pDst, pEnd);
+            pBuffer[i].lpProvider = PackNetResourceString(pSrc[i].lpProvider, pDst, pEnd);
+        }
+
+        cEntries = cEntriesW;
+    }
+
+    delete[] pBufferW;
 
     return dwError;
 }
@@ -2361,7 +2464,7 @@ DWORD CNethoodCacheEnumerationThread::EnumHiddenSharesNt(__in PCTSTR pszServerNa
 
 #ifndef _UNICODE
     WCHAR szServerNameW[MAX_PATH];
-    if (!MultiByteToWideChar(CP_ACP, 0, pszServerName, -1, szServerNameW, COUNTOF(szServerNameW)))
+    if (!SplU8ToW(pszServerName, szServerNameW, COUNTOF(szServerNameW)))
     {
         return GetLastError();
     }

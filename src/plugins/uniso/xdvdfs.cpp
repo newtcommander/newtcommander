@@ -281,9 +281,15 @@ int CXDVDFS::UnpackFile(CSalamanderForOperationsAbstract* salamander, const char
             throw UNPACK_ERROR;
         }
 
-        char name[MAX_PATH];
-        strncpy_s(name, path, _TRUNCATE);
-        if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, MAX_PATH))
+        // the target path is UTF-8 and may be long (interface 104) -> heap buffer
+        CU8PathBuf name;
+        if (!name.IsOk())
+        {
+            Error(IDS_INSUFFICIENT_MEMORY);
+            throw UNPACK_ERROR;
+        }
+        lstrcpyn(name, path, U8_MAX_PATH);
+        if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, U8_MAX_PATH))
         {
             Error(IDS_ERR_TOO_LONG_NAME);
             throw UNPACK_ERROR;
@@ -397,12 +403,12 @@ int CXDVDFS::UnpackFile(CSalamanderForOperationsAbstract* salamander, const char
             // because it was created with the read-only attribute, we must clear
             // the R attribute so the file can be deleted
             attrs &= ~FILE_ATTRIBUTE_READONLY;
-            if (!SetFileAttributes(name, attrs))
+            if (!SetFileAttributesU8(name, attrs))
                 Error(LoadStr(IDS_CANT_SET_ATTRS), GetLastError());
 
             // the user cancelled the operation
             // delete the incomplete file afterwards
-            if (!DeleteFile(name))
+            if (!DeleteFileU8(name))
                 Error(LoadStr(IDS_CANT_DELETE_TEMP_FILE), GetLastError());
         }
         else

@@ -62,6 +62,8 @@
 #include <spl_view.h>
 #include <spl_gui.h>
 
+#include "splunicode.h"
+
 #include "versinfo.rh2"
 
 #pragma warning(push)

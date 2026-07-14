@@ -16,28 +16,30 @@
 
 FILE* OpenMarkdownCSS()
 {
-    char path[MAX_PATH];
-    if (GetModuleFileName(DLLInstance, path, MAX_PATH) == 0)
+    // the CSS lives next to the .spl module; work in UTF-16 so the plugin also
+    // loads it from a directory with a non-ASCII name
+    WCHAR path[2 * MAX_PATH]; // the module may sit deeper than MAX_PATH
+    if (GetModuleFileNameW(DLLInstance, path, _countof(path) - 32) == 0)
     {
-        TRACE_E("GetModuleFileName() failed");
+        TRACE_E("GetModuleFileNameW() failed");
         return NULL;
     }
-    char* name = strrchr(path, '\\');
+    WCHAR* name = wcsrchr(path, L'\\');
     if (name == NULL)
     {
         TRACE_E("Extension not found");
         return NULL;
     }
-    strcpy(name + 1, "css\\custom.css");
-    FILE* fp = fopen(path, "r");
+    wcscpy(name + 1, L"css\\custom.css");
+    FILE* fp = _wfopen(path, L"r");
     if (fp == NULL)
     {
-        TRACE_I(path << " not found, we will try githubmd.css instead");
-        strcpy(name + 1, "css\\githubmd.css");
-        fp = fopen(path, "r");
+        TRACE_I("custom.css not found, we will try githubmd.css instead");
+        wcscpy(name + 1, L"css\\githubmd.css");
+        fp = _wfopen(path, L"r");
         if (fp == NULL)
         {
-            TRACE_I(path << " not found, we will display unstyled html");
+            TRACE_I("githubmd.css not found, we will display unstyled html");
             return NULL;
         }
     }
@@ -73,7 +75,10 @@ IStream* ConvertMarkdownToHTML(const char* name)
         cmark_parser_attach_syntax_extension(parser, syntax_extension);
     }
 
-    FILE* fp = fopen(name, "r");
+    // 'name' is UTF-8 since plugin interface 104 -> open via the W CRT (Unicode + long paths)
+    WCHAR* wName = SplU8ToWExtAlloc(name);
+    FILE* fp = wName != NULL ? _wfopen(wName, L"r") : fopen(name, "r");
+    free(wName);
     if (fp == NULL)
     {
         TRACE_E("fopen failed");

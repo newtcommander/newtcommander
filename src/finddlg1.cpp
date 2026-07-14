@@ -3861,12 +3861,64 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
         break;
     }
 
+    case WM_NOTIFYFORMAT:
+    { // feature 004: ask the common controls for Unicode notifications so the
+      // results list view can render UTF-8 names (converted in LVN_GETDISPINFOW)
+        if (lParam == NF_QUERY)
+            return NFR_UNICODE;
+        break;
+    }
+
     case WM_NOTIFY:
     {
         if (wParam == IDC_FIND_RESULTS)
         {
             switch (((LPNMHDR)lParam)->code)
             {
+            case LVN_GETDISPINFOW:
+            { // feature 004: names/paths are UTF-8 - hand the control wide text
+                NMLVDISPINFOW* infoW = (NMLVDISPINFOW*)lParam;
+                CFoundFilesData* item = FoundFilesListView->At(infoW->item.iItem);
+                if (infoW->item.mask & LVIF_IMAGE)
+                    infoW->item.iImage = item->IsDir ? 0 : 1;
+                if (infoW->item.mask & LVIF_TEXT)
+                {
+                    const char* u8 = item->GetText(infoW->item.iSubItem, FoundFilesDataTextBuffer, FileNameFormat);
+                    if (u8 == NULL || SalU8ToW(u8, -1, FoundFilesDataTextBufferW,
+                                               _countof(FoundFilesDataTextBufferW)) == 0)
+                    {
+                        FoundFilesDataTextBufferW[0] = 0;
+                    }
+                    infoW->item.pszText = FoundFilesDataTextBufferW;
+                }
+                break;
+            }
+
+            case LVN_ODFINDITEMW:
+            { // quick search inside the results list view (wide text from the control)
+                NMLVFINDITEMW* findW = (NMLVFINDITEMW*)lParam;
+                int ret = -1;
+                if ((findW->lvfi.flags & (LVFI_STRING | LVFI_PARTIAL)) && findW->lvfi.psz != NULL)
+                {
+                    char u8[SAL_FIND_NAME_U8];
+                    if (SalWToU8(findW->lvfi.psz, -1, u8, sizeof(u8)) != 0)
+                    {
+                        int len = (int)strlen(u8);
+                        for (int i = findW->iStart; i < FoundFilesListView->GetCount(); i++)
+                        {
+                            const CFoundFilesData* item = FoundFilesListView->At(i);
+                            if (SalNameEqualCI(item->Name, len, u8, len)) // prefix match, NFC-insensitive (FR-008)
+                            {
+                                ret = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+                SetWindowLongPtr(HWindow, DWLP_MSGRESULT, ret);
+                return TRUE;
+            }
+
             case NM_DBLCLK:
             {
                 if (((LPNMITEMACTIVATE)lParam)->iItem >= 0) // double-click outside items does nothing

@@ -87,6 +87,67 @@ char* LoadStr(int resID)
     return SalamanderGeneral->LoadStr(HLanguage, resID);
 }
 
+//
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+HANDLE CreateFileU8(const char* name, DWORD access, DWORD share, DWORD disposition, DWORD flags)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = CreateFileW(w, access, share, NULL, disposition, flags, NULL);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return file;
+}
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+void EnsureU8Name(char* name, int bufSize)
+{
+    if (name == NULL || SplIsASCII(name))
+        return; // ASCII is already valid UTF-8, byte for byte
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0) > 0)
+        return; // valid UTF-8 -> keep the bytes verbatim (never rewrite name bytes)
+
+    // the bytes are not UTF-8 -> the image was produced with a legacy ANSI code page
+    WCHAR w[U8_MAX_NAME];
+    char u8[U8_MAX_NAME];
+    if (MultiByteToWideChar(CP_ACP, 0, name, -1, w, U8_MAX_NAME) == 0 ||
+        SplWToU8(w, u8, sizeof(u8)) == 0 || (int)strlen(u8) >= bufSize)
+    {
+        return; // cannot convert or would not fit -> leave the bytes untouched
+    }
+    strcpy(name, u8);
+}
+
 int WINAPI SalamanderPluginGetReqVer()
 {
     return LAST_VERSION_OF_SALAMANDER;
@@ -819,7 +880,16 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
         CSalamanderPluginInternalViewerData vData;
 
         // create a temporary file and pour the module dump into it
-        FILE* outStream = fopen(tempFileName, "w");
+        // (the name comes from the core: UTF-8 since interface 104 -> W CRT API)
+        WCHAR* wTempFileName = SplU8ToWExtAlloc(tempFileName);
+        FILE* outStream = wTempFileName != NULL ? _wfopen(wTempFileName, L"w") : NULL;
+        free(wTempFileName);
+        if (outStream == NULL)
+        {
+            delete image;
+            Error(IDS_CANT_CREATE_TEMP);
+            return FALSE;
+        }
         if (!image->DumpInfo(outStream))
         {
             // can this even happen?
@@ -832,7 +902,7 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
         vData.Size = sizeof(vData);
         vData.FileName = tempFileName;
         vData.Mode = 0; // text mode
-        sprintf(caption, "%s - %s", name, LoadStr(IDS_PLUGINNAME));
+        _snprintf_s(caption, _TRUNCATE, "%s - %s", name, LoadStr(IDS_PLUGINNAME)); // 'name' is a UTF-8 path, may be long
         vData.Caption = caption;
         vData.WholeCaption = TRUE;
         if (!SalamanderGeneral->ViewFileInPluginViewer(NULL, &vData, TRUE, NULL, "iso_dump.txt", err))

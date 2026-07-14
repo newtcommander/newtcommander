@@ -719,7 +719,8 @@ protected:
     BOOL TwoParts;     // does the status bar have two texts?
                        //    CFindAdvancedDialog FindAdvanced;
     CFoundFilesListView* FoundFilesListView;
-    char FoundFilesDataTextBuffer[SAL_FIND_NAME_U8]; // for obtaining text from CFoundFilesData::GetText (UTF-8 names, feature 004)
+    char FoundFilesDataTextBuffer[SAL_FIND_NAME_U8];      // for obtaining text from CFoundFilesData::GetText (UTF-8 names, feature 004)
+    WCHAR FoundFilesDataTextBufferW[SAL_FIND_NAME_U8];    // the same text converted for LVN_GETDISPINFOW (feature 004)
     CFindTBHeader* TBHeader;
     BOOL SearchInProgress;
     BOOL CanClose; // the window can be closed (we are not inside a method of this object)

@@ -246,21 +246,31 @@ void CISO9660::ExtractFileName(char* fileName, const char* src, CISO9660::CDirec
 
 #define READ_SIZE 4096
 
+// format boundary (interface 104): Joliet names are UCS-2 big-endian; byte-swap them
+// and emit UTF-8 directly - the interface wants UTF-8, and going through the ANSI code
+// page (as this used to) silently destroyed every character outside it.
 void CISO9660::ConvJolietName(char* dest, const char* src, int nLen)
 {
     char tmp[2 * MAX_PATH];
     ZeroMemory(&tmp, sizeof(tmp));
 
+    if (nLen > (int)sizeof(tmp) - 2)
+        nLen = (int)sizeof(tmp) - 2; // a Joliet identifier never gets this long
     memcpy(tmp, src, nLen);
 
     WCHAR* uname = (WCHAR*)tmp;
     int i;
     for (i = 0; i < (nLen / 2); i++)
         uname[i] = (WORD)ROTATE(uname[i]);
+    uname[nLen / 2] = 0;
 
     char final[2 * MAX_PATH];
     ZeroMemory(&final, sizeof(final));
-    WideCharToMultiByte(CP_ACP, 0, uname, nLen / 2, final, sizeof(final) - 1, 0, 0);
+    if (SplWToU8(uname, final, sizeof(final)) == 0)
+    {
+        // lone surrogates and the like: fall back to a lossy but valid UTF-8 form
+        WideCharToMultiByte(CP_UTF8, 0, uname, -1, final, sizeof(final) - 1, 0, 0);
+    }
     final[sizeof(final) - 1] = 0;
 
     strcpy(dest, final);
@@ -573,9 +583,15 @@ int CISO9660::UnpackFile(CSalamanderForOperationsAbstract* salamander, const cha
     CALL_STACK_MESSAGE6("CISO9660::UnpackFile( , %s, %s, %s, , %u, %d)", srcPath, path, nameInArc, silent, toSkip);
 
     ///
-    char name[MAX_PATH];
-    strncpy_s(name, path, _TRUNCATE);
-    if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, MAX_PATH))
+    // the target path is UTF-8 and may be long (interface 104) -> heap buffer
+    CU8PathBuf name;
+    if (!name.IsOk())
+    {
+        Error(IDS_INSUFFICIENT_MEMORY);
+        return UNPACK_ERROR;
+    }
+    lstrcpyn(name, path, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, U8_MAX_PATH))
     {
         Error(IDS_ERR_TOO_LONG_NAME);
         return UNPACK_ERROR;
@@ -696,12 +712,12 @@ int CISO9660::UnpackFile(CSalamanderForOperationsAbstract* salamander, const cha
         // because it was created with the read-only attribute, we must clear
         // the R attribute so the file can be deleted
         attrs &= ~FILE_ATTRIBUTE_READONLY;
-        if (!SetFileAttributes(name, attrs))
+        if (!SetFileAttributesU8(name, attrs))
             Error(LoadStr(IDS_CANT_SET_ATTRS), GetLastError());
 
         // the user cancelled the operation
         // delete the incomplete file afterwards
-        if (!DeleteFile(name))
+        if (!DeleteFileU8(name))
             Error(LoadStr(IDS_CANT_DELETE_TEMP_FILE), GetLastError());
     }
     else
