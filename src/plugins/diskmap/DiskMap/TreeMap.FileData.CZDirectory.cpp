@@ -125,7 +125,10 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
     if (pathsize < 2 * MAX_PATH)
         Beep(1000, 100);
 
-    WIN32_FIND_DATA FindFileData;
+    // the paths and names are UTF-8 since plugin interface 104 -> enumerate via the W API
+    // (Unicode names + long paths); the names are converted back to UTF-8 for the tree
+    WIN32_FIND_DATAW FindFileData;
+    char cFileName[3 * MAX_PATH]; // FindFileData.cFileName in UTF-8
     HANDLE hFind = INVALID_HANDLE_VALUE;
     DWORD dwError;
 
@@ -149,8 +152,9 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
     if (!pos || path[pos - 1] != TEXT('\\'))
         path[pos++] = TEXT('\\');
 
-    //check the length
-    if (pos >= MAX_PATH)
+    //check the length (the W API handles paths longer than MAX_PATH, we are limited only by the buffer;
+    //the names are UTF-8, so a character can take up to 3 bytes)
+    if (pos + 3 * MAX_PATH >= (int)pathsize)
     {
         //ERROR
         this->_root->Log(LOG_ERROR, TEXT("Path is too long."), this);
@@ -170,7 +174,11 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
 	}
 	path[MAX_PATH] = (char)radixHistorgram[2048];
 */
-    hFind = FindFirstFile(path, &FindFileData);
+    {
+        WCHAR* wPath = SplU8ToWExtAlloc(path);
+        hFind = wPath != NULL ? FindFirstFileW(wPath, &FindFileData) : INVALID_HANDLE_VALUE;
+        free(wPath);
+    }
     if (hFind == INVALID_HANDLE_VALUE)
     {
         //ERROR
@@ -182,8 +190,10 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
         DWORD lastTime = GetTickCount();
         do
         {
-            if (FindFileData.cFileName[0] == '.' && (FindFileData.cFileName[1] == '\0' || (FindFileData.cFileName[1] == '.' && FindFileData.cFileName[2] == '\0')))
+            if (FindFileData.cFileName[0] == L'.' && (FindFileData.cFileName[1] == L'\0' || (FindFileData.cFileName[1] == L'.' && FindFileData.cFileName[2] == L'\0')))
                 continue;
+            if (SplWToU8(FindFileData.cFileName, cFileName, ARRAYSIZE(cFileName)) == 0)
+                continue; // name we cannot represent in UTF-8 (should not happen)
             INT64 datasize = 0;
             INT64 realsize = 0;
             INT64 disksize = 0;
@@ -193,7 +203,7 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
             {
                 if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0)
                 {
-                    f = new CZDirectory(this, FindFileData.cFileName, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
+                    f = new CZDirectory(this, cFileName, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
                     datasize = ((CZDirectory*)f)->PopulateDir(mythread, path, pos, pathsize);
                     if (datasize < 0) //error!
                     {
@@ -230,7 +240,7 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
                 }
                 else
                 {
-                    f = new CZDirectory(this, FindFileData.cFileName, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
+                    f = new CZDirectory(this, cFileName, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
                     this->_root->Log(LOG_WARNING, TEXT("Ignoring Reparse Point."), f);
                     delete f;
                     f = NULL;
@@ -242,8 +252,10 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
                 if ((FindFileData.dwFileAttributes & (FILE_ATTRIBUTE_SPARSE_FILE | FILE_ATTRIBUTE_COMPRESSED)) != 0)
                 {
                     DWORD lo, hi;
-                    _tcscpy(filepart, FindFileData.cFileName);
-                    lo = GetCompressedFileSize(path, &hi);
+                    _tcscpy(filepart, cFileName);
+                    WCHAR* wFilePath = SplU8ToWExtAlloc(path); // UTF-8 path -> W API
+                    lo = wFilePath != NULL ? GetCompressedFileSizeW(wFilePath, &hi) : INVALID_FILE_SIZE;
+                    free(wFilePath);
                     if (lo == INVALID_FILE_SIZE)
                     {
                         //ErrorExit(FindFileData.cFileName);
@@ -265,7 +277,7 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
                 {
                     disksize = this->_root->GetDiskSize(realsize);
 
-                    f = new CZFile(this, FindFileData.cFileName, datasize, realsize, disksize, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
+                    f = new CZFile(this, cFileName, datasize, realsize, disksize, &FindFileData.ftCreationTime, &FindFileData.ftLastWriteTime);
                     tsize += f->GetSizeEx(sortorder);
                 }
             }
@@ -302,7 +314,7 @@ INT64 CZDirectory::PopulateDir(CWorkerThread* mythread, TCHAR* path, int pos, si
                 filecount = 0;
                 tsize = 0;
             }
-        } while ((FindNextFile(hFind, &FindFileData) != 0) && (mythread == NULL || !mythread->Aborting()));
+        } while ((FindNextFileW(hFind, &FindFileData) != 0) && (mythread == NULL || !mythread->Aborting()));
 
         this->_root->IncStats(filecount, dircount, tsize);
 

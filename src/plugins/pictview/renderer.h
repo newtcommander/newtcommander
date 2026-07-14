@@ -199,7 +199,7 @@ protected:
     void OnDelete(BOOL toRecycle);
     void OnCopyTo();
 
-    BOOL RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR (&newName)[MAX_PATH], BOOL* tryAgain);
+    BOOL RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR (&newName)[3 * MAX_PATH], BOOL* tryAgain);
 
     void FreeComment(void);
     void DuplicateComment(void);

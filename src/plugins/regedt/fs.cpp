@@ -415,7 +415,7 @@ void CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbstract* p
     {
         WCHAR newPath[MAX_FULL_KEYNAME];
         WCHAR cutDir[MAX_KEYNAME];
-        char cutDirA[MAX_KEYNAME];
+        char cutDirA[3 * MAX_KEYNAME]; // UTF-8 name for Salamander (up to 3 bytes per character)
         char* focus = NULL;
 
         fs->GetCurrentPathW(newPath, MAX_FULL_KEYNAME);
@@ -423,7 +423,7 @@ void CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbstract* p
         {
             if (CutDirectory(newPath, cutDir, MAX_KEYNAME)) // shorten the path by the last component
             {
-                if (WStrToStr(cutDirA, MAX_KEYNAME, cutDir) > 0)
+                if (WStrToU8(cutDirA, sizeof(cutDirA), cutDir) > 0)
                     focus = cutDirA;
                 // update the path in the panel
                 if (fs->SetNewPath(newPath))

@@ -26,6 +26,38 @@ extern int SortByExtDirsAsFiles;
 // zero/small files take at least as long as files with size COPY_MIN_FILE_SIZE
 #define COPY_MIN_FILE_SIZE CQuadWord(1024, 0) // must not be less than 1
 
+// buffer able to hold any long path in UTF-8 (interface 104: up to 3 bytes per
+// UTF-16 unit, see splunicode.h); always allocate these on the heap
+#define U8_MAX_PATH (3 * 32767 + 1)
+
+// interface 104: paths crossing the plugin interface are UTF-8, so file APIs must
+// be called through their W variants with the \\?\ prefix (see splunicode.h)
+BOOL DeleteFileU8(const char* name);
+BOOL SetFileAttributesU8(const char* name, DWORD attrs);
+
+// heap buffer for a full UTF-8 path built from interface strings - a target path is no
+// longer bounded by MAX_PATH (interface 104) and U8_MAX_PATH is far too big for the
+// stack. Converts to char*, so it drops into the old 'char name[]' spots.
+class CU8PathBuf
+{
+public:
+    char* Buf;
+
+    CU8PathBuf()
+    {
+        Buf = (char*)malloc(U8_MAX_PATH);
+        if (Buf != NULL)
+            *Buf = 0;
+    }
+    ~CU8PathBuf() { free(Buf); }
+    operator char*() const { return Buf; }
+    BOOL IsOk() const { return Buf != NULL; }
+
+private:
+    CU8PathBuf(const CU8PathBuf&);
+    CU8PathBuf& operator=(const CU8PathBuf&);
+};
+
 // ****************************************************************************
 //
 // CPluginInterface

@@ -173,7 +173,7 @@ BOOL CPluginFSInterface::QuickRename(const char* fsName, int mode, HWND parent, 
 
     if (success)
     {
-        WStrToStr(newName, MAX_PATH, keyName);
+        WStrToU8(newName, MAX_PATH, keyName); // returned to the panel as UTF-8
         cancel = FALSE;
         return TRUE;
     }
@@ -191,12 +191,12 @@ void CPluginFSInterface::AcceptChangeOnPathNotification(const char* fsName, cons
         // disk paths and paths on other FS types in 'path' are filtered out automatically
         // because they can never match 'fsName'+':' at the beginning of 'path2' below)
         char path1[MAX_PATH * 2];
-        char path2[MAX_FULL_KEYNAME + MAX_PATH];
-        char root[MAX_PREDEF_KEYNAME];
-        char key[MAX_KEYNAME];
+        char path2[3 * MAX_FULL_KEYNAME + MAX_PATH]; // UTF-8 (up to 3 bytes per character)
+        char root[MAX_PREDEF_KEYNAME];               // predefined HKEY names are ASCII
+        char key[3 * MAX_KEYNAME];
         lstrcpyn(path1, path, MAX_PATH * 2);
-        WStrToStr(root, MAX_PREDEF_KEYNAME, PredefinedHKeys[CurrentKeyRoot].KeyName);
-        WStrToStr(key, MAX_KEYNAME, CurrentKeyName);
+        WStrToU8(root, MAX_PREDEF_KEYNAME, PredefinedHKeys[CurrentKeyRoot].KeyName);
+        WStrToU8(key, MAX_KEYNAME, CurrentKeyName); // compared with the UTF-8 interface 'path'
         SalPrintf(path2, MAX_FULL_KEYNAME + MAX_PATH, "%s:\\%s\\%s", fsName, root, key);
         RemoveTrailingSlashes(path1);
         RemoveTrailingSlashes(path2);
@@ -282,7 +282,7 @@ BOOL CPluginFSInterface::CreateDir(const char* fsName, int mode, HWND parent, ch
             continue;
         }
 
-        if (WStrToStr(newName, 2 * MAX_PATH, keyName) <= 0)
+        if (WStrToU8(newName, 2 * MAX_PATH, keyName) <= 0) // returned to the panel as UTF-8
             *newName = 0;
 
         RegCloseKey(hKey);
@@ -1102,8 +1102,8 @@ BOOL CPluginFSInterface::EditNewFile()
             continue;
         }
 
-        char fullNameA[MAX_FULL_KEYNAME];
-        if (WStrToStr(fullNameA, MAX_KEYNAME, fullName) <= 0)
+        char fullNameA[3 * MAX_FULL_KEYNAME]; // UTF-8 name shown in a message box
+        if (WStrToU8(fullNameA, sizeof(fullNameA), fullName) <= 0)
             *fullNameA = 0;
 
         // check whether it exists

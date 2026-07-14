@@ -30,6 +30,8 @@
 #include "spl_menu.h"
 #include "spl_vers.h"
 
+#include "splunicode.h"
+
 #include "dbg.h"
 #include "arraylt.h"
 #include "winliblt.h"

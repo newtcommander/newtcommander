@@ -64,12 +64,12 @@ protected:
     CZStringBuffer* _sizestrlong;  //long version "1 234 567 bytes (1,23MB)"
     CZStringBuffer* _sizestrshort; //short version "1,23MB"
 
-    TDIRNODE _nodes[MAX_PATH / 2];
+    TDIRNODE _nodes[3 * MAX_PATH / 2]; // node offsets are UTF-8 byte positions
     int _nodeCount;
     int _mouseNode;
 
-    // string for storing a copy of the path with an ellipsis
-    TCHAR _pathtemp[MAX_PATH + 3];
+    // string for storing a copy of the path with an ellipsis (UTF-8, up to 3 bytes per character)
+    TCHAR _pathtemp[3 * MAX_PATH + 3];
 
     // Cached values - colors: active/inactive
     COLORREF _backColor;
@@ -193,12 +193,13 @@ protected:
         SIZE sz;
         int sizewidth = 0;
         int pathwidth = 0;
-        int dx[MAX_PATH + 3];
-        GetTextExtentExPoint(hdc, this->_path->GetString(), (int)this->_path->GetLength(), 0, NULL, dx, &sz);
+        int dx[3 * MAX_PATH + 3]; // byte-indexed widths (the path is UTF-8)
+        // measure via the W GDI: the path is UTF-8 since plugin interface 104
+        ZGetTextExtentByteDx(hdc, this->_path->GetString(), (int)this->_path->GetLength(), dx, &sz);
         pathwidth = sz.cx;
         if (this->_disksize >= 0)
         {
-            GetTextExtentPoint32(hdc, this->_sizestrlong->GetString(), (int)this->_sizestrlong->GetLength(), &sz);
+            ZGetTextExtentPoint32(hdc, this->_sizestrlong->GetString(), (int)this->_sizestrlong->GetLength(), &sz);
             sizewidth = sz.cx + 2;
 
             this->_sizestr = this->_sizestrlong;

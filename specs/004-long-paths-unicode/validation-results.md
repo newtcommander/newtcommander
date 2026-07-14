@@ -68,6 +68,25 @@ These were caught only by driving the real application:
    included after a C header that `#define`s `BOOL int`. Fixed: include order.
    (Documented as a caveat for all plugin ports.)
 
+## Plugin verification
+
+- **Build**: after every plugin wave the full 90-project solution builds clean
+  (Debug x64), including the ported archivers/viewers/FS plugins and the plugin
+  handle-tracker W additions (`mhandles.h`).
+- **zip format decode** (code inspection of the runtime path): `CZipCommon::ProcessName`
+  returns UTF-8 to the interface — general-purpose bit 11 (`GPF_UTF8`) names pass
+  through verbatim (a .NET-created test ZIP with bit 11 set carries a decomposed
+  `č` name, byte sequence 63 CC 8C, which is preserved), Unix/Mac UTF-8-without-flag
+  is sniffed, and legacy OEM/ANSI entries are converted OEM/ACP → UTF-16 → UTF-8.
+- **Panel-driven UI automation** was limited in the verification environment:
+  Windows UIPI blocks `SendKeys` into the elevated app, and the `-a` argument
+  accepts directories but not an archive path, so opening an archive *through the
+  panel* and the F5-pack flow could not be scripted here. These paths are covered
+  by the build + the code-level decode verification above and should be re-checked
+  interactively. Panel navigation, listing, quick search and the F5 **copy** flow
+  WERE driven successfully (via `PostMessageW` to the `SalamanderItemsBox` window
+  and process arguments) and are recorded in the matrix above.
+
 ## Known cosmetic limitation
 
 Emoji (non-BMP) names list, copy and match correctly, but the panel font has no

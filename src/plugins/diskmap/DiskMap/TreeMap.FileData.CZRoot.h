@@ -42,7 +42,7 @@ protected:
     static DWORD_PTR WINAPI PopulateThreadProc(CWorkerThread* mythread, LPVOID lpParam)
     {
         CZRoot* self = (CZRoot*)lpParam;
-        TCHAR path[2 * MAX_PATH + 3]; //fits a MAX_PATH path + MAX_PATH-long file name + some margin
+        TCHAR path[6 * MAX_PATH + 3]; //UTF-8 path + UTF-8 file name (up to 3 bytes per character) + some margin
         self->PopulateDir(mythread, path, 0, ARRAYSIZE(path));
         if (mythread->Aborting() && mythread->IsSelfDelete())
         {
@@ -120,8 +120,8 @@ public:
             return 0;
         if (!this->_clustersize)
         {
-            TCHAR path[MAX_PATH + 1];
-            size_t pos = this->GetFullName(path, MAX_PATH - 2);
+            TCHAR path[3 * MAX_PATH + 1]; // UTF-8 path (up to 3 bytes per character)
+            size_t pos = this->GetFullName(path, ARRAYSIZE(path) - 2);
             if (path[pos - 1] != TEXT('\\'))
                 path[pos++] = TEXT('\\');
             path[pos++] = TEXT('\0');
@@ -129,7 +129,11 @@ public:
             DWORD BytesPerSector = 0;
             DWORD NumberOfFreeClusters = 0;
             DWORD TotalNumberOfClusters = 0;
-            if (!GetDiskFreeSpace(path, &SectorsPerCluster, &BytesPerSector, &NumberOfFreeClusters, &TotalNumberOfClusters))
+            WCHAR* wPath = SplU8ToWAlloc(path); // the path is UTF-8 -> W API
+            BOOL gotSpace = wPath != NULL ? GetDiskFreeSpaceW(wPath, &SectorsPerCluster, &BytesPerSector, &NumberOfFreeClusters, &TotalNumberOfClusters)
+                                          : GetDiskFreeSpaceA(path, &SectorsPerCluster, &BytesPerSector, &NumberOfFreeClusters, &TotalNumberOfClusters);
+            free(wPath);
+            if (!gotSpace)
             {
                 this->_logger->Log(new CBasicLogItem(LOG_ERROR, TEXT("Problem with GetDiskFreeSpace() API."), NULL));
             }
@@ -156,7 +160,7 @@ public:
 
     INT64 SyncPopulate()
     {
-        TCHAR path[2 * MAX_PATH + 3]; //fits a MAX_PATH path + MAX_PATH-long file name + some margin
+        TCHAR path[6 * MAX_PATH + 3]; //UTF-8 path + UTF-8 file name (up to 3 bytes per character) + some margin
         return this->PopulateDir(NULL, path, 0, ARRAYSIZE(path));
     }
 

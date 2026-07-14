@@ -208,6 +208,23 @@ BYTE ChkSum(BYTE* pFcpName)
 }
 #pragma runtime_checks("", restore)
 
+// FAT format boundary (interface 104): 8.3 short names are stored in the OEM code
+// page. Convert to UTF-8 (via UTF-16) so the name crossing the plugin interface is
+// UTF-8, then duplicate with Salamander's allocator. Pure ASCII (the common case) is
+// already valid UTF-8 and is copied verbatim. Returns NULL on out of memory.
+static char* OEMNameToU8Dup(const char* oemName)
+{
+    if (SplIsASCII(oemName))
+        return SalamanderGeneral->DupStr(oemName);
+    WCHAR w[16]; // an 8.3 name is at most 12 characters
+    if (MultiByteToWideChar(CP_OEMCP, 0, oemName, -1, w, 16) == 0)
+        return SalamanderGeneral->DupStr(oemName); // undecodable -> keep the bytes
+    char u8[3 * 13 + 1];
+    if (SplWToU8(w, u8, sizeof(u8)) == 0)
+        return SalamanderGeneral->DupStr(oemName); // conversion failed -> keep the bytes
+    return SalamanderGeneral->DupStr(u8);
+}
+
 // convert a name in the 83 format to 8.3
 BOOL ConvertFATName(const char* fatName, char* name)
 {
@@ -423,18 +440,19 @@ BOOL CFATImage::AddDirectory(char* root, TDirectArray<DWORD>* fat,
 
         if (longNameLen > 0)
         {
-            file.Name = (char*)SalamanderGeneral->Alloc(longNameLen + 1);
+            // FAT format boundary (interface 104): long names are native UTF-16 ->
+            // convert to UTF-8 (the encoding crossing the plugin interface)
+            int u8Len = WideCharToMultiByte(CP_UTF8, 0, longName, longNameLen, NULL, 0, NULL, NULL);
+            file.Name = (char*)SalamanderGeneral->Alloc(u8Len + 1);
             if (file.Name == NULL)
             {
                 TRACE_E(LOW_MEMORY);
                 ok = FALSE;
                 break;
             }
-            // Convert the UNICODE string to ANSI
-            WideCharToMultiByte(CP_ACP, 0, longName, longNameLen + 1,
-                                file.Name, longNameLen + 1, NULL, NULL);
-            file.Name[longNameLen] = 0;
-            file.DosName = SalamanderGeneral->DupStr(name8_3);
+            WideCharToMultiByte(CP_UTF8, 0, longName, longNameLen, file.Name, u8Len, NULL, NULL);
+            file.Name[u8Len] = 0;
+            file.DosName = OEMNameToU8Dup(name8_3);
             if (file.DosName == NULL)
             {
                 TRACE_E(LOW_MEMORY);
@@ -447,7 +465,7 @@ BOOL CFATImage::AddDirectory(char* root, TDirectArray<DWORD>* fat,
         {
             if ((dirEnt.Short.NTRes & 0x08) != 0)
                 _strlwr(name8_3);
-            file.Name = SalamanderGeneral->DupStr(name8_3);
+            file.Name = OEMNameToU8Dup(name8_3); // 8.3 short name: OEM -> UTF-8
             if (file.Name == NULL)
             {
                 TRACE_E(LOW_MEMORY);

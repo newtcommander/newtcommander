@@ -5,6 +5,150 @@
 
 #include "TreeMap.FileData.CZFile.h"
 
+// ****************************************************************************
+//
+// Text output on the W layer
+//
+// Since plugin interface 104 every file name crossing the Salamander interface is UTF-8,
+// so the names stored in the tree are UTF-8 as well. The localized strings loaded from the
+// language module are ANSI. These helpers convert the text to UTF-16 (UTF-8 first, ANSI as
+// a fallback) and draw/measure it via the W GDI, which is the only way non-ASCII names can
+// be rendered correctly.
+//
+
+#define ZTEXT_STACKBUF 512
+
+// TCHAR (UTF-8 or ANSI) -> UTF-16; returns the number of characters, 'buf' must be freed with
+// ZTextFreeW() when it differs from 'stackBuf'
+inline WCHAR* ZTextToW(const TCHAR* text, int len, WCHAR* stackBuf, int stackBufChars, int* wLen)
+{
+    *wLen = 0;
+    if (text == NULL || len < 0)
+        return stackBuf;
+    WCHAR* w = stackBuf;
+    if (len + 1 > stackBufChars)
+    {
+        w = (WCHAR*)malloc((len + 1) * sizeof(WCHAR));
+        if (w == NULL)
+            return stackBuf;
+    }
+    int l = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, len, w, len + 1);
+    if (l == 0) // not valid UTF-8 (e.g. a localized ANSI string) -> fall back to ANSI
+        l = MultiByteToWideChar(CP_ACP, 0, text, len, w, len + 1);
+    *wLen = l;
+    return w;
+}
+
+inline void ZTextFreeW(WCHAR* w, WCHAR* stackBuf)
+{
+    if (w != stackBuf)
+        free(w);
+}
+
+inline BOOL ZExtTextOut(HDC hdc, int x, int y, UINT options, const RECT* rect,
+                        const TCHAR* text, UINT len, const INT* dx)
+{
+    if (text == NULL || len == 0)
+        return ExtTextOutW(hdc, x, y, options, rect, NULL, 0, dx);
+    WCHAR stackBuf[ZTEXT_STACKBUF];
+    int wLen;
+    WCHAR* w = ZTextToW(text, (int)len, stackBuf, ZTEXT_STACKBUF, &wLen);
+    BOOL ret = ExtTextOutW(hdc, x, y, options, rect, w, (UINT)wLen, dx);
+    ZTextFreeW(w, stackBuf);
+    return ret;
+}
+
+inline BOOL ZTextOut(HDC hdc, int x, int y, const TCHAR* text, int len)
+{
+    WCHAR stackBuf[ZTEXT_STACKBUF];
+    int wLen;
+    WCHAR* w = ZTextToW(text, len, stackBuf, ZTEXT_STACKBUF, &wLen);
+    BOOL ret = TextOutW(hdc, x, y, w, wLen);
+    ZTextFreeW(w, stackBuf);
+    return ret;
+}
+
+inline BOOL ZGetTextExtentPoint32(HDC hdc, const TCHAR* text, int len, SIZE* size)
+{
+    WCHAR stackBuf[ZTEXT_STACKBUF];
+    int wLen;
+    WCHAR* w = ZTextToW(text, len, stackBuf, ZTEXT_STACKBUF, &wLen);
+    BOOL ret = GetTextExtentPoint32W(hdc, w, wLen, size);
+    ZTextFreeW(w, stackBuf);
+    return ret;
+}
+
+inline BOOL ZSetWindowText(HWND hWnd, const TCHAR* text)
+{
+    WCHAR stackBuf[ZTEXT_STACKBUF];
+    int wLen;
+    WCHAR* w = ZTextToW(text, (int)_tcslen(text), stackBuf, ZTEXT_STACKBUF, &wLen);
+    w[wLen] = 0;
+    BOOL ret = SetWindowTextW(hWnd, w);
+    ZTextFreeW(w, stackBuf);
+    return ret;
+}
+
+// number of UTF-16 characters the first 'bytePos' bytes of the (UTF-8) text expand to;
+// used to map positions inside the UTF-8 string onto the W string used for drawing
+inline int ZU8PosToWPos(const TCHAR* text, int bytePos)
+{
+    if (bytePos <= 0)
+        return 0;
+    int l = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, bytePos, NULL, 0);
+    if (l == 0)
+        l = MultiByteToWideChar(CP_ACP, 0, text, bytePos, NULL, 0);
+    return l;
+}
+
+// Like GetTextExtentExPoint, but for a UTF-8 (or ANSI-fallback) string: it measures via the W
+// GDI and stores the cumulative widths BYTE-indexed (dxByte[i] = width of text[0..i]), which is
+// how the CDirectoryLine path code consumes them (its node offsets are byte positions inside the
+// UTF-8 path). 'dxByte' must have at least 'byteLen' entries. Returns TRUE on success.
+inline BOOL ZGetTextExtentByteDx(HDC hdc, const TCHAR* text, int byteLen, int* dxByte, SIZE* size)
+{
+    size->cx = 0;
+    size->cy = 0;
+    if (byteLen <= 0)
+        return TRUE;
+    WCHAR stackBuf[ZTEXT_STACKBUF];
+    int wLen;
+    WCHAR* w = ZTextToW(text, byteLen, stackBuf, ZTEXT_STACKBUF, &wLen);
+    BOOL ret = FALSE;
+    int* wdx = (int*)malloc((wLen > 0 ? wLen : 1) * sizeof(int));
+    if (wdx != NULL && GetTextExtentExPointW(hdc, w, wLen, 0, NULL, wdx, size))
+    {
+        // map each byte of the UTF-8 string onto the width of the code point it belongs to
+        int b = 0;
+        for (int j = 0; j < wLen && b < byteLen; j++)
+        {
+            int cpBytes, wUnits;
+            if (w[j] >= 0xD800 && w[j] <= 0xDBFF && j + 1 < wLen)
+            {
+                cpBytes = 4; // supplementary code point = surrogate pair = 4 UTF-8 bytes
+                wUnits = 2;
+            }
+            else
+            {
+                WCHAR c = w[j];
+                cpBytes = c < 0x80 ? 1 : (c < 0x800 ? 2 : 3);
+                wUnits = 1;
+            }
+            int width = wdx[j + wUnits - 1];
+            for (int k = 0; k < cpBytes && b < byteLen; k++)
+                dxByte[b++] = width;
+            if (wUnits == 2)
+                j++; // skip the low surrogate
+        }
+        while (b < byteLen) // ANSI fallback path (1 byte == 1 wide unit) or rounding safety
+            dxByte[b++] = size->cx;
+        ret = TRUE;
+    }
+    free(wdx);
+    ZTextFreeW(w, stackBuf);
+    return ret;
+}
+
 class CStringFormatter;
 
 class CZString

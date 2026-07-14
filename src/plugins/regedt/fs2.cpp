@@ -69,7 +69,7 @@ BOOL CPluginFSInterface::GetCurrentPath(char* userPart)
     if (!GetCurrentPathW(buf, MAX_PATH))
         return FALSE;
 
-    if (WStrToStr(userPart, MAX_PATH, buf) <= 0)
+    if (WStrToU8(userPart, MAX_PATH, buf) <= 0)
         return Error(IDS_LONGNAME);
 
     return TRUE;
@@ -88,13 +88,13 @@ BOOL CPluginFSInterface::GetFullName(CFileData& file, int isDir, char* buf, int 
     if (isDir == 2) // up-dir
     {
         if (!CutDirectory(buffer, NULL, 0) ||
-            WStrToStr(buf, bufSize, buffer) <= 0)
+            WStrToU8(buf, bufSize, buffer) <= 0)
             return Error(IDS_LONGNAME);
     }
     else
     {
         if (!PathAppend(buffer, pluginData->Name != NULL && *pluginData->Name != 0 ? pluginData->Name : LoadStrW(IDS_DEFAULTVALUE), MAX_FULL_KEYNAME) ||
-            WStrToStr(buf, bufSize, buffer) <= 0)
+            WStrToU8(buf, bufSize, buffer) <= 0)
             return Error(IDS_LONGNAME);
     }
     return TRUE;
@@ -204,7 +204,7 @@ BOOL CPluginFSInterface::GetFullFSPath(HWND parent, const char* fsName, char* pa
     else
     {
         WCHAR buffer[MAX_FULL_KEYNAME];
-        if (MultiByteToWideChar(CP_ACP, 0, path, -1, buffer, MAX_FULL_KEYNAME) <= 0)
+        if (U8ToWStr(buffer, MAX_FULL_KEYNAME, path) <= 0)
             return TRUE;
         GetFullFSPathW(buffer, MAX_FULL_KEYNAME, success);
         if (!success)
@@ -213,7 +213,7 @@ BOOL CPluginFSInterface::GetFullFSPath(HWND parent, const char* fsName, char* pa
         lstrcpyn(path, fsName, pathSize);
         StrNCat(path, ":", pathSize);
         int l = (int)strlen(path);
-        success = WStrToStr(path + l, pathSize - l, buffer) >= 0 || Error(IDS_LONGNAME);
+        success = WStrToU8(path + l, pathSize - l, buffer) >= 0 || Error(IDS_LONGNAME);
         return TRUE;
     }
 }
@@ -237,7 +237,7 @@ BOOL CPluginFSInterface::IsCurrentPath(int currentFSNameIndex, int fsNameIndex, 
     }
     else
     {
-        if (MultiByteToWideChar(CP_ACP, 0, userPart, -1, buffer, MAX_FULL_KEYNAME) <= 0)
+        if (U8ToWStr(buffer, MAX_FULL_KEYNAME, userPart) <= 0)
             return FALSE;
         user = buffer;
     }
@@ -284,7 +284,7 @@ BOOL CPluginFSInterface::ChangePath(int currentFSNameIndex, char* fsName, int fs
     }
     else
     {
-        if (MultiByteToWideChar(CP_ACP, 0, userPart, -1, path, MAX_FULL_KEYNAME) <= 0)
+        if (U8ToWStr(path, MAX_FULL_KEYNAME, userPart) <= 0)
             return FALSE;
     }
     BOOL sucess;
@@ -354,7 +354,7 @@ BOOL CPluginFSInterface::ChangePath(int currentFSNameIndex, char* fsName, int fs
             CurrentKeyRoot = keyRoot;
             if (cutFileName)
             {
-                if (!WStrToStr(cutFileName, MAX_PATH, cutFileNameW))
+                if (!WStrToU8(cutFileName, MAX_PATH, cutFileNameW))
                 {
                     *cutFileName = 0;
                 }

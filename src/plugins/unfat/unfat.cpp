@@ -76,6 +76,34 @@ char* LoadStr(int resID)
     return SalamanderGeneral->LoadStr(HLanguage, resID);
 }
 
+//
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
 int WINAPI SalamanderPluginGetReqVer()
 {
     return LAST_VERSION_OF_SALAMANDER;

@@ -199,33 +199,55 @@ void CRendererWindow::SetTitle()
 
 BOOL CRendererWindow::OnFileOpen(LPCTSTR defaultDirectory)
 {
-    TCHAR file[MAX_PATH] = _T("");
-    OPENFILENAME ofn;
-    memset(&ofn, 0, sizeof(OPENFILENAME));
-    ofn.lStructSize = sizeof(OPENFILENAME);
+    // the common dialog runs on the W layer, otherwise the user could not pick a file
+    // whose name the ACP cannot express; the picked name may also exceed MAX_PATH
+    const int fileSize = 4096;
+    LPWSTR file = (LPWSTR)malloc(fileSize * sizeof(WCHAR));
+    if (file == NULL)
+        return FALSE;
+    file[0] = 0;
+
+    OPENFILENAMEW ofn;
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = HWindow;
     // I tried stuffing all extensions into the filter, but the filter stopped working.
     // MSDN mentions no limit. IrfanView handles it like this.
-    TCHAR filterStr[1000];
-    lstrcpyn(filterStr, LoadStr(IDS_OPENFILTER), SizeOf(filterStr));
-    LPTSTR s = filterStr;
+    WCHAR filterStr[1000];
+    lstrcpynW(filterStr, LoadStrW(IDS_OPENFILTER), SizeOf(filterStr));
+    LPWSTR s = filterStr;
     ofn.lpstrFilter = s;
     while (*s != 0) // create a double-null-terminated list
     {
-        if (*s == '|')
+        if (*s == L'|')
             *s = 0;
         s++;
     }
+    WCHAR* wDefaultDirectory = SplU8ToWAlloc(defaultDirectory); // the name is UTF-8
     ofn.lpstrFile = file;
-    ofn.nMaxFile = MAX_PATH;
+    ofn.nMaxFile = fileSize;
     ofn.nFilterIndex = 1;
-    ofn.lpstrInitialDir = defaultDirectory;
+    ofn.lpstrInitialDir = wDefaultDirectory;
     ofn.Flags = OFN_HIDEREADONLY | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-    if (SalamanderGeneral->SafeGetOpenFileName(&ofn))
-    {
-        EnumFilesSourceUID = -1;
-        OpenFile(file, -1, NULL);
+    BOOL ok = GetOpenFileNameW(&ofn);
+    if (!ok && CommDlgExtendedError() == FNERR_INVALIDFILENAME)
+    { // Windows refuses to open the dialog for an invalid initial path -> retry without it
+        file[0] = 0;
+        ofn.lpstrInitialDir = NULL;
+        ok = GetOpenFileNameW(&ofn);
     }
+    if (ok)
+    {
+        char* name = SplWToU8Alloc(file); // inside the plugin the names are UTF-8
+        if (name != NULL)
+        {
+            EnumFilesSourceUID = -1;
+            OpenFile(name, -1, NULL);
+            free(name);
+        }
+    }
+    free(wDefaultDirectory);
+    free(file);
     return TRUE;
 } /* CRendererWindow::OnFileOpen */
 
@@ -2073,7 +2095,6 @@ LRESULT CRendererWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_DROPFILES:
     {
         UINT drag;
-        TCHAR path[MAX_PATH];
 
         drag = DragQueryFile((HDROP)wParam, 0xFFFFFFFF, NULL, 0); // how many files were dropped on us
         // this code opens all files - it comes from the text editor
@@ -2082,21 +2103,32 @@ LRESULT CRendererWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         // and ignore the rest
         if (drag > 0)
         {
-            DragQueryFile((HDROP)wParam, 0, path, MAX_PATH);
-            EnumFilesSourceUID = -1;
-            // If the original image is still loading we are now called from ProgressProcedure
-            // and therefore cannot start a new load
-            // first we must cancel the existing one and postpone the new request
-            if (Loading)
+            // the dropped name arrives in UTF-16 and may be longer than MAX_PATH; inside the
+            // plugin (and towards Salamander) the names are UTF-8
+            UINT wLen = DragQueryFileW((HDROP)wParam, 0, NULL, 0);
+            WCHAR* wPath = wLen > 0 ? (WCHAR*)malloc((wLen + 1) * sizeof(WCHAR)) : NULL;
+            char* path = NULL;
+            if (wPath != NULL && DragQueryFileW((HDROP)wParam, 0, wPath, wLen + 1) > 0)
+                path = SplWToU8Alloc(wPath);
+            free(wPath);
+            if (path != NULL)
             {
-                Canceled = TRUE;
-                SalamanderGeneral->Free(FileName);
-                FileName = SalamanderGeneral->DupStr(path);
-                PostMessage(HWindow, WM_COMMAND, CMD_RELOAD, 0);
-            }
-            else
-            {
-                OpenFile(path, -1, NULL);
+                EnumFilesSourceUID = -1;
+                // If the original image is still loading we are now called from ProgressProcedure
+                // and therefore cannot start a new load
+                // first we must cancel the existing one and postpone the new request
+                if (Loading)
+                {
+                    Canceled = TRUE;
+                    SalamanderGeneral->Free(FileName);
+                    FileName = SalamanderGeneral->DupStr(path);
+                    PostMessage(HWindow, WM_COMMAND, CMD_RELOAD, 0);
+                }
+                else
+                {
+                    OpenFile(path, -1, NULL);
+                }
+                free(path);
             }
         }
         DragFinish((HDROP)wParam);
@@ -2766,7 +2798,7 @@ void MakeValidFileName(TCHAR* path)
     *n = 0;
 }
 
-BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR (&newName)[MAX_PATH], BOOL* tryAgain)
+BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR (&newName)[3 * MAX_PATH], BOOL* tryAgain)
 {
     BOOL renamed = FALSE;
     *tryAgain = TRUE;
@@ -2784,7 +2816,7 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
         // strip unwanted characters from the beginning and end of the name
         MakeValidFileName(finalName);
         // the name component must fit 'newName'; the path itself may be of any length
-        if (_tcslen(finalName) >= NEWNAME_SIZE)
+        if (_tcslen(finalName) >= SizeOf(newName))
         {
             SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME),
                                              LoadStr(IDS_ERRORRENAMINGFILE),
@@ -2831,10 +2863,12 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
             }
 
             // report the change on the path (renamed file)
-            TCHAR changedPath[MAX_PATH];
-            lstrcpyn(changedPath, path, MAX_PATH);
-            SalamanderGeneral->CutDirectory(changedPath);
-            SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
+            LPTSTR changedPath = _tcsdup(path); // the path may be longer than MAX_PATH
+            if (changedPath != NULL)
+            {
+                SalamanderGeneral->CutDirectory(changedPath);
+                SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
+            }
 
             if (moveRet)
             {
@@ -2853,12 +2887,15 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
                     if ((inAttr & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
                         (outAttr & FILE_ATTRIBUTE_DIRECTORY) == 0)
                     { // only if both files are present
-                        HANDLE in = CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-                                               NULL);
-                        HANDLE out = CreateFile(tgtPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-                                                NULL);
+                        // the paths are UTF-8 -> open through the W API (Unicode + long paths)
+                        WCHAR* wPath = SplU8ToWExtAlloc(path);
+                        WCHAR* wTgtPath = SplU8ToWExtAlloc(tgtPath);
+                        HANDLE in = wPath == NULL ? INVALID_HANDLE_VALUE : CreateFileW(wPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                                                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                                                                                       NULL);
+                        HANDLE out = wTgtPath == NULL ? INVALID_HANDLE_VALUE : CreateFileW(wTgtPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                                                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                                                                                           NULL);
                         if (in != INVALID_HANDLE_VALUE && out != INVALID_HANDLE_VALUE)
                         {
                             TCHAR iAttr[101], oAttr[101];
@@ -2881,7 +2918,8 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
                             case IDYES:
                             {
                                 SalamanderGeneral->ClearReadOnlyAttr(tgtPath); // to allow it to be deleted ...
-                                if (!DeleteFile(tgtPath) || !SalamanderGeneral->SalMoveFile(path, tgtPath, &err))
+                                if ((wTgtPath == NULL || !DeleteFileW(wTgtPath)) ||
+                                    !SalamanderGeneral->SalMoveFile(path, tgtPath, &err))
                                 {
                                     //err = GetLastError();
                                 }
@@ -2892,7 +2930,8 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
                                     ret = TRUE;
                                 }
                                 // report the change on the path (renamed file)
-                                SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
+                                if (changedPath != NULL)
+                                    SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
                                 break;
                             }
                             }
@@ -2908,6 +2947,8 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
                             else
                                 CloseHandle(out);
                         }
+                        free(wPath);
+                        free(wTgtPath);
                     }
                 }
 
@@ -2916,18 +2957,34 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
                                                      LoadStr(IDS_ERRORRENAMINGFILE),
                                                      MB_OK | MB_ICONEXCLAMATION);
             }
+            free(changedPath);
             *tryAgain = !ret;
         }
-        else
-            SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME),
-                                             LoadStr(IDS_ERRORRENAMINGFILE),
-                                             MB_OK | MB_ICONEXCLAMATION);
+        free(tgtPath);
+        free(path);
     }
     else
         SalamanderGeneral->SalMessageBox(HWindow, SalamanderGeneral->GetErrorText(ERROR_INVALID_NAME),
                                          LoadStr(IDS_ERRORRENAMINGFILE),
                                          MB_OK | MB_ICONEXCLAMATION);
     return renamed;
+}
+
+// UTF-8 path -> double-NULL terminated UTF-16 list for SHFileOperationW; free() the result
+static WCHAR* MakeSHFileOpListW(LPCTSTR path)
+{
+    WCHAR* w = SplU8ToWAlloc(path); // no "\\?\": the shell API does not accept it
+    if (w == NULL)
+        return NULL;
+    size_t len = wcslen(w);
+    WCHAR* list = (WCHAR*)malloc((len + 2) * sizeof(WCHAR));
+    if (list != NULL)
+    {
+        memcpy(list, w, (len + 1) * sizeof(WCHAR));
+        list[len + 1] = 0; // the list is terminated by a second NULL
+    }
+    free(w);
+    return list;
 }
 
 void CRendererWindow::OnCopyTo()
@@ -2939,25 +2996,20 @@ void CRendererWindow::OnCopyTo()
     {
         // SHFileOperation works with multiple paths which must be NULL-separated
         // Thus extra terminating NULL is needed
+        // the names are UTF-8 -> the W variant of the shell API
 
-        int srcListSize = (int)_tcslen(FileName) + 2;
-        LPTSTR srcList = (LPTSTR)malloc(srcListSize * sizeof(TCHAR));
+        WCHAR* srcList = MakeSHFileOpListW(FileName);
         if (srcList == NULL)
             return;
-        memcpy(srcList, FileName, (srcListSize - 1) * sizeof(TCHAR));
-        srcList[srcListSize - 1] = 0;
 
-        int dstListSize = (int)_tcslen(dstName) + 2;
-        LPTSTR dstList = (LPTSTR)malloc(dstListSize * sizeof(TCHAR));
+        WCHAR* dstList = MakeSHFileOpListW(dstName);
         if (dstList == NULL)
         {
             free(srcList);
             return;
         }
-        memcpy(dstList, dstName, (dstListSize - 1) * sizeof(TCHAR));
-        dstList[dstListSize - 1] = 0;
 
-        SHFILEOPSTRUCT fo;
+        SHFILEOPSTRUCTW fo;
         fo.hwnd = HWindow;
         fo.wFunc = FO_COPY;
         fo.pFrom = srcList;
@@ -2965,18 +3017,18 @@ void CRendererWindow::OnCopyTo()
         fo.fFlags = 0;
         fo.fAnyOperationsAborted = FALSE;
         fo.hNameMappings = NULL;
-        fo.lpszProgressTitle = _T("");
+        fo.lpszProgressTitle = L"";
         // perform the actual deletion - wonderfully simple, unfortunately it occasionally crashes for them ;-)
-        CALL_STACK_MESSAGE1("CRendererWindow::OnCopyTo::SHFileOperation");
-        TCHAR changedPath[MAX_PATH];
-        lstrcpyn(changedPath, FileName, MAX_PATH);
-        if (SHFileOperation(&fo) == 0)
+        CALL_STACK_MESSAGE1("CRendererWindow::OnCopyTo::SHFileOperationW");
+        LPTSTR changedPath = _tcsdup(FileName); // the path may be longer than MAX_PATH
+        if (SHFileOperationW(&fo) == 0 && changedPath != NULL)
         {
             // report the change on the path (renamed file)
             SalamanderGeneral->CutDirectory(changedPath);
             SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
         }
 
+        free(changedPath);
         free(srcList);
         free(dstList);
     }
@@ -2988,16 +3040,13 @@ void CRendererWindow::OnDelete(BOOL toRecycle)
 
     // SHFileOperation works with multiple paths which must be NULL-separated
     // Thus extra terminating NULL is needed
+    // the name is UTF-8 -> the W variant of the shell API
 
-    int listSize = (int)_tcslen(FileName) + 2;
-    LPTSTR list = (LPTSTR)malloc(listSize * sizeof(TCHAR));
+    WCHAR* list = MakeSHFileOpListW(FileName);
     if (list == NULL)
         return;
 
-    memcpy(list, FileName, (listSize - 1) * sizeof(TCHAR));
-    list[listSize - 1] = 0;
-
-    SHFILEOPSTRUCT fo;
+    SHFILEOPSTRUCTW fo;
     fo.hwnd = HWindow;
     fo.wFunc = FO_DELETE;
     fo.pFrom = list;
@@ -3005,12 +3054,11 @@ void CRendererWindow::OnDelete(BOOL toRecycle)
     fo.fFlags = toRecycle ? FOF_ALLOWUNDO : 0;
     fo.fAnyOperationsAborted = FALSE;
     fo.hNameMappings = NULL;
-    fo.lpszProgressTitle = _T("");
+    fo.lpszProgressTitle = L"";
     // perform the actual deletion - wonderfully simple, unfortunately it occasionally crashes for them ;-)
-    CALL_STACK_MESSAGE1("CRendererWindow::OnDelete::SHFileOperation");
-    TCHAR changedPath[MAX_PATH];
-    lstrcpyn(changedPath, FileName, MAX_PATH);
-    if (SHFileOperation(&fo) == 0)
+    CALL_STACK_MESSAGE1("CRendererWindow::OnDelete::SHFileOperationW");
+    LPTSTR changedPath = _tcsdup(FileName); // the path may be longer than MAX_PATH
+    if (SHFileOperationW(&fo) == 0)
     {
         // from the return values we cannot tell whether the file was deleted or
         // the user merely pressed Cancel in the confirmation dialog
@@ -3022,9 +3070,13 @@ void CRendererWindow::OnDelete(BOOL toRecycle)
         }
     }
     // report the change on the path (renamed file)
-    SalamanderGeneral->CutDirectory(changedPath);
-    SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
+    if (changedPath != NULL)
+    {
+        SalamanderGeneral->CutDirectory(changedPath);
+        SalamanderGeneral->PostChangeOnPathNotification(changedPath, FALSE);
+    }
 
+    free(changedPath);
     free(list);
 }
 
@@ -3303,15 +3355,19 @@ LRESULT CRendererWindow::OnCommand(WPARAM wParam, LPARAM lParam, BOOL* closingVi
         BOOL oldCanHideCursor = CanHideCursor;
         CanHideCursor = FALSE;
 
-        TCHAR oldPath[MAX_PATH];
-        TCHAR oldName[MAX_PATH];
+        // the path of the viewed file may be longer than MAX_PATH -> the directory part on the heap,
+        // the name component fits into 3 * MAX_PATH bytes of UTF-8
+        LPTSTR oldPath = (LPTSTR)malloc((s - FileName + 1) * sizeof(TCHAR));
+        if (oldPath == NULL)
+            return 0;
         memcpy(oldPath, FileName, (s - FileName) * sizeof(TCHAR));
         oldPath[s - FileName] = 0;
-        _tcscpy(oldName, s + 1);
+        TCHAR oldName[3 * MAX_PATH];
+        lstrcpyn(oldName, s + 1, SizeOf(oldName));
 
-        TCHAR newName[MAX_PATH];
-        _tcscpy(newName, s + 1);
-        CRenameDialog dlg(HWindow, newName, MAX_PATH);
+        TCHAR newName[3 * MAX_PATH];
+        lstrcpyn(newName, s + 1, SizeOf(newName));
+        CRenameDialog dlg(HWindow, newName, SizeOf(newName));
         while (1)
         {
             if (dlg.Execute() == IDOK)
@@ -3332,13 +3388,17 @@ LRESULT CRendererWindow::OnCommand(WPARAM wParam, LPARAM lParam, BOOL* closingVi
                         FileName = NULL;
                     }
 
-                    TCHAR newFileName[MAX_PATH];
-                    int l = (int)_tcslen(oldPath);
-                    memcpy(newFileName, oldPath, l * sizeof(TCHAR));
-                    if (oldPath[l - 1] != '\\')
-                        newFileName[l++] = '\\';
-                    _tcscpy(newFileName + l, newName);
-                    FileName = SalamanderGeneral->DupStr(newFileName);
+                    size_t l = _tcslen(oldPath);
+                    LPTSTR newFileName = (LPTSTR)malloc((l + 2 + _tcslen(newName)) * sizeof(TCHAR));
+                    if (newFileName != NULL)
+                    {
+                        memcpy(newFileName, oldPath, l * sizeof(TCHAR));
+                        if (oldPath[l - 1] != '\\')
+                            newFileName[l++] = '\\';
+                        _tcscpy(newFileName + l, newName);
+                        FileName = SalamanderGeneral->DupStr(newFileName);
+                        free(newFileName);
+                    }
                     SetTitle();
                     break;
                 }
@@ -3348,6 +3408,7 @@ LRESULT CRendererWindow::OnCommand(WPARAM wParam, LPARAM lParam, BOOL* closingVi
             else
                 break;
         }
+        free(oldPath);
         CanHideCursor = oldCanHideCursor;
         return 0;
     }
@@ -4156,7 +4217,7 @@ LRESULT CRendererWindow::OnCommand(WPARAM wParam, LPARAM lParam, BOOL* closingVi
         }
 
         ShowWindow(Viewer->HWindow, SW_MINIMIZE);
-        SetWindowText(Viewer->HWindow, LoadStr(IDS_CAPTURING));
+        SetWindowTextW(Viewer->HWindow, LoadStrW(IDS_CAPTURING)); // W: the string is UTF-8 since interface 104
         Capturing = TRUE;
 
         return 0;

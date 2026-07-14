@@ -42,6 +42,7 @@
 #include "spl_view.h"
 #include "spl_gui.h"
 #include "spl_vers.h"
+#include "splunicode.h"
 
 #include "dbg.h"
 #include "mhandles.h"
