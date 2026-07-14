@@ -263,8 +263,21 @@ HANDLE OS<char>::OS_CreateFile(const char* fileName, DWORD desiredAccess, DWORD 
                                SECURITY_ATTRIBUTES* securityAttributes, DWORD creationDisposition,
                                DWORD flagsAndAttributes, HANDLE templateFile)
 {
-    return HANDLES_Q(CreateFileA(fileName, desiredAccess, shareMode, securityAttributes,
-                                 creationDisposition, flagsAndAttributes, templateFile));
+    // fileName is UTF-8 (plugin interface 104): a "\\.\X:" volume/device path or
+    // a user-selected disk-image file that may carry Unicode. Convert plainly
+    // (NOT the extended "\\?\" form, which would corrupt "\\.\" device paths).
+    WCHAR* fileNameW = SplU8ToWAlloc(fileName);
+    if (fileNameW == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE h = HANDLES_Q(CreateFileW(fileNameW, desiredAccess, shareMode, securityAttributes,
+                                     creationDisposition, flagsAndAttributes, templateFile));
+    DWORD err = GetLastError();
+    free(fileNameW);
+    SetLastError(err); // preserve the API's error across free()
+    return h;
 }
 
 // ****************************************************************************

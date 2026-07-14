@@ -97,7 +97,12 @@ void CDeleteProgressDlg::FlushDataToControls()
     {
         if (TextCacheIsDirty)
         {
-            SetDlgItemText(HWindow, IDT_FILENAME, TextCache);
+            // TextCache is a UTF-8 file name (interface 104) -> show it with the W
+            // text API so non-ASCII names render correctly (SetDlgItemTextA would
+            // interpret the bytes in the ANSI code page)
+            WCHAR* wText = SplU8ToWAlloc(TextCache);
+            SetDlgItemTextW(HWindow, IDT_FILENAME, wText != NULL ? wText : L"");
+            free(wText);
             TextCacheIsDirty = FALSE;
         }
 

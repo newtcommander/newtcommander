@@ -1224,7 +1224,7 @@ void DoCreateDir(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL& 
                     break;
                 }
                 // try another directory name
-                if (!CreateDirectory(fullName, NULL))
+                if (!FTPCreateDirectoryU8(fullName, NULL))
                 {
                     winErr = GetLastError();
                     if (winErr != ERROR_ALREADY_EXISTS && winErr != ERROR_FILE_EXISTS)
@@ -1634,8 +1634,8 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
                     break;
                 }
                 // try another file name
-                file = HANDLES_Q(CreateFile(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                                            CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+                file = FTPCreateFileU8(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                       CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
                 if (file == INVALID_HANDLE_VALUE)
                 {
                     winErr = GetLastError();
@@ -1676,11 +1676,11 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
         case 2: // resume (for the already exists, transfer failed, and force action cases); if reduceFileSize==TRUE, we also need to shrink the file
         case 3: // resume or overwrite (for already exists, transfer failed, and force action)
         {
-            file = HANDLES_Q(CreateFile(fullName,
-                                        GENERIC_READ /* we will read and check the overlap */ |
-                                            GENERIC_WRITE,
-                                        FILE_SHARE_READ, NULL,
-                                        OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+            file = FTPCreateFileU8(fullName,
+                                   GENERIC_READ /* we will read and check the overlap */ |
+                                       GENERIC_WRITE,
+                                   FILE_SHARE_READ, NULL,
+                                   OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
             if (file == INVALID_HANDLE_VALUE) // cannot open the file
             {
                 winErr = GetLastError();
