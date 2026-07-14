@@ -90,12 +90,14 @@ BOOL CUDFISO::ListDirectory(char* path, int session, CSalamanderDirectoryAbstrac
 
     if (ISO != NULL)
     {
-        char volId[33]; // volume identifier for ISO is 32 chars long
-        strncpy_s(volId, (char*)ISO->PVD.VolumeIdentifier, _TRUNCATE);
+        char volId[3 * 33 + 1]; // volume identifier for ISO is 32 chars long (UTF-8: up to 3B/char)
+        strncpy_s(volId, 33, (char*)ISO->PVD.VolumeIdentifier, _TRUNCATE);
         // trim trailing spaces
         int i;
         for (i = 32; i > 0 && (volId[i] == ' ' || volId[i] == '\0'); i--)
             volId[i] = '\0';
+        // format boundary (interface 104): the ISO volume identifier holds plain bytes
+        EnsureU8Name(volId, sizeof(volId));
         if (strlen(volId) != 0)
             sprintf(partPath, "\\ISO (%s)", volId);
         else
@@ -114,7 +116,8 @@ BOOL CUDFISO::ListDirectory(char* path, int session, CSalamanderDirectoryAbstrac
 
     if (UDF != NULL)
     {
-        char volId[130] = {0}; // logical volume identifier for UDF is 128 chars long
+        // logical volume identifier for UDF is 128 chars long; UTF-8 needs up to 3B/char
+        char volId[3 * 130 + 1] = {0};
 
         BYTE len;
         memcpy(&len, UDF->LVD.LogicalVolumeIdentifier, 1);
@@ -124,14 +127,22 @@ BOOL CUDFISO::ListDirectory(char* path, int session, CSalamanderDirectoryAbstrac
         if (UDF->LVD.LogicalVolumeIdentifier[3] == 0 &&
             UDF->LVD.LogicalVolumeIdentifier[5] == 0)
         {
-            // seems to be 16bit char
-            WideCharToMultiByte(CP_ACP, 0, (WCHAR*)(UDF->LVD.LogicalVolumeIdentifier + 2), 64, volId, sizeof(volId) - 1, 0, 0);
+            // seems to be 16bit char - format boundary (interface 104): UTF-16 -> UTF-8
+            WCHAR w[65];
+            memcpy(w, UDF->LVD.LogicalVolumeIdentifier + 2, 64 * sizeof(WCHAR));
+            w[64] = 0;
+            if (SplWToU8(w, volId, sizeof(volId)) == 0)
+                WideCharToMultiByte(CP_UTF8, 0, w, -1, volId, sizeof(volId) - 1, 0, 0);
             volId[sizeof(volId) - 1] = 0;
         }
         else
         {
+            if (len * 2 > (int)sizeof(volId) - 1)
+                len = (BYTE)((sizeof(volId) - 1) / 2);
             memcpy(volId, UDF->LVD.LogicalVolumeIdentifier + 1, len * 2);
-            volId[2 * len - 1] = 0;
+            volId[len > 0 ? 2 * len - 1 : 0] = 0;
+            // format boundary (interface 104): 8-bit identifiers hold plain bytes
+            EnsureU8Name(volId, sizeof(volId));
         }
 
         if (volId[0] != 0)

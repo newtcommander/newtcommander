@@ -20,6 +20,19 @@ void SaveHistory(HKEY regKey, const char* keyPattern, char** history,
 BOOL FileError(HWND parent, const char* fileName, int error,
                BOOL retry, BOOL* skip, BOOL* skipAll, int title);
 
+// ****************************************************************************
+//
+// File APIs for the UTF-8 paths coming from the Salamander interface (version 104);
+// they call the W variants of the Win32 functions (Unicode names + long paths).
+//
+
+HANDLE CreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                    DWORD creationDisposition, DWORD flagsAndAttributes);
+BOOL DeleteFileU8(const char* fileName);
+BOOL SetFileAttributesU8(const char* fileName, DWORD attr);
+BOOL CreateDirectoryU8(const char* pathName);
+BOOL RemoveDirectoryU8(const char* pathName);
+
 BOOL FileOverwrite(HWND parent, const char* fileName1, const char* fileData1,
                    const char* fileName2, const char* fileData2, DWORD attr,
                    int shquestion, int shtitle, BOOL* skip, DWORD* silent);

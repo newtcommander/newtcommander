@@ -1318,11 +1318,18 @@ BOOL CRenamerDialog::LoadSubdir(char* path, const char* subdir)
         return skip;
     }
 
-    WIN32_FIND_DATA fd;
+    // 'path' is UTF-8 since plugin interface 104 -> enumerate via the W API
+    WIN32_FIND_DATAW fd;
+    char fileName[3 * MAX_PATH]; // fd.cFileName converted to UTF-8
     HANDLE hFind;
 
-    while ((hFind = FindFirstFile(path, &fd)) == INVALID_HANDLE_VALUE)
+    for (;;)
     {
+        WCHAR* wPath = SplU8ToWExtAlloc(path);
+        hFind = wPath != NULL ? FindFirstFileW(wPath, &fd) : INVALID_HANDLE_VALUE;
+        free(wPath);
+        if (hFind != INVALID_HANDLE_VALUE)
+            break;
         BOOL skip;
         if (!FileError(HWindow, path, IDS_ERRREADDIR, TRUE,
                        &skip, &SkipAllBadDirs, IDS_ERROR))
@@ -1377,11 +1384,14 @@ BOOL CRenamerDialog::LoadSubdir(char* path, const char* subdir)
             Preview->SetItemCount(0, 0, 3);
         }
 
-        if (fd.cFileName[0] != 0 && strcmp(fd.cFileName, ".") && strcmp(fd.cFileName, ".."))
+        if (SplWToU8(fd.cFileName, fileName, _countof(fileName)) == 0)
+            fileName[0] = 0; // name we cannot represent in UTF-8 (should not happen)
+
+        if (fileName[0] != 0 && strcmp(fileName, ".") && strcmp(fileName, ".."))
         {
             if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
-                if (!LoadSubdir(path, fd.cFileName))
+                if (!LoadSubdir(path, fileName))
                 {
                     ret = FALSE;
                     break;
@@ -1389,15 +1399,15 @@ BOOL CRenamerDialog::LoadSubdir(char* path, const char* subdir)
             }
             else
             {
-                char* ext = _tcsrchr(fd.cFileName, '.');
+                char* ext = strrchr(fileName, '.');
                 if (!ext)
-                    ext = fd.cFileName + strlen(fd.cFileName); // ".cvspass" is an extension in Windows
+                    ext = fileName + strlen(fileName); // ".cvspass" is an extension in Windows
                 else
                     ext++;
 
-                if (SalMaskGroup->AgreeMasks(fd.cFileName, ext))
+                if (SalMaskGroup->AgreeMasks(fileName, ext))
                 {
-                    CSourceFile* item = new CSourceFile(fd, path, pathLen);
+                    CSourceFile* item = new CSourceFile(fd, fileName, path, pathLen);
                     if (item->NameLen < MAX_PATH)
                         SourceFiles.Add(item);
                     else
@@ -1416,7 +1426,7 @@ BOOL CRenamerDialog::LoadSubdir(char* path, const char* subdir)
             }
         }
 
-        while (!FindNextFile(hFind, &fd))
+        while (!FindNextFileW(hFind, &fd))
         {
             if (GetLastError() == ERROR_NO_MORE_FILES ||
                 !FileError(HWindow, path, IDS_ERRREADDIR, TRUE,
@@ -1636,7 +1646,20 @@ CRenamerDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         DialogStackPush(HWindow);
         if (!Init())
             PostMessage(HWindow, WM_CLOSE, 0, 0);
+        // the names are UTF-8 -> let the preview list re-ask for the notification format
+        // (we want W, see WM_NOTIFYFORMAT)
+        SendDlgItemMessage(HWindow, IDL_PREVIEW, WM_NOTIFYFORMAT, (WPARAM)HWindow, NF_REQUERY);
         return TRUE;
+    }
+
+    case WM_NOTIFYFORMAT:
+    {
+        if (lParam == NF_QUERY)
+        { // we want the W notifications so that the UTF-8 names can be shown as Unicode
+            SetWindowLongPtr(HWindow, DWLP_MSGRESULT, NFR_UNICODE);
+            return TRUE;
+        }
+        break;
     }
 
     case WM_SIZE:
@@ -2074,9 +2097,9 @@ CRenamerDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 break;
             }
 
-            case LVN_GETDISPINFO:
+            case LVN_GETDISPINFOW: // the names are UTF-8 -> we ask for the W notifications, see WM_NOTIFYFORMAT
             {
-                Preview->GetDispInfo((LV_DISPINFO*)lParam);
+                Preview->GetDispInfo((LV_DISPINFOW*)lParam);
                 break;
             }
 

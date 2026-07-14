@@ -43,6 +43,37 @@ inline DWORD StrToWStr(WCHAR* dest, int destSize, const char* sour)
     return StrToWStr(dest, destSize, sour, -1);
 }
 
+// UTF-8 <-> UTF-16 conversions for the Salamander interface: registry key and
+// value names are natively Unicode and every name/path crossing the plugin
+// interface is UTF-8 (interface 104). The WStrToStr/StrToWStr pair above stays
+// on the ANSI code page and serves the plugin's own A dialogs, the LoadStr
+// texts and the REG_SZ value data.
+inline DWORD WStrToU8(char* dest, int destSize, const WCHAR* sour, int sourLen)
+{
+    int ret = WideCharToMultiByte(CP_UTF8, 0, sour, sourLen, dest, destSize, NULL, NULL);
+    if (ret == 0 && destSize > 0)
+        dest[destSize - 1] = 0;
+    return ret;
+}
+
+inline DWORD WStrToU8(char* dest, int destSize, const WCHAR* sour)
+{
+    return WStrToU8(dest, destSize, sour, -1);
+}
+
+inline DWORD U8ToWStr(WCHAR* dest, int destSize, const char* sour, int sourLen)
+{
+    int res = MultiByteToWideChar(CP_UTF8, 0, sour, sourLen, dest, destSize);
+    if (res == 0 && destSize > 0)
+        dest[destSize - 1] = 0;
+    return res;
+}
+
+inline DWORD U8ToWStr(WCHAR* dest, int destSize, const char* sour)
+{
+    return U8ToWStr(dest, destSize, sour, -1);
+}
+
 void RemoveTrailingSlashes(char* path);
 void RemoveTrailingSlashes(LPWSTR path);
 

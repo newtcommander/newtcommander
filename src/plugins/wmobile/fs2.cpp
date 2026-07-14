@@ -261,9 +261,10 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
             (data.cFileName[0] != '.' || //JR Windows Mobile does not return "." or ".." paths, but handle it just in case
              (data.cFileName[1] != 0 && (data.cFileName[1] != '.' || data.cFileName[2] != 0))))
         {
-            char cFileName[MAX_PATH];
-            WideCharToMultiByte(CP_ACP, 0, data.cFileName, -1, cFileName, MAX_PATH, NULL, NULL);
-            cFileName[MAX_PATH - 1] = 0;
+            // CE_FIND_DATA names are Unicode, Salamander wants them as UTF-8
+            char cFileName[3 * MAX_PATH];
+            if (SplWToU8(data.cFileName, cFileName, sizeof(cFileName)) <= 0)
+                continue; // name that cannot be represented: skip it
 
             file.Name = SalamanderGeneral->DupStr(cFileName);
             if (file.Name == NULL)
@@ -769,8 +770,10 @@ CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
         if (err == 0) // the copy succeeded
         {
             newFileOK = TRUE; // if the size query fails, newFileSize stays zero (not critical)
-            HANDLE hFile = HANDLES_Q(CreateFile(tmpFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                NULL, OPEN_EXISTING, 0, NULL));
+            WCHAR* tmpFileNameW = SplU8ToWExtAlloc(tmpFileName); // disk cache file: W file API
+            HANDLE hFile = tmpFileNameW == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(CreateFileW(tmpFileNameW, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                                                              NULL, OPEN_EXISTING, 0, NULL));
+            free(tmpFileNameW);
             if (hFile != INVALID_HANDLE_VALUE)
             { // ignore errors; the exact file size is not essential
                 DWORD err2;
@@ -1136,6 +1139,53 @@ CPluginFSInterface::Delete(const char* fsName, int mode, HWND parent, int panel,
     return success;
 }
 
+// Local disk operations on the W layer; the paths arrive as UTF-8 (plugin
+// interface 104). The last error of the operation is preserved.
+static BOOL DiskDeleteFile(const char* fileName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+static BOOL DiskRemoveDirectory(const char* pathName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::RemoveDirectoryW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
+static BOOL DiskSetFileAttributes(const char* fileName, DWORD attr)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = ::SetFileAttributesW(w, attr);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
 static BOOL WINAPI CEFS_IsTheSamePath(const char* path1, const char* path2)
 {
     while (*path1 != 0 && LowerCase[*path1] == LowerCase[*path2])
@@ -1156,9 +1206,13 @@ static void GetFileData(const char* name, char (&buf)[100])
     buf[1] = 0;
     char tmp[50];
 
-    WIN32_FIND_DATA data;
+    WIN32_FIND_DATAW data; // local disk: W file API ('name' is UTF-8)
 
-    HANDLE find = FindFirstFile(name, &data);
+    WCHAR* nameW = SplU8ToWExtAlloc(name);
+    if (nameW == NULL)
+        return;
+    HANDLE find = FindFirstFileW(nameW, &data);
+    free(nameW);
     if (find == INVALID_HANDLE_VALUE)
         return;
 
@@ -1856,7 +1910,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                     {
                         if (attr != 0xFFFFFFFF &&
                             (attr & (FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_READONLY)))
-                            SetFileAttributes(targetName, FILE_ATTRIBUTE_ARCHIVE);
+                            DiskSetFileAttributes(targetName, FILE_ATTRIBUTE_ARCHIVE);
 
                         err = CRAPI::CopyFileToPC(sourceName, targetName, FALSE, &dlg, copied, totalsize, &errFileName);
                     }
@@ -2059,7 +2113,11 @@ static BOOL FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
 {
     HANDLE find = INVALID_HANDLE_VALUE;
 
-    WIN32_FIND_DATA data;
+    // the tree lives on the local disk: enumerate it on the W layer and keep
+    // the names as UTF-8 (plugin interface 104)
+    WIN32_FIND_DATAW data;
+    WCHAR* fullPathW = NULL;
+    char cFileName[3 * MAX_PATH];
     char fullPath[MAX_PATH];
     strcpy(fullPath, rootPath);
     if (!SalamanderGeneral->SalPathAppend(fullPath, path, MAX_PATH) ||
@@ -2067,7 +2125,13 @@ static BOOL FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
         !SalamanderGeneral->SalPathAppend(fullPath, fileName, MAX_PATH))
         goto ONERROR_TOOLONG;
 
-    find = FindFirstFile(fullPath, &data);
+    fullPathW = SplU8ToWExtAlloc(fullPath);
+    if (fullPathW != NULL)
+    {
+        find = FindFirstFileW(fullPathW, &data);
+        free(fullPathW);
+        fullPathW = NULL;
+    }
     if (find == INVALID_HANDLE_VALUE)
     {
         DWORD err = GetLastError();
@@ -2091,12 +2155,15 @@ static BOOL FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
         }
 
         if (data.cFileName[0] != 0 &&
-            (data.cFileName[0] != '.' || // JR Windows Mobile does not return "." and ".." paths, but handle it just in case
-             (data.cFileName[1] != 0 && (data.cFileName[1] != '.' || data.cFileName[2] != 0))))
+            (data.cFileName[0] != L'.' || // JR Windows Mobile does not return "." and ".." paths, but handle it just in case
+             (data.cFileName[1] != 0 && (data.cFileName[1] != L'.' || data.cFileName[2] != 0))))
         {
+            if (SplWToU8(data.cFileName, cFileName, sizeof(cFileName)) <= 0)
+                goto ONERROR_TOOLONG;
+
             CFileInfo fi;
             strcpy(fi.cFileName, path);
-            if (!SalamanderGeneral->SalPathAppend(fi.cFileName, data.cFileName, MAX_PATH))
+            if (!SalamanderGeneral->SalPathAppend(fi.cFileName, cFileName, (int)sizeof(fi.cFileName)))
                 goto ONERROR_TOOLONG;
 
             fi.dwFileAttributes = data.dwFileAttributes;
@@ -2118,7 +2185,7 @@ static BOOL FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
                 }
 
                 int len = (int)strlen(path);
-                if (!SalamanderGeneral->SalPathAppend(path, data.cFileName, MAX_PATH))
+                if (!SalamanderGeneral->SalPathAppend(path, cFileName, MAX_PATH))
                     goto ONERROR_TOOLONG;
 
                 if (!FindAllFilesInTree(rootPath, path, "*.*", array, dirFirst, block))
@@ -2139,7 +2206,7 @@ static BOOL FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
             }
         }
 
-        if (!FindNextFile(find, &data))
+        if (!FindNextFileW(find, &data))
         {
             if (GetLastError() == ERROR_NO_MORE_FILES)
                 break; // JR Everything is fine, stop
@@ -2628,7 +2695,7 @@ CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, const char* fsNa
                     {
                         SalamanderGeneral->ClearReadOnlyAttr(sourceName, fi.dwFileAttributes);
 
-                        if (!RemoveDirectory(sourceName))
+                        if (!DiskRemoveDirectory(sourceName))
                         {
                             if (!skipAllErrors)
                             {
@@ -2668,7 +2735,7 @@ CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, const char* fsNa
                 {
                     SalamanderGeneral->ClearReadOnlyAttr(sourceName, fi.dwFileAttributes);
 
-                    if (!DeleteFile(sourceName))
+                    if (!DiskDeleteFile(sourceName))
                     {
                         if (!skipAllErrors)
                         {

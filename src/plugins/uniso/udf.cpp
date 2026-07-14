@@ -133,6 +133,9 @@ UnicodeUncompress(BYTE* compressed, int numberOfBytes, unicode_t* unicode)
     return returnValue;
 }
 
+// format boundary (interface 104): UDF stores names as OSTA-compressed Unicode; once
+// uncompressed they are UTF-16, so emit UTF-8 directly - the interface wants UTF-8, and
+// the previous route through the ANSI code page dropped everything outside it.
 void DecodeOSTACompressed(BYTE* id, int len, char* result)
 {
     unicode_t uncompressed[1024];
@@ -145,11 +148,16 @@ void DecodeOSTACompressed(BYTE* id, int len, char* result)
         return;
     }
     uncompressed[ucompChars] = 0;
-    int length = MIN(ucompChars, UnicodeLength(uncompressed)) + 1 /*terminating zero*/;
+    int length = MIN(ucompChars, UnicodeLength(uncompressed));
+    uncompressed[length] = 0;
 
-    char final[1024];
+    char final[4 * 1024]; // UTF-8 needs up to 3 bytes per UTF-16 unit
 
-    WideCharToMultiByte(CP_ACP, 0, uncompressed, length, final, sizeof(final) - 1, 0, 0);
+    if (SplWToU8(uncompressed, final, sizeof(final)) == 0)
+    {
+        // lone surrogates and the like: fall back to a lossy but valid UTF-8 form
+        WideCharToMultiByte(CP_UTF8, 0, uncompressed, -1, final, sizeof(final) - 1, 0, 0);
+    }
     final[sizeof(final) - 1] = 0;
     strcpy(result, final);
 }
@@ -1236,7 +1244,7 @@ BOOL CUDF::DumpInfo(FILE* outStream)
 {
     CALL_STACK_MESSAGE1("CUDF::DumpInfo( )");
 
-    char buffer[256], *s;
+    char buffer[1024], *s; // DecodeOSTACompressed() now emits UTF-8 (up to 3 bytes/char)
 
     // display info from the PVD
     DecodeOSTACompressed((BYTE*)PVD.VolumeIdentifier, 32, buffer);

@@ -35,6 +35,8 @@
 #include "spl_gui.h"
 #include "spl_vers.h"
 
+#include "splunicode.h"
+
 #include "dbg.h"
 #include "mhandles.h"
 #include "arraylt.h"

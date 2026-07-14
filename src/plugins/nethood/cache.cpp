@@ -2512,25 +2512,49 @@ DWORD CNethoodCacheEnumerationThread::EnumHiddenShares(__in PCTSTR pszServerName
 #endif
 }
 
-BOOL CNethoodCacheEnumerationThread::GetShortcutsDir(__out PTSTR pszPath)
+BOOL CNethoodCacheEnumerationThread::GetShortcutsDir(__out PWSTR pszPath)
 {
-    return SHGetSpecialFolderPath(NULL, pszPath, CSIDL_NETHOOD, FALSE);
+    return SHGetSpecialFolderPathW(NULL, pszPath, CSIDL_NETHOOD, FALSE);
+}
+
+// Builds "<dir>\<file>" in a wide MAX_PATH buffer.
+static BOOL BuildShortcutFilePath(
+    __out_ecount(MAX_PATH) PWSTR pszBuffer,
+    __in PCWSTR pszDir,
+    __in PCWSTR pszFile)
+{
+    if (FAILED(StringCchCopyW(pszBuffer, MAX_PATH, pszDir)))
+        return FALSE;
+    size_t len = wcslen(pszBuffer);
+    while (len > 0 && pszBuffer[len - 1] == L'\\')
+        pszBuffer[--len] = L'\0';
+    return SUCCEEDED(StringCchCatW(pszBuffer, MAX_PATH, L"\\")) &&
+           SUCCEEDED(StringCchCatW(pszBuffer, MAX_PATH, pszFile));
 }
 
 BOOL CNethoodCacheEnumerationThread::AddNetworkShortcut(
-    __in PCTSTR pszName,
-    __in PTSTR pszPath)
+    __in PCWSTR pszName,
+    __in PWSTR pszPath)
 {
     if (ResolveNetShortcut(pszPath))
     {
         NETRESOURCE sNetResource = {
             0,
         };
+        char szName[3 * MAX_PATH];
+        char szPath[3 * MAX_PATH];
+
+        // the cache hands the names to Salamander as UTF-8 (plugin interface 104)
+        if (SplWToU8(pszName, szName, COUNTOF(szName)) <= 0 ||
+            SplWToU8(pszPath, szPath, COUNTOF(szPath)) <= 0)
+        {
+            return FALSE;
+        }
 
         sNetResource.dwDisplayType = RESOURCEDISPLAYTYPE_SHARE;
         sNetResource.dwType = CNethoodCacheNode::RESOURCETYPE_SHORTCUT;
-        sNetResource.lpComment = const_cast<PTSTR>(pszName);
-        sNetResource.lpRemoteName = pszPath;
+        sNetResource.lpComment = szName;
+        sNetResource.lpRemoteName = szPath;
         ProcessEnumeration(&sNetResource, 1, ProcessShortcut);
     }
 
@@ -2538,28 +2562,27 @@ BOOL CNethoodCacheEnumerationThread::AddNetworkShortcut(
 }
 
 BOOL CNethoodCacheEnumerationThread::ResolveNetShortcut(
-    __inout_ecount(MAX_PATH) PTSTR path)
+    __inout_ecount(MAX_PATH) PWSTR path)
 {
-    if (path[0] == '\\')
+    if (path[0] == L'\\')
         return FALSE; // UNC path -> not a NetHood location
 
-    char name[MAX_PATH];
+    WCHAR name[MAX_PATH];
     name[0] = path[0];
-    name[1] = TEXT(':');
-    name[2] = TEXT('\\');
-    name[3] = TEXT('\0');
-    if (GetDriveType(name) != DRIVE_FIXED)
+    name[1] = L':';
+    name[2] = L'\\';
+    name[3] = L'\0';
+    if (GetDriveTypeW(name) != DRIVE_FIXED)
         return FALSE; // not a local fixed path -> not a NetHood location
 
     BOOL tryTarget = FALSE; // if TRUE, it is worth trying to find the "target.lnk" file
-    lstrcpyn(name, path, MAX_PATH);
-    if (SalamanderGeneral->SalPathAppend(name, "desktop.ini", MAX_PATH))
+    if (BuildShortcutFilePath(name, path, L"desktop.ini"))
     {
-        HANDLE hFile = HANDLES_Q(CreateFile(name, GENERIC_READ,
-                                            FILE_SHARE_WRITE | FILE_SHARE_READ, NULL,
-                                            OPEN_EXISTING,
-                                            FILE_FLAG_SEQUENTIAL_SCAN,
-                                            NULL));
+        HANDLE hFile = HANDLES_Q(CreateFileW(name, GENERIC_READ,
+                                             FILE_SHARE_WRITE | FILE_SHARE_READ, NULL,
+                                             OPEN_EXISTING,
+                                             FILE_FLAG_SEQUENTIAL_SCAN,
+                                             NULL));
         if (hFile != INVALID_HANDLE_VALUE)
         {
             if (GetFileSize(hFile, NULL) <= 1000) // so far all had 92 bytes, so 1000 bytes should be more than enough
@@ -2601,31 +2624,27 @@ BOOL CNethoodCacheEnumerationThread::ResolveNetShortcut(
 
     if (tryTarget)
     {
-        lstrcpyn(name, path, MAX_PATH);
-        if (SalamanderGeneral->SalPathAppend(name, "target.lnk", MAX_PATH))
+        if (BuildShortcutFilePath(name, path, L"target.lnk"))
         {
-            WIN32_FIND_DATA data;
-            HANDLE find = HANDLES_Q(FindFirstFile(name, &data));
+            WIN32_FIND_DATAW data;
+            HANDLE find = HANDLES_Q(FindFirstFileW(name, &data));
             if (find != INVALID_HANDLE_VALUE) // The file exists and we already retrieved its metadata.
             {
                 HANDLES(FindClose(find));
 
-                IShellLink* link;
+                IShellLinkW* link;
                 if (CoCreateInstance(CLSID_ShellLink, NULL,
-                                     CLSCTX_INPROC_SERVER, IID_IShellLink,
+                                     CLSCTX_INPROC_SERVER, IID_IShellLinkW,
                                      (LPVOID*)&link) == S_OK)
                 {
                     IPersistFile* fileInt;
                     if (link->QueryInterface(IID_IPersistFile, (LPVOID*)&fileInt) == S_OK)
                     {
-                        OLECHAR oleName[MAX_PATH];
-                        MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, oleName, MAX_PATH);
-                        oleName[MAX_PATH - 1] = 0;
-                        if (fileInt->Load(oleName, STGM_READ) == S_OK)
+                        if (fileInt->Load(name, STGM_READ) == S_OK)
                         {
                             if (link->GetPath(name, MAX_PATH, &data, SLGP_UNCPRIORITY) == NOERROR)
-                            {                                        // Skip Resolve; it's not critical here and would slow things down.
-                                StringCchCopy(path, MAX_PATH, name); // Finally we know where the shortcut points.
+                            {                                         // Skip Resolve; it's not critical here and would slow things down.
+                                StringCchCopyW(path, MAX_PATH, name); // Finally we know where the shortcut points.
                                 ok = TRUE;
                             }
                         }
@@ -2642,11 +2661,13 @@ BOOL CNethoodCacheEnumerationThread::ResolveNetShortcut(
 
 DWORD CNethoodCacheEnumerationThread::EnumNetworkShortcuts()
 {
-    TCHAR szShortcutsPath[MAX_PATH];
-    TCHAR szFindMask[MAX_PATH];
-    TCHAR szShortcut[MAX_PATH];
+    // the shortcuts live on the local disk: enumerate them on the W layer
+    // and convert the names to UTF-8 in AddNetworkShortcut
+    WCHAR szShortcutsPath[MAX_PATH];
+    WCHAR szFindMask[MAX_PATH];
+    WCHAR szShortcut[MAX_PATH];
     HANDLE hFind;
-    WIN32_FIND_DATA wfd;
+    WIN32_FIND_DATAW wfd;
     BOOL res;
 
     if (!GetShortcutsDir(szShortcutsPath))
@@ -2654,14 +2675,12 @@ DWORD CNethoodCacheEnumerationThread::EnumNetworkShortcuts()
         return NO_ERROR;
     }
 
-    StringCchCopy(szFindMask, COUNTOF(szFindMask), szShortcutsPath);
-    if (!SalamanderGeneral->SalPathAppend(szFindMask, TEXT("*"),
-                                          COUNTOF(szShortcutsPath)))
+    if (!BuildShortcutFilePath(szFindMask, szShortcutsPath, L"*"))
     {
         return NO_ERROR;
     }
 
-    hFind = HANDLES_Q(FindFirstFile(szFindMask, &wfd));
+    hFind = HANDLES_Q(FindFirstFileW(szFindMask, &wfd));
     if (hFind == INVALID_HANDLE_VALUE)
     {
         return NO_ERROR;
@@ -2674,19 +2693,16 @@ DWORD CNethoodCacheEnumerationThread::EnumNetworkShortcuts()
         {
             if ((wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
                 wfd.cFileName[0] != 0 &&
-                (wfd.cFileName[0] != TEXT('.') || wfd.cFileName[1] != 0 &&
-                                                      (wfd.cFileName[1] != TEXT('.') || wfd.cFileName[2] != 0)))
+                (wfd.cFileName[0] != L'.' || wfd.cFileName[1] != 0 &&
+                                                 (wfd.cFileName[1] != L'.' || wfd.cFileName[2] != 0)))
             { // directories except empty names, "." and ".."
-                StringCchCopy(szShortcut, COUNTOF(szShortcut),
-                              szShortcutsPath);
-                if (SalamanderGeneral->SalPathAppend(szShortcut,
-                                                     wfd.cFileName, COUNTOF(szShortcut)))
+                if (BuildShortcutFilePath(szShortcut, szShortcutsPath, wfd.cFileName))
                 {
                     AddNetworkShortcut(wfd.cFileName, szShortcut);
                 }
             }
 
-            res = FindNextFile(hFind, &wfd);
+            res = FindNextFileW(hFind, &wfd);
         }
 
         CoUninitialize();

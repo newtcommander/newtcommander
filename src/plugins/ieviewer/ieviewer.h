@@ -291,9 +291,6 @@ public:
                         VARIANT* pVarResult,
                         EXCEPINFO* pExcepInfo,
                         unsigned int* puArgErr);
-
-protected:
-    BOOL CanonizeURL(char* psz);
 };
 
 //***********************************************************************************
@@ -328,7 +325,7 @@ protected:
 
     DWORD m_dwCookie; //connection point identifier for m_pConnectionPoint
 
-    char MarkdownFilename[MAX_PATH];
+    char* MarkdownFilename; // UTF-8 name of the displayed markdown file (heap, may exceed MAX_PATH) or NULL
 
     //Object interfaces
     IUnknown* m_pIUnknown;
@@ -394,8 +391,8 @@ public:
     BOOL CreateSite(HWND hParent);
     // perform IE cleanup !! must be called before destroying the window
     void CloseSite();
-    // jump to the requested URL
-    void Navigate(LPCTSTR lpszURL, IStream* contentStream);
+    // display the file 'fileName' (UTF-8 name from Salamander)
+    void Navigate(const char* fileName, IStream* contentStream);
     // unfortunately we have to call this from the message loop
     HRESULT TranslateAccelerator(LPMSG lpmsg);
     BOOL CanClose();

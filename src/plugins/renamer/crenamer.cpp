@@ -75,14 +75,15 @@ CSourceFile::CSourceFile(CSourceFile* orig, const char* newName)
     State = 0;
 }
 
-CSourceFile::CSourceFile(WIN32_FIND_DATA& fd, const char* path, int pathLen)
+CSourceFile::CSourceFile(WIN32_FIND_DATAW& fd, const char* fileName, const char* path, int pathLen)
 {
     CALL_STACK_MESSAGE_NONE
-    NameLen = pathLen + strlen(fd.cFileName) + 1;
+    // 'fileName' is fd.cFileName in UTF-8 (plugin interface 104), 'path' is UTF-8 as well
+    NameLen = (unsigned)(pathLen + strlen(fileName) + 1);
     FullName = (char*)malloc(NameLen + 1);
     memcpy(FullName, path, pathLen);
     FullName[pathLen++] = '\\';
-    strcpy(FullName + pathLen, fd.cFileName);
+    strcpy(FullName + pathLen, fileName);
     Name = FullName + pathLen;
     Ext = FullName + NameLen;
     while (--Ext >= Name && *Ext != '.')

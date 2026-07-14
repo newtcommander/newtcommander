@@ -379,6 +379,12 @@ public:
     HANDLE OpenFileMapping(DWORD dwDesiredAccess, BOOL bInheritHandle,
                            LPCTSTR lpName);
 
+    HANDLE CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess,
+                       DWORD dwShareMode,
+                       LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+                       DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
+                       HANDLE hTemplateFile);
+
     HANDLE CreateFile(LPCTSTR lpFileName, DWORD dwDesiredAccess,
                       DWORD dwShareMode,
                       LPSECURITY_ATTRIBUTES lpSecurityAttributes,
@@ -596,6 +602,10 @@ public:
     VOID LeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection);
 
     HANDLE FindFirstFile(LPCTSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData);
+
+    // W variants (plugin interface 104: names/paths are UTF-8 and reach the OS
+    // through the W APIs with extended-length paths - see splunicode.h)
+    HANDLE FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData);
 
     BOOL FindClose(HANDLE hFindFile);
 

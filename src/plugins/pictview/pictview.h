@@ -448,6 +448,12 @@ protected:
 
 char* LoadStr(int resID);
 WCHAR* LoadStrW(int resID);
+
+// UTF-8 name from Salamander -> ANSI path for PVW32Cnv.dll (which has no W interface);
+// falls back to the short (8.3) name, NULL when the file is unreachable via ANSI;
+// free() the result
+char* U8ToDLLPathAlloc(const char* u8Path);
+
 BOOL InitViewer(HWND hParentWnd);
 void ReleaseViewer();
 BOOL InitEXIF(HWND hParent, BOOL bSilent);

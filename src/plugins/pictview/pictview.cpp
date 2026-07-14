@@ -442,6 +442,75 @@ const char* WINAPI GetExtText(int msgID)
     return ret;
 }
 
+//
+// ****************************************************************************
+// U8ToDLLPathAlloc
+//
+// PVW32Cnv.dll has an ANSI-only interface (const char* FileName / OutFName) and on x64
+// the same path travels through salpvenv.exe in ANSI form as well; its signatures are
+// out of our reach. Salamander hands us UTF-8 names since plugin interface 104, so the
+// conversion has to happen here: UTF-8 -> ACP, and when the name does not fit the ACP
+// or MAX_PATH we retry with the short (8.3) name, which is always plain ASCII.
+// Returns a heap string (free() it) or NULL when the file is unreachable via ANSI.
+//
+
+// UTF-16 -> ANSI usable by the A file APIs (must fit MAX_PATH and map without losses)
+static char* WToANSIPathAlloc(const WCHAR* w)
+{
+    BOOL usedDefault = FALSE;
+    int len = WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, NULL, 0, NULL, &usedDefault);
+    if (len <= 0 || usedDefault || len > MAX_PATH)
+        return NULL;
+    char* a = (char*)malloc(len);
+    if (a != NULL &&
+        WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, w, -1, a, len, NULL, &usedDefault) <= 0)
+    {
+        free(a);
+        a = NULL;
+    }
+    return a;
+}
+
+char* U8ToDLLPathAlloc(const char* u8Path)
+{
+    if (u8Path == NULL)
+        return NULL;
+    WCHAR* w = SplU8ToWAlloc(u8Path);
+    if (w == NULL)
+        return NULL;
+    char* ansi = WToANSIPathAlloc(w);
+    free(w);
+    if (ansi != NULL)
+        return ansi;
+
+    // non-ACP characters or a path over MAX_PATH: try the short (8.3) name
+    WCHAR* wExt = SplU8ToWExtAlloc(u8Path);
+    if (wExt != NULL)
+    {
+        DWORD size = GetShortPathNameW(wExt, NULL, 0);
+        WCHAR* wShort = size > 0 ? (WCHAR*)malloc(size * sizeof(WCHAR)) : NULL;
+        if (wShort != NULL && GetShortPathNameW(wExt, wShort, size) > 0)
+        {
+            // the A APIs do not understand the "\\?\" prefix, strip it again
+            WCHAR* s = wShort;
+            if (wcsncmp(s, L"\\\\?\\UNC\\", 8) == 0)
+            {
+                s += 6;
+                s[0] = L'\\'; // "\\?\UNC\server" -> "\\server"
+                s[1] = L'\\';
+            }
+            else if (wcsncmp(s, L"\\\\?\\", 4) == 0)
+                s += 4;
+            ansi = WToANSIPathAlloc(s);
+        }
+        free(wShort);
+        free(wExt);
+    }
+    if (ansi == NULL)
+        TRACE_E("The file name cannot be passed to PVW32Cnv.dll in ANSI: " << u8Path);
+    return ansi;
+}
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     if (fdwReason == DLL_PROCESS_ATTACH) // start PictView.spl
@@ -1594,7 +1663,7 @@ void ReleaseViewer()
 class CViewerThread : public CThread
 {
 protected:
-    TCHAR Name[MAX_PATH];
+    LPTSTR Name; // UTF-8 name of the viewed file (heap, may exceed MAX_PATH)
     int Left, Top, Width, Height;
     UINT ShowCmd;
     BOOL AlwaysOnTop;
@@ -1615,7 +1684,7 @@ public:
                   BOOL* success, int enumFilesSourceUID,
                   int enumFilesCurrentIndex) : CThread(PLUGIN_NAME_EN)
     {
-        lstrcpyn(Name, name, MAX_PATH);
+        Name = _tcsdup(name);
         Left = left;
         Top = top;
         Width = width;
@@ -1631,6 +1700,11 @@ public:
 
         EnumFilesSourceUID = enumFilesSourceUID;
         EnumFilesCurrentIndex = enumFilesCurrentIndex;
+    }
+
+    ~CViewerThread()
+    {
+        free(Name);
     }
 
     virtual unsigned Body();
@@ -1761,6 +1835,13 @@ CViewerThread::Body()
     CALL_STACK_MESSAGE3(_T("ViewerThreadBody() PictView.spl %s %hs"), VERSINFO_VERSION, PVW32DLL.Version);
     SetThreadNameInVCAndTrace(PLUGIN_NAME_EN);
     TRACE_I("Begin");
+
+    if (Name == NULL) // low memory: the name of the viewed file was not copied
+    {
+        SetEvent(Continue);
+        TRACE_I("End");
+        return 0;
+    }
 
     CViewerWindow* window = new CViewerWindow(EnumFilesSourceUID, EnumFilesCurrentIndex, AlwaysOnTop);
     if (window != NULL)
@@ -2001,17 +2082,13 @@ BOOL CPluginInterfaceForViewer::CanViewFile(LPCTSTR name)
 
         memset(&oiei, 0, sizeof(oiei));
         oiei.cbSize = sizeof(oiei);
-#ifdef _UNICODE
-        char nameA[_MAX_PATH];
-
-        WideCharToMultiByte(CP_ACP, 0, name, -1, nameA, sizeof(nameA), NULL, NULL);
-        nameA[sizeof(nameA) - 1] = 0;
+        char* nameA = U8ToDLLPathAlloc(name); // 'name' is UTF-8, the DLL wants ANSI
+        if (nameA == NULL)
+            return FALSE; // we cannot even test it, let another viewer try
         oiei.FileName = nameA;
-#else
-        oiei.FileName = name;
-#endif
 
         code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
+        free(nameA);
         if (code != PVC_OK)
         {
             return FALSE;

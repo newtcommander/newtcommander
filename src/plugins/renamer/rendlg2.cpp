@@ -570,7 +570,7 @@ void CRenamerDialog::ExecuteScript(CRenameScriptEntry* script, int count)
                 {
                     SG->CutDirectory(dir);
                     SG->ClearReadOnlyAttr(dir); // so it can be deleted
-                } while (RemoveDirectory(dir));
+                } while (RemoveDirectoryU8(dir)); // the paths are UTF-8 -> W API
             }
             script[i].Source->State = 1;
             CSourceFile* f = new CSourceFile(script[i].Source, script[i].NewName);
@@ -696,7 +696,7 @@ void CRenamerDialog::Undo()
                     // undo create directory
                     while (1)
                     {
-                        pathSuccess = RemoveDirectory(entry->Source);
+                        pathSuccess = RemoveDirectoryU8(entry->Source); // the paths are UTF-8 -> W API
                         if (pathSuccess)
                         {
                             UndoStack.Delete(i);

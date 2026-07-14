@@ -267,7 +267,11 @@ BOOL CHFS::GetRootName(char* rootName, int maxlen)
         for (int j = 0; j < nameLen; j++)
             fileNameW[j] = FromM16(pKey->nodeName.unicode[j]);
         fileNameW[nameLen] = 0;
-        if (WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, fileNameW, nameLen + 1, rootName, maxlen, NULL, NULL) > 0)
+        // format boundary (interface 104): HFS+ names are UTF-16 (big endian, canonically
+        // decomposed) -> UTF-8. WC_COMPOSITECHECK is gone: it is not allowed with CP_UTF8,
+        // and UTF-8 carries the decomposed form as-is - which is what the OS must see too
+        // (name bytes are passed through unchanged, see doc\plugin-vnext-migration.md).
+        if (WideCharToMultiByte(CP_UTF8, 0, fileNameW, nameLen + 1, rootName, maxlen, NULL, NULL) > 0)
         {
             rootName[maxlen - 1] = 0;
             bSkipRootParent = TRUE;
@@ -289,7 +293,7 @@ BOOL CHFS::ListDirectory(char* rootPath, int session,
         int keyLen = FromM16(pKey->keyLength);
         int nameLen = FromM16(pKey->nodeName.length);
         wchar_t fileNameW[256];
-        char fileName[256 * 2]; // twice the length for MBCS
+        char fileName[256 * 3 + 1]; // UTF-8 needs up to 3 bytes per UTF-16 unit (interface 104)
         CFileData fd;
         char* path = rootPath;
         union
@@ -306,7 +310,8 @@ BOOL CHFS::ListDirectory(char* rootPath, int session,
         for (int j = 0; j < nameLen; j++)
             fileNameW[j] = FromM16(pKey->nodeName.unicode[j]);
         fileNameW[nameLen] = 0;
-        if ((WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, fileNameW, nameLen + 1, fileName, sizeof(fileName), NULL, NULL) <= 0) || !fileName[0])
+        // format boundary (interface 104): HFS+ names are UTF-16 -> UTF-8 (see GetRootName)
+        if ((WideCharToMultiByte(CP_UTF8, 0, fileNameW, nameLen + 1, fileName, sizeof(fileName), NULL, NULL) <= 0) || !fileName[0])
         {
             // Invalid or empty (thread,...) name -> silently skip
             continue;

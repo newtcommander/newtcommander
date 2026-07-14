@@ -94,11 +94,58 @@ BOOL FileError(HWND parent, const char* fileName, int error,
     }
 }
 
+HANDLE CreateFileU8(const char* fileName, DWORD desiredAccess, DWORD shareMode,
+                    DWORD creationDisposition, DWORD flagsAndAttributes)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    HANDLE ret = w != NULL ? CreateFileW(w, desiredAccess, shareMode, NULL, creationDisposition,
+                                         flagsAndAttributes, NULL)
+                           : CreateFileA(fileName, desiredAccess, shareMode, NULL, creationDisposition,
+                                         flagsAndAttributes, NULL);
+    free(w);
+    return ret;
+}
+
+BOOL DeleteFileU8(const char* fileName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    BOOL ret = w != NULL ? DeleteFileW(w) : DeleteFileA(fileName);
+    free(w);
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* fileName, DWORD attr)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    BOOL ret = w != NULL ? SetFileAttributesW(w, attr) : SetFileAttributesA(fileName, attr);
+    free(w);
+    return ret;
+}
+
+BOOL CreateDirectoryU8(const char* pathName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    BOOL ret = w != NULL ? CreateDirectoryW(w, NULL) : CreateDirectoryA(pathName, NULL);
+    free(w);
+    return ret;
+}
+
+BOOL RemoveDirectoryU8(const char* pathName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(pathName);
+    BOOL ret = w != NULL ? RemoveDirectoryW(w) : RemoveDirectoryA(pathName);
+    free(w);
+    return ret;
+}
+
 char* GetFileData(const char* file, char* buffer)
 {
     CALL_STACK_MESSAGE2("GetFileData(%s, )", file);
-    WIN32_FIND_DATA fd;
-    HANDLE h = FindFirstFile(file, &fd);
+    // 'file' is UTF-8 -> query via the W API
+    WIN32_FIND_DATAW fd;
+    WCHAR* wFile = SplU8ToWExtAlloc(file);
+    HANDLE h = wFile != NULL ? FindFirstFileW(wFile, &fd) : INVALID_HANDLE_VALUE;
+    free(wFile);
     if (h == INVALID_HANDLE_VALUE)
     {
         if (!FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |

@@ -529,6 +529,9 @@ int CISO9660::ListDirectoryRe(char* path, CDirectoryRecord* root,
                     char extFileName[2 * MAX_PATH + 1];
                     ZeroMemory(extFileName, sizeof(extFileName));
                     ExtractExtFileName(extFileName, (data + offset + 33), dirRecord);
+                    // format boundary (interface 104): plain ISO9660 (and Rock Ridge)
+                    // identifiers are raw bytes with no encoding tag -> make them UTF-8
+                    EnsureU8Name(extFileName, sizeof(extFileName));
 
                     if (AddFileDir(path, extFileName, dirRecord, dir, pluginData))
                     {
@@ -564,6 +567,10 @@ int CISO9660::ListDirectoryRe(char* path, CDirectoryRecord* root,
             }
 
             ExtractFileName(fileName, src, dirRecord);
+            // format boundary (interface 104): plain ISO9660 (and Rock Ridge) identifiers
+            // are raw bytes with no encoding tag -> make them UTF-8. A no-op for Joliet,
+            // which ConvJolietName() already turned into UTF-8 above.
+            EnsureU8Name(fileName, sizeof(fileName));
 
             if (!AddFileDir(path, fileName, dirRecord, dir, pluginData))
                 ret = ERR_TERMINATE;

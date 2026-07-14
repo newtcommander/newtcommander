@@ -36,7 +36,7 @@ BOOL CPluginInterfaceForArchiver::MakeFileList3(TIndirectArray2<CFileInfo>& file
     DWORD pakSize;
     BOOL skip;
     int errorOccured;
-    BOOL result;
+    BOOL result = TRUE;
 
     // 'sourcePath' and 'PakFileName' are UTF-8 and may be long paths (interface 104) -> heap buffers
     char* sourName = (char*)malloc(U8_MAX_PATH);

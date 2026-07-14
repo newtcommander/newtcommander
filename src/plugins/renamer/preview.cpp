@@ -114,13 +114,15 @@ void CPreviewWindow::Update(BOOL force)
     Dirty = FALSE;
 }
 
-void CPreviewWindow::GetDispInfo(LV_DISPINFO* info)
+void CPreviewWindow::GetDispInfo(LV_DISPINFOW* info)
 {
     CALL_STACK_MESSAGE1("CPreviewWindow::GetDispInfo()");
     // TRACE_I("get-disp-info item=" << info->item.iItem <<
     //     " subitem=" << info->item.iSubItem <<
     //     (info->item.mask & LVIF_IMAGE ? " image" : "") <<
     //     (info->item.mask & LVIF_TEXT ? " text" : ""));
+
+    static WCHAR emptyBufferW[] = L"";
 
     if (info->item.iItem < SourceFiles.Count)
     {
@@ -132,15 +134,23 @@ void CPreviewWindow::GetDispInfo(LV_DISPINFO* info)
                 NewNameValid ? (SourceFiles[info->item.iItem]->IsDir ? ILS_DIRECTORY : ILS_FILE) : ILS_WARNING;
         }
         if (info->item.mask & LVIF_TEXT)
-            info->item.pszText = GetItemText(info->item.iItem, info->item.iSubItem);
+        {
+            // the item texts are UTF-8 (names) or ANSI (resource strings) -> hand them over as UTF-16
+            const char* text = GetItemText(info->item.iItem, info->item.iSubItem);
+            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, -1, TextBufferW, _countof(TextBufferW)) == 0 &&
+                MultiByteToWideChar(CP_ACP, 0, text, -1, TextBufferW, _countof(TextBufferW)) == 0)
+            {
+                TextBufferW[0] = 0;
+            }
+            info->item.pszText = TextBufferW;
+        }
     }
     else
     {
-        static char emptyBuffer[] = "";
         if (info->item.mask & LVIF_IMAGE)
             info->item.iImage = ILS_FILE;
         if (info->item.mask & LVIF_TEXT)
-            info->item.pszText = emptyBuffer;
+            info->item.pszText = emptyBufferW;
     }
 }
 

@@ -252,7 +252,7 @@ void OnAbout(HWND hParent);
 
 struct CFileInfo
 {
-    char cFileName[MAX_PATH];
+    char cFileName[3 * MAX_PATH]; // UTF-8 (plugin interface 104): up to 3 bytes per device name character
     DWORD dwFileAttributes;
     DWORD size;
     int block;

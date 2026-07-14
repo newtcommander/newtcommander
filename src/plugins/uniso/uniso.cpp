@@ -579,18 +579,28 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
         DWORD silent = 0;
         BOOL toSkip = FALSE, bAudioEncountered = FALSE;
 
+        // path inside the image; UTF-8 names can be up to 3x longer than before
+        // (interface 104), so copy bounded instead of with a plain strcpy
         char currentISOPath[ISO_MAX_PATH_LEN];
-        strcpy(currentISOPath, archiveRoot);
+        lstrcpyn(currentISOPath, archiveRoot, ISO_MAX_PATH_LEN);
 
         ret = TRUE;
         next(NULL, -1, NULL, NULL, NULL, nextParam, NULL);
+        // the target path is UTF-8 and may be long (interface 104) -> heap buffer
+        CU8PathBuf destPath;
+        if (!destPath.IsOk())
+        {
+            Error(IDS_INSUFFICIENT_MEMORY);
+            salamander->CloseProgressDialog();
+            pd->DisplayMissingCCDWarning = isoImage.DisplayMissingCCDWarning;
+            return FALSE;
+        }
         while ((name = next(NULL /* we do not print the errors a second time */, 1, &isDir, &size, &fileData, nextParam, NULL)) != NULL)
         {
             // directories do not interest us; they are created while unpacking files
-            char destPath[MAX_PATH];
-            strncpy_s(destPath, targetDir, _TRUNCATE);
+            lstrcpyn(destPath, targetDir, U8_MAX_PATH);
 
-            if (SalamanderGeneral->SalPathAppend(destPath, name, MAX_PATH))
+            if (SalamanderGeneral->SalPathAppend(destPath, name, U8_MAX_PATH))
             {
                 if (isDir)
                 {
@@ -681,15 +691,25 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
     salamander->OpenProgressDialog(LoadStr(IDS_UNPACKING_ARCHIVE), FALSE, NULL, FALSE);
     salamander->ProgressSetTotalSize(fileData->Size + CQuadWord(1, 0), CQuadWord(-1, -1));
 
-    char name[MAX_PATH];
-    strncpy_s(name, targetDir, _TRUNCATE);
+    // 'targetDir' is UTF-8 and may be a long path, 'nameInArchive' is a UTF-8 path
+    // inside the image (interface 104) -> heap buffers
+    CU8PathBuf name;
+    CU8PathBuf srcPath;
+    if (!name.IsOk() || !srcPath.IsOk())
+    {
+        Error(IDS_INSUFFICIENT_MEMORY);
+        salamander->CloseProgressDialog();
+        pd->DisplayMissingCCDWarning = isoImage.DisplayMissingCCDWarning;
+        return FALSE;
+    }
+    lstrcpyn(name, targetDir, U8_MAX_PATH);
     const char* lastComp = strrchr(nameInArchive, '\\');
     if (lastComp != NULL)
         lastComp++;
     else
         lastComp = nameInArchive;
 
-    if (SalamanderGeneral->SalPathAppend(name, lastComp, MAX_PATH))
+    if (SalamanderGeneral->SalPathAppend(name, lastComp, U8_MAX_PATH))
     {
         DWORD silent = 0;
         BOOL toSkip = FALSE;
@@ -697,8 +717,7 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
 
         salamander->ProgressDialogAddText(name, TRUE); // delayedPaint==TRUE, so we do not slow things down
 
-        char srcPath[MAX_PATH];
-        strcpy(srcPath, nameInArchive);
+        lstrcpyn(srcPath, nameInArchive, U8_MAX_PATH);
         char* lComp = strrchr(srcPath, '\\');
         if (lComp != NULL)
             *lComp = '\0';
@@ -767,12 +786,23 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
     CPluginDataInterfaceAbstract* pluginData = NULL;
     if (ListArchive(salamander, fileName, dir, pluginData))
     {
-        char path[MAX_PATH];
+        // paths built from UTF-8 names (interface 104) -> heap buffers
+        CU8PathBuf path;
+        if (!path.IsOk())
+        {
+            if (pluginData != NULL)
+            {
+                dir->Clear(pluginData);
+                PluginInterface.ReleasePluginDataInterface(pluginData);
+            }
+            SalamanderGeneral->FreeSalamanderDirectory(dir);
+            return Error(IDS_INSUFFICIENT_MEMORY);
+        }
         path[0] = 0;
 
         CQuadWord totalSize(0, 0);
         CQuadWord fileCount(0, 0);
-        CalcSize(dir, mask, path, MAX_PATH, totalSize, fileCount);
+        CalcSize(dir, mask, path, U8_MAX_PATH, totalSize, fileCount);
 
         BOOL delTempDir = TRUE;
         if (SalamanderGeneral->TestFreeSpace(SalamanderGeneral->GetMsgBoxParent(),
@@ -793,11 +823,17 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
 
                 DWORD silent = 0;
                 BOOL toSkip = FALSE;
-                char strTarget[MAX_PATH];
-                strcpy(strTarget, targetDir);
-                char srcPath[ISO_MAX_PATH_LEN];
-                srcPath[0] = '\0';
-                ret = isoImage.ExtractAllItems(salamander, srcPath, dir, modmask, strTarget, MAX_PATH, silent, toSkip) != UNPACK_CANCEL;
+                // 'targetDir' is UTF-8 and may be a long path (interface 104) -> heap buffer
+                CU8PathBuf strTarget;
+                if (strTarget.IsOk())
+                {
+                    lstrcpyn(strTarget, targetDir, U8_MAX_PATH);
+                    char srcPath[ISO_MAX_PATH_LEN];
+                    srcPath[0] = '\0';
+                    ret = isoImage.ExtractAllItems(salamander, srcPath, dir, modmask, strTarget, U8_MAX_PATH, silent, toSkip) != UNPACK_CANCEL;
+                }
+                else
+                    Error(IDS_INSUFFICIENT_MEMORY);
             }
 
             salamander->CloseProgressDialog();

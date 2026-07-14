@@ -66,7 +66,7 @@ protected:
     BOOL TransferDontSaveHistory;
     BOOL WaitCursor;
     BOOL CloseOnEnable;
-    char TempFile[MAX_PATH];
+    char TempFile[3 * MAX_PATH]; // UTF-8 temp path (up to 3 bytes per character)
 
     CPreviewWindow* Preview;
     CComboboxEdit *MaskEdit, *NewName, *SearchFor, *ReplaceWith;

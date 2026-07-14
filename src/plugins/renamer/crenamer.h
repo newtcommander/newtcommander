@@ -22,7 +22,8 @@ struct CSourceFile
     CSourceFile(const CFileData* fileData, const char* path, int pathLen, BOOL isDir);
     CSourceFile(CSourceFile* orig);
     CSourceFile(CSourceFile* orig, const char* newName);
-    CSourceFile(WIN32_FIND_DATA& fd, const char* path, int pathLen);
+    // 'fd' comes from the W enumeration, 'fileName' is fd.cFileName converted to UTF-8
+    CSourceFile(WIN32_FIND_DATAW& fd, const char* fileName, const char* path, int pathLen);
     ~CSourceFile();
     CSourceFile* SetName(const char* name);
 };

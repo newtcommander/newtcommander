@@ -37,6 +37,7 @@ protected:
     BOOL TransferError;
     BOOL Dirty;
     char TextBuffer[MAX_PATH];
+    WCHAR TextBufferW[3 * MAX_PATH]; // the UTF-8 item text converted for the W listview notifications
     int CachedItem;
     char NewNameCache[MAX_PATH];
     BOOL NewNameValid;
@@ -51,7 +52,7 @@ public:
 
     void SetDirty() { Dirty = TRUE; }
     void Update(BOOL force = FALSE);
-    void GetDispInfo(LV_DISPINFO* info);
+    void GetDispInfo(LV_DISPINFOW* info); // W notifications, see CRenamerDialog WM_NOTIFYFORMAT
     char* GetItemText(int index, int subItem);
     BOOL CustomDraw(LPNMLVCUSTOMDRAW cd, LRESULT& result);
 

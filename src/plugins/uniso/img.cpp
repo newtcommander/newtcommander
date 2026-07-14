@@ -313,7 +313,11 @@ processCCDFile(CISOImage* pISOImage, CFile& File, const char* fileName, CCD* ccd
     TIndirectArray<TextSection> sections(100, 50, dtDelete);
 
     BOOL ret = TRUE;
-    if ((f = fopen(fileName, "r")) == NULL)
+    // 'fileName' derives from the image path: UTF-8 since interface 104 -> W CRT API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    f = wFileName != NULL ? _wfopen(wFileName, L"r") : NULL;
+    free(wFileName);
+    if (f == NULL)
     {
         if (ccd->DisplayMissingCCDWarning)
         {

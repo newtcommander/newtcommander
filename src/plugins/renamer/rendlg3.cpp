@@ -47,7 +47,7 @@ BOOL CRenamerDialog::MoveFile(char* sourceName, char* targetName, char* newPart,
                 SG->ClearReadOnlyAttr(targetName); // so it can be deleted ...
                 while (1)
                 {
-                    if (DeleteFile(targetName))
+                    if (DeleteFileU8(targetName))
                         break;
 
                     if (!FileError(HWindow, targetName, IDS_OVERWRITEERROR,
@@ -76,7 +76,7 @@ BOOL CRenamerDialog::MoveFile(char* sourceName, char* targetName, char* newPart,
         SG->ClearReadOnlyAttr(sourceName); // so it can be deleted ...
         while (1)
         {
-            if (DeleteFile(sourceName))
+            if (DeleteFileU8(sourceName))
                 break;
 
             if (!FileError(HWindow, sourceName, IDS_DELETEERROR,
@@ -90,7 +90,9 @@ BOOL CRenamerDialog::MoveFile(char* sourceName, char* targetName, char* newPart,
 BOOL CRenamerDialog::CheckAndCreateDirectory(char* directory, char* newPart, BOOL& skip)
 {
     CALL_STACK_MESSAGE2("CRenamerDialog::CheckAndCreateDirectory(, , %d)", skip);
-    WIN32_FIND_DATA fd;
+    // 'directory' is UTF-8 since plugin interface 104 -> query via the W API
+    WIN32_FIND_DATAW fd;
+    char fdFileName[3 * MAX_PATH]; // fd.cFileName converted to UTF-8
     HANDLE f;
     char* directoryEnd = directory + strlen(directory);
 
@@ -117,18 +119,24 @@ BOOL CRenamerDialog::CheckAndCreateDirectory(char* directory, char* newPart, BOO
     {
         end = (char*)GetNextPathComponent(start);
         *end = 0;
-        f = FindFirstFile(directory, &fd);
+        {
+            WCHAR* wDirectory = SplU8ToWExtAlloc(directory);
+            f = wDirectory != NULL ? FindFirstFileW(wDirectory, &fd) : INVALID_HANDLE_VALUE;
+            free(wDirectory);
+        }
         if (f == INVALID_HANDLE_VALUE)
             goto CREATE_PATH;
         else
         {
             FindClose(f);
+            if (SplWToU8(fd.cFileName, fdFileName, _countof(fdFileName)) == 0)
+                fdFileName[0] = 0;
             // adjust the case of the name
-            if (strcmp(start, fd.cFileName))
+            if (strcmp(start, fdFileName))
             {
                 char old[MAX_PATH];
                 memcpy(old, directory, start - directory);
-                strcpy(old + (start - directory), fd.cFileName);
+                strcpy(old + (start - directory), fdFileName);
                 while (1)
                 {
                     if (SG->SalMoveFile(old, directory, NULL))
@@ -160,7 +168,7 @@ BOOL CRenamerDialog::CheckAndCreateDirectory(char* directory, char* newPart, BOO
 
         while (1)
         {
-            if (CreateDirectory(directory, NULL))
+            if (CreateDirectoryU8(directory))
             {
                 if (!Undoing)
                     UndoStack.Add(new CUndoStackEntry(directory, NULL, NULL, FALSE, FALSE));
@@ -192,16 +200,15 @@ COPY_AGAIN:
 
     while (1)
     {
-        in = CreateFile(sourceName, GENERIC_READ,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                        OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+        in = CreateFileU8(sourceName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
         if (in != INVALID_HANDLE_VALUE)
         {
             HANDLE out;
             while (1)
             {
-                out = CreateFile(targetName, GENERIC_WRITE, 0, NULL,
-                                 CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+                out = CreateFileU8(targetName, GENERIC_WRITE, 0,
+                                   CREATE_NEW, FILE_FLAG_SEQUENTIAL_SCAN);
                 if (out != INVALID_HANDLE_VALUE)
                 {
                 COPY:
@@ -230,15 +237,15 @@ COPY_AGAIN:
                                             CloseHandle(in);
                                         if (out != NULL)
                                             CloseHandle(out);
-                                        DeleteFile(targetName);
+                                        DeleteFileU8(targetName);
                                         return FALSE;
                                     }
 
                                     // retry
                                     if (out != NULL)
                                         CloseHandle(out); // close the invalid handle
-                                    out = CreateFile(targetName, GENERIC_WRITE, 0, NULL,
-                                                     OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+                                    out = CreateFileU8(targetName, GENERIC_WRITE, 0,
+                                                       OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN);
                                     if (out != INVALID_HANDLE_VALUE) // opened, now set the offset
                                     {
                                         CQuadWord size;
@@ -248,7 +255,7 @@ COPY_AGAIN:
                                         { // cannot get the size or the file is too small, start over
                                             CloseHandle(in);
                                             CloseHandle(out);
-                                            DeleteFile(targetName);
+                                            DeleteFileU8(targetName);
                                             goto COPY_AGAIN;
                                         }
                                         else // success (the file is large enough), set the offset
@@ -263,7 +270,7 @@ COPY_AGAIN:
                                             { // cannot set the offset, start over
                                                 CloseHandle(in);
                                                 CloseHandle(out);
-                                                DeleteFile(targetName);
+                                                DeleteFileU8(targetName);
                                                 goto COPY_AGAIN;
                                             }
                                             break;
@@ -289,15 +296,14 @@ COPY_AGAIN:
                                         CloseHandle(in);
                                     if (out != NULL)
                                         CloseHandle(out);
-                                    DeleteFile(targetName);
+                                    DeleteFileU8(targetName);
                                     return FALSE;
                                 }
 
                                 if (in != NULL)
                                     CloseHandle(in); // close the invalid handle
-                                in = CreateFile(sourceName, GENERIC_READ,
-                                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                                OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+                                in = CreateFileU8(sourceName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                  OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN);
                                 if (in != INVALID_HANDLE_VALUE) // opened, now set the offset
                                 {
                                     CQuadWord size;
@@ -307,7 +313,7 @@ COPY_AGAIN:
                                     { // cannot get the size or the file is too small, start over
                                         CloseHandle(in);
                                         CloseHandle(out);
-                                        DeleteFile(targetName);
+                                        DeleteFileU8(targetName);
                                         goto COPY_AGAIN;
                                     }
                                     else // success (the file is large enough), set the offset
@@ -322,7 +328,7 @@ COPY_AGAIN:
                                         { // cannot set the offset, start over
                                             CloseHandle(in);
                                             CloseHandle(out);
-                                            DeleteFile(targetName);
+                                            DeleteFileU8(targetName);
                                             goto COPY_AGAIN;
                                         }
                                         break;
@@ -346,7 +352,7 @@ COPY_AGAIN:
                     DWORD attr;
                     attr = SG->SalGetFileAttributes(sourceName);
                     if (attr != -1)
-                        SetFileAttributes(targetName, attr | FILE_ATTRIBUTE_ARCHIVE);
+                        SetFileAttributesU8(targetName, attr | FILE_ATTRIBUTE_ARCHIVE);
                     return TRUE;
                 }
                 else
@@ -369,11 +375,11 @@ COPY_AGAIN:
                         if (attr != 0xFFFFFFFF && (attr & FILE_ATTRIBUTE_READONLY))
                         {
                             readonly = TRUE;
-                            SetFileAttributes(targetName, attr & (~FILE_ATTRIBUTE_READONLY));
+                            SetFileAttributesU8(targetName, attr & (~FILE_ATTRIBUTE_READONLY));
                         }
 
-                        out = CreateFile(targetName, GENERIC_WRITE, 0, NULL,
-                                         OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+                        out = CreateFileU8(targetName, GENERIC_WRITE, 0,
+                                           OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN);
 
                         if (out != INVALID_HANDLE_VALUE)
                         {
@@ -387,7 +393,7 @@ COPY_AGAIN:
                         {
                             err = GetLastError();
                             if (readonly)
-                                SetFileAttributes(targetName, attr);
+                                SetFileAttributesU8(targetName, attr);
                             goto NORMAL_ERROR;
                         }
                     }

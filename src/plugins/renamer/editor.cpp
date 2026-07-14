@@ -29,7 +29,7 @@ const char* EXP_DOSSYSDIR = "DOSSysDir";
 
 struct CExpData
 {
-    char Buffer[MAX_PATH];
+    char Buffer[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
     const char* LongName;
     const char* DosName;
 };
@@ -386,17 +386,17 @@ BOOL ExpandCommand(const char* varText, char* buffer, int bufferLen, BOOL ignore
         return FALSE;
 }
 
-BOOL ExpandInitDir(const char* varText, char* directory,
+BOOL ExpandInitDir(const char* varText, char* directory, int directorySize,
                    const char* longName, const char* dosName)
 {
     CALL_STACK_MESSAGE4("ExpandInitDir(%s, , %s, %s)", varText, longName, dosName);
     CExpData data;
     data.LongName = longName;
     data.DosName = dosName;
-    return SG->ExpandVarString(GetParent(), varText, directory, MAX_PATH, ExpInitDirVariables, &data);
+    return SG->ExpandVarString(GetParent(), varText, directory, directorySize, ExpInitDirVariables, &data);
 }
 
-BOOL ExpandArguments(const char* varText, char* arguments,
+BOOL ExpandArguments(const char* varText, char* arguments, int argumentsSize,
                      const char* longName, const char* dosName)
 {
     CALL_STACK_MESSAGE4("ExpandArguments(%s, , %s, %s)", varText, longName,
@@ -404,22 +404,48 @@ BOOL ExpandArguments(const char* varText, char* arguments,
     CExpData data;
     data.LongName = longName;
     data.DosName = dosName;
-    return SG->ExpandVarString(GetParent(), varText, arguments, MAX_PATH, ExpArgumentsVariables, &data);
+    return SG->ExpandVarString(GetParent(), varText, arguments, argumentsSize, ExpArgumentsVariables, &data);
+}
+
+// UTF-8 path -> short (8.3) UTF-8 path; the paths are UTF-8 since plugin interface 104
+static BOOL GetShortPathNameU8(const char* path, char* buffer, int bufferSize)
+{
+    WCHAR wShort[MAX_PATH];
+    WCHAR* w = SplU8ToWAlloc(path);
+    BOOL ret = w != NULL && GetShortPathNameW(w, wShort, _countof(wShort)) > 0 &&
+               SplWToU8(wShort, buffer, bufferSize) > 0;
+    free(w);
+    return ret;
+}
+
+// text mixing UTF-8 paths and ANSI resource/config strings -> UTF-16 (UTF-8 first, ANSI fallback)
+static WCHAR* TextToWAlloc(const char* text)
+{
+    WCHAR* w = SplU8ToWAlloc(text);
+    if (w != NULL)
+        return w;
+    int len = MultiByteToWideChar(CP_ACP, 0, text, -1, NULL, 0);
+    if (len <= 0)
+        return NULL;
+    w = (WCHAR*)malloc(len * sizeof(WCHAR));
+    if (w != NULL)
+        MultiByteToWideChar(CP_ACP, 0, text, -1, w, len);
+    return w;
 }
 
 BOOL ExecuteEditor(const char* tempFile)
 {
     CALL_STACK_MESSAGE2("ExecuteEditor(%s)", tempFile);
     char command[MAX_PATH];
-    char directory[MAX_PATH];
-    char arguments[MAX_PATH];
+    char directory[3 * MAX_PATH]; // UTF-8 path (up to 3 bytes per character)
+    char arguments[3 * MAX_PATH];
 
-    char longName[MAX_PATH];
-    char dosName[MAX_PATH];
+    char longName[3 * MAX_PATH];
+    char dosName[3 * MAX_PATH];
 
     // expand initdir
     SG->CutDirectory(strcpy(longName, tempFile));
-    if (!GetShortPathName(longName, dosName, MAX_PATH))
+    if (!GetShortPathNameU8(longName, dosName, _countof(dosName)))
         dosName[0] = 0;
 
     int e1, e2;
@@ -429,15 +455,15 @@ BOOL ExecuteEditor(const char* tempFile)
         return FALSE;
 
     if (!SG->ValidateVarString(GetParent(), InitDir, e1, e2, ExpInitDirVariables) ||
-        !ExpandInitDir(InitDir, directory, longName, dosName))
+        !ExpandInitDir(InitDir, directory, _countof(directory), longName, dosName))
         return FALSE;
 
     // expand arguments
-    if (!GetShortPathName(tempFile, dosName, MAX_PATH))
+    if (!GetShortPathNameU8(tempFile, dosName, _countof(dosName)))
         dosName[0] = 0;
 
     if (!SG->ValidateVarString(GetParent(), Arguments, e1, e2, ExpArgumentsVariables) ||
-        !ExpandArguments(Arguments, arguments, tempFile, dosName))
+        !ExpandArguments(Arguments, arguments, _countof(arguments), tempFile, dosName))
         return FALSE;
 
     // run the command
@@ -448,16 +474,29 @@ BOOL ExecuteEditor(const char* tempFile)
         return Error(IDS_LOWMEM);
     SalPrintf(cmdLine.Get(), (unsigned int)cmdLine.GetSize(), "\"%s\" %s", command, arguments);
 
-    STARTUPINFO si;
+    // launch the editor on the W layer: the arguments carry the (UTF-8) temp file path
+    WCHAR* wCmdLine = TextToWAlloc(cmdLine.Get());
+    WCHAR* wDirectory = directory[0] ? TextToWAlloc(directory) : NULL;
+    if (wCmdLine == NULL)
+    {
+        free(wDirectory);
+        return Error(IDS_ERRLAUNCHEDIT);
+    }
+
+    STARTUPINFOW si;
     PROCESS_INFORMATION pi;
-    memset(&si, 0, sizeof(STARTUPINFO));
-    si.cb = sizeof(STARTUPINFO);
+    memset(&si, 0, sizeof(STARTUPINFOW));
+    si.cb = sizeof(STARTUPINFOW);
     si.lpTitle = NULL;
     si.dwFlags = STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_SHOWNORMAL;
 
-    if (!CreateProcess(NULL, cmdLine.Get(), NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                       NULL, directory[0] ? directory : NULL, &si, &pi))
+    BOOL created = CreateProcessW(NULL, wCmdLine, NULL, NULL, FALSE,
+                                  CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                                  NULL, wDirectory, &si, &pi);
+    free(wCmdLine);
+    free(wDirectory);
+    if (!created)
         return Error(IDS_ERRLAUNCHEDIT);
 
     CloseHandle(pi.hProcess);

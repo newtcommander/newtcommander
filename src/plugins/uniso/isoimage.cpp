@@ -1455,16 +1455,25 @@ int CISOImage::UnpackFile(CSalamanderForOperationsAbstract* salamander, const ch
         return UNPACK_ERROR;
     }
 
-    char nameInArc[MAX_PATH + MAX_PATH];
+    // 'FileName' is the image path from the interface (UTF-8, may be long) and 'srcPath'
+    // a UTF-8 path inside the image - neither is bounded by MAX_PATH (interface 104)
+    int nameInArcSize = (int)strlen(FileName) + 2 + (int)strlen(srcPath) + 2 +
+                        (int)strlen(fileData->Name) + 1;
+    char* nameInArc = (char*)malloc(nameInArcSize);
+    if (nameInArc == NULL)
+        return Error(IDS_INSUFFICIENT_MEMORY);
     strcpy(nameInArc, FileName);
-    SalamanderGeneral->SalPathAppend(nameInArc, srcPath, MAX_PATH + MAX_PATH);
-    SalamanderGeneral->SalPathAppend(nameInArc, fileData->Name, MAX_PATH + MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, srcPath, nameInArcSize);
+    SalamanderGeneral->SalPathAppend(nameInArc, fileData->Name, nameInArcSize);
 
     CUnISOFSAbstract* fileSystem = Tracks[track]->FileSystem;
+    int ret;
     if (fileSystem != NULL)
-        return fileSystem->UnpackFile(salamander, srcPath, path, nameInArc, fileData, silent, toSkip);
+        ret = fileSystem->UnpackFile(salamander, srcPath, path, nameInArc, fileData, silent, toSkip);
     else
-        return Error(IDS_INTERNAL_PLUGIN_ERROR);
+        ret = Error(IDS_INTERNAL_PLUGIN_ERROR);
+    free(nameInArc);
+    return ret;
 }
 
 BOOL CISOImage::UnpackDir(const char* dirName, const CFileData* fileData)

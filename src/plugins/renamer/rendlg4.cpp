@@ -9,12 +9,12 @@ BOOL CRenamerDialog::ExportToTempFile()
 
     // create the name of the tmp file
     if (!SG->SalGetTempFileName(NULL, "SAL", TempFile, FALSE, NULL) ||
-        !SG->SalPathAppend(TempFile, "list.txt", MAX_PATH))
+        !SG->SalPathAppend(TempFile, "list.txt", _countof(TempFile)))
         return Error(IDS_CREATETEMP);
 
-    // create/open the tmp file
-    HANDLE file = CreateFile(TempFile, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    // create/open the tmp file (the temp path is UTF-8 -> W API)
+    HANDLE file = CreateFileU8(TempFile, GENERIC_WRITE, FILE_SHARE_READ,
+                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL);
     if (file == INVALID_HANDLE_VALUE)
     {
         SG->CutDirectory(TempFile);
@@ -50,9 +50,9 @@ BOOL CRenamerDialog::ExportToTempFile()
 BOOL CRenamerDialog::ImportFromTempFile()
 {
     CALL_STACK_MESSAGE1("CRawEditValDialog::ImportFromTempFile()");
-    // open the tmp file
-    HANDLE file = CreateFile(TempFile, GENERIC_READ, FILE_SHARE_READ, NULL,
-                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    // open the tmp file (the temp path is UTF-8 -> W API)
+    HANDLE file = CreateFileU8(TempFile, GENERIC_READ, FILE_SHARE_READ,
+                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL);
     if (file == INVALID_HANDLE_VALUE)
         return Error(IDS_OPENTEMP);
 
@@ -145,9 +145,9 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
             return Error(IDS_LONGDATA);
     }
 
-    char tempDir[MAX_PATH];
-    char outName[MAX_PATH];
-    char errName[MAX_PATH];
+    char tempDir[3 * MAX_PATH]; // the temp path is UTF-8 (up to 3 bytes per character)
+    char outName[3 * MAX_PATH];
+    char errName[3 * MAX_PATH];
     HANDLE inPipeWr = INVALID_HANDLE_VALUE;
     HANDLE inPipeWrDup = INVALID_HANDLE_VALUE;
     HANDLE inPipeRd = INVALID_HANDLE_VALUE;
@@ -157,6 +157,8 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
     TBuffer<char> buffer;
     CQuadWord size;
     BOOL ret = TRUE;
+    WCHAR* wCmdLine = NULL; // the command line and the working directory for CreateProcessW
+    WCHAR* wRoot = NULL;
 
     // so the handles can be inherited
     saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -165,8 +167,8 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
 
     // create names for the tmp files
     if (!SG->SalGetTempFileName(NULL, "SAL", tempDir, FALSE, NULL) ||
-        !SG->SalPathAppend(strcpy(outName, tempDir), "stdout", MAX_PATH) ||
-        !SG->SalPathAppend(strcpy(errName, tempDir), "stderr", MAX_PATH))
+        !SG->SalPathAppend(strcpy(outName, tempDir), "stdout", _countof(outName)) ||
+        !SG->SalPathAppend(strcpy(errName, tempDir), "stderr", _countof(errName)))
         return Error(IDS_CREATETEMP);
 
     // create the pipe for input
@@ -185,13 +187,21 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
     CloseHandle(inPipeWr);
     inPipeWr = INVALID_HANDLE_VALUE;
 
-    // create/open tmp files for output
-    outFile = CreateFile(outName, GENERIC_READ | GENERIC_WRITE,
-                         FILE_SHARE_READ | FILE_SHARE_WRITE, &saAttr, CREATE_ALWAYS,
-                         FILE_ATTRIBUTE_TEMPORARY, NULL);
-    errFile = CreateFile(errName, GENERIC_READ | GENERIC_WRITE,
-                         FILE_SHARE_READ | FILE_SHARE_WRITE, &saAttr, CREATE_ALWAYS,
-                         FILE_ATTRIBUTE_TEMPORARY, NULL);
+    // create/open tmp files for output (the temp paths are UTF-8 -> W API; the handles must be inheritable)
+    {
+        WCHAR* wOutName = SplU8ToWExtAlloc(outName);
+        outFile = wOutName != NULL ? CreateFileW(wOutName, GENERIC_READ | GENERIC_WRITE,
+                                                 FILE_SHARE_READ | FILE_SHARE_WRITE, &saAttr, CREATE_ALWAYS,
+                                                 FILE_ATTRIBUTE_TEMPORARY, NULL)
+                                   : INVALID_HANDLE_VALUE;
+        free(wOutName);
+        WCHAR* wErrName = SplU8ToWExtAlloc(errName);
+        errFile = wErrName != NULL ? CreateFileW(wErrName, GENERIC_READ | GENERIC_WRITE,
+                                                 FILE_SHARE_READ | FILE_SHARE_WRITE, &saAttr, CREATE_ALWAYS,
+                                                 FILE_ATTRIBUTE_TEMPORARY, NULL)
+                                   : INVALID_HANDLE_VALUE;
+        free(wErrName);
+    }
     if (outFile == INVALID_HANDLE_VALUE ||
         errFile == INVALID_HANDLE_VALUE)
     {
@@ -210,20 +220,32 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
     DWORD len;
     len = GetWindowText(ManualEdit->HWindow, buffer.Get(), (int)buffer.GetSize());
 
-    STARTUPINFO si;
+    // launch the shell on the W layer: the working directory (Root) is a UTF-8 panel path
+    STARTUPINFOW si;
     PROCESS_INFORMATION pi;
-    memset(&si, 0, sizeof(STARTUPINFO));
-    si.cb = sizeof(STARTUPINFO);
-    si.lpTitle = cmdLine;
+    int cmdLineLen;
+    cmdLineLen = MultiByteToWideChar(CP_ACP, 0, cmdLine, -1, NULL, 0); // cmdLine is an ANSI text (shell + user command)
+    wCmdLine = cmdLineLen > 0 ? (WCHAR*)malloc(cmdLineLen * sizeof(WCHAR)) : NULL;
+    if (wCmdLine == NULL ||
+        MultiByteToWideChar(CP_ACP, 0, cmdLine, -1, wCmdLine, cmdLineLen) == 0)
+    {
+        ret = Error(IDS_PROCESS);
+        goto LERROR;
+    }
+    wRoot = *Root ? SplU8ToWAlloc(Root) : NULL;
+
+    memset(&si, 0, sizeof(STARTUPINFOW));
+    si.cb = sizeof(STARTUPINFOW);
+    si.lpTitle = wCmdLine;
     si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
     si.wShowWindow = SW_SHOWMINIMIZED;
     si.hStdInput = inPipeRd;
     si.hStdOutput = outFile;
     si.hStdError = errFile;
 
-    if (!CreateProcess(NULL, cmdLine, NULL, NULL, TRUE,
-                       CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                       NULL, *Root ? Root : NULL, &si, &pi))
+    if (!CreateProcessW(NULL, wCmdLine, NULL, NULL, TRUE,
+                        CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                        NULL, wRoot, &si, &pi))
     {
         ret = Error(IDS_PROCESS);
         goto LERROR;
@@ -318,6 +340,8 @@ BOOL CRenamerDialog::ExecuteCommand(const char* command)
     }
 
 LERROR:
+    free(wCmdLine);
+    free(wRoot);
     if (inPipeWr != INVALID_HANDLE_VALUE)
         CloseHandle(inPipeWr);
     if (inPipeRd != INVALID_HANDLE_VALUE)

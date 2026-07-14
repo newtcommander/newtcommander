@@ -117,7 +117,12 @@ CRendererWindow::~CRendererWindow()
 
 void CRendererWindow::SetTitle()
 {
-    TCHAR buff[MAX_PATH + 100];
+    // the title carries the name of the viewed file: it is UTF-8 and it may be longer
+    // than MAX_PATH -> heap buffer, and it is set through the W API (see below)
+    size_t buffSize = (FileName != NULL ? _tcslen(FileName) : 0) + MAX_PATH + 200;
+    LPTSTR buff = (LPTSTR)malloc(buffSize * sizeof(TCHAR));
+    if (buff == NULL)
+        return;
 
     if (PVHandle != NULL)
     {
@@ -173,15 +178,23 @@ void CRendererWindow::SetTitle()
             _stprintf(colors, LoadStr(id), nColors);
         }
         if (pvii.NumOfImages == 1)
-            _stprintf(buff, LoadStr(IDS_TITLE), fname, width, height,
-                      colors, (int)(ZoomFactor / (ZOOM_SCALE_FACTOR / 100)), LoadStr(IDS_PLUGINNAME));
+            _sntprintf_s(buff, buffSize, _TRUNCATE, LoadStr(IDS_TITLE), fname, width, height,
+                         colors, (int)(ZoomFactor / (ZOOM_SCALE_FACTOR / 100)), LoadStr(IDS_PLUGINNAME));
         else
-            _stprintf(buff, LoadStr(IDS_TITLE_MULTI), fname, width, height,
-                      colors, pvii.CurrentImage + 1, pvii.NumOfImages, (int)(ZoomFactor / (ZOOM_SCALE_FACTOR / 100)), LoadStr(IDS_PLUGINNAME));
+            _sntprintf_s(buff, buffSize, _TRUNCATE, LoadStr(IDS_TITLE_MULTI), fname, width, height,
+                         colors, pvii.CurrentImage + 1, pvii.NumOfImages, (int)(ZoomFactor / (ZOOM_SCALE_FACTOR / 100)), LoadStr(IDS_PLUGINNAME));
     }
     else
         _tcscpy(buff, LoadStr(IDS_PLUGINNAME));
-    SetWindowText(Viewer->HWindow, buff);
+
+    // set as UTF-16 so non-ASCII file names survive; the A call is the fallback
+    WCHAR* buffW = SplU8ToWAlloc(buff);
+    if (buffW != NULL)
+        SetWindowTextW(Viewer->HWindow, buffW);
+    else
+        SetWindowTextA(Viewer->HWindow, buff);
+    free(buffW);
+    free(buff);
 }
 
 BOOL CRendererWindow::OnFileOpen(LPCTSTR defaultDirectory)
@@ -223,9 +236,7 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
     PVCODE code;
     LPPVHandle OldPVHandle = PVHandle;
     PVOpenImageExInfo oiei;
-#ifdef _UNICODE
-    char nameA[_MAX_PATH];
-#endif
+    char* nameA = NULL; // 'name' is UTF-8, PVW32Cnv.dll wants ANSI
 
     if (showCmd != -1)
     {
@@ -251,16 +262,20 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
     }
     else
     {
-#ifdef _UNICODE
-        WideCharToMultiByte(CP_ACP, 0, name, -1, nameA, sizeof(nameA), NULL, NULL);
-        nameA[sizeof(nameA) - 1] = 0;
+        nameA = U8ToDLLPathAlloc(name);
         oiei.FileName = nameA;
-#else
-        oiei.FileName = name;
-#endif
     }
     FreeComment();
-    code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
+    if (hBmp == NULL && nameA == NULL) // the DLL cannot reach this file through an ANSI path
+    {
+        PVHandle = NULL;
+        code = PVC_CANNOT_OPEN_FILE;
+    }
+    else
+    {
+        code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
+    }
+    free(nameA);
 
     if (code == PVC_OK)
     {
@@ -348,9 +363,17 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
 
     if (code != PVC_OK)
     {
-        TCHAR errText[MAX_PATH + 100];
-        _stprintf(errText, LoadStr(IDS_ERROR_OPENING), name, PVW32DLL.PVGetErrorText(code));
-        SalamanderGeneral->SalMessageBox(HWindow, errText, LoadStr(IDS_ERRORTITLE), MB_ICONEXCLAMATION);
+        // the name may be longer than MAX_PATH -> build the message on the heap
+        LPCTSTR errFmt = LoadStr(IDS_ERROR_OPENING);
+        LPCTSTR pvErr = PVW32DLL.PVGetErrorText(code);
+        size_t errSize = _tcslen(errFmt) + _tcslen(name) + _tcslen(pvErr) + 16;
+        LPTSTR errText = (LPTSTR)malloc(errSize * sizeof(TCHAR));
+        if (errText != NULL)
+        {
+            _sntprintf_s(errText, errSize, _TRUNCATE, errFmt, name, pvErr);
+            SalamanderGeneral->SalMessageBox(HWindow, errText, LoadStr(IDS_ERRORTITLE), MB_ICONEXCLAMATION);
+            free(errText);
+        }
         // In case the new file is not recognized, we keep the old one
         if (PVHandle != NULL)
             PVW32DLL.PVCloseImage(PVHandle);
@@ -403,22 +426,24 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
 
     if ((code == PVC_OK) && (hBmp == NULL))
     {
-        TCHAR path[MAX_PATH];
-
-        _tcscpy(path, name);
-        // we must not pass 'name' directly to AddToHistory, because it may already come from history
-        // and that would lead to a conflict when moving entries
-        AddToHistory(TRUE, path);
-        LPTSTR s = _tcsrchr(path, '\\');
-        if (s != NULL)
+        LPTSTR path = _tcsdup(name); // the name may be longer than MAX_PATH
+        if (path != NULL)
         {
-            if (s == path + 2) // drives C:\, D:\, ... keep the slash and terminate just after it
-                s++;
-            *s = 0;
-            if (path[0] != 0)
+            // we must not pass 'name' directly to AddToHistory, because it may already come from history
+            // and that would lead to a conflict when moving entries
+            AddToHistory(TRUE, path);
+            LPTSTR s = _tcsrchr(path, '\\');
+            if (s != NULL)
             {
-                AddToHistory(FALSE, path);
+                if (s == path + 2) // drives C:\, D:\, ... keep the slash and terminate just after it
+                    s++;
+                *s = 0;
+                if (path[0] != 0)
+                {
+                    AddToHistory(FALSE, path);
+                }
             }
+            free(path);
         }
     }
 
@@ -2751,32 +2776,37 @@ BOOL CRendererWindow::RenameFileInternal(LPCTSTR oldPath, LPCTSTR oldName, TCHAR
         s++;
     if (newName[0] != 0 && *s == 0)
     {
-        TCHAR myOldName[MAX_PATH];
-        _tcscpy(myOldName, oldName);
-        TCHAR finalName[2 * MAX_PATH];
-        SalamanderGeneral->MaskName(finalName, 2 * MAX_PATH, myOldName, newName);
+        TCHAR myOldName[3 * MAX_PATH]; // UTF-8 name component
+        lstrcpyn(myOldName, oldName, SizeOf(myOldName));
+        TCHAR finalName[3 * MAX_PATH];
+        SalamanderGeneral->MaskName(finalName, SizeOf(finalName), myOldName, newName);
 
         // strip unwanted characters from the beginning and end of the name
         MakeValidFileName(finalName);
-        // trim to MAX_PATH before copying to newName; the code a few lines below reports the error
-        if (_tcslen(finalName) >= MAX_PATH)
-            finalName[MAX_PATH - 1] = 0;
+        // the name component must fit 'newName'; the path itself may be of any length
+        if (_tcslen(finalName) >= NEWNAME_SIZE)
+        {
+            SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME),
+                                             LoadStr(IDS_ERRORRENAMINGFILE),
+                                             MB_OK | MB_ICONEXCLAMATION);
+            return FALSE;
+        }
         // update 'newName' with the new file name
         _tcscpy(newName, finalName);
 
-        int l = (int)_tcslen(oldPath);
-        TCHAR tgtPath[MAX_PATH];
-        memcpy(tgtPath, oldPath, l * sizeof(TCHAR));
-        if (oldPath[l - 1] != '\\')
-            tgtPath[l++] = '\\';
-        if (_tcslen(finalName) + l < MAX_PATH)
+        // the paths are built on the heap: the viewed file may live deeper than MAX_PATH
+        size_t l = _tcslen(oldPath);
+        size_t pathsSize = l + 2 + max(_tcslen(finalName), _tcslen(oldName)) + 1;
+        LPTSTR tgtPath = (LPTSTR)malloc(pathsSize * sizeof(TCHAR));
+        LPTSTR path = (LPTSTR)malloc(pathsSize * sizeof(TCHAR));
+        if (tgtPath != NULL && path != NULL)
         {
+            memcpy(tgtPath, oldPath, l * sizeof(TCHAR));
+            if (oldPath[l - 1] != '\\')
+                tgtPath[l++] = '\\';
             _tcscpy(tgtPath + l, finalName);
-            TCHAR path[MAX_PATH];
-            _tcscpy(path, oldPath);
-            LPTSTR end = path + l;
-            if (*(end - 1) != '\\')
-                *--end = '\\';
+            memcpy(path, oldPath, l * sizeof(TCHAR));
+            path[l - 1] = '\\';
             _tcscpy(path + l, oldName);
 
             BOOL ret = FALSE;

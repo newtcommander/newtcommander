@@ -21,7 +21,9 @@ CPluginInterface PluginInterface;
 // CPluginInterface portion for the viewer
 CPluginInterfaceForViewer InterfaceForViewer;
 
-const char* WINDOW_CLASSNAME = "IE Viewer Class";
+// the viewer window is a Unicode window (registered via RegisterClassW), so that
+// SetWindowTextW() can show file names that the ACP cannot represent
+const WCHAR* WINDOW_CLASSNAME = L"IE Viewer Class";
 ATOM AtomObject = 0;                                         // window "property" with a pointer to the object
 CIEMainWindowQueue CIEMainWindow::ViewerWindowQueue;         // list of all viewer windows
 CThreadQueue CIEMainWindow::ThreadQueue("IEViewer Viewers"); // list of all window threads
@@ -115,6 +117,11 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 char* LoadStr(int resID)
 {
     return SalamanderGeneral->LoadStr(HLanguage, resID);
+}
+
+WCHAR* LoadStrW(int resID)
+{
+    return SalamanderGeneral->LoadStrW(HLanguage, resID);
 }
 
 //
@@ -355,20 +362,20 @@ unsigned WINAPI ThreadIEMessageLoop(void* param)
             *data->Lock = window->GetLock();
             *data->LockOwner = TRUE;
         }
-        CALL_STACK_MESSAGE1("ThreadIEMessageLoop::CreateWindowEx");
+        CALL_STACK_MESSAGE1("ThreadIEMessageLoop::CreateWindowExW");
         if ((!data->ReturnLock || *data->Lock != NULL) &&
-            CreateWindowEx(data->AlwaysOnTop ? WS_EX_TOPMOST : 0,
-                           WINDOW_CLASSNAME,
-                           LoadStr(IDS_PLUGINNAME),
-                           WS_OVERLAPPEDWINDOW,
-                           data->Left,
-                           data->Top,
-                           data->Width,
-                           data->Height,
-                           NULL,
-                           NULL,
-                           DLLInstance,
-                           window) != NULL)
+            CreateWindowExW(data->AlwaysOnTop ? WS_EX_TOPMOST : 0,
+                            WINDOW_CLASSNAME,
+                            LoadStrW(IDS_PLUGINNAME),
+                            WS_OVERLAPPEDWINDOW,
+                            data->Left,
+                            data->Top,
+                            data->Width,
+                            data->Height,
+                            NULL,
+                            NULL,
+                            DLLInstance,
+                            window) != NULL)
         {
             SendMessage(window->HWindow, WM_SETICON, ICON_BIG,
                         (LPARAM)LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_IEVIEWER)));
@@ -391,10 +398,9 @@ unsigned WINAPI ThreadIEMessageLoop(void* param)
     }
 
     CALL_STACK_MESSAGE1("ThreadIEMessageLoop::SetEvent");
-    char name[MAX_PATH];
-    lstrcpyn(name, data->Name, MAX_PATH);
+    char* name = _strdup(data->Name); // UTF-8 name of the viewed file, may be longer than MAX_PATH
     IStream* contentStream = data->ContentStream;
-    BOOL openFile = data->Success;
+    BOOL openFile = data->Success && name != NULL;
     SetEvent(data->Continue); // let the main thread continue; data are invalid from this point (=NULL)
     data = NULL;
 
@@ -409,18 +415,19 @@ unsigned WINAPI ThreadIEMessageLoop(void* param)
 
         CALL_STACK_MESSAGE1("ThreadIEMessageLoop::message-loop");
         MSG msg;
-        while (GetMessage(&msg, NULL, 0, 0))
+        while (GetMessageW(&msg, NULL, 0, 0)) // Unicode window -> W message loop
         {
             {
                 CALL_STACK_MESSAGE5("MSG(0x%p, 0x%X, 0x%IX, 0x%IX)", msg.hwnd, msg.message, msg.wParam, msg.lParam);
                 if (window->m_IEViewer.TranslateAccelerator(&msg) != S_OK)
                 {
                     TranslateMessage(&msg);
-                    DispatchMessage(&msg);
+                    DispatchMessageW(&msg);
                 }
             }
         }
     }
+    free(name);
 
     // probably a common bug in IE - the object was originally destroyed in response to WM_DESTROY
     // but a message arrived before the message pump finished and hit the destroyed
@@ -523,7 +530,7 @@ BOOL InitViewer()
         return FALSE;
     }
 
-    WNDCLASS wc;
+    WNDCLASSW wc;
     wc.style = CS_DBLCLKS;
     wc.lpfnWndProc = CIEMainWindow::CIEMainWindowProc;
     wc.cbClsExtra = 0;
@@ -534,9 +541,9 @@ BOOL InitViewer()
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszMenuName = NULL;
     wc.lpszClassName = WINDOW_CLASSNAME;
-    if (RegisterClass(&wc) == 0)
+    if (RegisterClassW(&wc) == 0) // Unicode window: the title carries the viewed file name
     {
-        TRACE_E("RegisterClass has failed");
+        TRACE_E("RegisterClassW has failed");
         return FALSE;
     }
     return TRUE;
@@ -547,8 +554,8 @@ void ReleaseViewer()
     CALL_STACK_MESSAGE1("ReleaseViewer()");
     if (AtomObject != 0)
         GlobalDeleteAtom(AtomObject);
-    if (!UnregisterClass(WINDOW_CLASSNAME, DLLInstance))
-        TRACE_E("UnregisterClass(WINDOW_CLASSNAME) has failed");
+    if (!UnregisterClassW(WINDOW_CLASSNAME, DLLInstance))
+        TRACE_E("UnregisterClassW(WINDOW_CLASSNAME) has failed");
 }
 
 //***********************************************************************************
@@ -1026,7 +1033,7 @@ STDMETHODIMP CImpIOleControlSite::TranslateAccelerator(LPMSG lpMsg,
         lpMsg->wParam == 'R' &&
         (GetKeyState(VK_CONTROL) & 0x8000) != 0)
     {
-        if (m_pSite->MarkdownFilename[0] != 0)
+        if (m_pSite->MarkdownFilename != NULL)
         {
             IStream* contentStream = ConvertMarkdownToHTML(m_pSite->MarkdownFilename);
             if (contentStream != NULL && m_pSite->m_pIWebBrowser2 != NULL)
@@ -1240,68 +1247,23 @@ STDMETHODIMP CImpIDispatch::GetIDsOfNames(REFIID riid,
     return E_NOTIMPL;
 }
 
-BOOL CImpIDispatch::CanonizeURL(char* psz)
+// "file://" URL -> local path on the heap; free() the result. Returns NULL when the URL
+// does not point to a local file. Replaces the former hand-written CanonizeURL(): the
+// percent-decoding must run on UTF-8 bytes, PathCreateFromUrlW() does that for us.
+static WCHAR* FileURLToPathAlloc(const WCHAR* url)
 {
-    LPTSTR pszSource = psz;
-    LPTSTR pszDest = psz;
-
-    BOOL file = _strnicmp(psz, "file://", 7) == 0;
-
-    static const char szHex[] = ("0123456789ABCDEF");
-
-    // unescape special characters
-
-    while (*pszSource != '\0')
+    if (_wcsnicmp(url, L"file:", 5) != 0)
+        return NULL;
+    DWORD len = (DWORD)wcslen(url) + MAX_PATH;
+    WCHAR* path = (WCHAR*)malloc(len * sizeof(WCHAR));
+    if (path == NULL)
+        return NULL;
+    if (FAILED(PathCreateFromUrlW(url, path, &len, 0)))
     {
-        //    if (*pszSource == '+')   // j.r. it crashed when displaying a file in a directory with '+' in its name
-        //      *pszDest++ = ' ';      // no idea why the '+' removal was originally there (inherited code)
-        //    else
-        if (*pszSource == '%')
-        {
-            TCHAR nValue = '?';
-            LPCTSTR pszLow;
-            LPCTSTR pszHigh;
-            pszSource++;
-
-            *pszSource = toupper(*pszSource);
-
-            pszHigh = strchr(szHex, *pszSource);
-
-            if (pszHigh != NULL)
-            {
-                pszSource++;
-                *pszSource = toupper(*pszSource);
-                pszLow = strchr(szHex, *pszSource);
-                if (pszLow != NULL)
-                {
-                    nValue = (TCHAR)(((pszHigh - szHex) << 4) + (pszLow - szHex));
-                }
-            }
-
-            *pszDest = nValue;
-        }
-        else
-            *pszDest = *pszSource;
-        if (file && *pszDest == '/')
-            *pszDest = '\\';
-        pszDest++;
-        pszSource++;
+        free(path);
+        return NULL;
     }
-    *pszDest = '\0';
-    if (file)
-    {
-        int offset = 7;
-        if (m_pSite->m_pIWebBrowser2 != NULL)
-        {
-            // > IE 3.02 - newer IE versions write "file:\\\C:\" or "file:\\john\c"
-            if (psz[7] == '\\' && __isascii(psz[8]))
-                offset++;
-            else
-                offset -= 2;
-        }
-        memmove(psz, psz + offset, lstrlen(psz) - offset + 1);
-    }
-    return file;
+    return path;
 }
 
 STDMETHODIMP CImpIDispatch::Invoke(DISPID dispID,
@@ -1330,36 +1292,39 @@ STDMETHODIMP CImpIDispatch::Invoke(DISPID dispID,
     {
         if (pDispParams->rgvarg[0].vt == VT_BSTR)
         {
-            char title[1024];
-            title[0] = 0;
+            // the title carries the name of the viewed file: build it in UTF-16 on the heap
+            // (the name is not limited to the ACP nor to MAX_PATH)
+            const WCHAR* title = pDispParams->rgvarg[0].bstrVal;
+            if (title == NULL)
+                title = L"";
 
-            WideCharToMultiByte(CP_ACP, 0, pDispParams->rgvarg[0].bstrVal, -1, title, 1024, NULL, NULL);
-            title[1024 - 1] = 0;
-
-            char locationURL[1024];
-            locationURL[0] = 0;
             BSTR pbstrLocationURL;
             if (m_pSite->m_pIWebBrowser != NULL &&
                 m_pSite->m_pIWebBrowser->get_LocationURL(&pbstrLocationURL) == S_OK)
             {
-                WideCharToMultiByte(CP_ACP, 0, pbstrLocationURL, -1, locationURL, 1024, NULL, NULL);
-                locationURL[1024 - 1] = 0;
+                const WCHAR* locationURL = pbstrLocationURL != NULL ? pbstrLocationURL : L"";
+                WCHAR* location = FileURLToPathAlloc(locationURL); // NULL = not a local file
+                BOOL file = location != NULL;
+                // the markdown viewer navigates a stream, its URL says nothing: show the file name
+                WCHAR* markdown = m_pSite->MarkdownFilename != NULL ? SplU8ToWAlloc(m_pSite->MarkdownFilename) : NULL;
 
-                BOOL file = CanonizeURL(locationURL);
-
-                char buff[3000];
-                if (m_pSite->MarkdownFilename[0] != 0)
-                    lstrcpy(buff, m_pSite->MarkdownFilename);
-                else
+                const WCHAR* name = markdown != NULL ? markdown : (file ? location : locationURL);
+                const WCHAR* pluginName = LoadStrW(IDS_PLUGINNAME);
+                size_t size = wcslen(name) + wcslen(title) + wcslen(pluginName) + 16;
+                WCHAR* buff = (WCHAR*)malloc(size * sizeof(WCHAR));
+                if (buff != NULL)
                 {
-                    lstrcpy(buff, locationURL);
-                    if (!file || lstrcmp(locationURL, title) != 0)
-                        sprintf(buff + lstrlen(buff), " (%s)", title);
+                    wcscpy(buff, name);
+                    if (markdown == NULL && (!file || wcscmp(name, title) != 0))
+                        swprintf_s(buff + wcslen(buff), size - wcslen(buff), L" (%s)", title);
+                    swprintf_s(buff + wcslen(buff), size - wcslen(buff), L" - %s", pluginName);
+
+                    SetWindowTextW(m_pSite->m_hParentWnd, buff);
+                    free(buff);
                 }
-
-                sprintf(buff + lstrlen(buff), " - %s", LoadStr(IDS_PLUGINNAME));
-
-                SetWindowText(m_pSite->m_hParentWnd, buff);
+                free(markdown);
+                free(location);
+                SysFreeString(pbstrLocationURL);
             }
             m_pSite->DoVerb(OLEIVERB_UIACTIVATE);
         }
@@ -1402,7 +1367,7 @@ CSite::CSite()
     //  m_pImpIAdviseSink = NULL;
     m_pImpIDispatch = NULL;
 
-    MarkdownFilename[0] = 0;
+    MarkdownFilename = NULL;
 }
 
 CSite::~CSite()
@@ -1410,6 +1375,8 @@ CSite::~CSite()
     TRACE_I("CSite::~CSite");
     if (m_cRef != 0)
         TRACE_E("CSite::~CSite m_cRef == " << m_cRef);
+    free(MarkdownFilename);
+    MarkdownFilename = NULL;
 }
 
 //
@@ -1845,36 +1812,66 @@ void NavigateAux(CSite* m_pSite, const char* fileName, IStream* contentStream)
     {
         // we have to pump messages, otherwise get_ReadyState() keeps returning READYSTATE_LOADING
         MSG msg;
-        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) // Unicode window -> W message loop
         {
             TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            DispatchMessageW(&msg);
         }
         m_pSite->m_pIWebBrowser2->get_ReadyState(&rs);
     } while (rs != READYSTATE_COMPLETE);
-    strcpy(m_pSite->MarkdownFilename, fileName);
+    if (m_pSite->MarkdownFilename != fileName) // on Ctrl+R we are refreshing our own file
+    {
+        free(m_pSite->MarkdownFilename);
+        m_pSite->MarkdownFilename = _strdup(fileName); // UTF-8, any length
+    }
     // Call the helper function to load the browser from the stream.
     LoadWebBrowserFromStream(m_pSite->m_pIWebBrowser, contentStream);
     contentStream->Release();
 }
 
-void CIEWindow::Navigate(LPCTSTR lpszURL, IStream* contentStream)
+// local file path (UTF-16) -> "file://" URL on the heap; free() the result,
+// NULL on failure
+static WCHAR* PathToFileURLAlloc(const WCHAR* path)
 {
-    CALL_STACK_MESSAGE2("CIEWindow::Navigate(%s)", lpszURL);
+    DWORD len = (DWORD)wcslen(path) * 3 + 16; // percent-encoding may triple the length
+    WCHAR* url = (WCHAR*)malloc(len * sizeof(WCHAR));
+    if (url == NULL)
+        return NULL;
+    if (FAILED(UrlCreateFromPathW(path, url, &len, 0)))
+    {
+        free(url);
+        return NULL;
+    }
+    return url;
+}
+
+void CIEWindow::Navigate(const char* fileName, IStream* contentStream)
+{
+    CALL_STACK_MESSAGE2("CIEWindow::Navigate(%s)", fileName);
 
     if (contentStream != NULL && m_Site.m_pIWebBrowser2 != NULL)
     {
-        NavigateAux(&m_Site, lpszURL, contentStream);
+        NavigateAux(&m_Site, fileName, contentStream);
         return;
     }
 
-    OLECHAR szTemp[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpszURL, -1, szTemp, MAX_PATH);
-    szTemp[MAX_PATH - 1] = 0;
-
-    VARIANT vURL;
-    vURL.vt = VT_BSTR;
-    vURL.bstrVal = szTemp;
+    // 'fileName' is UTF-8 since plugin interface 104: hand the browser a UTF-16
+    // "file://" URL, otherwise names outside the ACP would not open at all
+    WCHAR* wFileName = SplU8ToWAlloc(fileName);
+    if (wFileName == NULL)
+    {
+        TRACE_E("CIEWindow::Navigate: conversion of the file name to UTF-16 failed");
+        return;
+    }
+    WCHAR* wURL = PathToFileURLAlloc(wFileName);
+    BSTR bstrURL = SysAllocString(wURL != NULL ? wURL : wFileName); // no URL: let IE parse the path
+    free(wURL);
+    free(wFileName);
+    if (bstrURL == NULL)
+    {
+        TRACE_E("CIEWindow::Navigate: low memory");
+        return;
+    }
 
     VARIANT vHeaders;
     vHeaders.vt = VT_BSTR;
@@ -1893,16 +1890,17 @@ void CIEWindow::Navigate(LPCTSTR lpszURL, IStream* contentStream)
     vTargetFrameName.lVal = navNoHistory;
 
     m_Site.m_fCanClose = TRUE;
-    const char* ext = strrchr(lpszURL, '.');
+    const char* ext = strrchr(fileName, '.');
     if (ext != NULL && _stricmp(ext + 1, "xml") == 0)
         m_Site.m_fCanClose = FALSE;
     m_Site.m_fOpening = TRUE;
-    HRESULT hr = m_Site.m_pIWebBrowser->Navigate(vURL.bstrVal, &vFlags, &vTargetFrameName, &vPostData, &vHeaders);
+    HRESULT hr = m_Site.m_pIWebBrowser->Navigate(bstrURL, &vFlags, &vTargetFrameName, &vPostData, &vHeaders);
     if (hr == E_INVALIDARG)
         TRACE_E("m_Site.m_pIWebBrowser->Navigate failed: E_INVALIDARG");
     else if (hr == E_OUTOFMEMORY)
         TRACE_E("m_Site.m_pIWebBrowser->Navigate failed: E_OUTOFMEMORY");
     m_Site.m_fOpening = FALSE;
+    SysFreeString(bstrURL);
 }
 
 BOOL CIEWindow::CanClose()
@@ -2111,7 +2109,7 @@ CIEMainWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
     }
-    return DefWindowProc(HWindow, uMsg, wParam, lParam);
+    return DefWindowProcW(HWindow, uMsg, wParam, lParam); // Unicode window
 }
 
 HANDLE
@@ -2177,5 +2175,5 @@ CIEMainWindow::CIEMainWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPa
     if (wnd != NULL)
         return wnd->WindowProc(uMsg, wParam, lParam);
     else
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        return DefWindowProcW(hwnd, uMsg, wParam, lParam); // Unicode window
 }

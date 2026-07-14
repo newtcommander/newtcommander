@@ -2073,6 +2073,30 @@ C__Handles::FindFirstFile(LPCTSTR lpFileName, LPWIN32_FIND_DATA lpFindFileData)
     return ret;
 }
 
+HANDLE
+C__Handles::FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
+{ // W variant (plugin interface 104); the tracker's diagnostic text stays narrow
+    HANDLE ret = ::FindFirstFileW(lpFileName, lpFindFileData);
+    CheckCreate(ret != INVALID_HANDLE_VALUE, __htFindFile, __hoFindFirstFile,
+                ret, GetLastError(), TRUE, NULL);
+    return ret;
+}
+
+HANDLE
+C__Handles::CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess,
+                        DWORD dwShareMode,
+                        LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+                        DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes,
+                        HANDLE hTemplateFile)
+{ // W variant (plugin interface 104); the tracker's diagnostic text stays narrow
+    HANDLE ret = ::CreateFileW(lpFileName, dwDesiredAccess, dwShareMode,
+                               lpSecurityAttributes, dwCreationDisposition,
+                               dwFlagsAndAttributes, hTemplateFile);
+    CheckCreate(ret != INVALID_HANDLE_VALUE, __htHandle_comp_with_CloseHandle,
+                __hoCreateFile, ret, GetLastError(), TRUE, NULL);
+    return ret;
+}
+
 BOOL C__Handles::FindClose(HANDLE hFindFile)
 {
     BOOL ret = ::FindClose(hFindFile);

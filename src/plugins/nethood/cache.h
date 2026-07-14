@@ -1361,12 +1361,13 @@ private:
     DWORD EnumTSClientVolumes();
 
     /// Reads shortcut target and inserts it as a child of the node
-    /// being enumerated.
+    /// being enumerated. The names are wide (they come from the local
+    /// disk) and are converted to UTF-8 for the cache.
     /// \param pszName Display name of the shortcut.
     /// \param pszDir Path to the directory where the shortcut is stored.
     BOOL AddNetworkShortcut(
-        __in PCTSTR pszName,
-        __in PTSTR pszDir);
+        __in PCWSTR pszName,
+        __in PWSTR pszDir);
 
     /// Finds out whether the caller may recover from the error
     /// by providing user credentials.
@@ -1386,10 +1387,10 @@ private:
     /// Returns path to the user's network places folder.
     /// \return If the method succeeds, the return value is nonzero.
     ///         Otherwise the return value is zero.
-    static BOOL GetShortcutsDir(__out PTSTR pszPath);
+    static BOOL GetShortcutsDir(__out_ecount(MAX_PATH) PWSTR pszPath);
 
     ///
-    static BOOL ResolveNetShortcut(__inout_ecount(MAX_PATH) PTSTR path);
+    static BOOL ResolveNetShortcut(__inout_ecount(MAX_PATH) PWSTR path);
 
 public:
     CNethoodCacheEnumerationThread(

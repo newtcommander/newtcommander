@@ -67,19 +67,21 @@ DupStr(const WCHAR* str)
     return ret;
 }
 
+// duplicates a registry name as UTF-8 (names handed to Salamander are UTF-8,
+// plugin interface 104); one UTF-16 unit needs up to 3 UTF-8 bytes
 char* DupStrA(const WCHAR* str)
 {
     CALL_STACK_MESSAGE_NONE
     //  CALL_STACK_MESSAGE1("DupStrA()");
     char* ret;
-    int len = (int)wcslen(str);
-    ret = (char*)SG->Alloc(len + 1);
+    int size = 3 * (int)wcslen(str) + 1;
+    ret = (char*)SG->Alloc(size);
     if (ret)
     {
-        if (WStrToStr(ret, len + 1, str, len + 1) <= 0)
+        if (WStrToU8(ret, size, str, -1) <= 0)
         {
-            TRACE_E("Unable to convert Unicode to char, GetLastError()=" << ret);
-            free(ret);
+            TRACE_E("Unable to convert Unicode to UTF-8, GetLastError()=" << GetLastError());
+            SG->Free(ret);
             ret = SG->DupStr("?");
         }
     }

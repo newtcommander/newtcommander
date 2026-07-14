@@ -236,7 +236,7 @@ BOOL CRAPI::FindAllFiles(LPCTSTR szPath, DWORD dwFlags, LPDWORD lpdwFoundCount,
                          RapiNS::LPLPCE_FIND_DATA ppFindDataArray, BOOL tryReinit)
 {
     OLECHAR olePath[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, szPath, -1, olePath, MAX_PATH - 1);
+    SplU8ToW(szPath, olePath, MAX_PATH); // paths cross the interface as UTF-8
     olePath[MAX_PATH - 1] = 0;
 
     BOOL ret = CDynRapi::CeFindAllFiles(olePath, dwFlags, lpdwFoundCount, ppFindDataArray);
@@ -250,7 +250,7 @@ HANDLE
 CRAPI::FindFirstFile(LPCTSTR lpFileName, RapiNS::LPCE_FIND_DATA lpFindFileData, BOOL tryReinit)
 {
     OLECHAR oleFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, oleFileName, MAX_PATH - 1);
+    SplU8ToW(lpFileName, oleFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleFileName[MAX_PATH - 1] = 0;
 
     HANDLE hFindFile = CDynRapi::CeFindFirstFile(oleFileName, lpFindFileData);
@@ -274,7 +274,7 @@ DWORD
 CRAPI::GetFileAttributes(LPCTSTR lpFileName, BOOL tryReinit)
 {
     OLECHAR oleFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, oleFileName, MAX_PATH - 1);
+    SplU8ToW(lpFileName, oleFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleFileName[MAX_PATH - 1] = 0;
 
     DWORD attr = CDynRapi::CeGetFileAttributes(oleFileName);
@@ -287,7 +287,7 @@ CRAPI::GetFileAttributes(LPCTSTR lpFileName, BOOL tryReinit)
 BOOL CRAPI::SetFileAttributes(LPCTSTR lpFileName, DWORD dwFileAttributes)
 {
     OLECHAR oleFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, oleFileName, MAX_PATH - 1);
+    SplU8ToW(lpFileName, oleFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleFileName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeSetFileAttributes(oleFileName, dwFileAttributes);
@@ -318,7 +318,7 @@ HANDLE
 CRAPI::CreateFile(LPCTSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
     OLECHAR oleFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, oleFileName, MAX_PATH - 1);
+    SplU8ToW(lpFileName, oleFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleFileName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeCreateFile(oleFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
@@ -342,9 +342,9 @@ BOOL CRAPI::WriteFile(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrit
 BOOL CRAPI::CopyFile(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFailIfExists)
 {
     OLECHAR oleExistingFileName[MAX_PATH], oleNewFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpExistingFileName, -1, oleExistingFileName, MAX_PATH - 1);
+    SplU8ToW(lpExistingFileName, oleExistingFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleExistingFileName[MAX_PATH - 1] = 0;
-    MultiByteToWideChar(CP_ACP, 0, lpNewFileName, -1, oleNewFileName, MAX_PATH - 1);
+    SplU8ToW(lpNewFileName, oleNewFileName, MAX_PATH);
     oleNewFileName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeCopyFile(oleExistingFileName, oleNewFileName, bFailIfExists);
@@ -353,9 +353,9 @@ BOOL CRAPI::CopyFile(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFa
 BOOL CRAPI::MoveFile(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName)
 {
     OLECHAR oleExistingFileName[MAX_PATH], oleNewFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpExistingFileName, -1, oleExistingFileName, MAX_PATH - 1);
+    SplU8ToW(lpExistingFileName, oleExistingFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleExistingFileName[MAX_PATH - 1] = 0;
-    MultiByteToWideChar(CP_ACP, 0, lpNewFileName, -1, oleNewFileName, MAX_PATH - 1);
+    SplU8ToW(lpNewFileName, oleNewFileName, MAX_PATH);
     oleNewFileName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeMoveFile(oleExistingFileName, oleNewFileName);
@@ -364,7 +364,7 @@ BOOL CRAPI::MoveFile(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName)
 BOOL CRAPI::DeleteFile(LPCTSTR lpFileName)
 {
     OLECHAR oleFileName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpFileName, -1, oleFileName, MAX_PATH - 1);
+    SplU8ToW(lpFileName, oleFileName, MAX_PATH); // paths cross the interface as UTF-8
     oleFileName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeDeleteFile(oleFileName);
@@ -373,7 +373,7 @@ BOOL CRAPI::DeleteFile(LPCTSTR lpFileName)
 BOOL CRAPI::CreateDirectory(LPCTSTR lpPathName, LPSECURITY_ATTRIBUTES lpSecurityAttributes)
 {
     OLECHAR olePathName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpPathName, -1, olePathName, MAX_PATH - 1);
+    SplU8ToW(lpPathName, olePathName, MAX_PATH); // paths cross the interface as UTF-8
     olePathName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeCreateDirectory(olePathName, lpSecurityAttributes);
@@ -382,7 +382,7 @@ BOOL CRAPI::CreateDirectory(LPCTSTR lpPathName, LPSECURITY_ATTRIBUTES lpSecurity
 BOOL CRAPI::RemoveDirectory(LPCTSTR lpPathName)
 {
     OLECHAR olePathName[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpPathName, -1, olePathName, MAX_PATH - 1);
+    SplU8ToW(lpPathName, olePathName, MAX_PATH); // paths cross the interface as UTF-8
     olePathName[MAX_PATH - 1] = 0;
 
     return CDynRapi::CeRemoveDirectory(olePathName);
@@ -391,11 +391,11 @@ BOOL CRAPI::RemoveDirectory(LPCTSTR lpPathName)
 BOOL CRAPI::CreateProcess(LPCTSTR lpApplicationName, LPCTSTR lpCommandLine)
 {
     OLECHAR oleApplicationName[MAX_PATH], oleCommandLine[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpApplicationName, -1, oleApplicationName, MAX_PATH - 1);
+    SplU8ToW(lpApplicationName, oleApplicationName, MAX_PATH); // paths cross the interface as UTF-8
     oleApplicationName[MAX_PATH - 1] = 0;
     if (lpCommandLine)
     {
-        MultiByteToWideChar(CP_ACP, 0, lpCommandLine, -1, oleCommandLine, MAX_PATH - 1);
+        SplU8ToW(lpCommandLine, oleCommandLine, MAX_PATH);
         oleCommandLine[MAX_PATH - 1] = 0;
     }
 
@@ -405,13 +405,13 @@ BOOL CRAPI::CreateProcess(LPCTSTR lpApplicationName, LPCTSTR lpCommandLine)
 BOOL CRAPI::SHGetShortcutTarget(LPCTSTR lpszShortcut, LPTSTR lpszTarget, int cbMax)
 {
     OLECHAR oleShortcut[MAX_PATH], oleTarget[MAX_PATH];
-    MultiByteToWideChar(CP_ACP, 0, lpszShortcut, -1, oleShortcut, MAX_PATH - 1);
+    SplU8ToW(lpszShortcut, oleShortcut, MAX_PATH); // paths cross the interface as UTF-8
     oleShortcut[MAX_PATH - 1] = 0;
 
     if (!CDynRapi::CeSHGetShortcutTarget(oleShortcut, oleTarget, cbMax))
         return FALSE;
 
-    WideCharToMultiByte(CP_ACP, 0, oleTarget, -1, lpszTarget, cbMax, NULL, NULL);
+    SplWToU8(oleTarget, lpszTarget, cbMax);
     if (cbMax > 0)
         lpszTarget[cbMax - 1] = 0;
     return TRUE;
@@ -612,13 +612,14 @@ BOOL CRAPI::FindAllFilesInTree(LPCTSTR rootPath, char (&path)[MAX_PATH], LPCTSTR
             (data.cFileName[0] != '.' || // JR Windows Mobile does not return "." and ".." paths, but handle it just in case
              (data.cFileName[1] != 0 && (data.cFileName[1] != '.' || data.cFileName[2] != 0))))
         {
-            char cFileName[MAX_PATH];
-            WideCharToMultiByte(CP_ACP, 0, data.cFileName, -1, cFileName, MAX_PATH, NULL, NULL);
-            cFileName[MAX_PATH - 1] = 0;
+            // CE_FIND_DATA names are Unicode, Salamander wants them as UTF-8
+            char cFileName[3 * MAX_PATH];
+            if (SplWToU8(data.cFileName, cFileName, sizeof(cFileName)) <= 0)
+                goto ONERROR_TOOLONG;
 
             CFileInfo fi;
             strcpy(fi.cFileName, path);
-            if (!PathAppend(fi.cFileName, cFileName, MAX_PATH))
+            if (!PathAppend(fi.cFileName, cFileName, (int)sizeof(fi.cFileName)))
                 goto ONERROR_TOOLONG;
 
             fi.dwFileAttributes = data.dwFileAttributes;
@@ -694,6 +695,15 @@ CRAPI::CopyFileToPC(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFai
     FILETIME creationTime, accessedTime, writeTime;
     DWORD size, copied = 0;
 
+    // the target lives on the local disk: address it through the W file APIs
+    WCHAR* newFileNameW = SplU8ToWExtAlloc(lpNewFileName);
+    if (newFileNameW == NULL)
+    {
+        if (errorFileName)
+            *errorFileName = lpNewFileName;
+        return ERROR_INVALID_NAME;
+    }
+
     DWORD attr = GetFileAttributes(lpExistingFileName);
     if (attr == 0xFFFFFFFF)
         goto ONERROR_SRC;
@@ -712,7 +722,7 @@ CRAPI::CopyFileToPC(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFai
     if (!GetFileTime(srcHandle, &creationTime, &accessedTime, &writeTime))
         goto ONERROR_SRC;
 
-    dstHandle = ::CreateFile(lpNewFileName, GENERIC_WRITE, 0, NULL, bFailIfExists ? CREATE_NEW : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    dstHandle = ::CreateFileW(newFileNameW, GENERIC_WRITE, 0, NULL, bFailIfExists ? CREATE_NEW : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (dstHandle == INVALID_HANDLE_VALUE)
         goto ONERROR_DST;
 
@@ -742,20 +752,22 @@ CRAPI::CopyFileToPC(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFai
                 err = -1;
                 ::CloseHandle(dstHandle);
                 dstHandle = INVALID_HANDLE_VALUE;
-                ::DeleteFile(lpNewFileName);
+                ::DeleteFileW(newFileNameW);
                 goto RETURN;
             }
         }
     } while (read >= sizeof(buffer));
 
     ::SetFileTime(dstHandle, &creationTime, &accessedTime, &writeTime); // JR REVIEW: should we ignore potential errors?
-    ::SetFileAttributes(lpNewFileName, attr);
+    ::SetFileAttributesW(newFileNameW, attr);
 
 RETURN:
     if (srcHandle != INVALID_HANDLE_VALUE)
         CloseHandle(srcHandle);
     if (dstHandle != INVALID_HANDLE_VALUE)
         ::CloseHandle(dstHandle);
+
+    free(newFileNameW);
 
     return err;
 
@@ -785,11 +797,20 @@ CRAPI::CopyFileToCE(LPCTSTR lpExistingFileName, LPCTSTR lpNewFileName, BOOL bFai
     FILETIME creationTime, accessedTime, writeTime;
     DWORD size, copied = 0;
 
+    // the source lives on the local disk: address it through the W file APIs
+    WCHAR* existingFileNameW = SplU8ToWExtAlloc(lpExistingFileName);
+    if (existingFileNameW == NULL)
+    {
+        if (errorFileName)
+            *errorFileName = lpExistingFileName;
+        return ERROR_INVALID_NAME;
+    }
+
     DWORD attr = SalamanderGeneral->SalGetFileAttributes(lpExistingFileName);
     if (attr == 0xFFFFFFFF)
         goto ONERROR_SRC;
 
-    srcHandle = ::CreateFile(lpExistingFileName, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    srcHandle = ::CreateFileW(existingFileNameW, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (srcHandle == INVALID_HANDLE_VALUE)
         goto ONERROR_SRC;
 
@@ -850,6 +871,8 @@ RETURN:
 
     if (err == 0)
         SetFileAttributes(lpNewFileName, attr);
+
+    free(existingFileNameW);
 
     return err;
 

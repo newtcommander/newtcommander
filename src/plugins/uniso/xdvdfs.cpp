@@ -225,6 +225,8 @@ int CXDVDFS::ScanDir(DWORD sector, DWORD size, char* path, CSalamanderDirectoryA
         BYTE len = GET_BYTE(data, offset + 0x000D);
         char fileName[2 * MAX_PATH + 1];
         strncpy_s(fileName, (char*)data + offset + 0x000E, len);
+        // format boundary (interface 104): XDVDFS stores the name as plain bytes
+        EnsureU8Name(fileName, sizeof(fileName));
 
         if (!AddFileDir(path, fileName, &de, dir, pluginData))
         {
