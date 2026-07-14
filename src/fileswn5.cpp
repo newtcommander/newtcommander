@@ -251,18 +251,18 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                             strcpy(fileName, GetPath());
                             SalPathAppend(fileName, f->Name, MAX_PATH);
 
-                            WIN32_FIND_DATA find;
-                            HANDLE hFind = HANDLES_Q(FindFirstFile(fileName, &find));
+                            WIN32_FIND_DATAW findW;
+                            HANDLE hFind = SalFindFirstFile(fileName, &findW);
                             if (hFind != INVALID_HANDLE_VALUE)
                             {
                                 HANDLES(FindClose(hFind));
 
                                 FILETIME ft;
-                                if (FileTimeToLocalFileTime(&find.ftCreationTime, &ft) &&
+                                if (FileTimeToLocalFileTime(&findW.ftCreationTime, &ft) &&
                                     FileTimeToSystemTime(&ft, &timeCreated) &&
-                                    FileTimeToLocalFileTime(&find.ftLastAccessTime, &ft) &&
+                                    FileTimeToLocalFileTime(&findW.ftLastAccessTime, &ft) &&
                                     FileTimeToSystemTime(&ft, &timeAccessed) &&
-                                    FileTimeToLocalFileTime(&find.ftLastWriteTime, &ft) &&
+                                    FileTimeToLocalFileTime(&findW.ftLastWriteTime, &ft) &&
                                     FileTimeToSystemTime(&ft, &timeModified))
                                 {
                                     timeObtained = TRUE;
@@ -879,8 +879,8 @@ void CFilesWindow::ViewFile(char* name, BOOL altView, DWORD handlerID, int enumF
                             SetCursor(oldCur);
                             SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
                             CQuadWord size(0, 0);
-                            HANDLE file = HANDLES_Q(CreateFile(name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                               NULL, OPEN_EXISTING, 0, NULL));
+                            HANDLE file = SalCreateFile(name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                        NULL, OPEN_EXISTING, 0, NULL);
                             if (file != INVALID_HANDLE_VALUE)
                             {
                                 DWORD err;
@@ -965,9 +965,9 @@ BOOL ViewFileInt(HWND parent, const char* name, BOOL altView, DWORD handlerID, B
 
     // obtain the full DOS name
     char dosName[MAX_PATH];
-    if (GetShortPathName(name, dosName, MAX_PATH) == 0)
+    if (!SalGetShortPathName(name, dosName, MAX_PATH))
     {
-        TRACE_E("GetShortPathName() failed");
+        TRACE_E("SalGetShortPathName() failed");
         dosName[0] = 0;
     }
 
@@ -1312,9 +1312,9 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
 
     // obtain the full DOS name
     char dosName[MAX_PATH];
-    if (GetShortPathName(name, dosName, MAX_PATH) == 0)
+    if (!SalGetShortPathName(name, dosName, MAX_PATH))
     {
-        TRACE_I("GetShortPathName() failed.");
+        TRACE_I("SalGetShortPathName() failed.");
         dosName[0] = 0;
     }
 
@@ -2190,14 +2190,17 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
                     (err == ERROR_FILE_EXISTS ||   // check whether it's only rewriting the DOS name of the file
                      err == ERROR_ALREADY_EXISTS))
                 {
-                    WIN32_FIND_DATA data;
-                    HANDLE find = HANDLES_Q(FindFirstFile(tgtPath, &data));
+                    WIN32_FIND_DATAW dataW;
+                    HANDLE find = SalFindFirstFile(tgtPath, &dataW);
                     if (find != INVALID_HANDLE_VALUE)
                     {
                         HANDLES(FindClose(find));
+                        char nameU8[SAL_FIND_NAME_U8];
+                        char dosNameU8[SAL_FIND_DOSNAME_U8];
+                        SalConvertFindDataW(&dataW, NULL, nameU8, sizeof(nameU8), dosNameU8, sizeof(dosNameU8));
                         const char* tgtName = SalPathFindFileName(tgtPath);
-                        if (StrICmp(tgtName, data.cAlternateFileName) == 0 && // match only for DOS name
-                            StrICmp(tgtName, data.cFileName) != 0)            // (full name differs)
+                        if (StrICmp(tgtName, dosNameU8) == 0 && // match only for DOS name
+                            StrICmp(tgtName, nameU8) != 0)      // (full name differs)
                         {
                             // rename ("clean up") the file/directory with the conflicting DOS name to a temporary 8.3 name (no extra DOS name needed)
                             char tmpName[MAX_PATH + 20];
@@ -2206,7 +2209,7 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
                             SalPathAddBackslash(tmpName, MAX_PATH + 20);
                             char* tmpNamePart = tmpName + strlen(tmpName);
                             char origFullName[MAX_PATH];
-                            if (SalPathAppend(tmpName, data.cFileName, MAX_PATH))
+                            if (SalPathAppend(tmpName, nameU8, MAX_PATH))
                             {
                                 strcpy(origFullName, tmpName);
                                 DWORD num = (GetTickCount() / 10) % 0xFFF;
@@ -2256,12 +2259,12 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
                     if ((inAttr & FILE_ATTRIBUTE_DIRECTORY) == 0 &&
                         (outAttr & FILE_ATTRIBUTE_DIRECTORY) == 0)
                     { // only if both are files
-                        HANDLE in = HANDLES_Q(CreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-                                                         NULL));
-                        HANDLE out = HANDLES_Q(CreateFile(tgtPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-                                                          NULL));
+                        HANDLE in = SalCreateFile(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                                                  NULL);
+                        HANDLE out = SalCreateFile(tgtPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                                                   NULL);
                         if (in != INVALID_HANDLE_VALUE && out != INVALID_HANDLE_VALUE)
                         {
                             char iAttr[101], oAttr[101];
@@ -2284,7 +2287,7 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
                             case IDYES:
                             {
                                 ClearReadOnlyAttr(tgtPath); // so it can be deleted ...
-                                if (!DeleteFile(tgtPath) || !SalMoveFile(path, tgtPath))
+                                if (!SalDeleteFile(tgtPath) || !SalMoveFile(path, tgtPath))
                                     err = GetLastError();
                                 else
                                 {
@@ -2351,7 +2354,7 @@ void CFilesWindow::RenameFile(int specialIndex)
     BOOL isDir = i < Dirs->Count;
     f = isDir ? &Dirs->At(i) : &Files->At(i - Dirs->Count);
 
-    char formatedFileName[MAX_PATH];
+    char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     AlterFileName(formatedFileName, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
 
     char buff[200];
@@ -2631,7 +2634,7 @@ void CFilesWindow::QuickRenameBegin(int index, const RECT* labelRect)
     BOOL isDir = index < Dirs->Count;
     f = isDir ? &Dirs->At(index) : &Files->At(index - Dirs->Count);
 
-    char formatedFileName[MAX_PATH];
+    char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     AlterFileName(formatedFileName, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
 
     // Since Windows Vista, Microsoft introduced a demanded feature: quick rename selects only the name without the dot and extension

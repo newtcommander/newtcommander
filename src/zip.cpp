@@ -3909,7 +3909,7 @@ void CSalamanderGeneral::GetCommonFSOperSourceDescr(char* sourceDescr, int sourc
         int fileNameFormat;
         GetConfigParameter(SALCFG_FILENAMEFORMAT, &fileNameFormat,
                            sizeof(fileNameFormat), NULL);
-        char formatedFileName[MAX_PATH]; // CFileData::Name is at most MAX_PATH-5 characters long - Salamander's limit
+        char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name, the old MAX_PATH-5 limit is gone (feature 004)
         ::AlterFileName(formatedFileName, name, -1, fileNameFormat, 0, nameIsDir);
         _snprintf_s(sourceDescr, sourceDescrSize, _TRUNCATE,
                     ::LoadStr(nameIsDir ? (forDlgCaption ? IDS_DLG_QUESTION_DIRECTORY : IDS_QUESTION_DIRECTORY) : (forDlgCaption ? IDS_DLG_QUESTION_FILE : IDS_QUESTION_FILE)),

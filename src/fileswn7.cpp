@@ -604,7 +604,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                                             invalidPath = TRUE;
                                     }
                                 }
-                                if (invalidPath || !CreateDirectory(newDirs, NULL))
+                                if (invalidPath || !SalCreateDirectory(newDirs, NULL))
                                 {
                                     sprintf(textBuf, LoadStr(IDS_CREATEDIRFAILED), newDirs);
                                     SalMessageBox(HWindow, textBuf, LoadStr(IDS_ERRORCOPY), MB_OK | MB_ICONEXCLAMATION);
@@ -831,8 +831,8 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
     strcpy(end, name);
     strcat(end, "\\*");
 
-    WIN32_FIND_DATA file;
-    HANDLE find = HANDLES_Q(FindFirstFile(path, &file));
+    WIN32_FIND_DATAW file;
+    HANDLE find = SalFindFirstFile(path, &file);
     *end = 0; // restore the path
     if (find == INVALID_HANDLE_VALUE)
     {
@@ -877,12 +877,15 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
         else
             memset(&newF, 0, sizeof(newF));
         BOOL testFindNextErr = TRUE;
+        char nameU8[SAL_FIND_NAME_U8];       // UTF-8 of cFileName
+        char dosNameU8[SAL_FIND_DOSNAME_U8]; // UTF-8 of cAlternateFileName
 
         do
         {
-            if (file.cFileName[0] == 0 ||
-                file.cFileName[0] == '.' &&
-                    (file.cFileName[1] == 0 || (file.cFileName[1] == '.' && file.cFileName[2] == 0)))
+            SalConvertFindDataW(&file, NULL, nameU8, sizeof(nameU8), dosNameU8, sizeof(dosNameU8));
+            if (nameU8[0] == 0 ||
+                nameU8[0] == '.' &&
+                    (nameU8[1] == 0 || (nameU8[1] == '.' && nameU8[2] == 0)))
                 continue; // "." a ".."
 
             static DWORD lastBreakCheck = 0;
@@ -908,7 +911,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                     (file.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0) // it's a link
                 {                                                                // for a symlink determine the target file size
                     CQuadWord size;
-                    if (SalPathAppend(path, file.cFileName, _countof(path)))
+                    if (SalPathAppend(path, nameU8, _countof(path)))
                     { // only if the path is not too long (any resulting error will be reported during enumeration)
                         if (GetLinkTgtFileSize(parent, path, NULL, &size, &cancel, errGetFileSizeOfLnkTgtIgnAll))
                             newF.Size = size;
@@ -921,7 +924,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                     *end2 = 0; // restore 'path' to its original state
                 }
 
-                newF.Name = !cancel ? DupStr(file.cFileName) : NULL;
+                newF.Name = !cancel ? DupStr(nameU8) : NULL;
                 newF.DosName = NULL;
                 if (cancel || newF.Name == NULL)
                 {
@@ -929,7 +932,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                     testFindNextErr = FALSE;
                     break;
                 }
-                newF.NameLen = strlen(newF.Name);
+                newF.NameLen = (unsigned)strlen(newF.Name);
                 if (!Configuration.SortDirsByExt && (file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) // directory, so it is certainly a disk
                 {
                     newF.Ext = newF.Name + newF.NameLen; // directories have no extensions
@@ -944,9 +947,9 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                         newF.Ext++;
                 }
 
-                if (file.cAlternateFileName[0] != 0)
+                if (dosNameU8[0] != 0)
                 {
-                    newF.DosName = DupStr(file.cAlternateFileName);
+                    newF.DosName = DupStr(dosNameU8);
                     if (newF.DosName == NULL)
                     {
                         free(newF.Name);
@@ -990,13 +993,13 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                     {
                         *containsDirLinks = 1; // after finding one simulate an error to end the search immediately
                         *end2 = 0;
-                        _snprintf_s(linkName, MAX_PATH, _TRUNCATE, "%s\\%s", path, file.cFileName); // truncation is fine, it is only for the message text
+                        _snprintf_s(linkName, MAX_PATH, _TRUNCATE, "%s\\%s", path, nameU8); // truncation is fine, it is only for the message text
                         ok = FALSE;
                         testFindNextErr = FALSE;
                         break;
                     }
                 }
-                if (!_ReadDirectoryTree(parent, path, file.cFileName, salDir, errorOccured, getLinkTgtFileSize,
+                if (!_ReadDirectoryTree(parent, path, nameU8, salDir, errorOccured, getLinkTgtFileSize,
                                         errGetFileSizeOfLnkTgtIgnAll, containsDirLinks, linkName))
                 {
                     ok = FALSE;
@@ -1024,7 +1027,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
                     }
                 }
             }
-        } while (FindNextFile(find, &file));
+        } while (SalFindNextFile(find, &file));
         DWORD err = GetLastError();
         HANDLES(FindClose(find));
         *end = 0; // restore the path
@@ -1597,7 +1600,7 @@ _PACK_AGAIN:
                 if (msgBoxRed == IDNO) // OVERWRITE
                 {
                     ClearReadOnlyAttr(fileBuf); // so it can be deleted...
-                    if (!DeleteFile(fileBuf))
+                    if (!SalDeleteFile(fileBuf))
                     {
                         DWORD err;
                         err = GetLastError();
@@ -1816,7 +1819,7 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
                                     while (1)
                                     {
                                         ClearReadOnlyAttr(name); // allow deletion of read-only files too
-                                        if (!DeleteFile(name) && !skipAll)
+                                        if (!SalDeleteFile(name) && !skipAll)
                                         {
                                             DWORD err = GetLastError();
                                             if (err == ERROR_FILE_NOT_FOUND)

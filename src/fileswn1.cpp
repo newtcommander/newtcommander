@@ -143,7 +143,7 @@ BOOL CFilesWindowAncestor::GetGeneralPath(char* buf, int bufSize, BOOL convertFS
     if (bufSize == 0)
         return FALSE;
     BOOL ret = TRUE;
-    char buf2[2 * MAX_PATH];
+    char buf2[2 * MAX_PATH]; // FS branch only (plugin FS paths keep the legacy MAX_PATH convention)
     if (Is(ptDisk))
     {
         int l = (int)strlen(GetPath());
@@ -159,20 +159,22 @@ BOOL CFilesWindowAncestor::GetGeneralPath(char* buf, int bufSize, BOOL convertFS
     {
         if (Is(ptZIPArchive))
         {
-            strcpy(buf2, GetZIPArchive());
-            if (GetZIPPath()[0] != 0)
+            CSalPathBuf tmp; // archive + in-archive path may both be long (feature 004)
+            BOOL ok = tmp.Set(GetZIPArchive());
+            if (ok && GetZIPPath()[0] != 0)
             {
                 if (GetZIPPath()[0] != '\\')
-                    strcat(buf2, "\\");
-                strcat(buf2, GetZIPPath());
+                    ok = tmp.Append("\\");
+                if (ok)
+                    ok = tmp.Append(GetZIPPath());
             }
-            int l = (int)strlen(buf2);
+            int l = ok ? tmp.Length() : 0;
             if (l >= bufSize)
             {
                 l = bufSize - 1;
                 ret = FALSE;
             }
-            memcpy(buf, buf2, l);
+            memcpy(buf, tmp.Get(), l);
             buf[l] = 0;
         }
         else
@@ -1622,7 +1624,7 @@ BOOL CFilesWindow::CanUnloadPlugin(HWND parent, CPluginInterfaceAbstract* plugin
         {
             if (Is(ptZIPArchive) || Is(ptPluginFS)) // archive -> just leave it; plug-in FS -> return to the last disk path
             {
-                char path[MAX_PATH];
+                char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
                 strcpy(path, GetPath());
 
                 DWORD err, lastErr;
@@ -1656,18 +1658,20 @@ void CFilesWindow::RedrawFocusedIndex()
 void CFilesWindow::DirectoryLineSetText()
 {
     CALL_STACK_MESSAGE1("CFilesWindow::DirectoryLineSetText()");
-    char ZIPbuf[2 * MAX_PATH];
+    char ZIPbuf[2 * MAX_PATH];  // plugin-FS branch only (legacy MAX_PATH convention)
+    CSalPathBuf archivePath;    // archive + in-archive path may both be long (feature 004)
     const char* path = NULL;
     if (Is(ptZIPArchive))
     {
-        strcpy(ZIPbuf, GetZIPArchive());
-        if (GetZIPPath()[0] != 0)
+        BOOL ok = archivePath.Set(GetZIPArchive());
+        if (ok && GetZIPPath()[0] != 0)
         {
             if (GetZIPPath()[0] != '\\')
-                strcat(ZIPbuf, "\\");
-            strcat(ZIPbuf, GetZIPPath());
+                ok = archivePath.Append("\\");
+            if (ok)
+                ok = archivePath.Append(GetZIPPath());
         }
-        path = ZIPbuf;
+        path = ok ? archivePath.Get() : GetZIPArchive();
         PathHistory->AddPath(1, GetZIPArchive(), GetZIPPath(), NULL, NULL);
     }
     else

@@ -351,7 +351,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
         }
 
         CFileData* f = NULL;
-        char formatedFileName[MAX_PATH + 200]; // +200 is a reserve (Windows can create paths longer than MAX_PATH)
+        char formatedFileName[SAL_FIND_NAME_U8 + 200]; // UTF-8 name + reserve (feature 004)
         char expanded[200];
         BOOL deleteLink = FALSE;
         if (count <= 1) // one selected item or none
@@ -587,7 +587,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                             BOOL haveSize = FALSE;
                             CQuadWord size;
                             DWORD err;
-                            HANDLE hFile = HANDLES_Q(CreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL));
+                            HANDLE hFile = SalCreateFile(path, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
                             if (hFile != INVALID_HANDLE_VALUE)
                             {
                                 haveSize = SalGetFileSize(hFile, size, err);
@@ -605,7 +605,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                                 {
                                     nullFileAttrs = SalGetFileAttributes(path);
                                     ClearReadOnlyAttr(path, nullFileAttrs); // so it's possible to delete even read-only files
-                                    DeleteFile(path);
+                                    SalDeleteFile(path);
                                 }
                                 //---  custom packing
                                 SetCurrentDirectory(GetPath());
@@ -616,9 +616,9 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                                     if (nullFile && // a zero-size file might have a different compressed attribute; set the archive to the same
                                         nullFileAttrs != INVALID_FILE_ATTRIBUTES)
                                     {
-                                        HANDLE hFile2 = HANDLES_Q(CreateFile(path, GENERIC_READ | GENERIC_WRITE,
-                                                                             0, NULL, OPEN_EXISTING,
-                                                                             0, NULL));
+                                        HANDLE hFile2 = SalCreateFile(path, GENERIC_READ | GENERIC_WRITE,
+                                                                      0, NULL, OPEN_EXISTING,
+                                                                      0, NULL);
                                         if (hFile2 != INVALID_HANDLE_VALUE)
                                         {
                                             // restore the 'compressed' flag; it simply doesn't work on FAT or FAT32
@@ -627,7 +627,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                                             DeviceIoControl(hFile2, FSCTL_SET_COMPRESSION, &state,
                                                             sizeof(USHORT), NULL, 0, &length, FALSE);
                                             HANDLES(CloseHandle(hFile2));
-                                            SetFileAttributes(path, nullFileAttrs);
+                                            SalSetFileAttributes(path, nullFileAttrs);
                                         }
                                     }
                                     SetSel(FALSE, -1, TRUE);                        // explicit redraw
@@ -637,9 +637,9 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                                 {
                                     if (nullFile) // it failed, we have to create it again
                                     {
-                                        HANDLE hFile2 = HANDLES_Q(CreateFile(path, GENERIC_READ | GENERIC_WRITE,
-                                                                             0, NULL, OPEN_ALWAYS,
-                                                                             0, NULL));
+                                        HANDLE hFile2 = SalCreateFile(path, GENERIC_READ | GENERIC_WRITE,
+                                                                      0, NULL, OPEN_ALWAYS,
+                                                                      0, NULL);
                                         if (hFile2 != INVALID_HANDLE_VALUE)
                                         {
                                             if (nullFileAttrs != INVALID_FILE_ATTRIBUTES)
@@ -652,7 +652,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                                             }
                                             HANDLES(CloseHandle(hFile2));
                                             if (nullFileAttrs != INVALID_FILE_ATTRIBUTES)
-                                                SetFileAttributes(path, nullFileAttrs);
+                                                SalSetFileAttributes(path, nullFileAttrs);
                                         }
                                     }
                                 }
@@ -1168,15 +1168,15 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
 // returns TRUE, if everything succeeded; otherwise returns FALSE
 BOOL EmailFilesAddDirectory(CSimpleMAPI* mapi, const char* path, BOOL* errGetFileSizeOfLnkTgtIgnAll)
 {
-    WIN32_FIND_DATA file;
-    char myPath[MAX_PATH + 4];
-    int l = (int)strlen(path);
-    memmove(myPath, path, l);
-    if (myPath[l - 1] != '\\')
-        myPath[l++] = '\\';
-    char* name = myPath + l;
-    strcpy(name, "*");
-    HANDLE find = HANDLES_Q(FindFirstFile(myPath, &file));
+    WIN32_FIND_DATAW file;
+    CSalPathBuf myPath; // recursive function: keep the full path on the heap
+    if (!myPath.Set(path) || !myPath.AddBackslash() || !myPath.Append("*"))
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    HANDLE find = SalFindFirstFile(myPath.Get(), &file);
+    myPath.CutLastComponent(); // remove the "*"
     if (find == INVALID_HANDLE_VALUE)
     {
         DWORD err = GetLastError();
@@ -1195,16 +1195,23 @@ BOOL EmailFilesAddDirectory(CSimpleMAPI* mapi, const char* path, BOOL* errGetFil
         return TRUE; // user wants to continue
     }
     BOOL ok = TRUE;
+    char nameU8[SAL_FIND_NAME_U8]; // UTF-8 of cFileName
     do
     {
-        if (file.cFileName[0] != 0 &&
-            (file.cFileName[0] != '.' ||
-             (file.cFileName[1] != 0 && (file.cFileName[1] != '.' || file.cFileName[2] != 0))))
+        SalConvertFindDataW(&file, NULL, nameU8, sizeof(nameU8), NULL, 0);
+        if (nameU8[0] != 0 &&
+            (nameU8[0] != '.' ||
+             (nameU8[1] != 0 && (nameU8[1] != '.' || nameU8[2] != 0))))
         {
-            strcpy(name, file.cFileName);
+            if (!myPath.AppendComponent(nameU8))
+            {
+                TRACE_E(LOW_MEMORY);
+                ok = FALSE;
+                break;
+            }
             if (file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
-                if (!EmailFilesAddDirectory(mapi, myPath, errGetFileSizeOfLnkTgtIgnAll))
+                if (!EmailFilesAddDirectory(mapi, myPath.Get(), errGetFileSizeOfLnkTgtIgnAll))
                 {
                     ok = FALSE;
                     break;
@@ -1216,18 +1223,19 @@ BOOL EmailFilesAddDirectory(CSimpleMAPI* mapi, const char* path, BOOL* errGetFil
                 BOOL cancel = FALSE;
                 CQuadWord size(file.nFileSizeLow, file.nFileSizeHigh);
                 if ((file.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
-                    !GetLinkTgtFileSize(MainWindow->HWindow, myPath, NULL, &size, &cancel, errGetFileSizeOfLnkTgtIgnAll))
+                    !GetLinkTgtFileSize(MainWindow->HWindow, myPath.Get(), NULL, &size, &cancel, errGetFileSizeOfLnkTgtIgnAll))
                 {
                     size.Set(file.nFileSizeLow, file.nFileSizeHigh);
                 }
-                if (cancel || !mapi->AddFile(myPath, &size))
+                if (cancel || !mapi->AddFile(myPath.Get(), &size))
                 {
                     ok = FALSE;
                     break;
                 }
             }
+            myPath.CutLastComponent(); // drop the appended name for the next item
         }
-    } while (FindNextFile(find, &file));
+    } while (SalFindNextFile(find, &file));
     HANDLES(FindClose(find));
     return ok;
 }

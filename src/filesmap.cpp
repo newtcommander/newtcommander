@@ -104,7 +104,7 @@ BOOL CFilesMap::CreateMap()
     {
         // Brief || Detailed
         // items are stored top to bottom and then left to right (Brief view)
-        char formatedFileName[MAX_PATH];
+        char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
         HDC dc = HANDLES(GetDC(Panel->GetListBoxHWND()));
         HFONT hOldFont = (HFONT)SelectObject(dc, Font);
         int width = Panel->ListBox->GetItemWidth();

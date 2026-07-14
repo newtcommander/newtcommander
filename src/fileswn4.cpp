@@ -593,6 +593,11 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
         else
             nameLen = f->NameLen;
 
+        // UTF-8 -> UTF-16 conversion buffer shared by the name and the column texts (wide GDI calls);
+        // +4 WCHARs: room for the in-place "..." append below
+        WCHAR wbuf[TRANSFER_BUFFER_MAX + 4];
+        int wNameLen = -1; // WCHARs of the formatted name in 'wbuf' (w/o terminator); -1 = byte-wise A-call fallback
+
         // set the the applied font, background color and text color
         SetFontAndColors(hDC, highlightMasksItem, f, isItemFocusedOrEditMode, itemIndex);
 
@@ -680,6 +685,8 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
             {
                 AlterFileName(TransferBuffer, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
                 fileNameFormated = TRUE;
+                // the name is UTF-8: convert the drawn part for wide GDI calls
+                wNameLen = SalU8ToW(TransferBuffer, nameLen, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
             }
 
             CColumn* column = &Columns[0];
@@ -692,8 +699,12 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                 if (GetViewMode() == vmDetailed && (column->FixedWidth == 1 || NarrowedNameColumn))
                 {
                     textWidth = nameWidth - 1 - IconSizes[ICONSIZE_16] - 1 - 2 - SPACE_WIDTH;
-                    GetTextExtentExPoint(hDC, TransferBuffer, nameLen, textWidth,
-                                         &fitChars, DrawItemAlpDx, &fnSZ);
+                    if (wNameLen >= 0)
+                        GetTextExtentExPointW(hDC, wbuf, wNameLen, textWidth,
+                                              &fitChars, DrawItemAlpDx, &fnSZ);
+                    else // invalid UTF-8 (should not happen): keep the byte-wise call
+                        GetTextExtentExPoint(hDC, TransferBuffer, nameLen, textWidth,
+                                             &fitChars, DrawItemAlpDx, &fnSZ);
                     int newWidth = 1 + IconSizes[ICONSIZE_16] + 1 + 2 + fnSZ.cx + 3;
                     if (newWidth > nameWidth)
                         newWidth = nameWidth;
@@ -701,7 +712,10 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                 }
                 else
                 {
-                    GetTextExtentPoint32(hDC, TransferBuffer, nameLen, &fnSZ);
+                    if (wNameLen >= 0)
+                        GetTextExtentPoint32W(hDC, wbuf, wNameLen, &fnSZ);
+                    else // invalid UTF-8 (should not happen): keep the byte-wise call
+                        GetTextExtentPoint32(hDC, TransferBuffer, nameLen, &fnSZ);
                     adjR.right = r.right = rect.left + 1 + IconSizes[ICONSIZE_16] + 1 + 2 + fnSZ.cx + 3;
                 }
 
@@ -716,10 +730,14 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                     // no width measured yet - let's measure it now
                     // the string may be longer than the available space and must end with "..."
                     textWidth = nameWidth - 1 - IconSizes[ICONSIZE_16] - 1 - 2 - SPACE_WIDTH;
-                    GetTextExtentExPoint(hDC, TransferBuffer, nameLen, textWidth,
-                                         &fitChars, DrawItemAlpDx, &fnSZ);
+                    if (wNameLen >= 0)
+                        GetTextExtentExPointW(hDC, wbuf, wNameLen, textWidth,
+                                              &fitChars, DrawItemAlpDx, &fnSZ);
+                    else // invalid UTF-8 (should not happen): keep the byte-wise call
+                        GetTextExtentExPoint(hDC, TransferBuffer, nameLen, textWidth,
+                                             &fitChars, DrawItemAlpDx, &fnSZ);
                 }
-                if (fitChars < nameLen)
+                if (fitChars < (wNameLen >= 0 ? wNameLen : nameLen))
                 {
                     // search from the end for the character after which we can copy "..." and it fits in the column
                     while (fitChars > 0 && DrawItemAlpDx[fitChars - 1] + TextEllipsisWidth > textWidth)
@@ -728,25 +746,41 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                     int totalCount;
                     if (fitChars > 0)
                     {
-                        memmove(DrawItemBuff, TransferBuffer, fitChars);
-                        // and append "..."
-                        memmove(DrawItemBuff + fitChars, "...", 3);
+                        if (wNameLen >= 0) // append "..." in place, the prefix is already in 'wbuf'
+                            memmove(wbuf + fitChars, L"...", 3 * sizeof(WCHAR));
+                        else
+                        {
+                            memmove(DrawItemBuff, TransferBuffer, fitChars);
+                            // and append "..."
+                            memmove(DrawItemBuff + fitChars, "...", 3);
+                        }
                         totalCount = fitChars + 3;
                     }
                     else
                     {
-                        DrawItemBuff[0] = TransferBuffer[0];
-                        DrawItemBuff[1] = '.';
+                        if (wNameLen >= 0)
+                            wbuf[1] = L'.'; // wbuf[0] already holds the first character
+                        else
+                        {
+                            DrawItemBuff[0] = TransferBuffer[0];
+                            DrawItemBuff[1] = '.';
+                        }
                         totalCount = 2;
                     }
 
                     // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-                    ExtTextOut(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, DrawItemBuff, (drawFlags & DRAWFLAG_MASK) ? 0 : totalCount, NULL);
+                    if (wNameLen >= 0)
+                        ExtTextOutW(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : totalCount, NULL);
+                    else
+                        ExtTextOut(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, DrawItemBuff, (drawFlags & DRAWFLAG_MASK) ? 0 : totalCount, NULL);
                     goto SKIP1;
                 }
             }
             // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-            ExtTextOut(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, TransferBuffer, (drawFlags & DRAWFLAG_MASK) ? 0 : nameLen, NULL);
+            if (wNameLen >= 0)
+                ExtTextOutW(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wNameLen, NULL);
+            else // up-dir (nothing to draw) or invalid UTF-8: original byte-wise call
+                ExtTextOut(hDC, r.left + 2, y, ETO_OPAQUE, &adjR, TransferBuffer, (drawFlags & DRAWFLAG_MASK) ? 0 : nameLen, NULL);
         SKIP1:
             if (!Configuration.FullRowSelect || GetViewMode() == vmBrief)
             {
@@ -767,7 +801,7 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                     SetBkColor(hDC, GetCOLORREF(*bkColor));
                     if (drawFlags & DRAWFLAG_MASK) // mask is b&w; we must not paint a colored background into it
                         SetBkColor(hDC, RGB(255, 255, 255));
-                    ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
+                    ExtTextOutW(hDC, 0, 0, ETO_OPAQUE, &r, L"", 0, NULL);
                 }
             }
         }
@@ -846,8 +880,13 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                         }
                     }
 
+                    // column text is UTF-8 (file names, plugin data): convert for wide GDI calls
+                    int wColLen = -1; // -1 = byte-wise A-call fallback (invalid UTF-8)
+                    if (TransferLen > 0)
+                        wColLen = SalU8ToW(TransferBuffer, TransferLen, wbuf, _countof(wbuf)) - 1;
+
                     if (TransferLen == 0)
-                        ExtTextOut(hDC, r.left, y, ETO_OPAQUE, &adjR, "", 0, NULL); // just clearing
+                        ExtTextOutW(hDC, r.left, y, ETO_OPAQUE, &adjR, L"", 0, NULL); // just clearing
                     else
                     {
                         if (column->FixedWidth == 1) // NarrowedNameColumn does not apply here (not Name column)
@@ -855,9 +894,13 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                             int fitChars;
                             // for fixed-width columns we must check whether the entire text fits
                             int textWidth = r.right - r.left - SPACE_WIDTH;
-                            GetTextExtentExPoint(hDC, TransferBuffer, TransferLen, textWidth,
-                                                 &fitChars, DrawItemAlpDx, &textSize);
-                            if (fitChars < TransferLen)
+                            if (wColLen >= 0)
+                                GetTextExtentExPointW(hDC, wbuf, wColLen, textWidth,
+                                                      &fitChars, DrawItemAlpDx, &textSize);
+                            else // invalid UTF-8 (should not happen): keep the byte-wise call
+                                GetTextExtentExPoint(hDC, TransferBuffer, TransferLen, textWidth,
+                                                     &fitChars, DrawItemAlpDx, &textSize);
+                            if (fitChars < (wColLen >= 0 ? wColLen : TransferLen))
                             {
                                 // search from the end for the character after which we can copy "..." and it fits in the column
                                 while (fitChars > 0 && DrawItemAlpDx[fitChars - 1] + TextEllipsisWidth > textWidth)
@@ -866,18 +909,31 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                                 int totalCount;
                                 if (fitChars > 0)
                                 {
-                                    memmove(DrawItemBuff, TransferBuffer, fitChars);
-                                    // and append "..."
-                                    memmove(DrawItemBuff + fitChars, "...", 3);
+                                    if (wColLen >= 0) // append "..." in place, the prefix is already in 'wbuf'
+                                        memmove(wbuf + fitChars, L"...", 3 * sizeof(WCHAR));
+                                    else
+                                    {
+                                        memmove(DrawItemBuff, TransferBuffer, fitChars);
+                                        // and append "..."
+                                        memmove(DrawItemBuff + fitChars, "...", 3);
+                                    }
                                     totalCount = fitChars + 3;
                                 }
                                 else
                                 {
-                                    DrawItemBuff[0] = TransferBuffer[0];
-                                    DrawItemBuff[1] = '.';
+                                    if (wColLen >= 0)
+                                        wbuf[1] = L'.'; // wbuf[0] already holds the first character
+                                    else
+                                    {
+                                        DrawItemBuff[0] = TransferBuffer[0];
+                                        DrawItemBuff[1] = '.';
+                                    }
                                     totalCount = 2;
                                 }
-                                ExtTextOut(hDC, r.left + SPACE_WIDTH / 2, y, ETO_OPAQUE, &adjR, DrawItemBuff, totalCount, NULL);
+                                if (wColLen >= 0)
+                                    ExtTextOutW(hDC, r.left + SPACE_WIDTH / 2, y, ETO_OPAQUE, &adjR, wbuf, totalCount, NULL);
+                                else
+                                    ExtTextOut(hDC, r.left + SPACE_WIDTH / 2, y, ETO_OPAQUE, &adjR, DrawItemBuff, totalCount, NULL);
                             }
                             else
                             {
@@ -889,7 +945,10 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                                 }
                                 else
                                     deltaX = SPACE_WIDTH / 2;
-                                ExtTextOut(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, TransferBuffer, TransferLen, NULL);
+                                if (wColLen >= 0)
+                                    ExtTextOutW(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, wbuf, wColLen, NULL);
+                                else
+                                    ExtTextOut(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, TransferBuffer, TransferLen, NULL);
                             }
                         }
                         else
@@ -898,7 +957,10 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                             if (column->LeftAlignment == 0)
                             {
                                 // if the column is right-aligned, measure the text width
-                                GetTextExtentPoint32(hDC, TransferBuffer, TransferLen, &textSize);
+                                if (wColLen >= 0)
+                                    GetTextExtentPoint32W(hDC, wbuf, wColLen, &textSize);
+                                else // invalid UTF-8 (should not happen): keep the byte-wise call
+                                    GetTextExtentPoint32(hDC, TransferBuffer, TransferLen, &textSize);
                                 deltaX = r.right - r.left - SPACE_WIDTH / 2 - textSize.cx;
                                 if (deltaX < SPACE_WIDTH / 2)
                                     deltaX = SPACE_WIDTH / 2;
@@ -906,7 +968,10 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                             else
                                 deltaX = SPACE_WIDTH / 2;
 
-                            ExtTextOut(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, TransferBuffer, TransferLen, NULL);
+                            if (wColLen >= 0)
+                                ExtTextOutW(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, wbuf, wColLen, NULL);
+                            else
+                                ExtTextOut(hDC, r.left + deltaX, y, ETO_OPAQUE, &adjR, TransferBuffer, TransferLen, NULL);
                         }
                     }
                 }
@@ -932,7 +997,7 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                 SetBkColor(hDC, GetCOLORREF(CurrentColors[ITEM_BK_NORMAL]));
                 if (drawFlags & DRAWFLAG_MASK) // mask is b&w; we must not paint a colored background into it
                     SetBkColor(hDC, RGB(255, 255, 255));
-                ExtTextOut(hDC, r.left, r.top, ETO_OPAQUE, &adjR, "", 0, NULL);
+                ExtTextOutW(hDC, r.left, r.top, ETO_OPAQUE, &adjR, L"", 0, NULL);
             }
         }
 
@@ -1461,6 +1526,10 @@ void CFilesWindow::DrawIconThumbnailItem(HDC hTgtDC, int itemIndex, RECT* itemRe
                   out1, &out1Len, &out1Width,
                   out2, &out2Len, &out2Width);
 
+        // UTF-8 -> UTF-16 conversion buffer for wide GDI drawing of the (split) name
+        WCHAR wbuf[SAL_FIND_NAME_U8];
+        int wlen;
+
         if (isItemUpDir)
         {
             out1Len = 0;
@@ -1505,15 +1574,26 @@ void CFilesWindow::DrawIconThumbnailItem(HDC hTgtDC, int itemIndex, RECT* itemRe
 
         // display the centered first line; also clear background of the second line
         // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-        ExtTextOut(hDC, rect.left + (itemWidth - out1Width) / 2, y,
-                   ETO_OPAQUE, &r, out1, (drawFlags & DRAWFLAG_MASK) ? 0 : out1Len, NULL);
+        wlen = SalU8ToW(out1, out1Len, wbuf, _countof(wbuf)) - 1; // -1 = empty or invalid UTF-8
+        if (wlen >= 0)
+            ExtTextOutW(hDC, rect.left + (itemWidth - out1Width) / 2, y,
+                        ETO_OPAQUE, &r, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wlen, NULL);
+        else // empty line (up-dir) or UTF-8 sequence cut by SplitText: byte-wise fallback
+            ExtTextOut(hDC, rect.left + (itemWidth - out1Width) / 2, y,
+                       ETO_OPAQUE, &r, out1, (drawFlags & DRAWFLAG_MASK) ? 0 : out1Len, NULL);
 
         // display the centered second line
         if (out2Len > 0)
         {
+            y += FontCharHeight;
             // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-            ExtTextOut(hDC, rect.left + (itemWidth - out2Width) / 2, y += FontCharHeight,
-                       0, NULL, out2, (drawFlags & DRAWFLAG_MASK) ? 0 : out2Len, NULL);
+            wlen = SalU8ToW(out2, out2Len, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+            if (wlen >= 0)
+                ExtTextOutW(hDC, rect.left + (itemWidth - out2Width) / 2, y,
+                            0, NULL, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wlen, NULL);
+            else // UTF-8 sequence cut by SplitText: byte-wise fallback
+                ExtTextOut(hDC, rect.left + (itemWidth - out2Width) / 2, y,
+                           0, NULL, out2, (drawFlags & DRAWFLAG_MASK) ? 0 : out2Len, NULL);
         }
 
         //*****************************************
@@ -1839,6 +1919,10 @@ void CFilesWindow::DrawTileItem(HDC hTgtDC, int itemIndex, RECT* itemRect, DWORD
                      out0, &out0Len, out1, &out1Len, out2, &out2Len,
                      ValidFileData, &PluginData, Is(ptDisk));
 
+        // UTF-8 -> UTF-16 conversion buffer for wide GDI drawing of the tile lines
+        WCHAR wbuf[TRANSFER_BUFFER_MAX];
+        int wlen;
+
         if (isItemUpDir)
         {
             out0Len = 0;
@@ -1893,7 +1977,11 @@ void CFilesWindow::DrawTileItem(HDC hTgtDC, int itemIndex, RECT* itemRect, DWORD
                 r.bottom--;
         }
         // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-        ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out0, (drawFlags & DRAWFLAG_MASK) ? 0 : out0Len, NULL);
+        wlen = SalU8ToW(out0, out0Len, wbuf, _countof(wbuf)) - 1; // -1 = empty or invalid UTF-8
+        if (wlen >= 0)
+            ExtTextOutW(hDC, textX, textY, ETO_OPAQUE, &r, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wlen, NULL);
+        else // empty line (up-dir) or UTF-8 sequence cut by truncation: byte-wise fallback
+            ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out0, (drawFlags & DRAWFLAG_MASK) ? 0 : out0Len, NULL);
 
         // display the second line
         if (out1[0] != 0)
@@ -1908,7 +1996,11 @@ void CFilesWindow::DrawTileItem(HDC hTgtDC, int itemIndex, RECT* itemRect, DWORD
                     r.bottom--;
             }
             // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-            ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out1, (drawFlags & DRAWFLAG_MASK) ? 0 : out1Len, NULL);
+            wlen = SalU8ToW(out1, out1Len, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+            if (wlen >= 0)
+                ExtTextOutW(hDC, textX, textY, ETO_OPAQUE, &r, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wlen, NULL);
+            else // UTF-8 sequence cut by truncation: byte-wise fallback
+                ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out1, (drawFlags & DRAWFLAG_MASK) ? 0 : out1Len, NULL);
         }
         // display the third line and clear the background of the area below it
         if (out2[0] != 0)
@@ -1919,7 +2011,11 @@ void CFilesWindow::DrawTileItem(HDC hTgtDC, int itemIndex, RECT* itemRect, DWORD
                 r.bottom--;
             textY += FontCharHeight;
             // DRAWFLAG_MASK: hack, under XP some stuff is added in font of the text in the mask while drawing short texts; not an issue if text is not drawn
-            ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out2, (drawFlags & DRAWFLAG_MASK) ? 0 : out2Len, NULL);
+            wlen = SalU8ToW(out2, out2Len, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+            if (wlen >= 0)
+                ExtTextOutW(hDC, textX, textY, ETO_OPAQUE, &r, wbuf, (drawFlags & DRAWFLAG_MASK) ? 0 : wlen, NULL);
+            else // UTF-8 sequence cut by truncation: byte-wise fallback
+                ExtTextOut(hDC, textX, textY, ETO_OPAQUE, &r, out2, (drawFlags & DRAWFLAG_MASK) ? 0 : out2Len, NULL);
         }
 
         //*****************************************

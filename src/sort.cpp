@@ -9,6 +9,26 @@
 //
 //*****************************************************************************
 
+// string-segment comparison for sorting (feature 004, research R5):
+// ASCII-only pairs keep the exact legacy semantics (byte comparators or
+// CompareStringA per configuration), anything else goes through the
+// Unicode-correct path (NFC normalization + CompareStringEx), so
+// canonically equivalent names collate together (FR-009)
+static int SalSortCompareStr(const char* s1, int l1, const char* s2, int l2, BOOL ignoreCase)
+{
+    if (SalIsASCII(s1, l1) && SalIsASCII(s2, l2))
+    {
+        if (Configuration.SortUsesLocale)
+        {
+            return CompareString(LOCALE_USER_DEFAULT, ignoreCase ? NORM_IGNORECASE : 0,
+                                 s1, l1, s2, l2) -
+                   CSTR_EQUAL;
+        }
+        return ignoreCase ? StrICmpEx(s1, l1, s2, l2) : StrCmpEx(s1, l1, s2, l2);
+    }
+    return SalCompareNamesUTF8(s1, l1, s2, l2, ignoreCase);
+}
+
 // since Windows XP the system provides StrCmpLogicalW, which Explorer uses for this comparison
 int StrCmpLogicalEx(const char* s1, int l1, const char* s2, int l2, BOOL* numericalyEqual, BOOL ignoreCase)
 {
@@ -69,20 +89,7 @@ int StrCmpLogicalEx(const char* s1, int l1, const char* s2, int l2, BOOL* numeri
 
         if (isStr1 || isStr2) // comparison of text, dots, or mixed pairs of text, dot, or number (everything except two numbers compares as strings)
         {
-            int ret;
-            if (Configuration.SortUsesLocale)
-            {
-                ret = CompareString(LOCALE_USER_DEFAULT, ignoreCase ? NORM_IGNORECASE : 0,
-                                    beg1, (int)(end1 - beg1), beg2, (int)(end2 - beg2)) -
-                      CSTR_EQUAL;
-            }
-            else
-            {
-                if (ignoreCase)
-                    ret = StrICmpEx(beg1, (int)(end1 - beg1), beg2, (int)(end2 - beg2));
-                else
-                    ret = StrCmpEx(beg1, (int)(end1 - beg1), beg2, (int)(end2 - beg2));
-            }
+            int ret = SalSortCompareStr(beg1, (int)(end1 - beg1), beg2, (int)(end2 - beg2), ignoreCase);
             if (ret != 0)
             {
                 if (numericalyEqual != NULL)
@@ -182,14 +189,7 @@ int RegSetStrICmp(const char* s1, const char* s2)
     }
     else
     {
-        if (Configuration.SortUsesLocale)
-        {
-            return CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, s1, -1, s2, -1) - CSTR_EQUAL;
-        }
-        else
-        {
-            return StrICmp(s1, s2);
-        }
+        return SalSortCompareStr(s1, (int)strlen(s1), s2, (int)strlen(s2), TRUE);
     }
 }
 
@@ -201,15 +201,7 @@ int RegSetStrICmpEx(const char* s1, int l1, const char* s2, int l2, BOOL* numeri
     }
     else
     {
-        int ret;
-        if (Configuration.SortUsesLocale)
-        {
-            ret = CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, s1, l1, s2, l2) - CSTR_EQUAL;
-        }
-        else
-        {
-            ret = StrICmpEx(s1, l1, s2, l2);
-        }
+        int ret = SalSortCompareStr(s1, l1, s2, l2, TRUE);
         if (numericalyEqual != NULL)
             *numericalyEqual = ret == 0;
         return ret;
@@ -224,14 +216,7 @@ int RegSetStrCmp(const char* s1, const char* s2)
     }
     else
     {
-        if (Configuration.SortUsesLocale)
-        {
-            return CompareString(LOCALE_USER_DEFAULT, 0, s1, -1, s2, -1) - CSTR_EQUAL;
-        }
-        else
-        {
-            return strcmp(s1, s2);
-        }
+        return SalSortCompareStr(s1, (int)strlen(s1), s2, (int)strlen(s2), FALSE);
     }
 }
 
@@ -243,15 +228,7 @@ int RegSetStrCmpEx(const char* s1, int l1, const char* s2, int l2, BOOL* numeric
     }
     else
     {
-        int ret;
-        if (Configuration.SortUsesLocale)
-        {
-            ret = CompareString(LOCALE_USER_DEFAULT, 0, s1, l1, s2, l2) - CSTR_EQUAL;
-        }
-        else
-        {
-            ret = StrCmpEx(s1, l1, s2, l2);
-        }
+        int ret = SalSortCompareStr(s1, l1, s2, l2, FALSE);
         if (numericalyEqual != NULL)
             *numericalyEqual = ret == 0;
         return ret;
@@ -281,7 +258,10 @@ int CmpNameExtIgnCase(const CFileData& f1, const CFileData& f2)
   else return res2;
 */
     //--- compare the whole Name (including Ext), same as Explorer
-    return RegSetStrICmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen, NULL);
+    int res = RegSetStrICmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen, NULL);
+    if (res == 0 && f1.Name != f2.Name) // canonically equivalent but byte-different
+        res = StrCmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen); // (NFC vs NFD): deterministic order, FR-009
+    return res;
 }
 
 int CmpNameExt(const CFileData& f1, const CFileData& f2)
@@ -320,7 +300,10 @@ int CmpNameExt(const CFileData& f1, const CFileData& f2)
     if (res != 0 || f1.Name == f2.Name)
         return res; // if the addresses are identical, they must match
                     //--- identical names (archives or FS) - try whether they differ at least in letter case
-    return RegSetStrCmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen, NULL);
+    res = RegSetStrCmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen, NULL);
+    if (res == 0) // canonically equivalent but byte-different (NFC vs NFD):
+        res = StrCmpEx(f1.Name, f1.NameLen, f2.Name, f2.NameLen); // deterministic order, FR-009
+    return res;
 }
 
 BOOL LessNameExt(const CFileData& f1, const CFileData& f2, BOOL reverse)

@@ -2000,7 +2000,7 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
                 BOOL cmdDelete = FALSE;    // is it "our delete"?
                 BOOL cmdMapNetDrv = FALSE; // is this our "Map Network Drive"? (only for a UNC root, let us not complicate life)
                 DWORD cmd = 0;             // command number for the context menu (10000 = "our paste")
-                char pastePath[MAX_PATH];  // buffer for the path where "our paste" is executed (if it happens)
+                char pastePath[SAL_MAX_PATH_UTF8]; // buffer for the path where "our paste" is executed (if it happens); long-path capable
                 if (panel->ContextMenu != NULL && h != NULL)
                 {
                     if (!alreadyHaveContextMenu)

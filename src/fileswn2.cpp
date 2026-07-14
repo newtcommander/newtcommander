@@ -342,8 +342,8 @@ void CFilesWindow::Execute(int index)
                     repPointType == 2 /* JUNCTION POINT */ &&
                     SalPathAppend(fullName, "*", MAX_PATH + 10))
                 {
-                    WIN32_FIND_DATA fileData;
-                    HANDLE search = HANDLES_Q(FindFirstFile(fullName, &fileData));
+                    WIN32_FIND_DATAW fileDataW;
+                    HANDLE search = SalFindFirstFile(fullName, &fileDataW);
                     DWORD err = GetLastError();
                     CutDirectory(fullName);
                     if (search != INVALID_HANDLE_VALUE)
@@ -2122,8 +2122,8 @@ BOOL CFilesWindow::ChangePathToArchive(const char* archive, const char* archiveP
             {
                 // retrieve file info (does it exist?, size, date & time)
                 DWORD err2 = NO_ERROR;
-                HANDLE file = HANDLES_Q(CreateFile(archive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                   NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+                HANDLE file = SalCreateFile(archive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                            NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
                 if (file != INVALID_HANDLE_VALUE)
                 {
                     GetFileTime(file, NULL, NULL, &archiveDate);
@@ -2249,8 +2249,8 @@ BOOL CFilesWindow::ChangePathToArchive(const char* archive, const char* archiveP
             DWORD err;
             if ((err = CheckPath(!isRefresh)) == ERROR_SUCCESS) // no need to restore network connections here ...
             {
-                HANDLE file = HANDLES_Q(CreateFile(archive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                   NULL, OPEN_EXISTING, 0, NULL));
+                HANDLE file = SalCreateFile(archive, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                            NULL, OPEN_EXISTING, 0, NULL);
                 if (file != INVALID_HANDLE_VALUE)
                 {
                     SalGetFileSize(file, archiveSize, err);
@@ -3522,7 +3522,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
     HFONT of = (HFONT)SelectObject(dc, Font);
     SIZE act;
 
-    char formatedFileName[MAX_PATH];
+    // UTF-8 -> UTF-16 conversion buffer for wide GDI measurement (texts may be non-ASCII UTF-8)
+    WCHAR wbuf[TRANSFER_BUFFER_MAX];
+    int wlen;
+
+    char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     switch (GetViewMode())
     {
     case vmBrief:
@@ -3536,7 +3540,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             CFileData* f = &Dirs->At(i);
             AlterFileName(formatedFileName, f->Name, f->NameLen,
                           Configuration.FileNameFormat, 0, TRUE);
-            GetTextExtentPoint32(dc, formatedFileName, f->NameLen, &act);
+            wlen = SalU8ToW(formatedFileName, f->NameLen, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // should not happen for panel data: byte-wise fallback
+                GetTextExtentPoint32(dc, formatedFileName, f->NameLen, &act);
             if (max.cx < act.cx)
                 max.cx = act.cx;
         }
@@ -3545,7 +3553,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             CFileData* f = &Files->At(i);
             AlterFileName(formatedFileName, f->Name, f->NameLen,
                           Configuration.FileNameFormat, 0, FALSE);
-            GetTextExtentPoint32(dc, formatedFileName, f->NameLen, &act);
+            wlen = SalU8ToW(formatedFileName, f->NameLen, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // should not happen for panel data: byte-wise fallback
+                GetTextExtentPoint32(dc, formatedFileName, f->NameLen, &act);
             if (max.cx < act.cx)
                 max.cx = act.cx;
         }
@@ -3658,7 +3670,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
         int totalCount = Files->Count + Dirs->Count;
         if (dirsCount > 0)
         {
-            GetTextExtentPoint32(dc, DirColumnStr, DirColumnStrLen, &act);
+            wlen = SalU8ToW(DirColumnStr, DirColumnStrLen, wbuf, _countof(wbuf)) - 1; // localized text may be non-ASCII UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // invalid UTF-8 (unexpected): byte-wise fallback
+                GetTextExtentPoint32(dc, DirColumnStr, DirColumnStrLen, &act);
             act.cx += SPACE_WIDTH;
             if (columnWidthSize < act.cx)
                 columnWidthSize = act.cx;
@@ -3695,7 +3711,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     st.wDayOfWeek = 0; // Sunday
                     if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) == 0)
                         sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
-                    GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
+                    wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale date may be non-ASCII UTF-8
+                    if (wlen >= 0)
+                        GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                    else // invalid UTF-8 (unexpected): byte-wise fallback
+                        GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
                     act.cx += SPACE_WIDTH;
                     if (columnWidthDate < act.cx)
                         columnWidthDate = act.cx;
@@ -3725,7 +3745,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                 {
                     nameLen = extIsInExtColumn ? (int)(f->Ext - f->Name - 1) : f->NameLen;
 
-                    GetTextExtentPoint32(dc, formatedFileName, nameLen, &act);
+                    wlen = SalU8ToW(formatedFileName, nameLen, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+                    if (wlen >= 0)
+                        GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                    else // should not happen for panel data: byte-wise fallback
+                        GetTextExtentPoint32(dc, formatedFileName, nameLen, &act);
                     act.cx += 1 + IconSizes[ICONSIZE_16] + 1 + 2 + SPACE_WIDTH;
                     if (columnWidthName < act.cx)
                         columnWidthName = act.cx;
@@ -3736,7 +3760,12 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             //--- extension
             if ((autoWidthColumns & VIEW_SHOW_EXTENSION) && extIsInExtColumn)
             {
-                GetTextExtentPoint32(dc, formatedFileName + (int)(f->Ext - f->Name), (int)(f->NameLen - (f->Ext - f->Name)), &act);
+                // convert only the extension byte range (starts after the ASCII '.', a valid UTF-8 boundary)
+                wlen = SalU8ToW(formatedFileName + (int)(f->Ext - f->Name), (int)(f->NameLen - (f->Ext - f->Name)), wbuf, _countof(wbuf)) - 1;
+                if (wlen >= 0)
+                    GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                else // should not happen for panel data: byte-wise fallback
+                    GetTextExtentPoint32(dc, formatedFileName + (int)(f->Ext - f->Name), (int)(f->NameLen - (f->Ext - f->Name)), &act);
                 act.cx += SPACE_WIDTH;
                 if (columnWidthExt < act.cx)
                     columnWidthExt = act.cx;
@@ -3744,7 +3773,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             //--- dosname
             if ((autoWidthColumns & VIEW_SHOW_DOSNAME) && f->DosName != NULL)
             {
-                GetTextExtentPoint32(dc, f->DosName, (int)strlen(f->DosName), &act);
+                wlen = SalU8ToW(f->DosName, -1, wbuf, _countof(wbuf)) - 1; // -1 = invalid UTF-8
+                if (wlen >= 0)
+                    GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                else // should not happen for panel data: byte-wise fallback
+                    GetTextExtentPoint32(dc, f->DosName, (int)strlen(f->DosName), &act);
                 act.cx += SPACE_WIDTH;
                 if (columnWidthDosName < act.cx)
                     columnWidthDosName = act.cx;
@@ -3773,7 +3806,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     if (len < 0)
                         len = sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
                 }
-                GetTextExtentPoint32(dc, text, len, &act);
+                wlen = SalU8ToW(text, len, wbuf, _countof(wbuf)) - 1; // locale date may be non-ASCII UTF-8
+                if (wlen >= 0)
+                    GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                else // invalid UTF-8 (unexpected): byte-wise fallback
+                    GetTextExtentPoint32(dc, text, len, &act);
                 act.cx += SPACE_WIDTH;
                 if (columnWidthDate < act.cx)
                     columnWidthDate = act.cx;
@@ -3797,6 +3834,7 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     {
                         GetAttrsString(text, f->Attr);
                         // this combination has not been measured yet
+                        // attribute letters are ASCII by construction: the byte-wise call is safe here
                         GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
                         act.cx += SPACE_WIDTH;
                         if (columnWidthAttr < act.cx)
@@ -3834,7 +3872,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                             if (src != NULL) // if it is not an empty string
                             {
                                 commonFileType = FALSE;
-                                GetTextExtentPoint32(dc, src, (int)strlen(src), &act);
+                                wlen = SalU8ToW(src, -1, wbuf, _countof(wbuf)) - 1; // file-type text may be non-ASCII UTF-8
+                                if (wlen >= 0)
+                                    GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                                else // invalid UTF-8 (unexpected): byte-wise fallback
+                                    GetTextExtentPoint32(dc, src, (int)strlen(src), &act);
                                 act.cx += SPACE_WIDTH;
                                 if (columnWidthType < act.cx)
                                     columnWidthType = act.cx;
@@ -3845,7 +3887,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     {
                         int resLen;
                         GetCommonFileTypeStr(buf, &resLen, f->Ext);
-                        GetTextExtentPoint32(dc, buf, resLen, &act);
+                        wlen = SalU8ToW(buf, resLen, wbuf, _countof(wbuf)) - 1; // localized text may be non-ASCII UTF-8
+                        if (wlen >= 0)
+                            GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                        else // invalid UTF-8 (unexpected): byte-wise fallback
+                            GetTextExtentPoint32(dc, buf, resLen, &act);
                         act.cx += SPACE_WIDTH;
                         if (columnWidthType < act.cx)
                             columnWidthType = act.cx;
@@ -3857,12 +3903,20 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     {
                         if (i == 0 && isDir && strcmp(f->Name, "..") == 0)
                         {
-                            GetTextExtentPoint32(dc, UpDirTypeName, UpDirTypeNameLen, &act);
+                            wlen = SalU8ToW(UpDirTypeName, UpDirTypeNameLen, wbuf, _countof(wbuf)) - 1; // localized text may be non-ASCII UTF-8
+                            if (wlen >= 0)
+                                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                            else // invalid UTF-8 (unexpected): byte-wise fallback
+                                GetTextExtentPoint32(dc, UpDirTypeName, UpDirTypeNameLen, &act);
                         }
                         else
                         {
                             dirTypeDone = TRUE;
-                            GetTextExtentPoint32(dc, FolderTypeName, FolderTypeNameLen, &act);
+                            wlen = SalU8ToW(FolderTypeName, FolderTypeNameLen, wbuf, _countof(wbuf)) - 1; // localized text may be non-ASCII UTF-8
+                            if (wlen >= 0)
+                                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                            else // invalid UTF-8 (unexpected): byte-wise fallback
+                                GetTextExtentPoint32(dc, FolderTypeName, FolderTypeNameLen, &act);
                         }
                         act.cx += SPACE_WIDTH;
                         if (columnWidthType < act.cx)
@@ -3898,7 +3952,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                 break;
             }
             }
-            GetTextExtentPoint32(dc, text, numLen, &act);
+            wlen = SalU8ToW(text, numLen, wbuf, _countof(wbuf)) - 1; // thousands separator may be non-ASCII UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // invalid UTF-8 (unexpected): byte-wise fallback
+                GetTextExtentPoint32(dc, text, numLen, &act);
             act.cx += SPACE_WIDTH;
             if (columnWidthSize < act.cx)
                 columnWidthSize = act.cx;
@@ -3917,14 +3975,22 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             st.wHour = 10; // morning (AM)
             if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-            GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
+            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time may be non-ASCII UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // invalid UTF-8 (unexpected): byte-wise fallback
+                GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
             act.cx += SPACE_WIDTH;
             if (columnWidthTime < act.cx)
                 columnWidthTime = act.cx;
             st.wHour = 23; // afternoon (PM)
             if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-            GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
+            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time may be non-ASCII UTF-8
+            if (wlen >= 0)
+                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+            else // invalid UTF-8 (unexpected): byte-wise fallback
+                GetTextExtentPoint32(dc, text, (int)strlen(text), &act);
             act.cx += SPACE_WIDTH;
             if (columnWidthTime < act.cx)
                 columnWidthTime = act.cx;
@@ -4005,7 +4071,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                         column->GetText();
                         if (TransferLen > 0)
                         {
-                            GetTextExtentPoint32(dc, TransferBuffer, TransferLen, &act);
+                            wlen = SalU8ToW(TransferBuffer, TransferLen, wbuf, _countof(wbuf)) - 1; // plugin text may be non-ASCII UTF-8
+                            if (wlen >= 0)
+                                GetTextExtentPoint32W(dc, wbuf, wlen, &act);
+                            else // invalid UTF-8 (unexpected): byte-wise fallback
+                                GetTextExtentPoint32(dc, TransferBuffer, TransferLen, &act);
                             act.cx += SPACE_WIDTH;
                             if (act.cx > columnMaxWidth)
                                 columnMaxWidth = act.cx;

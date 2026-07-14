@@ -1533,7 +1533,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             ENTER_AGAIN:
 
                 char fileName[MAX_PATH];
-                strcpy(fileName, FileName);
+                lstrcpyn(fileName, FileName, MAX_PATH); // long UTF-8 name would overflow; the ANSI dialog cannot take more anyway
                 OPENFILENAME ofn;
                 memset(&ofn, 0, sizeof(OPENFILENAME));
                 ofn.lStructSize = sizeof(OPENFILENAME);
@@ -1599,11 +1599,11 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                             strcpy(tmpFile, fileName);
                         if (attr == 0xFFFFFFFF || SalGetTempFileName(path, "sal", tmpFile, TRUE))
                         {
-                            HANDLE file = HANDLES_Q(CreateFile(tmpFile, GENERIC_WRITE,
-                                                               FILE_SHARE_READ, NULL,
-                                                               CREATE_ALWAYS,
-                                                               FILE_FLAG_SEQUENTIAL_SCAN,
-                                                               NULL));
+                            HANDLE file = SalCreateFile(tmpFile, GENERIC_WRITE,
+                                                        FILE_SHARE_READ, NULL,
+                                                        CREATE_ALWAYS,
+                                                        FILE_FLAG_SEQUENTIAL_SCAN,
+                                                        NULL);
                             if (file != INVALID_HANDLE_VALUE)
                             {
                                 __int64 off = start, len;
@@ -1629,13 +1629,13 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 }
                                 HANDLES(CloseHandle(file));
                                 if (fatalErr || off != end)
-                                    DeleteFile(tmpFile); // delete it if an error occurs
+                                    SalDeleteFile(tmpFile); // delete it if an error occurs
                                 else
                                 {
                                     if (attr != 0xFFFFFFFF) // overwrite: tmp -> fileName
                                     {
                                         BOOL setAttr = ClearReadOnlyAttr(fileName, attr); // for the case of a read-only file
-                                        if (DeleteFile(fileName))
+                                        if (SalDeleteFile(fileName))
                                         {
                                             if (!SalMoveFile(tmpFile, fileName))
                                             {
@@ -1649,8 +1649,8 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                                         {
                                             DWORD err = GetLastError();
                                             if (setAttr)
-                                                SetFileAttributes(fileName, attr); // restore the original attributes
-                                            DeleteFile(tmpFile);                   // the file cannot be overwritten; delete the temp file (it's useless)
+                                                SalSetFileAttributes(fileName, attr); // restore the original attributes
+                                            SalDeleteFile(tmpFile);                   // the file cannot be overwritten; delete the temp file (it's useless)
                                             SetCursor(oldCur);
                                             SalMessageBox(HWindow, GetErrorText(err),
                                                           LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
@@ -1671,7 +1671,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                             {
                                 DWORD err = GetLastError();
                                 if (attr != 0xFFFFFFFF)
-                                    DeleteFile(tmpFile);
+                                    SalDeleteFile(tmpFile);
                                 SetCursor(oldCur);
                                 SalMessageBox(HWindow, GetErrorText(err),
                                               LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);

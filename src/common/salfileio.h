@@ -56,6 +56,10 @@ BOOL SalMoveFile(const char* u8from, const char* u8to);
 BOOL SalMoveFileEx(const char* u8from, const char* u8to, DWORD flags);
 BOOL SalCopyFile(const char* u8from, const char* u8to, BOOL failIfExists);
 
+// W-backed GetShortPathName with UTF-8 in/out; returns FALSE when the
+// short name does not exist or does not fit into bufSize
+BOOL SalGetShortPathName(const char* u8path, char* buf, int bufSize);
+
 DWORD SalGetFileAttributes(const char* u8path);
 BOOL SalSetFileAttributes(const char* u8path, DWORD attributes);
 BOOL SalGetFileAttributesEx(const char* u8path, WIN32_FILE_ATTRIBUTE_DATA* data);

@@ -356,8 +356,8 @@ BOOL CViewerWindow::LoadBefore(HANDLE* hFile)
     HANDLE file;
     if (hFile == NULL || *hFile == NULL)
     {
-        file = HANDLES_Q(CreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                    OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+        file = SalCreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                             OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
         if (hFile != NULL && file != INVALID_HANDLE_VALUE)
             *hFile = file;
     }
@@ -501,8 +501,8 @@ BOOL CViewerWindow::LoadBehind(HANDLE* hFile)
     HANDLE file;
     if (hFile == NULL || *hFile == NULL)
     {
-        file = HANDLES_Q(CreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-                                    FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+        file = SalCreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
         if (hFile != NULL && file != INVALID_HANDLE_VALUE)
             *hFile = file;
     }
@@ -753,8 +753,13 @@ void CViewerWindow::FileChanged(HANDLE file, BOOL testOnlyFileSize, BOOL& fatalE
     if (s != NULL)
     {
         namePart = s + 1;
-        memcpy(CurrentDir, FileName, (s - FileName) + 1);
-        CurrentDir[(s - FileName) + 1] = 0;
+        if ((s - FileName) + 1 < MAX_PATH) // long UTF-8 path may not fit into CurrentDir
+        {
+            memcpy(CurrentDir, FileName, (s - FileName) + 1);
+            CurrentDir[(s - FileName) + 1] = 0;
+        }
+        else
+            CurrentDir[0] = 0;
     }
     else
         CurrentDir[0] = 0;
@@ -762,8 +767,8 @@ void CViewerWindow::FileChanged(HANDLE file, BOOL testOnlyFileSize, BOOL& fatalE
     BOOL close;
     if (file == NULL)
     {
-        file = HANDLES_Q(CreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-                                    FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+        file = SalCreateFile(FileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                             FILE_FLAG_SEQUENTIAL_SCAN, NULL);
         close = TRUE;
     }
     else

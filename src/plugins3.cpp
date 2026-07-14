@@ -529,7 +529,7 @@ void CSalamanderGUI::SetSubjectTruncatedText(HWND subjectWnd, const char* subjec
         return;
     }
 
-    char formatedFileName[MAX_PATH];
+    char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     char tmpFileName[MAX_PATH];
     lstrcpyn(tmpFileName, fileName, MAX_PATH);
     AlterFileName(formatedFileName, tmpFileName, -1, Configuration.FileNameFormat, 0, isDir);

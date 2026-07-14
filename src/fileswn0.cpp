@@ -211,12 +211,12 @@ void CFilesWindow::FocusShortcutTarget(CFilesWindow* panel)
     BOOL isDir = index < Dirs->Count;
     CFileData* file = isDir ? &Dirs->At(index) : &Files->At(index - Dirs->Count);
 
-    char shortName[MAX_PATH];
+    char shortName[SAL_FIND_NAME_U8]; // single UTF-8 component
     strcpy(shortName, file->Name);
 
-    char fullName[MAX_PATH];
+    char fullName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
     strcpy(fullName, GetPath());
-    if (!SalPathAppend(fullName, file->Name, MAX_PATH))
+    if (!SalPathAppend(fullName, file->Name, sizeof(fullName)))
     {
         SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORTITLE),
                       MB_OK | MB_ICONEXCLAMATION);
@@ -3144,7 +3144,7 @@ void CFilesWindow::SetQuickSearchCaretPos()
     }
     else
         file = &Files->At(FocusedIndex - Dirs->Count);
-    char formatedFileName[MAX_PATH];
+    char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     AlterFileName(formatedFileName, file->Name, -1,
                   Configuration.FileNameFormat, 0,
                   FocusedIndex < Dirs->Count);

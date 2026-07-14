@@ -212,6 +212,37 @@ BOOL SalCopyFile(const char* u8from, const char* u8to, BOOL failIfExists)
 
 //*****************************************************************************
 //
+// SalGetShortPathName
+//
+
+BOOL SalGetShortPathName(const char* u8path, char* buf, int bufSize)
+{
+    if (buf == NULL || bufSize <= 0)
+        return FALSE;
+    buf[0] = 0;
+    WCHAR* w = SalPathToWExtAlloc(u8path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    WCHAR shortW[2 * MAX_PATH]; // 8.3 components are short; deep paths may still not fit - fail cleanly
+    DWORD res = GetShortPathNameW(w, shortW, _countof(shortW));
+    SalFreeKeepLastError(w);
+    if (res == 0 || res >= _countof(shortW))
+        return FALSE;
+    char* u8 = SalPathFromWAlloc(shortW); // strips the \\?\ prefix
+    if (u8 == NULL)
+        return FALSE;
+    BOOL ret = (int)strlen(u8) < bufSize;
+    if (ret)
+        strcpy(buf, u8);
+    free(u8);
+    return ret;
+}
+
+//*****************************************************************************
+//
 // attributes
 //
 

@@ -239,7 +239,19 @@ BOOL SalGetTempFileName(const char* path, const char* prefix, char* tmpName, BOO
         }
     }
     else
+    {
+        // the caller's base path may be long (feature 004); the tmp-name contract
+        // is still bounded by MAX_PATH because callers pass MAX_PATH buffers -
+        // fail cleanly instead of overflowing (long-path tmp support comes with
+        // the callers' buffer migration)
+        if (strlen(path) >= MAX_PATH)
+        {
+            TRACE_E("Too long base path in SalGetTempFileName().");
+            SetLastError(ERROR_BUFFER_OVERFLOW);
+            return FALSE;
+        }
         strcpy(tmpDir, path);
+    }
 
     char* s = tmpDir + strlen(tmpDir);
     if (s > tmpDir && *(s - 1) != '\\')
@@ -255,8 +267,8 @@ BOOL SalGetTempFileName(const char* path, const char* prefix, char* tmpName, BOO
             sprintf(s, "%X.tmp", randNum++);
             if (file) // file
             {
-                HANDLE h = HANDLES_Q(CreateFile(tmpDir, GENERIC_WRITE, 0, NULL, CREATE_NEW,
-                                                FILE_ATTRIBUTE_NORMAL, NULL));
+                HANDLE h = SalCreateFile(tmpDir, GENERIC_WRITE, 0, NULL, CREATE_NEW,
+                                         FILE_ATTRIBUTE_NORMAL, NULL);
                 if (h != INVALID_HANDLE_VALUE)
                 {
                     HANDLES(CloseHandle(h));
@@ -266,7 +278,7 @@ BOOL SalGetTempFileName(const char* path, const char* prefix, char* tmpName, BOO
             }
             else // directory
             {
-                if (CreateDirectory(tmpDir, NULL))
+                if (SalCreateDirectory(tmpDir, NULL))
                 {
                     strcpy(tmpName, tmpDir); // we copy the result
                     return TRUE;
@@ -1068,7 +1080,7 @@ AGAIN:
     if (newDir != NULL)
         newDir[0] = 0;
     int dirLen = (int)strlen(dir);
-    if (dirLen >= MAX_PATH) // too long name
+    if (dirLen >= SAL_MAX_PATH_UTF8) // beyond even the long-path maximum
     {
         if (errBuf != NULL)
             strncpy_s(errBuf, errBufSize, LoadStr(IDS_TOOLONGNAME), _TRUNCATE);
@@ -1077,15 +1089,15 @@ AGAIN:
         return FALSE;
     }
     DWORD attrs = SalGetFileAttributes(dir);
-    char buf[MAX_PATH + 200];
-    char name[MAX_PATH];
+    char buf[MAX_PATH + 200];         // error texts (paths truncated into messages)
+    char name[SAL_MAX_PATH_UTF8];     // working path - long-path capable (feature 004)
     if (attrs == 0xFFFFFFFF) // probably does not exist, we allow it to be created
     {
         char root[MAX_PATH];
         GetRootPath(root, dir);
         if (dirLen <= (int)strlen(root)) // the directory is a root directory
         {
-            sprintf(buf, LoadStr(IDS_CREATEDIRFAILED), dir);
+            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), dir);
             if (errBuf != NULL)
                 strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
             else
@@ -1102,7 +1114,7 @@ AGAIN:
                 char text[MAX_PATH + 500];
                 char checkText[200];
                 sprintf(title, LoadStr(IDS_QUESTION));
-                sprintf(text, LoadStr(IDS_CREATEDIRECTORY), dir);
+                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_CREATEDIRECTORY), dir);
                 sprintf(checkText, LoadStr(IDS_DONTSHOWAGAINCD));
                 BOOL dontShow = !Configuration.CnfrmCreateDir;
 
@@ -1130,7 +1142,7 @@ AGAIN:
                 s = strrchr(name, '\\');
                 if (s == NULL)
                 {
-                    sprintf(buf, LoadStr(IDS_CREATEDIRFAILED), dir);
+                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), dir);
                     if (errBuf != NULL)
                         strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
                     else
@@ -1151,7 +1163,7 @@ AGAIN:
                         break; // we will build from this directory
                     else       // it is a file, that would not work ...
                     {
-                        sprintf(buf, LoadStr(IDS_NAMEUSEDFORFILE), name);
+                        _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_NAMEUSEDFORFILE), name);
                         if (errBuf != NULL)
                             strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
                         else
@@ -1195,10 +1207,10 @@ AGAIN:
                 if (name[len - 1] <= ' ' || name[len - 1] == '.')
                     invalidName = TRUE; // trailing spaces and dots are undesirable in the created directory name
             AGAIN2:
-                if (invalidName || !CreateDirectory(name, NULL))
+                if (invalidName || !SalCreateDirectory(name, NULL))
                 {
                     DWORD lastErr = invalidName ? ERROR_INVALID_NAME : GetLastError();
-                    sprintf(buf, LoadStr(IDS_CREATEDIRFAILED), name);
+                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), name);
                     if (errBuf != NULL)
                         strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
                     else
@@ -1237,7 +1249,7 @@ AGAIN:
         return TRUE;
     else // it is a file, that would not work ...
     {
-        sprintf(buf, LoadStr(IDS_NAMEUSEDFORFILE), dir);
+        _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_NAMEUSEDFORFILE), dir);
         if (errBuf != NULL)
             strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
         else

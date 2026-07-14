@@ -1846,9 +1846,9 @@ void CMainWindow::GetFormatedPathForTitle(char* path)
 void CMainWindow::SetWindowTitle(const char* text)
 {
     CALL_STACK_MESSAGE2("CMainWindow::SetWindowTitle(%s)", text);
-    char buff[1000];
-    ::GetWindowText(HWindow, buff, 1000);
-    buff[999] = 0;
+    WCHAR buffW[1000]; // compare and set as wide text - the title carries UTF-8 paths (feature 004)
+    ::GetWindowTextW(HWindow, buffW, _countof(buffW));
+    buffW[_countof(buffW) - 1] = 0;
 
     char stdWndName[2 * MAX_PATH + 300];
     if (text == NULL)
@@ -1904,7 +1904,18 @@ void CMainWindow::SetWindowTitle(const char* text)
         text = stdWndName;
     }
 
-    if (strcmp(text, buff) != 0)
+    WCHAR* textW = SalU8ToWAlloc(text);
+    if (textW != NULL)
+    {
+        if (wcscmp(textW, buffW) != 0)
+        {
+            ::SetWindowTextW(HWindow, textW);
+            if (Configuration.StatusArea)
+                SetTrayIconText(text);
+        }
+        free(textW);
+    }
+    else // not valid UTF-8 (transitional): keep the legacy path
     {
         ::SetWindowText(HWindow, text);
         if (Configuration.StatusArea)

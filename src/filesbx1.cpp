@@ -1899,7 +1899,7 @@ int CFilesBox::GetIndex(int x, int y, BOOL nearest, RECT* labelRect)
         {
             if (ViewMode == vmDetailed)
                 x += XOffset;
-            char formatedFileName[MAX_PATH];
+            char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name can need up to 3*MAX_PATH bytes (feature 004)
             CFileData* f;
             BOOL isDir = itemIndex < Parent->Dirs->Count;
             if (isDir)
@@ -1984,7 +1984,7 @@ int CFilesBox::GetIndex(int x, int y, BOOL nearest, RECT* labelRect)
             BOOL hitIcon = PtInRect(&rect, pt);
 
             // detect a click on the text below the icon
-            char formatedFileName[MAX_PATH];
+            char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name can need up to 3*MAX_PATH bytes (feature 004)
             CFileData* f;
             BOOL isItemUpDir = FALSE;
             if (itemIndex < Parent->Dirs->Count)

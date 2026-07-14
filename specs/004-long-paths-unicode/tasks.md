@@ -57,12 +57,12 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 **Independent Test**: quickstart.md scenarios #1–2 — fixture tree >300 chars; browse + copy/move/rename/delete/create/attrs/view all succeed; works with `LongPathsEnabled` registry absent
 
-- [ ] T016 [US1] Migrate the copy/move engine in `src/worker.cpp` onto `salfileio` (source+destination opens, directory creation, retry/skip flows; ~121 call sites, largest single-file task)
-- [ ] T017 [US1] Migrate delete/attributes/ADS paths in `src/worker.cpp` to the W layer; delete `DoLongName` and its `MAX_PATH+100` ADS buffers (`src/worker.cpp:2129,2358-2364`)
-- [ ] T018 [P] [US1] Migrate remaining panel enumeration/refresh/size-calc call sites to `SalEnumDirectory`: `src/fileswn2.cpp:346`, `src/fileswn5.cpp:255,2194`, `src/fileswn6.cpp:326,2077`, `src/fileswn7.cpp:835`, `src/fileswn8.cpp:1179`, `src/fileswna.cpp:376` and companions in each file
-- [ ] T019 [P] [US1] Directory create/rename/quick-rename operations at long paths in `src/fileswn5.cpp`/`src/fileswn6.cpp` (create dir pushing past 260, F2 rename at depth)
-- [ ] T020 [P] [US1] Internal viewer opens via W layer: `src/viewer2.cpp:359,504,765` and `src/viewer3.cpp:1602` → `SalCreateFile`
-- [ ] T021 [US1] FR-004 error surfacing: per-item error dialogs in `src/worker.cpp` carry the full path (dynamic buffers, no truncation); display ellipsis via `PathCompactPathExW`-equivalent only in UI strings
+- [X] T016 [US1] Migrate the copy/move engine in `src/worker.cpp` onto `salfileio` (source+destination opens, directory creation, retry/skip flows; ~121 call sites, largest single-file task)
+- [X] T017 [US1] Migrate delete/attributes/ADS paths in `src/worker.cpp` to the W layer; delete `DoLongName` and its `MAX_PATH+100` ADS buffers (`src/worker.cpp:2129,2358-2364`)
+- [X] T018 [P] [US1] Migrate remaining panel enumeration/refresh/size-calc call sites to `SalEnumDirectory`: `src/fileswn2.cpp:346`, `src/fileswn5.cpp:255,2194`, `src/fileswn6.cpp:326,2077`, `src/fileswn7.cpp:835`, `src/fileswn8.cpp:1179`, `src/fileswna.cpp:376` and companions in each file
+- [X] T019 [P] [US1] Directory create/rename/quick-rename operations at long paths in `src/fileswn5.cpp`/`src/fileswn6.cpp` (create dir pushing past 260, F2 rename at depth)
+- [X] T020 [P] [US1] Internal viewer opens via W layer: `src/viewer2.cpp:359,504,765` and `src/viewer3.cpp:1602` → `SalCreateFile`
+- [X] T021 [US1] FR-004 error surfacing: per-item error dialogs in `src/worker.cpp` carry the full path (dynamic buffers, no truncation); display ellipsis via `PathCompactPathExW`-equivalent only in UI strings
 - [ ] T022 [US1] Long-path display in chrome: title bar, directory line, status bar, progress dialogs (`src/mainwnd3.cpp`, `src/dialogs3.cpp` progress texts) use dynamic buffers — no `\\?\` ever shown
 - [ ] T023 [US1] Boundary validation: run quickstart #1–2 plus 259/260/261-char totals, 255-char single component, UNC `\\server\share` deep path; fix fallout
 
@@ -76,9 +76,9 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 **Independent Test**: quickstart.md scenarios #3, 4, 7 — NFC/NFD pair, Greek/Japanese/emoji names render as in Explorer; all ops succeed; copy preserves bytes; coexistence + one-time notice
 
-- [ ] T024 [P] [US2] Panel painting to W: all `ExtTextOut` sites in `src/fileswn4.cpp` (`:744,749,770,850,880,892,909,935,1508,1515,1896,1911,1922` — draw/thumbnail/tile) convert UTF-8→UTF-16 (transient per-draw buffer; cache decision deferred to T059)
-- [ ] T025 [P] [US2] Width measurement to W: all `GetTextExtentPoint32` sites in `src/fileswn2.cpp` (`:3539-4008` layout pass) — stop equating `NameLen` bytes with glyph counts
-- [ ] T026 [US2] UTF-8-aware sorting in `src/sort.cpp`: `CmpNameExt`/`CmpNameExtIgnCase`/`RegSetStrICmp*` (`:75-319`) — ASCII fast path, else UTF-16 `CompareStringEx`, binary tie-break for canonical equivalents (R5, FR-009)
+- [X] T024 [P] [US2] Panel painting to W: all `ExtTextOut` sites in `src/fileswn4.cpp` (`:744,749,770,850,880,892,909,935,1508,1515,1896,1911,1922` — draw/thumbnail/tile) convert UTF-8→UTF-16 (transient per-draw buffer; cache decision deferred to T059)
+- [X] T025 [P] [US2] Width measurement to W: all `GetTextExtentPoint32` sites in `src/fileswn2.cpp` (`:3539-4008` layout pass) — stop equating `NameLen` bytes with glyph counts
+- [X] T026 [US2] UTF-8-aware sorting in `src/sort.cpp`: `CmpNameExt`/`CmpNameExtIgnCase`/`RegSetStrICmp*` (`:75-319`) — ASCII fast path, else UTF-16 `CompareStringEx`, binary tie-break for canonical equivalents (R5, FR-009)
 - [ ] T027 [P] [US2] Name-bearing dialog/control texts via W getters/setters: rename/overwrite/properties dialogs in `src/dialogs3.cpp`, `src/dialogs4.cpp`, `src/fileswn5.cpp` (`GetDlgItemTextW`/`SetDlgItemTextW` on name fields)
 - [ ] T028 [P] [US2] Window chrome titles with Unicode names: `SetWindowTextW` paths in `src/mainwnd3.cpp`, viewer/find window titles in `src/viewer3.cpp`, `src/finddlg1.cpp`
 - [ ] T029 [US2] Inline rename input: `CQuickRenameWindow` `WM_CHAR` handling in `src/fileswn5.cpp:2870` accepts full Unicode (W control text read-back; no byte gate)

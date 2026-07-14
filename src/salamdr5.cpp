@@ -1467,7 +1467,7 @@ BOOL ClearReadOnlyAttr(const char* name, DWORD attr)
         // clear only the RO flag (for hard links it changes the attributes of the other hard links to the same file, so keep it to the minimum)
         if ((attr & FILE_ATTRIBUTE_READONLY) != 0)
         {
-            if (!SetFileAttributes(name, attr & ~FILE_ATTRIBUTE_READONLY))
+            if (!SalSetFileAttributes(name, attr & ~FILE_ATTRIBUTE_READONLY))
                 TRACE_E("ClearReadOnlyAttr(): error setting attrs (0x" << std::hex << (attr & ~FILE_ATTRIBUTE_READONLY) << std::dec << "): " << name);
             return TRUE;
         }
@@ -1475,7 +1475,7 @@ BOOL ClearReadOnlyAttr(const char* name, DWORD attr)
     else
     {
         TRACE_E("ClearReadOnlyAttr(): error getting attrs: " << name);
-        if (!SetFileAttributes(name, FILE_ATTRIBUTE_ARCHIVE)) // cannot read attributes; try at least to write them (we no longer care whether it is needed)
+        if (!SalSetFileAttributes(name, FILE_ATTRIBUTE_ARCHIVE)) // cannot read attributes; try at least to write them (we no longer care whether it is needed)
             TRACE_E("ClearReadOnlyAttr(): error setting attrs (FILE_ATTRIBUTE_ARCHIVE): " << name);
         return TRUE;
     }
