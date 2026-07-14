@@ -162,7 +162,7 @@ int CZipPack::PackNormal(SalEnumSelection2 next, void* param)
                 if (ErrorID || UserBreak || NothingToDo)
                 {
                     CloseCFile(TempFile);
-                    DeleteFile(TempName);
+                    DeleteFileU8(TempName);
                 }
                 else
                 {
@@ -180,10 +180,10 @@ int CZipPack::PackNormal(SalEnumSelection2 next, void* param)
 
                     CloseCFile(TempFile);
                     SalamanderGeneral->ClearReadOnlyAttr(ZipName);
-                    if (!DeleteFile(ZipName) ||
-                        !MoveFile(TempName, ZipName))
+                    if (!DeleteFileU8(ZipName) ||
+                        !MoveFileU8(TempName, ZipName))
                         ErrorID = IDS_ERRRESTORE;
-                    SetFileAttributes(ZipName, ZipAttr | FILE_ATTRIBUTE_ARCHIVE);
+                    SetFileAttributesU8(ZipName, ZipAttr | FILE_ATTRIBUTE_ARCHIVE);
                 }
             }
             else
@@ -192,7 +192,7 @@ int CZipPack::PackNormal(SalEnumSelection2 next, void* param)
                 {
                     CloseCFile(ZipFile);
                     ZipFile = NULL;
-                    DeleteFile(ZipName);
+                    DeleteFileU8(ZipName);
                 }
                 else
                 {
@@ -237,16 +237,23 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
     {
         Salamander->ProgressDialogAddText(LoadStr(IDS_WRITINGEXE), FALSE);
 
-        char name[MAX_PATH];
-        lstrcpy(name, ZipName);
-        if (!SalamanderGeneral->SalPathRenameExtension(name, ".exe", MAX_PATH))
+        char* name = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+        if (name == NULL)
         {
+            Salamander->CloseProgressDialog();
+            return ErrorID = IDS_LOWMEM;
+        }
+        lstrcpyn(name, ZipName, U8_MAX_PATH);
+        if (!SalamanderGeneral->SalPathRenameExtension(name, ".exe", U8_MAX_PATH))
+        {
+            free(name);
             Salamander->CloseProgressDialog();
             return IDS_TOOLONGZIPNAME;
         }
 
         if (TestIfExist(name))
         {
+            free(name);
             Salamander->CloseProgressDialog();
             return ErrorID;
         }
@@ -260,6 +267,7 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
                 ErrorID = IDS_LOWMEM;
             else
                 ErrorID = IDS_NODISPLAY;
+            free(name);
             Salamander->CloseProgressDialog();
             return ErrorID;
         }
@@ -267,13 +275,15 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
         ErrorID = WriteSfxExecutable(name, Options.SfxSettings.SfxFile, FALSE, 0);
         if (!ErrorID)
         {
-            char archName[MAX_PATH];
-            MakeFileName(1, Options.SeqNames, SalamanderGeneral->SalPathFindFileName(ZipName), archName,
+            char archNameU8[U8_MAX_NAME + 16];
+            char archName[MAX_PATH]; // name stored in the SFX header (OEM, the SFX module reads it)
+            MakeFileName(1, Options.SeqNames, SalamanderGeneral->SalPathFindFileName(ZipName), archNameU8,
                          false);
-            CharToOem(archName, archName);
-            if (!WriteSFXHeader(archName, 0, 0) ||
-                Write(TempFile, &EONewCentrDir, sizeof(CEOCentrDirRecord), NULL) || // just as a placeholder, we update it later
-                Flush(TempFile, TempFile->OutputBuffer, TempFile->BufferPosition, NULL))
+            if (!U8ToOem(archNameU8, archName, sizeof(archName)))
+                ErrorID = IDS_TOOLONGZIPNAME; // the volume name cannot be stored in the SFX header
+            else if (!WriteSFXHeader(archName, 0, 0) ||
+                     Write(TempFile, &EONewCentrDir, sizeof(CEOCentrDirRecord), NULL) || // just as a placeholder, we update it later
+                     Flush(TempFile, TempFile->OutputBuffer, TempFile->BufferPosition, NULL))
             {
                 ErrorID = IDS_NODISPLAY;
             }
@@ -285,6 +295,7 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
         TempFile = NULL;
         if (ErrorID)
         {
+            ::free(name);
             Salamander->CloseProgressDialog();
             return ErrorID;
         }
@@ -296,9 +307,11 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
         {
             ProcessError(IDS_ERRGETDISKFREESP, 0, name, PE_NOSKIP | PE_NORETRY, NULL);
             ErrorID = IDS_NODISPLAY;
+            ::free(name);
             Salamander->CloseProgressDialog();
             return ErrorID;
         }
+        ::free(name);
 
         if (free < CQuadWord(MIN_VOLSIZE, 0) ||
             Options.VolumeSize != -1 &&
@@ -382,11 +395,14 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
                                 {
                                     if (TempFile)
                                     {
-                                        char name[MAX_PATH];
-                                        strcpy(name, TempFile->FileName);
+                                        char* name = _strdup(TempFile->FileName); // full path (UTF-8) -> heap
                                         CloseCFile(TempFile);
                                         TempFile = NULL;
-                                        MoveFile(name, ZipName);
+                                        if (name != NULL)
+                                        {
+                                            MoveFileU8(name, ZipName);
+                                            free(name);
+                                        }
                                     }
                                 }
                             }
@@ -422,7 +438,7 @@ int CZipPack::PackMultiVol(SalEnumSelection2 next, void* param)
             CloseCFile(TempFile);
         }
         if (ErrorID || UserBreak || NothingToDo)
-            DeleteFile(TempName);
+            DeleteFileU8(TempName);
     }
     Salamander->CloseProgressDialog();
     return ErrorID;
@@ -433,7 +449,7 @@ int CZipPack::PackSelfExtract(SalEnumSelection2 next, void* param)
     CALL_STACK_MESSAGE1("CZipPack::PackSelfExtract( , )");
     int ret;
 
-    if (!SalamanderGeneral->SalPathRenameExtension(ZipName, ".exe", MAX_PATH))
+    if (!SalamanderGeneral->SalPathRenameExtension(ZipName, ".exe", U8_MAX_PATH))
         return IDS_TOOLONGZIPNAME;
 
     if (TestIfExist(ZipName))
@@ -504,7 +520,7 @@ int CZipPack::PackSelfExtract(SalEnumSelection2 next, void* param)
         }
         if (ErrorID || UserBreak || NothingToDo)
         {
-            DeleteFile(ZipName);
+            DeleteFileU8(ZipName);
         }
     }
     Salamander->CloseProgressDialog();
@@ -660,7 +676,10 @@ int CZipPack::ExportLocalHeader(CFileInfo* fileInfo, char* buffer)
         localHeader->Size = 0xFFFFFFFF;
         Zip64Size = 8 + 8; // In Local Header, both Size and CompSize must be present, if any
     }
-    localHeader->NameLen = ExportName(buffer + sizeof(CLocalFileHeader), fileInfo);
+    BOOL nameUTF8;
+    localHeader->NameLen = ExportName(buffer + sizeof(CLocalFileHeader), fileInfo, &nameUTF8);
+    if (nameUTF8)
+        localHeader->Flag |= GPF_UTF8; // general purpose bit 11: the name is UTF-8
     localHeader->ExtraLen = 0;
     if (Zip64Size)
     {
@@ -780,7 +799,10 @@ int CZipPack::WriteCentralHeader(CFileInfo* fileInfo, char* buffer, BOOL first, 
         Zip64Size = 16;
     }
 
-    centralHeader->NameLen = ExportName(buffer + sizeof(CFileHeader), fileInfo);
+    BOOL nameUTF8;
+    centralHeader->NameLen = ExportName(buffer + sizeof(CFileHeader), fileInfo, &nameUTF8);
+    if (nameUTF8)
+        centralHeader->Flag |= GPF_UTF8; // general purpose bit 11: the name is UTF-8
     centralHeader->ExtraLen = 0;
     centralHeader->CommentLen = 0;
     if (fileInfo->StartDisk < 0xFFFF)
@@ -855,9 +877,24 @@ int CZipPack::WriteCentralHeader(CFileInfo* fileInfo, char* buffer, BOOL first, 
     return 0;
 }
 
-int CZipPack::ExportName(char* name, CFileInfo* fileInfo)
+// UTF-8 -> OEM code page; FALSE when the name does not fit or cannot be stored
+BOOL U8ToOem(const char* u8, char* oem, int oemSize)
 {
-    CALL_STACK_MESSAGE1("CZipPack::ExportName(, )");
+    WCHAR* w = SplU8ToWAlloc(u8);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = WideCharToMultiByte(CP_OEMCP, 0, w, -1, oem, oemSize, NULL, NULL) != 0;
+    free(w);
+    return ret;
+}
+
+// interface 104: fileInfo->Name is UTF-8; names with non-ASCII characters are
+// stored as UTF-8 and the caller must set the general purpose bit 11 (GPF_UTF8)
+// in the header ('isUTF8' says so); pure ASCII names keep the legacy (OEM) form,
+// which is byte-identical to their UTF-8 form
+int CZipPack::ExportName(char* name, CFileInfo* fileInfo, BOOL* isUTF8)
+{
+    CALL_STACK_MESSAGE1("CZipPack::ExportName(, , )");
 
     char* sour = fileInfo->Name;
     char* dest = name;
@@ -874,7 +911,7 @@ int CZipPack::ExportName(char* name, CFileInfo* fileInfo)
         *dest++ = '/';
     *dest = 0;
 
-    CharToOem(name, name);
+    *isUTF8 = !SplIsASCII(name); // non-ASCII -> the name stays UTF-8, as we got it from Salamander
 
     //*dest = NULL;
     return (int)(dest - name);
@@ -883,11 +920,14 @@ int CZipPack::ExportName(char* name, CFileInfo* fileInfo)
 int CZipPack::CreateTempFile()
 {
     CALL_STACK_MESSAGE1("CZipPack::CreateTempFile()");
-    char pathBuf[MAX_PATH + 1];
+    char* pathBuf = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+    if (pathBuf == NULL)
+        return IDS_LOWMEM;
     char* path = pathBuf;
     char* name;
     DWORD lastError; //value returned by GetLastError()
     int ret;
+    int errorID;
 
     SplitPath(&path, &name, ZipName);
     TempName[0] = 0;
@@ -901,19 +941,25 @@ int CZipPack::CreateTempFile()
             switch (ret)
             {
             case ERR_NOERROR:
-                return 0;
+                errorID = 0;
+                break;
             case ERR_LOWMEM:
                 *TempName = 0;
-                return IDS_LOWMEM;
+                errorID = IDS_LOWMEM;
+                break;
             default:
                 *TempName = 0;
-                return IDS_NODISPLAY;
+                errorID = IDS_NODISPLAY;
+                break;
             }
+            free(pathBuf);
+            return errorID;
         }
         ret = ProcessError(IDS_ERRTEMP, lastError, TempName, PE_NOSKIP, NULL);
         if (ret != ERR_RETRY)
         {
             *TempName = 0;
+            free(pathBuf);
             return IDS_NODISPLAY;
         }
     }
@@ -1920,13 +1966,13 @@ int CZipPack::FinishPack(int reason)
 int CZipPack::GetDirInfo(const char* name, DWORD* attr, FILETIME* lastWrite)
 {
     CALL_STACK_MESSAGE2("CZipPack::GetDirInfo(%s, , )", name);
-    WIN32_FIND_DATA data;
+    WIN32_FIND_DATAW data;
     HANDLE search;
     int ret;
 
     while (1)
     {
-        search = FindFirstFile(name, &data);
+        search = FindFirstFileU8(name, &data);
         if (search == INVALID_HANDLE_VALUE)
         {
             ret = ProcessError(IDS_ERRACCESDIR, GetLastError(), name, 0, &SkipAllIOErrors);
@@ -1946,17 +1992,20 @@ int CZipPack::GetDirInfo(const char* name, DWORD* attr, FILETIME* lastWrite)
 int CZipPack::IsDirectoryEmpty(const char* name)
 {
     CALL_STACK_MESSAGE2("CZipPack::IsDirectoryEmpty(%s)", name);
-    char buf[MAX_PATH + 1];
     int len;
     HANDLE search;
-    WIN32_FIND_DATA data;
+    WIN32_FIND_DATAW data;
     int lastError;
     BOOL ret;
 
-    lstrcpyn(buf, name, MAX_PATH + 1);
-    len = lstrlen(buf);
-    lstrcpyn(buf + len, "\\*.*", MAX_PATH + 1 - len);
-    search = FindFirstFile(buf, &data);
+    len = lstrlen(name);
+    char* buf = (char*)malloc(len + 5); // full path (UTF-8) -> heap
+    if (buf == NULL)
+        return 1; //like an empty directory
+    memcpy(buf, name, len);
+    lstrcpy(buf + len, "\\*.*");
+    search = FindFirstFileU8(buf, &data);
+    free(buf);
     if (search == INVALID_HANDLE_VALUE)
     {
         ProcessError(IDS_ERRACCESDIR, GetLastError(), name, PE_NORETRY | PE_NOSKIP, NULL);
@@ -1965,12 +2014,12 @@ int CZipPack::IsDirectoryEmpty(const char* name)
     ret = TRUE;
     do
     {
-        if (data.cFileName[0] != 0 && strcmp(data.cFileName, ".") && strcmp(data.cFileName, ".."))
+        if (data.cFileName[0] != 0 && wcscmp(data.cFileName, L".") && wcscmp(data.cFileName, L".."))
         {
             ret = FALSE;
             break;
         }
-    } while (FindNextFile(search, &data));
+    } while (FindNextFileW(search, &data));
     if (ret) // treat any error as if directory is empty
     {
         lastError = GetLastError();
@@ -2032,7 +2081,7 @@ int CZipPack::CleanUpSource()
         if (next->Action != AF_ADD && next->Action != AF_OVERWRITE || next->IsDir)
             continue;
         SalamanderGeneral->ClearReadOnlyAttr(next->Name);
-        DeleteFile(next->Name);
+        DeleteFileU8(next->Name);
     }
     //remove directories
     //sort directories by level
@@ -2054,7 +2103,7 @@ int CZipPack::CleanUpSource()
             for (i = 0; i < table[l]->Count; i++)
             {
                 SalamanderGeneral->ClearReadOnlyAttr((*table[l])[i]);
-                if (!RemoveDirectory((*table[l])[i]))
+                if (!RemoveDirectoryU8((*table[l])[i]))
                     TRACE_I("error on RemoveDirectory " << GetLastError());
             }
         }

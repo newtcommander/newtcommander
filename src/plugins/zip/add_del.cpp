@@ -32,6 +32,32 @@
 #include "dialogs.h"
 //#include "sfxmake/sfxmake.h"
 
+CZipPack::CZipPack(const char* zipName, const char* zipRoot,
+                   CSalamanderForOperationsAbstract* salamander) : CZipCommon(zipName, zipRoot, salamander, NULL), DelFiles(256),
+                                                                   AddFiles(256)
+{
+    RecoverOK = true;
+    DiskNum = 0;
+    Extract = false;
+    Options.Icons = NULL;
+    NewestFileTime.dwLowDateTime = 0;
+    NewestFileTime.dwHighDateTime = 0;
+    SeccondPass = FALSE;
+    TempName = (char*)malloc(U8_MAX_PATH); // full path (UTF-8, long paths) -> heap
+    if (TempName == NULL)
+        ErrorID = IDS_LOWMEM;
+    else
+        *TempName = 0;
+}
+
+CZipPack::~CZipPack()
+{
+    if (Options.Icons)
+        DestroyIcons(Options.Icons, Options.IconsCount);
+    if (TempName)
+        free(TempName);
+}
+
 int CZipPack::PackToArchive(BOOL move, const char* sourcePath,
                             SalEnumSelection2 next, void* param)
 {

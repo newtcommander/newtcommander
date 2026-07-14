@@ -84,7 +84,7 @@ public:
     char* NewCentrDir;
     DWORD ZipAttr;
     CFile* TempFile;
-    char TempName[MAX_PATH + 1];
+    char* TempName; //UTF-8, U8_MAX_PATH bytes (heap - long paths)
     //bool                Backup;
     CQuadWord AddTotalSize;
     int SizeToAdd;
@@ -116,23 +116,9 @@ public:
     //delete from archive
 
     CZipPack(const char* zipName, const char* zipRoot,
-             CSalamanderForOperationsAbstract* salamander) : CZipCommon(zipName, zipRoot, salamander, NULL), DelFiles(256),
-                                                             AddFiles(256)
-    {
-        RecoverOK = true;
-        DiskNum = 0;
-        Extract = false;
-        Options.Icons = NULL;
-        NewestFileTime.dwLowDateTime = 0;
-        NewestFileTime.dwHighDateTime = 0;
-        SeccondPass = FALSE;
-    }
+             CSalamanderForOperationsAbstract* salamander);
 
-    ~CZipPack()
-    {
-        if (Options.Icons)
-            DestroyIcons(Options.Icons, Options.IconsCount);
-    }
+    ~CZipPack();
 
     int DeleteFromArchive(SalEnumSelection next, void* param);
     int PackToArchive(BOOL move, const char* sourcePath,
@@ -151,7 +137,7 @@ public:
     int WriteDataDecriptor(CFileInfo* fileInfo);
     int WriteCentralHeader(CFileInfo* fileInfo, char* buffer, BOOL first, int reason);
     int WriteEOCentrDirRecord();
-    int ExportName(char* destName, CFileInfo* fileInfo);
+    int ExportName(char* destName, CFileInfo* fileInfo, BOOL* isUTF8);
     int CreateTempFile();
     void NTFSCompressFile(HANDLE file);
     int EnumFiles2(SalEnumSelection2 next, void* param);

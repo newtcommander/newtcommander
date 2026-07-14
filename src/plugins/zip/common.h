@@ -7,11 +7,34 @@
 #include "spl_com.h"
 #include "spl_crypt.h"
 #include "spl_bzip2.h"
+#include "splunicode.h"
 
 #include "array2.h"
 
 #include "typecons.h"
 #include "chicon.h"
+
+// since plugin interface 104 every path crossing the Salamander interface is
+// UTF-8 and may be a long path (up to 32767 UTF-16 units); see
+// doc\plugin-vnext-migration.md
+#define U8_MAX_PATH (3 * 32767 + 1) // full path in UTF-8
+#define U8_MAX_NAME (3 * MAX_PATH)  // single name component in UTF-8
+
+// UTF-8 -> W wrappers for the file APIs we call ourselves (splunicode.h)
+HANDLE CreateFileU8(const char* fileName, DWORD access, DWORD share,
+                    LPSECURITY_ATTRIBUTES security, DWORD creation,
+                    DWORD attributes, HANDLE templateFile);
+BOOL DeleteFileU8(const char* fileName);
+BOOL MoveFileU8(const char* oldName, const char* newName);
+BOOL SetFileAttributesU8(const char* fileName, DWORD attrs);
+BOOL RemoveDirectoryU8(const char* path);
+BOOL SetCurrentDirectoryU8(const char* path);
+HANDLE FindFirstFileU8(const char* path, WIN32_FIND_DATAW* data);
+HINSTANCE LoadLibraryExU8(const char* fileName, DWORD flags);
+// module file name in UTF-8 (the plugin's own directory)
+DWORD GetModuleFileNameU8(HMODULE module, char* buf, DWORD bufSize);
+// UTF-16 name from WIN32_FIND_DATAW converted to UTF-8; returns FALSE on failure
+BOOL FindDataNameU8(const WIN32_FIND_DATAW* data, char* buf, int bufSize);
 
 extern CSalamanderGeneralAbstract* SalamanderGeneral;
 extern CSalamanderSafeFileAbstract* SalamanderSafeFile;
@@ -157,8 +180,8 @@ struct CFile
 class CZipCommon
 {
 public:
-    CFile* ZipFile;             //zip file hanndle
-    char ZipName[MAX_PATH + 1]; //name of zip file
+    CFile* ZipFile; //zip file hanndle
+    char* ZipName;  //name of zip file, UTF-8, U8_MAX_PATH bytes (heap - long paths)
     const char* ZipRoot;
     int RootLen; //length of ZipRoot
     bool ZeroZip;
@@ -178,7 +201,7 @@ public:
     CQuadWord ProgressTotalSize;
     bool Fatal;
     bool UserBreak;
-    char OriginalCurrentDir[MAX_PATH + 1];
+    char OriginalCurrentDir[U8_MAX_NAME + 1]; // UTF-8; the current directory is limited to MAX_PATH chars by the OS
     bool Extract;
     //bool                MenuSfx;//this is set when creating self extracting archive from menu
     char* Comment;

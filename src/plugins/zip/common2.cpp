@@ -54,7 +54,10 @@ int RenumberName(int number, const char* oldName, char* newName,
         }
     }
 
-    char buf[MAX_PATH + 12];
+    // 'oldName' may be a long path (UTF-8) -> heap buffer
+    char* buf = (char*)malloc(strlen(oldName) + 16);
+    if (buf == NULL)
+        return (int)strlen(strcpy(newName, oldName));
 
     if (numberEnd && !winzip)
     {
@@ -89,13 +92,8 @@ int RenumberName(int number, const char* oldName, char* newName,
         }
     }
 
-    if (strlen(buf) > MAX_PATH)
-    {
-        TRACE_I("archive name is too long to add file numbers:" << buf);
-        strcpy(newName, oldName);
-    }
-    else
-        strcpy(newName, buf);
+    strcpy(newName, buf);
+    free(buf);
     return (int)strlen(newName);
 }
 
@@ -149,7 +147,9 @@ int CZipCommon::ChangeDisk()
     // small test to detect WinZip names
     if (CHDiskFlags & (CHD_FIRST | CHD_SEQNAMES))
     {
-        char buf[MAX_PATH];
+        char* buf = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+        if (buf == NULL)
+            return IDS_LOWMEM;
         RenumberName(DiskNum + 1, ZipName, buf,
                      DiskNum == EOCentrDir.DiskNum, CHDiskFlags & CHD_WINZIP);
         if (SalamanderGeneral->SalGetFileAttributes(buf) == 0xFFFFFFFF)
@@ -161,6 +161,7 @@ int CZipCommon::ChangeDisk()
             if (SalamanderGeneral->SalGetFileAttributes(buf) != 0xFFFFFFFF && lstrcmpi(ZipName, buf))
                 CHDiskFlags ^= CHD_WINZIP;
         }
+        free(buf);
     }
 
     bool useReadCache = false;
@@ -215,22 +216,27 @@ int CZipCommon::ChangeDisk()
 void CZipCommon::FindLastFile(char* lastFile)
 {
     CALL_STACK_MESSAGE1("CZipCommon::FindLastFile()");
-    char path[MAX_PATH];
-    char name[MAX_PATH];
-    char ext[MAX_PATH];
     char* sour;
     int i, j;
-    char mask[MAX_PATH];
-    WIN32_FIND_DATA data;
+    WIN32_FIND_DATAW data;
+    char foundName[U8_MAX_NAME + 1]; // UTF-8 name of the found file
     HANDLE search;
     int biggest = 0;
-    char buf[MAX_PATH];
     int pathLen;
 
-    *lastFile = NULL;
+    // full paths (UTF-8, long paths) -> heap
+    char* path = (char*)malloc(U8_MAX_PATH);
+    char* name = (char*)malloc(U8_MAX_PATH);
+    char* ext = (char*)malloc(U8_MAX_PATH);
+    char* mask = (char*)malloc(U8_MAX_PATH);
+    char* buf = (char*)malloc(U8_MAX_PATH);
+    *lastFile = 0;
+    if (!path || !name || !ext || !mask || !buf)
+        goto CLEANUP;
+
     SplitPath2(ZipName, path, name, ext);
     if (!*name)
-        return;
+        goto CLEANUP;
     /*{
     lstrcpy(name, ext);
     *ext = 0;
@@ -244,17 +250,19 @@ void CZipCommon::FindLastFile(char* lastFile)
         sour--;
     }
     if (sour < name || sour == name + i)
-        return;
+        goto CLEANUP;
     *(++sour) = 0;
     sprintf(mask, "%s%s*%s", path, name, ext);
-    search = FindFirstFile(mask, &data);
+    search = FindFirstFileU8(mask, &data);
     if (search == INVALID_HANDLE_VALUE)
-        return;
+        goto CLEANUP;
     lstrcpy(buf, path);
     pathLen = lstrlen(buf);
     do
     {
-        SplitPath2(data.cFileName, path, name, ext);
+        if (!FindDataNameU8(&data, foundName, sizeof(foundName)))
+            continue;
+        SplitPath2(foundName, path, name, ext);
         /*if (!*name)
     {
       lstrcpy(name, ext);
@@ -274,12 +282,24 @@ void CZipCommon::FindLastFile(char* lastFile)
             if (j > biggest && !(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
             {
                 biggest = j;
-                lstrcpy(buf + pathLen, data.cFileName);
+                lstrcpyn(buf + pathLen, foundName, U8_MAX_PATH - pathLen);
             }
         }
-    } while (FindNextFile(search, &data));
+    } while (FindNextFileW(search, &data));
     if (GetLastError() == ERROR_NO_MORE_FILES && biggest)
-        lstrcpy(lastFile, buf);
+        lstrcpyn(lastFile, buf, U8_MAX_PATH);
     FindClose(search);
+
+CLEANUP:
+    if (path)
+        free(path);
+    if (name)
+        free(name);
+    if (ext)
+        free(ext);
+    if (mask)
+        free(mask);
+    if (buf)
+        free(buf);
     return;
 }

@@ -156,6 +156,150 @@ BOOL SalGetTempFileName(const char *path, const char *prefix, char *tmpName, BOO
 }
 */
 
+// interface 104: paths crossing the Salamander interface are UTF-8; the file
+// APIs we call ourselves must go through the W entry points with the \\?\
+// prefix (see splunicode.h and doc\plugin-vnext-migration.md)
+
+// frees the converted path, keeps the last error of the API call
+static void FreeKeepLastError(WCHAR* w)
+{
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+}
+
+HANDLE CreateFileU8(const char* fileName, DWORD access, DWORD share,
+                    LPSECURITY_ATTRIBUTES security, DWORD creation,
+                    DWORD attributes, HANDLE templateFile)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE file = CreateFileW(w, access, share, security, creation, attributes, templateFile);
+    FreeKeepLastError(w);
+    return file;
+}
+
+BOOL DeleteFileU8(const char* fileName)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = DeleteFileW(w);
+    FreeKeepLastError(w);
+    return ret;
+}
+
+BOOL MoveFileU8(const char* oldName, const char* newName)
+{
+    WCHAR* wOld = SplU8ToWExtAlloc(oldName);
+    WCHAR* wNew = SplU8ToWExtAlloc(newName);
+    BOOL ret = FALSE;
+    if (wOld != NULL && wNew != NULL)
+        ret = MoveFileW(wOld, wNew);
+    else
+        SetLastError(ERROR_INVALID_NAME);
+    DWORD err = GetLastError();
+    if (wOld != NULL)
+        free(wOld);
+    if (wNew != NULL)
+        free(wNew);
+    SetLastError(err);
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* fileName, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(fileName);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = SetFileAttributesW(w, attrs);
+    FreeKeepLastError(w);
+    return ret;
+}
+
+BOOL RemoveDirectoryU8(const char* path)
+{
+    WCHAR* w = SplU8ToWExtAlloc(path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = RemoveDirectoryW(w);
+    FreeKeepLastError(w);
+    return ret;
+}
+
+BOOL SetCurrentDirectoryU8(const char* path)
+{
+    // SetCurrentDirectory does not support the \\?\ prefix, the current directory
+    // is limited to MAX_PATH characters -> plain wide path here
+    WCHAR* w = SplU8ToWAlloc(path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = SetCurrentDirectoryW(w);
+    FreeKeepLastError(w);
+    return ret;
+}
+
+HANDLE FindFirstFileU8(const char* path, WIN32_FIND_DATAW* data)
+{
+    WCHAR* w = SplU8ToWExtAlloc(path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return INVALID_HANDLE_VALUE;
+    }
+    HANDLE find = FindFirstFileW(w, data);
+    FreeKeepLastError(w);
+    return find;
+}
+
+HINSTANCE LoadLibraryExU8(const char* fileName, DWORD flags)
+{
+    WCHAR* w = SplU8ToWAlloc(fileName); // LoadLibrary does not like the \\?\ prefix
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return NULL;
+    }
+    HINSTANCE module = LoadLibraryExW(w, NULL, flags);
+    FreeKeepLastError(w);
+    return module;
+}
+
+DWORD GetModuleFileNameU8(HMODULE module, char* buf, DWORD bufSize)
+{
+    WCHAR w[MAX_PATH];
+    DWORD ret = GetModuleFileNameW(module, w, MAX_PATH);
+    if (ret == 0 || ret >= MAX_PATH)
+    {
+        if (bufSize > 0)
+            *buf = 0;
+        return 0;
+    }
+    int len = SplWToU8(w, buf, bufSize);
+    return len > 0 ? len - 1 : 0;
+}
+
+BOOL FindDataNameU8(const WIN32_FIND_DATAW* data, char* buf, int bufSize)
+{
+    return SplWToU8(data->cFileName, buf, bufSize) != 0;
+}
+
 //CExtInfo
 CExtInfo::CExtInfo(LPCTSTR pName, bool isDir, int nItem)
 {
@@ -249,21 +393,24 @@ CZipCommon::CZipCommon(const char* zipName, const char* zipRoot,
     CALL_STACK_MESSAGE3("CZipCommon::CZipCommon(%s, %s, )", zipName, zipRoot);
     Config = ::Config;
     ZipFile = 0;
-    lstrcpy(ZipName, zipName);
+    ZipName = (char*)malloc(U8_MAX_PATH); // full path (UTF-8, long paths) -> heap
+    if (ZipName != NULL)
+        lstrcpyn(ZipName, zipName, U8_MAX_PATH);
     ZipRoot = zipRoot;
     RootLen = lstrlen(ZipRoot);
     ZeroZip = false;
     Zip64 = false;
     Salamander = salamander;
-    ErrorID = 0;
+    ErrorID = ZipName != NULL ? 0 : IDS_LOWMEM;
     Fatal = false;
     UserBreak = false;
     Comment = NULL;
     Unix = FALSE;
     ArchiveVolumes = archiveVolumes;
 
-    DWORD ret = GetCurrentDirectory(MAX_PATH + 1, OriginalCurrentDir);
-    if (!ret || ret > MAX_PATH + 1)
+    WCHAR wDir[MAX_PATH + 1];
+    DWORD ret = GetCurrentDirectoryW(MAX_PATH + 1, wDir);
+    if (!ret || ret > MAX_PATH || !SplWToU8(wDir, OriginalCurrentDir, sizeof(OriginalCurrentDir)))
         *OriginalCurrentDir = 0;
 }
 
@@ -274,9 +421,11 @@ CZipCommon::~CZipCommon()
     if (ZipFile)
         CloseCFile(ZipFile);
     if (*OriginalCurrentDir)
-        SetCurrentDirectory(OriginalCurrentDir);
+        SetCurrentDirectoryU8(OriginalCurrentDir);
     if (Comment)
         free(Comment);
+    if (ZipName)
+        free(ZipName);
 }
 
 int CZipCommon::CheckZip()
@@ -596,7 +745,7 @@ int CZipCommon::CreateCFile(CFile** file, LPCTSTR fileName, unsigned int access,
         for (;;)
         {
             flagsNoRetry = 0;
-            (*file)->File = CreateFile(fileName, access, share, NULL, creation, attributes, NULL);
+            (*file)->File = CreateFileU8(fileName, access, share, NULL, creation, attributes, NULL);
             if ((*file)->File != INVALID_HANDLE_VALUE)
             {
                 (*file)->FilePointer = 0;
@@ -788,7 +937,9 @@ int CZipCommon::FindEOCentrDirSig(BOOL* success)
     QWORD i;
     unsigned size;
     bool retry;
-    char lastFile[MAX_PATH];
+    char* lastFile = (char*)malloc(U8_MAX_PATH); // full path (UTF-8) -> heap
+    if (lastFile == NULL)
+        return IDS_LOWMEM;
 
     do
     {
@@ -943,7 +1094,7 @@ int CZipCommon::FindEOCentrDirSig(BOOL* success)
                         CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE,
                                       lastFile, -1, ZipName, -1) != CSTR_EQUAL)
                     {
-                        lstrcpy(ZipName, lastFile);
+                        lstrcpyn(ZipName, lastFile, U8_MAX_PATH);
                     }
                     else
                         Config.AutoExpandMV = false;
@@ -1036,6 +1187,7 @@ int CZipCommon::FindEOCentrDirSig(BOOL* success)
             MultiVol = false;
         }
     }
+    free(lastFile);
     return error;
 }
 
@@ -1385,6 +1537,15 @@ bool CZipCommon::IsDirByHeader(CFileHeader* fileHeader)
     return (attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
+// TRUE when the buffer holds ASCII only (such a name needs no conversion)
+static BOOL IsASCIIName(const char* s, size_t len)
+{
+    while (len--)
+        if ((unsigned char)*s++ >= 0x80)
+            return FALSE;
+    return TRUE;
+}
+
 int CZipCommon::ProcessName(CFileHeader* fileHeader, char* outputName)
 {
     CALL_STACK_MESSAGE_NONE // time-critical method
@@ -1394,41 +1555,60 @@ int CZipCommon::ProcessName(CFileHeader* fileHeader, char* outputName)
     sour = (char*)fileHeader + sizeof(CFileHeader);
     size_t len = fileHeader->NameLen;
 
-    char* sourLocEnc = NULL;
-    // If the file is originating on Unix (or Mac), we check if it is a true UTF8 string
-    // if yes, then we convert it to local encoding
-    if (((fileHeader->Version >> 8 == HS_UNIX) || (fileHeader->Flag & GPF_UTF8)))
+    void* zero = memchr(sour, 0, len);
+    if (zero)
     {
-        void* zero = memchr(sour, 0, len);
-        if (zero)
+        len = (char*)zero - sour + 1;
+    }
+
+    // interface 104: the name we return must be UTF-8 (it goes to Salamander)
+    // - general purpose bit 11 (GPF_UTF8) set -> the name already is UTF-8, take it verbatim
+    // - files originating on Unix (or Mac) often carry UTF-8 without the flag -> detect it
+    // - otherwise the name is stored in a legacy code page -> convert it to UTF-8 here
+    char* sourUTF8 = NULL;
+    BOOL isUTF8 = (fileHeader->Flag & GPF_UTF8) != 0 ||
+                  (fileHeader->Version >> 8 == HS_UNIX) && IsUTF8Encoded(sour, (int)len);
+    if (!isUTF8 && !IsASCIIName(sour, len)) // ASCII is the same in all these code pages
+    {
+        // ZIP built-in to WinXP writes Version 0x0b14 and uses OEM
+        // AS writes version 0x0016 and uses OEM
+        // The HS_NTFS condition got inspiration in MultiArc plugin of FAR
+        // (Patera 2010.03.30: the HS_NTFS + version 0x50 test did not make sense -> disabled)
+        UINT cp = CP_ACP;
+        if ((fileHeader->Version >> 8 == HS_FAT /*0*/) ||
+            (fileHeader->Version >> 8 == HS_HPFS /*6*/) ||
+            ((fileHeader->Version >> 8 == HS_NTFS /*11*/) &&
+             (((fileHeader->Version & 0xFF) <= 20) || ((fileHeader->Version & 0xFF) >= 25))))
+            cp = CP_OEMCP;
+        int wlen = MultiByteToWideChar(cp, 0, sour, (int)len, NULL, 0);
+        if (wlen > 0)
         {
-            len = (char*)zero - sour + 1;
-        }
-        if (IsUTF8Encoded(sour, (int)len))
-        {
-            LPWSTR wsour = (LPWSTR)malloc(len * sizeof(WCHAR));
+            LPWSTR wsour = (LPWSTR)malloc(wlen * sizeof(WCHAR));
             if (wsour)
             {
-                // CodePage 65001 is UTF8 and is supported since W2K (or WNT4?)
-                int wlen = (int)MultiByteToWideChar(CP_UTF8, 0, sour, (int)len, wsour, (int)len);
-
+                wlen = MultiByteToWideChar(cp, 0, sour, (int)len, wsour, wlen);
                 if (wlen > 0)
                 {
-                    // Convert back to local encoding, convert composite chars to precomposed (e.g. accents from Mac)
-                    int lenLocEnc = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wsour, wlen, NULL, 0, NULL, NULL);
-                    if (lenLocEnc > 0)
+                    int lenUTF8 = WideCharToMultiByte(CP_UTF8, 0, wsour, wlen, NULL, 0, NULL, NULL);
+                    if (lenUTF8 > 0)
                     {
-                        sourLocEnc = (char*)malloc(lenLocEnc);
-                        if (sourLocEnc)
+                        sourUTF8 = (char*)malloc(lenUTF8);
+                        if (sourUTF8)
                         {
-                            len = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, wsour, wlen, sourLocEnc, lenLocEnc, NULL, NULL);
-                            sour = sourLocEnc;
+                            len = WideCharToMultiByte(CP_UTF8, 0, wsour, wlen, sourUTF8, lenUTF8, NULL, NULL);
+                            sour = sourUTF8;
                         }
                     }
                 }
                 free(wsour);
             }
         }
+    }
+    if (len > MAX_HEADER_SIZE - 1) // the conversion may have grown the name over the output buffer
+    {
+        len = MAX_HEADER_SIZE - 1;
+        while (len > 0 && ((unsigned char)sour[len] & 0xC0) == 0x80)
+            len--; // never cut in the middle of a UTF-8 sequence
     }
 
     char* end = sour + len;
@@ -1485,18 +1665,10 @@ int CZipCommon::ProcessName(CFileHeader* fileHeader, char* outputName)
     while ((iter >= outputName) && *iter == ' ')
         *iter-- = '_';
 
-    if (sourLocEnc)
-        free(sourLocEnc);
+    if (sourUTF8)
+        free(sourUTF8);
 
     *dest = 0;
-    if (!(fileHeader->Flag & GPF_UTF8) && ((fileHeader->Version >> 8 == HS_FAT /*0*/) ||
-                                           (fileHeader->Version >> 8 == HS_HPFS /*6*/) ||
-                                           //       ((fileHeader->Version >> 8 == HS_NTFS/*11*/) && ((fileHeader->Version & 0x0F) == 0x50)) // Patera 2010.03.30: This doesn't make sense -> disabled
-                                           // The following line got inspiration in MultiArc plugin of FAR
-                                           ((fileHeader->Version >> 8 == HS_NTFS /*11*/) && (((fileHeader->Version & 0xFF) <= 20) || ((fileHeader->Version & 0xFF) >= 25)))))
-        // ZIP built-in to WinXP writes Version 0x0b14 and uses OEM
-        // AS writes version 0x0016 and uses OEM
-        OemToChar(outputName, outputName);
     //  TRACE_I("Processed name " << outputName);
     return (int)(dest - outputName);
 }
@@ -2007,7 +2179,7 @@ int CZipCommon::TestIfExist(const char* name)
         CloseCFile(file);
         if (OverwriteDialog2(SalamanderGeneral->GetMsgBoxParent(), name, attr) != IDC_YES)
             return ErrorID = IDS_NODISPLAY;
-        SetFileAttributes(name, FILE_ATTRIBUTE_NORMAL);
+        SetFileAttributesU8(name, FILE_ATTRIBUTE_NORMAL);
     }
     return 0;
 }
@@ -2108,7 +2280,7 @@ FAIL:
 int LoadSfxFileData(char* fileName, CSfxLang** lang)
 {
     CALL_STACK_MESSAGE1("LoadSfxFileData(, )");
-    HANDLE file = CreateFile(fileName, GENERIC_READ, NULL, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = CreateFileU8(fileName, GENERIC_READ, NULL, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE)
         return IDS_UNABLEREADSFX;
 
@@ -2262,7 +2434,10 @@ int MakeFileName(int number, bool seqNames, const char* archive,
         ext = archive + strlen(archive); // ".cvspass" is extension in Windows
     int namelen = (int)(ext - archive);
 
-    char buf[MAX_PATH + 12];
+    // 'archive' may be a long path (UTF-8) -> heap buffer
+    char* buf = (char*)malloc(strlen(archive) + 16);
+    if (buf == NULL)
+        return (int)strlen(strcpy(name, archive));
     memcpy(buf, archive, namelen);
 
     if (winZipNames)
@@ -2271,13 +2446,8 @@ int MakeFileName(int number, bool seqNames, const char* archive,
         sprintf(buf + namelen, ext > archive && isdigit(ext[-1]) ? "_%02d%s" : "%02d%s", number, ext);
 
     int ret = (int)strlen(buf);
-    if (ret > MAX_PATH)
-    {
-        TRACE_I("archive name is too long to add file numbers:" << buf);
-        return (int)strlen(strcpy(name, archive));
-    }
-
     strcpy(name, buf);
+    free(buf);
     return ret;
 }
 

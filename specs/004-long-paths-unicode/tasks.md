@@ -63,8 +63,8 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T019 [P] [US1] Directory create/rename/quick-rename operations at long paths in `src/fileswn5.cpp`/`src/fileswn6.cpp` (create dir pushing past 260, F2 rename at depth)
 - [X] T020 [P] [US1] Internal viewer opens via W layer: `src/viewer2.cpp:359,504,765` and `src/viewer3.cpp:1602` → `SalCreateFile`
 - [X] T021 [US1] FR-004 error surfacing: per-item error dialogs in `src/worker.cpp` carry the full path (dynamic buffers, no truncation); display ellipsis via `PathCompactPathExW`-equivalent only in UI strings
-- [ ] T022 [US1] Long-path display in chrome: title bar, directory line, status bar, progress dialogs (`src/mainwnd3.cpp`, `src/dialogs3.cpp` progress texts) use dynamic buffers — no `\\?\` ever shown
-- [ ] T023 [US1] Boundary validation: run quickstart #1–2 plus 259/260/261-char totals, 255-char single component, UNC `\\server\share` deep path; fix fallout
+- [X] T022 [US1] Long-path display in chrome: title bar, directory line, status bar, progress dialogs (`src/mainwnd3.cpp`, `src/dialogs3.cpp` progress texts) use dynamic buffers — no `\\?\` ever shown
+- [X] T023 [US1] Boundary validation: run quickstart #1–2 plus 259/260/261-char totals, 255-char single component, UNC `\\server\share` deep path; fix fallout
 
 **Checkpoint**: US1 fully functional — deep ASCII trees manageable end-to-end
 
@@ -85,7 +85,7 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T030 [US2] Name fidelity audit in the operation pipeline: `src/worker.cpp` target-name construction copies source bytes verbatim (no `CharUpper`/`OemToChar`-family touches on the name path; FR-006)
 - [X] T031 [US2] Equivalent-pair notice (FR-007): detection when an operation first creates a canonically-equivalent byte-different pair in one directory (`src/worker.cpp` completion path), one-time info dialog, new strings in `src/lang/` resources
 - [X] T032 [P] [US2] Icon/association/shell-icon lookup for Unicode names: `src/shiconov.cpp` (incl. existing `\\?\` detection `:130-134`) via W conversions
-- [ ] T033 [US2] Validate quickstart #3, #4, #7; byte-exact round-trip check (`Get-ChildItem` codepoint dump); SC-003 Explorer-parity render pass
+- [X] T033 [US2] Validate quickstart #3, #4, #7; byte-exact round-trip check (`Get-ChildItem` codepoint dump); SC-003 Explorer-parity render pass
 
 **Checkpoint**: US1 + US2 = both P1 defects fixed in the core — MVP complete
 
@@ -102,8 +102,8 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T036 [US3] Quick-search matching via `SalNameMatchCI` (NFC-equivalent, case-insensitive): `PrepareQSMask`/`AgreeQSMask` in `src/fileswn0.cpp:44-78` (FR-008)
 - [X] T037 [P] [US3] Find dialog + engine: `src/find.cpp`, `src/finddlg1.cpp`, `src/finddlg2.cpp` — W enumeration for deep recursion, `CFoundFilesData{Name,Path}` (`src/find.h:496-499`) as UTF-8, NFC-equivalent name matching, results grid W rendering, operations from results at long paths
 - [X] T038 [P] [US3] Wildcard mask engine NFC/case-insensitive per R4: `CMaskGroup`/mask matching in `src/salamdr2.cpp` (masks used by Find, file operations, associations)
-- [ ] T039 [US3] Path entry fields (change-directory bar, command line, Shift+F7 path dialog) accept and match Unicode input via W text APIs in `src/dialogs2.cpp`, `src/mainwnd*.cpp`
-- [ ] T040 [US3] Validate quickstart #5–6; SC-005 matrix (query NFC↔stored NFD and inverse, case variants, masks)
+- [X] T039 [US3] Path entry fields (change-directory bar, command line, Shift+F7 path dialog) accept and match Unicode input via W text APIs in `src/dialogs2.cpp`, `src/mainwnd*.cpp`
+- [X] T040 [US3] Validate quickstart #5–6; SC-005 matrix (query NFC↔stored NFD and inverse, case variants, masks)
 
 **Checkpoint**: All search surfaces form-insensitive; US1–US3 independently verified
 
@@ -122,7 +122,7 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T043 [US4] FR-014 refusal UX: per-item "name/path not representable by plugin X" skip dialog (strings in `src/lang/`), continue-with-remaining semantics in the operation drivers (`src/worker.cpp`, archive op entry points in `src/fileswn*.cpp`)
 - [X] T044 [P] [US4] SDK v-next finalization: UTF-8 semantics + limits documented in `src/plugins/shared/spl_base.h`, `spl_com.h`, `spl_gen.h`, `spl_fs.h`, `spl_gui.h`; add plugin-callable conversion/normalization helpers to `CSalamanderGeneralAbstract` (contract §2); update `src/plugins/shared/spl_vers.h` version-history comment block
 - [X] T045 [P] [US4] Third-party migration guide `doc/plugin-vnext-migration.md` (contract §4 steps, byte-vs-glyph rules, helper usage)
-- [ ] T046 [US4] Shell integration W: clipboard `CF_HDROP` build/parse with long/Unicode paths, drag & drop, context menus, `ShellExecuteExW`/`CreateProcessW` launches — `src/shellib.cpp` (incl. `:450` compare path), `src/shellsup.cpp`, `src/execute.cpp`
+- [X] T046 [US4] Shell integration W: clipboard `CF_HDROP` build/parse with long/Unicode paths, drag & drop, context menus, `ShellExecuteExW`/`CreateProcessW` launches — `src/shellib.cpp` (incl. `:450` compare path), `src/shellsup.cpp`, `src/execute.cpp`
 - [X] T047 [US4] Plugin config persistence: plugin-facing registry helpers (`SalRegQueryValueEx` family exposed via `spl_gen.h:3321`) deliver UTF-8 under v-next and ACP under shim, on top of T014
 
 > **T042/T043/T047 implementation notes (2026-07-14)**: the CFileData layout
@@ -190,11 +190,11 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T085 SC-009 benchmark: 100k-item listing/sort/scroll vs. previous release (fixture from T005); if >±10%, implement per-item cached UTF-16 name/sort key per R5 fallback in `src/fileswn3.cpp`/`src/sort.cpp`
-- [ ] T086 [P] SC-006 regression checklist run on ordinary ASCII paths (browse, ops, sort, config save/load, session restore) vs. previous release
+- [X] T085 SC-009 benchmark: 100k-item listing/sort/scroll vs. previous release (fixture from T005); if >±10%, implement per-item cached UTF-16 name/sort key per R5 fallback in `src/fileswn3.cpp`/`src/sort.cpp`
+- [X] T086 [P] SC-006 regression checklist run on ordinary ASCII paths (browse, ops, sort, config save/load, session restore) vs. previous release
 - [ ] T087 [P] Edge-case matrix from spec.md: 255-char component at depth, FAT32/exFAT destination limits, non-BMP names in sort/column widths, UNC deep paths, config round-trip with Unicode hot paths/history (FR-010)
-- [ ] T088 [P] Manifest verification per `contracts/app-manifest.md`: `mt.exe -inputresource` dump asserts `longPathAware`; quickstart #1–2 re-run with `LongPathsEnabled` absent
-- [ ] T089 [P] Update `architecture/08-code-standards.md` with the UTF-8-internal string convention + new-module docs; note SDK 104 in `architecture/06-plugin-architecture.md`
+- [X] T088 [P] Manifest verification per `contracts/app-manifest.md`: `mt.exe -inputresource` dump asserts `longPathAware`; quickstart #1–2 re-run with `LongPathsEnabled` absent
+- [X] T089 [P] Update `architecture/08-code-standards.md` with the UTF-8-internal string convention + new-module docs; note SDK 104 in `architecture/06-plugin-architecture.md`
 - [ ] T090 [P] English resource strings finalized in `src/lang/` and exported for `translations/` (FR-007 notice, FR-014 refusals, error texts)
 - [ ] T091 Full quickstart.md pass (#1–10) as release gate; record results in `specs/004-long-paths-unicode/checklists/`
 
