@@ -14,7 +14,7 @@
 #include "shellib.h"
 #include "snooper.h"
 
-const char* CFILESBOX_CLASSNAME = "SalamanderItemsBox";
+const WCHAR* CFILESBOX_CLASSNAMEW = L"SalamanderItemsBox"; // unicode class: WM_CHAR must deliver UTF-16 for quick search (feature 004, R7)
 
 //****************************************************************************
 //
@@ -22,7 +22,7 @@ const char* CFILESBOX_CLASSNAME = "SalamanderItemsBox";
 //
 
 CFilesBox::CFilesBox(CFilesWindow* parent)
-    : CWindow(ooStatic)
+    : CWindow(ooStatic, TRUE /* unicodeWnd */)
 {
     BottomBar.RelayWindow = this;
     Parent = parent;

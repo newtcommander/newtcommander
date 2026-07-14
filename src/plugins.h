@@ -7,6 +7,19 @@
 // when changing this header search for "BuiltForVersion" - tests for older plugin versions will no longer make sense and should be removed
 #define PLUGIN_REQVER 103 // ("5.0") load only plugins that return at least this required Salamander version
 
+// first plugin interface version with UTF-8 names + long paths (feature 004,
+// see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md);
+// plugins built for older versions keep receiving the legacy ANSI code page
+// through the core's adaptation layer (lossy conversion => refuse item, FR-014)
+#define PLUGIN_UTF8VER 104
+
+// TRUE when a plugin built for 'builtForVersion' exchanges UTF-8 names and
+// long paths directly (no legacy ACP adaptation needed)
+inline BOOL PluginSupportsUTF8(int builtForVersion)
+{
+    return builtForVersion >= PLUGIN_UTF8VER;
+}
+
 //
 // ****************************************************************************
 // CPluginInterfaceEncapsulation + encapsulation of individual parts of the plugin interface

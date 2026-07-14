@@ -27,29 +27,131 @@ void CFilesWindow::EndQuickSearch()
     QuickSearchMode = FALSE;
     QuickSearch[0] = 0;
     QuickSearchMask[0] = 0;
+    QuickSearchPendingSurrogate = 0;
     SearchIndex = INT_MAX;
     HideCaret(ListBox->HWindow);
     DestroyCaret();
 }
 
-// Finds the next/previous item. If skip = TRUE, it skips the current item.
-BOOL CFilesWindow::QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL wholeString, char newChar, int& index)
+// returns pointer behind the UTF-8 character starting at 's'
+static const char* NextUTF8Char(const char* s)
 {
-    CALL_STACK_MESSAGE6("CFilesWindow::QSFindNext(%d, %d, %d, %d, %u)", currentIndex, next, skip, wholeString, newChar);
-    int len = (int)strlen(QuickSearchMask);
-    if (newChar != 0)
+    if (*s != 0)
     {
-        if (len >= MAX_PATH)
+        s++;
+        while ((*s & 0xC0) == 0x80) // skip continuation bytes
+            s++;
+    }
+    return s;
+}
+
+// number of UTF-8 characters in the first 'len' bytes of 's'
+static int CountUTF8Chars(const char* s, int len)
+{
+    int count = 0;
+    int i;
+    for (i = 0; i < len; i++)
+        if (((unsigned char)s[i] & 0xC0) != 0x80)
+            count++;
+    return count;
+}
+
+// Unicode variant of AgreeQSMaskAux (see masks.cpp): literal mask segments between
+// '/' wildcards are matched against name prefixes at UTF-8 character boundaries
+// using case-insensitive canonical equivalence (SalNameEqualCI, FR-008)
+static BOOL AgreeQSMaskU8Aux(const char* filename, BOOL hasExtension, const char* filenameBase,
+                             const char* mask, BOOL wholeString, int& offset)
+{
+    while (*mask != 0)
+    {
+        if (*mask == '/') // '/' stands for a sequence of characters (can be empty)
+        {
+            mask++;
+            const char* iter = filename;
+            while (1)
+            {
+                if (AgreeQSMaskU8Aux(iter, hasExtension, filenameBase, mask, wholeString, offset))
+                    return TRUE; // the rest of the mask matches
+                if (*iter == 0)
+                    return FALSE; // end of filename...
+                iter = NextUTF8Char(iter);
+            }
+        }
+        // literal mask segment up to the next wildcard or the end of the mask
+        const char* segEnd = mask;
+        while (*segEnd != 0 && *segEnd != '/')
+            segEnd++;
+        int segLen = (int)(segEnd - mask);
+        int segChars = CountUTF8Chars(mask, segLen);
+        // canonical equivalence can change the character count (NFC vs. NFD), so
+        // name prefixes somewhat longer than the segment are tried as well
+        const char* p = filename;
+        const char* matchEnd = NULL;
+        int chars = 0;
+        while (*p != 0 && chars < 3 * segChars + 3)
+        {
+            p = NextUTF8Char(p);
+            chars++;
+            if (SalNameEqualCI(mask, segLen, filename, (int)(p - filename)))
+            {
+                matchEnd = p;
+                break;
+            }
+        }
+        if (matchEnd == NULL)
+        {
+            // a dot at the end of the mask is tolerated for names without an extension
+            if (*segEnd == 0 && !hasExtension && segLen > 0 && mask[segLen - 1] == '.')
+            {
+                int rest = (int)strlen(filename);
+                if (segLen == 1 && rest == 0 ||
+                    segLen > 1 && SalNameEqualCI(mask, segLen - 1, filename, rest))
+                {
+                    offset = (int)(filename - filenameBase) + rest;
+                    return TRUE; // mask matched the entire name -> 'offset' = length of the file name
+                }
+            }
             return FALSE;
-        QuickSearchMask[len] = newChar;
-        len++;
-        QuickSearchMask[len] = 0;
+        }
+        filename = matchEnd;
+        mask = segEnd;
+    }
+    if (wholeString && *filename != 0)
+        return FALSE;
+    offset = (int)(filename - filenameBase);
+    return TRUE; // end of mask, 'offset' = how far it reaches into the file name
+}
+
+// AgreeQSMask for UTF-8 names: the ASCII mask vs. ASCII name combination keeps
+// the exact legacy byte-wise matching, anything else is matched with canonical
+// equivalence + case insensitivity (FR-008)
+static BOOL AgreeQSMaskU8(const char* filename, BOOL hasExtension, const char* mask, BOOL wholeString, int& offset)
+{
+    if (SalIsASCII(mask) && SalIsASCII(filename))
+        return AgreeQSMask(filename, hasExtension, mask, wholeString, offset);
+    offset = 0;
+    return AgreeQSMaskU8Aux(filename, hasExtension, filename, mask, wholeString, offset);
+}
+
+// Finds the next/previous item. If skip = TRUE, it skips the current item.
+BOOL CFilesWindow::QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL wholeString, const char* newChars, int& index)
+{
+    CALL_STACK_MESSAGE6("CFilesWindow::QSFindNext(%d, %d, %d, %d, %s)", currentIndex, next, skip, wholeString,
+                        newChars != NULL ? newChars : "");
+    int len = (int)strlen(QuickSearchMask);
+    int addedLen = newChars != NULL ? (int)strlen(newChars) : 0;
+    if (addedLen != 0)
+    {
+        if (len + addedLen >= 3 * MAX_PATH)
+            return FALSE;
+        memcpy(QuickSearchMask + len, newChars, addedLen + 1); // one UTF-8 character = 1 to 4 bytes
+        len += addedLen;
     }
 
     int delta = skip ? 1 : 0;
 
     int offset = 0;
-    char mask[MAX_PATH];
+    char mask[3 * MAX_PATH];
     PrepareQSMask(mask, QuickSearchMask);
 
     int count = Dirs->Count + Files->Count;
@@ -73,7 +175,7 @@ BOOL CFilesWindow::QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL whole
             }
             else
             {
-                if (AgreeQSMask(name, hasExtension, mask, wholeString, offset))
+                if (AgreeQSMaskU8(name, hasExtension, mask, wholeString, offset))
                 {
                     lstrcpyn(QuickSearch, name, offset + 1);
                     index = i;
@@ -101,7 +203,7 @@ BOOL CFilesWindow::QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL whole
             }
             else
             {
-                if (AgreeQSMask(name, hasExtension, mask, wholeString, offset))
+                if (AgreeQSMaskU8(name, hasExtension, mask, wholeString, offset))
                 {
                     lstrcpyn(QuickSearch, name, offset + 1);
                     index = i;
@@ -111,9 +213,9 @@ BOOL CFilesWindow::QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL whole
         }
     }
 
-    if (newChar != 0)
+    if (addedLen != 0)
     {
-        len--;
+        len -= addedLen;
         QuickSearchMask[len] = 0;
     }
     return FALSE;
@@ -891,23 +993,46 @@ BOOL CFilesWindow::OnChar(WPARAM wParam, LPARAM lParam, LRESULT* lResult)
     // the command line and buffer the letter there
     if (!controlPressed && !altPressed &&
         !QuickSearchMode &&
-        wParam > 32 && wParam < 256 &&
+        wParam > 32 &&
         Configuration.QuickSearchEnterAlt)
     {
         if (MainWindow->EditWindow->IsEnabled())
         {
             SendMessage(MainWindow->HWindow, WM_COMMAND, CM_EDITLINE, 0);
-            // we send the character there
+            // we send the character there; wParam is a UTF-16 code unit (the panel is
+            // a unicode window), PostMessageW lets the system convert it for the ANSI edit line
             HWND hEditLine = MainWindow->GetEditLineHWND(TRUE);
             if (hEditLine != NULL)
-                PostMessage(hEditLine, WM_CHAR, wParam, lParam);
+                PostMessageW(hEditLine, WM_CHAR, wParam, lParam);
         }
         return FALSE;
     }
 
-    if (wParam > 31 && wParam < 256 &&  // only normal characters
+    if (wParam > 31 &&                  // only normal characters
         Dirs->Count + Files->Count > 0) // at least 1 item
     {
+        // WM_CHAR carries UTF-16 code units: a high surrogate is remembered and
+        // combined with the following low surrogate before use (feature 004)
+        WCHAR wch = (WCHAR)wParam;
+        if (wch >= 0xD800 && wch <= 0xDBFF) // high surrogate: wait for the low one
+        {
+            QuickSearchPendingSurrogate = wch;
+            return FALSE;
+        }
+        WCHAR wbuf[2];
+        int wlen = 0;
+        if (wch >= 0xDC00 && wch <= 0xDFFF) // low surrogate
+        {
+            if (QuickSearchPendingSurrogate == 0)
+                return FALSE; // stray low surrogate, ignore it
+            wbuf[wlen++] = QuickSearchPendingSurrogate;
+        }
+        QuickSearchPendingSurrogate = 0;
+        wbuf[wlen++] = wch;
+        char u8[8]; // one UTF-16 unit/pair = at most 4 UTF-8 bytes + null
+        if (SalWToU8(wbuf, wlen, u8, sizeof(u8)) == 0)
+            return FALSE; // conversion failed, ignore the character
+
         int index = FocusedIndex;
         // On a German keyboard, the slash is on Shift+7, so it conflicts with HotPaths
         // therefore, for * in QS, we will use backslash in addition to slash and sacrifice this
@@ -922,13 +1047,13 @@ BOOL CFilesWindow::OnChar(WPARAM wParam, LPARAM lParam, LRESULT* lResult)
         //if (QuickSearchMode && (char)wParam == '\\')
         //{
         //  // when the '\\' character is pressed during QS, we jump to the first item that matches QuickSearchMask
-        //  if (!QSFindNext(GetCaretIndex(), TRUE, FALSE, TRUE, (char)0, index))
-        //    QSFindNext(GetCaretIndex(), FALSE, TRUE, TRUE, (char)0, index);
+        //  if (!QSFindNext(GetCaretIndex(), TRUE, FALSE, TRUE, NULL, index))
+        //    QSFindNext(GetCaretIndex(), FALSE, TRUE, TRUE, NULL, index);
         //}
         //else
         //{
-        if (!QSFindNext(GetCaretIndex(), TRUE, FALSE, FALSE, (char)wParam, index))
-            QSFindNext(GetCaretIndex(), FALSE, TRUE, FALSE, (char)wParam, index);
+        if (!QSFindNext(GetCaretIndex(), TRUE, FALSE, FALSE, u8, index))
+            QSFindNext(GetCaretIndex(), FALSE, TRUE, FALSE, u8, index);
         //}
 
         if (!QuickSearchMode) // initialization of search
@@ -1018,18 +1143,21 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
 
     if (((Configuration.QuickSearchEnterAlt &&
           altPressed && !controlPressed)) &&
-        wParam > 31 && wParam < 256 &&
+        wParam > 31 &&
         Dirs->Count + Files->Count > 0)
     {
         BYTE ks[256];
         GetKeyboardState(ks);
         ks[VK_CONTROL] = 0;
-        WORD ch;
-        int ret = ToAscii((UINT)wParam, 0, ks, &ch, 0);
-        if (ret == 1)
+        WCHAR ch[4];
+        int ret = ToUnicode((UINT)wParam, 0, ks, ch, _countof(ch), 0);
+        if (ret == 1 || ret == 2 && IS_SURROGATE_PAIR(ch[0], ch[1]))
         {
             SkipSysCharacter = TRUE;
-            SendMessage(ListBox->HWindow, WM_CHAR, LOBYTE(ch), 0);
+            // forward the full UTF-16 code unit(s); SendMessageW avoids the ANSI conversion
+            SendMessageW(ListBox->HWindow, WM_CHAR, ch[0], 0);
+            if (ret == 2)
+                SendMessageW(ListBox->HWindow, WM_CHAR, ch[1], 0);
             return TRUE;
         }
     }
@@ -1384,11 +1512,15 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
         {
             if (QuickSearchMask[0] != 0)
             {
-                int len = (int)strlen(QuickSearchMask) - 1; // we remove a character
+                // we remove a character = the whole trailing UTF-8 sequence
+                int len = (int)strlen(QuickSearchMask);
+                while (len > 1 && (QuickSearchMask[len - 1] & 0xC0) == 0x80)
+                    len--; // strip continuation bytes
+                len--;     // and the lead byte
                 QuickSearchMask[len] = 0;
 
                 int index;
-                QSFindNext(GetCaretIndex(), FALSE, FALSE, FALSE, (char)0, index);
+                QSFindNext(GetCaretIndex(), FALSE, FALSE, FALSE, NULL, index);
                 SetQuickSearchCaretPos();
             }
             return TRUE;
@@ -1398,12 +1530,20 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
         {
             if (QuickSearch[0] != 0)
             {
-                int len = (int)strlen(QuickSearch) - 1; // we remove a character
+                // we remove a character = the whole trailing UTF-8 sequence
+                int len = (int)strlen(QuickSearch);
+                while (len > 1 && (QuickSearch[len - 1] & 0xC0) == 0x80)
+                    len--; // strip continuation bytes
+                len--;     // and the lead byte
                 QuickSearch[len] = 0;
                 int len2 = (int)strlen(QuickSearchMask);
-                if (len2 > 1 && !IsQSWildChar(QuickSearchMask[len2 - 1]) && !IsQSWildChar(QuickSearchMask[len2 - 2]))
+                int mlen = len2; // start of the last UTF-8 character of the mask
+                while (mlen > 1 && (QuickSearchMask[mlen - 1] & 0xC0) == 0x80)
+                    mlen--;
+                mlen--;
+                if (mlen > 0 && !IsQSWildChar(QuickSearchMask[len2 - 1]) && !IsQSWildChar(QuickSearchMask[mlen - 1]))
                 {
-                    QuickSearchMask[len2 - 1] = 0;
+                    QuickSearchMask[mlen] = 0;
                 }
                 else
                 {
@@ -1425,13 +1565,19 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                      strcmp(name, "..") != 0) &&
                     name[len] != 0)
                 {
-                    // if there is still another one
-                    QuickSearch[len] = name[len];
-                    QuickSearch[len + 1] = 0;
+                    // if there is still another one; we add the whole UTF-8 sequence
+                    int chLen = 1;
+                    while ((name[len + chLen] & 0xC0) == 0x80)
+                        chLen++;
                     int len2 = (int)strlen(QuickSearchMask);
-                    QuickSearchMask[len2] = name[len];
-                    QuickSearchMask[len2 + 1] = 0;
-                    SetQuickSearchCaretPos();
+                    if (len + chLen < 3 * MAX_PATH && len2 + chLen < 3 * MAX_PATH)
+                    {
+                        memcpy(QuickSearch + len, name + len, chLen);
+                        QuickSearch[len + chLen] = 0;
+                        memcpy(QuickSearchMask + len2, name + len, chLen);
+                        QuickSearchMask[len2 + chLen] = 0;
+                        SetQuickSearchCaretPos();
+                    }
                 }
             }
             return TRUE;
@@ -1451,7 +1597,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
             BOOL found;
             do
             {
-                found = QSFindNext(lastIndex, FALSE, TRUE, FALSE, (char)0, index);
+                found = QSFindNext(lastIndex, FALSE, TRUE, FALSE, NULL, index);
                 if (found)
                 {
                     lastIndex = index;
@@ -1478,7 +1624,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
             BOOL found;
             do
             {
-                found = QSFindNext(lastIndex, TRUE, TRUE, FALSE, (char)0, index);
+                found = QSFindNext(lastIndex, TRUE, TRUE, FALSE, NULL, index);
                 if (found)
                 {
                     lastIndex = index;
@@ -1504,7 +1650,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                     SetSel(SelectItems, newIndex, TRUE);
                     PostMessage(HWindow, WM_USER_SELCHANGED, 0, 0);
                 }
-                found = QSFindNext(newIndex, FALSE, TRUE, FALSE, (char)0, index);
+                found = QSFindNext(newIndex, FALSE, TRUE, FALSE, NULL, index);
                 if (found)
                     newIndex = index;
                 if (newIndex < limit)
@@ -1526,7 +1672,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                     SetSel(SelectItems, newIndex, TRUE);
                     PostMessage(HWindow, WM_USER_SELCHANGED, 0, 0);
                 }
-                found = QSFindNext(newIndex, TRUE, TRUE, FALSE, (char)0, index);
+                found = QSFindNext(newIndex, TRUE, TRUE, FALSE, NULL, index);
                 if (found)
                     newIndex = index;
                 if (newIndex > limit)
@@ -1545,7 +1691,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                 do
                 {
                     SetSel(SelectItems, newIndex, TRUE);
-                    found = QSFindNext(newIndex, FALSE, TRUE, FALSE, (char)0, index);
+                    found = QSFindNext(newIndex, FALSE, TRUE, FALSE, NULL, index);
                     if (found)
                         newIndex = index;
                 } while (found);
@@ -1559,7 +1705,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                 BOOL skip = FALSE;
                 do
                 {
-                    found = QSFindNext(index, TRUE, skip, FALSE, (char)0, index);
+                    found = QSFindNext(index, TRUE, skip, FALSE, NULL, index);
                     skip = TRUE;
                     if (found && GetSel(index))
                         break;
@@ -1582,7 +1728,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                 do
                 {
                     SetSel(SelectItems, newIndex, TRUE);
-                    found = QSFindNext(newIndex, TRUE, TRUE, FALSE, (char)0, index);
+                    found = QSFindNext(newIndex, TRUE, TRUE, FALSE, NULL, index);
                     if (found)
                         newIndex = index;
                 } while (found);
@@ -1596,7 +1742,7 @@ BOOL CFilesWindow::OnSysKeyDown(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT
                 BOOL skip = FALSE;
                 do
                 {
-                    found = QSFindNext(index, FALSE, skip, FALSE, (char)0, index);
+                    found = QSFindNext(index, FALSE, skip, FALSE, NULL, index);
                     skip = TRUE;
                     if (found && GetSel(index))
                         break;
@@ -3175,7 +3321,13 @@ void CFilesWindow::SetQuickSearchCaretPos()
     else
         hOldFont = (HFONT)SelectObject(hDC, Font);
 
-    GetTextExtentPoint32(hDC, ss, qsLen, &s);
+    // names are rendered through the W APIs, so the caret offset must be measured the same way
+    WCHAR wbuf[3 * MAX_PATH];
+    int wlen = qsLen > 0 ? SalU8ToW(ss, qsLen, wbuf, _countof(wbuf)) - 1 : 0;
+    if (wlen >= 0)
+        GetTextExtentPoint32W(hDC, wbuf, wlen, &s);
+    else // invalid UTF-8 (should not happen): keep the byte-wise call
+        GetTextExtentPoint32(hDC, ss, qsLen, &s);
 
     RECT r;
     if (ListBox->GetItemRect(FocusedIndex, &r))

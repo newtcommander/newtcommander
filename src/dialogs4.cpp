@@ -2814,7 +2814,14 @@ void CCfgPageHotPath::LoadControls()
 
     DisableNotification = TRUE;
     SendDlgItemMessage(HWindow, IDC_HOTPATH_PATH, EM_LIMITTEXT, HOTPATHITEM_MAXPATH - 1, 0);
-    SetDlgItemText(HWindow, IDC_HOTPATH_PATH, path);
+    WCHAR* pathW = SalU8ToWAlloc(path); // the path is UTF-8 (feature 004)
+    if (pathW != NULL)
+    {
+        SetDlgItemTextW(HWindow, IDC_HOTPATH_PATH, pathW);
+        free(pathW);
+    }
+    else // not valid UTF-8 (transitional): keep the legacy path
+        SetDlgItemText(HWindow, IDC_HOTPATH_PATH, path);
 
     DisableNotification = FALSE;
     EnableControls();
@@ -2826,7 +2833,11 @@ void CCfgPageHotPath::StoreControls()
     if (index != -1)
     {
         char buff[HOTPATHITEM_MAXPATH];
-        GetDlgItemText(HWindow, IDC_HOTPATH_PATH, buff, HOTPATHITEM_MAXPATH);
+        WCHAR buffW[HOTPATHITEM_MAXPATH]; // the path is UTF-8 (feature 004): read as wide text
+        buffW[0] = 0;
+        GetDlgItemTextW(HWindow, IDC_HOTPATH_PATH, buffW, _countof(buffW));
+        if (SalWToU8(buffW, -1, buff, HOTPATHITEM_MAXPATH) == 0) // UTF-8 does not fit: keep the legacy A call
+            GetDlgItemText(HWindow, IDC_HOTPATH_PATH, buff, HOTPATHITEM_MAXPATH);
         Config->SetPath(index, buff);
     }
 }

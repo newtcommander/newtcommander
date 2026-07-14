@@ -33,6 +33,7 @@ CFilesWindowAncestor::CFilesWindowAncestor()
 
     Path[0] = 0;
     SuppressAutoRefresh = FALSE;
+    EquivalentPairNoticeShown = FALSE;
     PanelType = ptDisk;
     MonitorChanges = TRUE;
     DriveType = DRIVE_UNKNOWN;
@@ -223,6 +224,8 @@ void CFilesWindowAncestor::SetPath(const char* path)
     CALL_STACK_MESSAGE2("CFilesWindowAncestor::SetPath(%s)", path);
     if (SuppressAutoRefresh && (!Is(ptDisk) || !IsTheSamePath(path, Path)))
         SuppressAutoRefresh = FALSE;
+    if (!IsTheSamePath(path, Path))
+        EquivalentPairNoticeShown = FALSE; // new path - the FR-007 notice may be shown again
     DetachDirectory((CFilesWindow*)this);
     strcpy(Path, path);
 

@@ -479,6 +479,8 @@ private:
     char Path[SAL_MAX_PATH_UTF8]; // path for a ptDisk panel - normal ("c:\path") or UNC ("\\server\share\path");
                                   // UTF-8, long-path capable (feature 004)
     BOOL SuppressAutoRefresh; // TRUE if the user canceled directory listing during reading and chose temporary auto-refresh suppression
+    BOOL EquivalentPairNoticeShown; // feature 004 (FR-007): TRUE once the one-time notice about a canonically
+                                    // equivalent (NFC vs NFD) name pair was shown for the current path
 
     CPanelType PanelType; // type of panel (disk, archive, plugin FS)
 
@@ -562,6 +564,8 @@ public:
     BOOL IsSameZIPArchiveSize(const CQuadWord& size) { return ZIPArchiveSize == size; }
     CQuadWord GetZIPArchiveSize() { return ZIPArchiveSize; }
     BOOL GetSuppressAutoRefresh() { return SuppressAutoRefresh; }
+    BOOL GetEquivalentPairNoticeShown() { return EquivalentPairNoticeShown; }
+    void SetEquivalentPairNoticeShown(BOOL shown) { EquivalentPairNoticeShown = shown; }
 
     void SetPath(const char* path);
     void SetMonitorChanges(BOOL monitorChanges) { MonitorChanges = monitorChanges; }
@@ -770,8 +774,8 @@ public:
     BOOL SortedWithDetectNum; // used to monitor changes of the global variable Configuration.SortDetectNumbers
 
     char DropPath[SAL_MAX_PATH_UTF8]; // buffer for the current directory used in a drop operation (long-path capable)
-    char NextFocusName[MAX_PATH]; // the name that will receive focus on the next refresh
-    BOOL DontClearNextFocusName;  // TRUE = do not clear NextFocusName when the main Salamander window is activated
+    char NextFocusName[SAL_FIND_NAME_U8]; // the name that will receive focus on the next refresh (UTF-8, feature 004)
+    BOOL DontClearNextFocusName;          // TRUE = do not clear NextFocusName when the main Salamander window is activated
     BOOL FocusFirstNewItem;       // refresh: should the newly added item be selected? (for system New)
     CTopIndexMem TopIndexMem;     // memory of top index for Execute()
 
@@ -829,11 +833,12 @@ public:
     CMaskGroup Filter;  // filter for the panel
     BOOL FilterEnabled; // is the filter enabled
 
-    BOOL QuickSearchMode;           // Quick Search mode?
-    short CaretHeight;              // it is set when measuring the font in CFilesWindow
-    char QuickSearch[MAX_PATH];     // name of the file that was sought via Quick Search
-    char QuickSearchMask[MAX_PATH]; // quick search mask (may contain '/' after any number of characters)
-    int SearchIndex;                // position of the cursor during Quick Search
+    BOOL QuickSearchMode;               // Quick Search mode?
+    short CaretHeight;                  // it is set when measuring the font in CFilesWindow
+    char QuickSearch[3 * MAX_PATH];     // name of the file that was sought via Quick Search (UTF-8)
+    char QuickSearchMask[3 * MAX_PATH]; // quick search mask in UTF-8 (may contain '/' after any number of characters)
+    WCHAR QuickSearchPendingSurrogate = 0; // high surrogate from WM_CHAR waiting for its low surrogate (0 = none)
+    int SearchIndex;                    // position of the cursor during Quick Search
 
     int FocusedIndex;  // current caret position
     BOOL FocusVisible; // is focus displayed?
@@ -1465,10 +1470,10 @@ public:
     void CancelUI();
 
     // Searches for the next/previous item. If skip = TRUE, the current item is skipped
-    // if newChar != 0,it is appended to QuickSearchMask
+    // if newChars != NULL and non-empty, it is appended to QuickSearchMask (UTF-8 bytes of one character)
     // if wholeString == TRUE, the entire item must match, not just its start
     // returns TRUE when a directory/file is found and also sets the index
-    BOOL QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL wholeString, char newChar, int& index);
+    BOOL QSFindNext(int currentIndex, BOOL next, BOOL skip, BOOL wholeString, const char* newChars, int& index);
 
     // Searches for the next/previous selected item. If skip = TRUE, the current item is skipped
     BOOL SelectFindNext(int currentIndex, BOOL next, BOOL skip, int& index);

@@ -462,7 +462,16 @@ CCopyMoveDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         SetWindowText(HWindow, Title);
         HWND hSubject = GetDlgItem(HWindow, IDS_SUBJECT);
         if (Subject->TruncateText(hSubject))
-            SetWindowText(hSubject, Subject->Get());
+        {
+            WCHAR* subjectW = SalU8ToWAlloc(Subject->Get()); // the subject carries a UTF-8 file name (feature 004)
+            if (subjectW != NULL)
+            {
+                SetWindowTextW(hSubject, subjectW);
+                free(subjectW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(hSubject, Subject->Get());
+        }
 
         INT_PTR ret = CCommonDialog::DialogProc(uMsg, wParam, lParam);
         // we can select only the name without the dot and extension
@@ -957,7 +966,14 @@ CCopyMoveMoreDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             char buff[MAX_PATH];
             lstrcpyn(buff, Subject->Get(), MAX_PATH - 1);
             DuplicateAmpersands(buff, MAX_PATH - 1, TRUE);
-            SetWindowText(hSubject, buff);
+            WCHAR* buffW = SalU8ToWAlloc(buff); // the subject carries a UTF-8 file name (feature 004)
+            if (buffW != NULL)
+            {
+                SetWindowTextW(hSubject, buffW);
+                free(buffW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(hSubject, buff);
         }
 
         // now we are at full size => measure the dialog
@@ -1296,7 +1312,14 @@ void CDriveInfo::Transfer(CTransferInfo& ti)
         //---  GetVolumeInformation - display
         if (!err)
         {
-            SetWindowText(GetDlgItem(HWindow, IDE_VOLNAME), volumeName);
+            WCHAR* volumeNameW = SalU8ToWAlloc(volumeName); // the volume label may carry Unicode (feature 004)
+            if (volumeNameW != NULL)
+            {
+                SetWindowTextW(GetDlgItem(HWindow, IDE_VOLNAME), volumeNameW);
+                free(volumeNameW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(GetDlgItem(HWindow, IDE_VOLNAME), volumeName);
             strcpy(OldVolumeName, volumeName);
 
             char mountPoint[MAX_PATH];
@@ -1305,17 +1328,43 @@ void CDriveInfo::Transfer(CTransferInfo& ti)
             guidPath[0] = 0;
             if (GetResolvedPathMountPointAndGUID(VolumePath, mountPoint, guidPath))
             {
-                SetWindowText(GetDlgItem(HWindow, IDT_MOUNTPOINT), mountPoint);
-                SetWindowText(GetDlgItem(HWindow, IDT_GUIDPATH), guidPath);
+                WCHAR* pathW = SalU8ToWAlloc(mountPoint); // paths are UTF-8 (feature 004)
+                if (pathW != NULL)
+                {
+                    SetWindowTextW(GetDlgItem(HWindow, IDT_MOUNTPOINT), pathW);
+                    free(pathW);
+                }
+                else // not valid UTF-8 (transitional): keep the legacy path
+                    SetWindowText(GetDlgItem(HWindow, IDT_MOUNTPOINT), mountPoint);
+                pathW = SalU8ToWAlloc(guidPath);
+                if (pathW != NULL)
+                {
+                    SetWindowTextW(GetDlgItem(HWindow, IDT_GUIDPATH), pathW);
+                    free(pathW);
+                }
+                else // not valid UTF-8 (transitional): keep the legacy path
+                    SetWindowText(GetDlgItem(HWindow, IDT_GUIDPATH), guidPath);
             }
 
             strcpy(volumeName, VolumePath);
             if (volumeName[strlen(volumeName) - 1] == '\\')
                 volumeName[strlen(volumeName) - 1] = 0; // shortened by the last character ('\\')
             sprintf(buff, "(%s) ", volumeName);
-            GetWindowText(HWindow, buff + strlen(buff), 100);
+            // the title is composed with the volume path (UTF-8, feature 004): read and set as wide text
+            WCHAR titleW[100];
+            titleW[0] = 0;
+            ::GetWindowTextW(HWindow, titleW, _countof(titleW));
+            if (SalWToU8(titleW, -1, buff + strlen(buff), (int)(sizeof(buff) - strlen(buff))) == 0)
+                GetWindowText(HWindow, buff + strlen(buff), 100); // fallback: keep the legacy A call
 
-            SetWindowText(HWindow, buff);
+            WCHAR* buffW = SalU8ToWAlloc(buff);
+            if (buffW != NULL)
+            {
+                ::SetWindowTextW(HWindow, buffW);
+                free(buffW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(HWindow, buff);
 
             sprintf(volumeName, "%04X-%04X", HIWORD(volumeSerialNumber), LOWORD(volumeSerialNumber));
             SetWindowText(GetDlgItem(HWindow, IDT_VOLSERNUM), volumeName);
@@ -1603,7 +1652,14 @@ void CDriveInfo::Transfer(CTransferInfo& ti)
                 sprintf(volumeName + strlen(volumeName), LoadStr(linkType == 2 ? IDS_INFODLGTYPE9 : IDS_INFODLGTYPE10),
                         junctionOrSymlinkTgt);
             }
-            SetWindowText(GetDlgItem(HWindow, IDT_DRIVETYPE), volumeName);
+            WCHAR* driveTypeW = SalU8ToWAlloc(volumeName); // may carry UNC/subst/link target paths (UTF-8, feature 004)
+            if (driveTypeW != NULL)
+            {
+                SetWindowTextW(GetDlgItem(HWindow, IDT_DRIVETYPE), driveTypeW);
+                free(driveTypeW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(GetDlgItem(HWindow, IDT_DRIVETYPE), volumeName);
         }
         //---  GetDriveIcon
         HDriveIcon = GetDriveIcon(volumePathWithBackslash, driveType, TRUE, TRUE);
@@ -1738,7 +1794,14 @@ CEnterPasswdDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        SetWindowText(GetDlgItem(HWindow, IDS_NETPATH), Path);
+        WCHAR* pathW = SalU8ToWAlloc(Path); // the path is UTF-8 (feature 004)
+        if (pathW != NULL)
+        {
+            SetWindowTextW(GetDlgItem(HWindow, IDS_NETPATH), pathW);
+            free(pathW);
+        }
+        else // not valid UTF-8 (transitional): keep the legacy path
+            SetWindowText(GetDlgItem(HWindow, IDS_NETPATH), Path);
         break;
     }
     }
@@ -1898,7 +1961,16 @@ CPackDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         HWND hSubject = GetDlgItem(HWindow, IDS_SUBJECT);
         if (Subject->TruncateText(hSubject))
-            SetWindowText(hSubject, Subject->Get());
+        {
+            WCHAR* subjectW = SalU8ToWAlloc(Subject->Get()); // the subject carries a UTF-8 file name (feature 004)
+            if (subjectW != NULL)
+            {
+                SetWindowTextW(hSubject, subjectW);
+                free(subjectW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(hSubject, Subject->Get());
+        }
 
         INT_PTR ret = CCommonDialog::DialogProc(uMsg, wParam, lParam);
         // we can select only the name without the dot and extension
@@ -1919,7 +1991,13 @@ CPackDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 int curSel = (int)SendDlgItemMessage(HWindow, IDE_PATH, CB_GETCURSEL, 0, 0);
                 if (curSel == CB_ERR) // we must retrieve the text here because CB_RESETCONTENT would wipe it
-                    GetWindowText(GetDlgItem(HWindow, IDE_PATH), name2, MAX_PATH);
+                {
+                    WCHAR name2W[MAX_PATH]; // the path is UTF-8 (feature 004): read as wide text
+                    name2W[0] = 0;
+                    GetWindowTextW(GetDlgItem(HWindow, IDE_PATH), name2W, _countof(name2W));
+                    if (SalWToU8(name2W, -1, name2, MAX_PATH) == 0) // UTF-8 does not fit: keep the legacy A call
+                        GetWindowText(GetDlgItem(HWindow, IDE_PATH), name2, MAX_PATH);
+                }
 
                 // WARNING: code must stay consistent with CPackDialog::Transfer
                 // swap extensions in the combobox
@@ -1946,7 +2024,16 @@ CPackDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                     // if the editline was modified, change the extension there as well
                     if (ChangeExtension(name2, PackerConfig->GetPackerExt(i)))
-                        SetWindowText(GetDlgItem(HWindow, IDE_PATH), name2);
+                    {
+                        WCHAR* name2W = SalU8ToWAlloc(name2); // the path is UTF-8 (feature 004)
+                        if (name2W != NULL)
+                        {
+                            SetWindowTextW(GetDlgItem(HWindow, IDE_PATH), name2W);
+                            free(name2W);
+                        }
+                        else // not valid UTF-8 (transitional): keep the legacy path
+                            SetWindowText(GetDlgItem(HWindow, IDE_PATH), name2);
+                    }
                 }
 
                 BOOL supMove = TRUE;
@@ -2050,7 +2137,16 @@ CUnpackDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         HWND hSubject = GetDlgItem(HWindow, IDS_SUBJECT);
         if (Subject->TruncateText(hSubject))
-            SetWindowText(hSubject, Subject->Get());
+        {
+            WCHAR* subjectW = SalU8ToWAlloc(Subject->Get()); // the subject carries a UTF-8 file name (feature 004)
+            if (subjectW != NULL)
+            {
+                SetWindowTextW(hSubject, subjectW);
+                free(subjectW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(hSubject, Subject->Get());
+        }
 
         CHyperLink* hl = new CHyperLink(HWindow, IDC_FILEMASK_HINT, STF_DOTUNDERLINE);
         if (hl != NULL)
@@ -2134,7 +2230,14 @@ void CChangeIconDialog::GetShell32(char* fileName)
 {
     GetSystemDirectory(fileName, MAX_PATH);
     SalPathAppend(fileName, "SHELL32.DLL", MAX_PATH);
-    SetDlgItemText(HWindow, IDE_CHI_FILENAME, fileName);
+    WCHAR* fileNameW = SalU8ToWAlloc(fileName); // the name is UTF-8 (feature 004)
+    if (fileNameW != NULL)
+    {
+        SetDlgItemTextW(HWindow, IDE_CHI_FILENAME, fileNameW);
+        free(fileNameW);
+    }
+    else // not valid UTF-8 (transitional): keep the legacy path
+        SetDlgItemText(HWindow, IDE_CHI_FILENAME, fileName);
 }
 
 void CChangeIconDialog::Transfer(CTransferInfo& ti)
@@ -2166,7 +2269,11 @@ void CChangeIconDialog::Transfer(CTransferInfo& ti)
 BOOL CChangeIconDialog::LoadIcons()
 {
     char fileName[MAX_PATH];
-    GetDlgItemText(HWindow, IDE_CHI_FILENAME, fileName, MAX_PATH);
+    WCHAR fileNameW[MAX_PATH]; // the name is UTF-8 (feature 004): read as wide text
+    fileNameW[0] = 0;
+    GetDlgItemTextW(HWindow, IDE_CHI_FILENAME, fileNameW, _countof(fileNameW));
+    if (SalWToU8(fileNameW, -1, fileName, MAX_PATH) == 0) // UTF-8 does not fit: keep the legacy A call
+        GetDlgItemText(HWindow, IDE_CHI_FILENAME, fileName, MAX_PATH);
     int counter = 0;
 
 AGAIN:
@@ -2186,13 +2293,15 @@ AGAIN:
     }
 
     // enumeration of icons from *.ICO, *.EXE, *.DLL files, including 16-bit PE
-    int iconsCount = ExtractIconEx(fileName, -1, NULL, NULL, 0);
+    // the name is UTF-8 (feature 004): extract via the W API; on conversion failure keep the legacy A call
+    BOOL fileNameWValid = SalU8ToW(fileName, -1, fileNameW, _countof(fileNameW)) != 0;
+    int iconsCount = fileNameWValid ? ExtractIconExW(fileNameW, -1, NULL, NULL, 0) : ExtractIconEx(fileName, -1, NULL, NULL, 0);
     if (iconsCount > 0)
     {
         Icons = new HICON[iconsCount];
         if (Icons != NULL)
         {
-            IconsCount = ExtractIconEx(fileName, 0, Icons, NULL, iconsCount);
+            IconsCount = fileNameWValid ? ExtractIconExW(fileNameW, 0, Icons, NULL, iconsCount) : ExtractIconEx(fileName, 0, Icons, NULL, iconsCount);
             // add the HIcon handle to HANDLES
             for (DWORD i = 0; i < IconsCount; i++)
                 HANDLES_ADD(__htIcon, __hoLoadImage, Icons[i]);

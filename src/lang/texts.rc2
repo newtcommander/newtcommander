@@ -290,6 +290,8 @@ STRINGTABLE
 
  IDS_TOOLONGNAME, "Cannot finish operation because of too long name."
  IDS_TOOLONGNAME2, "Path to target directory is too long, press Skip button to skip whole directory.\n\nPath: %s\n\nName: %s"
+ IDS_EQUIVNAMESPAIR, "This folder contains entries whose names look identical but use different Unicode spellings (e.g. precomposed vs. decomposed accents):\n\n%s\n\nWindows treats them as different files. Salamander preserves both names exactly as stored."
+ IDS_PLUGINCANTHANDLENAME, "The plugin cannot process this name (it was built for an older interface without Unicode and long path support):\n\n%s\n\nThe item was skipped, remaining items will be processed."
 
  IDS_ERRORTITLE, "Error"
 

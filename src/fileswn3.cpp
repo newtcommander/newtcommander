@@ -972,6 +972,42 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
         // sorting of Files and Dirs according to the current sorting method
         SortDirectory();
 
+        // feature 004 (FR-007): one-time notice when the directory contains two
+        // entries whose names are canonically equivalent (NFC vs NFD) but
+        // byte-different; the sort's binary tie-break puts such pairs next to
+        // each other, so scanning neighbours is enough
+        if (!GetEquivalentPairNoticeShown())
+        {
+            const char* equivName = NULL;
+            CFilesArray* arrays[2] = {Dirs, Files};
+            for (int a = 0; equivName == NULL && a < 2; a++)
+            {
+                CFilesArray* arr = arrays[a];
+                for (int i = 1; i < arr->Count; i++)
+                {
+                    CFileData* f1 = &arr->At(i - 1);
+                    CFileData* f2 = &arr->At(i);
+                    if (!SalIsASCII(f1->Name, f1->NameLen) || !SalIsASCII(f2->Name, f2->NameLen))
+                    {
+                        if ((f1->NameLen != f2->NameLen ||
+                             memcmp(f1->Name, f2->Name, f1->NameLen) != 0) &&
+                            SalNameEquivalent(f1->Name, f2->Name))
+                        {
+                            equivName = f2->Name;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (equivName != NULL)
+            {
+                SetEquivalentPairNoticeShown(TRUE);
+                char buf[SAL_FIND_NAME_U8 + 300];
+                _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_EQUIVNAMESPAIR), equivName);
+                SalMessageBox(parent, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
+            }
+        }
+
         if (UseSystemIcons || UseThumbnails)
         {
             if (IconCache->Count > 1)

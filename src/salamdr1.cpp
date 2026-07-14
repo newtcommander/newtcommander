@@ -4129,15 +4129,17 @@ FIND_NEW_SLG_FILE:
     }
 
     //--- vytvoreni hlavniho okna
-    if (CMainWindow::RegisterUniversalClass(CS_DBLCLKS | CS_OWNDC,
-                                            0,
-                                            0,
-                                            NULL, // HIcon
-                                            LoadCursor(NULL, IDC_ARROW),
-                                            NULL /*(HBRUSH)(COLOR_WINDOW + 1)*/, // HBrush
-                                            NULL,
-                                            CFILESBOX_CLASSNAME,
-                                            NULL) &&
+    // the file-list window class is registered through the W path so its
+    // WM_CHAR delivers UTF-16 code units (feature 004, R7)
+    if (CMainWindow::RegisterUniversalClassW(CS_DBLCLKS | CS_OWNDC,
+                                             0,
+                                             0,
+                                             NULL, // HIcon
+                                             LoadCursor(NULL, IDC_ARROW),
+                                             NULL /*(HBRUSH)(COLOR_WINDOW + 1)*/, // HBrush
+                                             NULL,
+                                             CFILESBOX_CLASSNAMEW,
+                                             NULL) &&
         CMainWindow::RegisterUniversalClass(CS_DBLCLKS,
                                             0,
                                             0,
@@ -4354,7 +4356,9 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                     BOOL skipMenuBar;
                     MSG msg;
                     BOOL haveMSG = FALSE; // FALSE pokud se ma volat GetMessage() v podmince cyklu
-                    while (haveMSG || GetMessage(&msg, NULL, 0, 0))
+                    // W message pump (feature 004): WM_CHAR must carry full UTF-16 for the
+                    // Unicode panel window; A windows still get converted text automatically
+                    while (haveMSG || GetMessageW(&msg, NULL, 0, 0))
                     {
                         haveMSG = FALSE;
                         if (msg.message != WM_USER_SHOWWINDOW && msg.message != WM_USER_WAKEUP_FROM_IDLE && /*msg.message != WM_USER_SETPATHS &&*/
@@ -4397,7 +4401,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                                      (MainWindow->EditMode || !TranslateAccelerator(MainWindow->HWindow, AccelTable2, &msg))))
                             {
                                 TranslateMessage(&msg);
-                                DispatchMessage(&msg);
+                                DispatchMessageW(&msg);
                             }
                         }
 
@@ -4407,7 +4411,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                         }
 
                     TEST_IDLE:
-                        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+                        if (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
                         {
                             if (msg.message == WM_QUIT)
                                 break;      // ekvivalent situace, kdy GetMessage() vraci FALSE

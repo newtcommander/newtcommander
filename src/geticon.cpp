@@ -61,6 +61,25 @@ BOOL ExtIsExe(LPCTSTR szExt)
 #define SHIL_JUMBO 4      // Windows Vista and later. The image is normally 256x256 pixels.
 // regarding icon sizes on Windows Vista: see "Creating a DPI-Aware Application" (http://msdn.microsoft.com/en-us/library/ms701681(VS.85).aspx)
 
+// UTF-8-aware SHGetFileInfoW wrapper for icon lookups (feature 004; string
+// results are not used by these queries, only icon handle/index/attributes)
+static DWORD_PTR SalSHGetFileInfoIcons(const char* u8path, DWORD attrs, SHFILEINFO* sfi, UINT flags)
+{
+    WCHAR* w = SalU8ToWAlloc(u8path);
+    if (w == NULL) // not valid UTF-8 (transitional): legacy A call
+        return SHGetFileInfo(u8path, attrs, sfi, sizeof(SHFILEINFO), flags);
+    SHFILEINFOW sfiW;
+    ZeroMemory(&sfiW, sizeof(sfiW));
+    DWORD_PTR res = SHGetFileInfoW(w, attrs, &sfiW, sizeof(sfiW), flags);
+    free(w);
+    sfi->hIcon = sfiW.hIcon;
+    sfi->iIcon = sfiW.iIcon;
+    sfi->dwAttributes = sfiW.dwAttributes;
+    sfi->szDisplayName[0] = 0;
+    sfi->szTypeName[0] = 0;
+    return res;
+}
+
 BOOL SalGetIconFromPIDL(IShellFolder* psf, const char* path, LPCITEMIDLIST pidl, HICON* hIcon,
                         CIconSizeEnum iconSize, BOOL fallbackToDefIcon, BOOL defIconIsDir)
 {
@@ -138,7 +157,7 @@ BOOL SalGetIconFromPIDL(IShellFolder* psf, const char* path, LPCITEMIDLIST pidl,
                     // Try asking the system for the system image list index and use that handle to extract the icon
                     SHFILEINFO sfi;
                     ZeroMemory(&sfi, sizeof(sfi));
-                    HIMAGELIST hSysImageList = (HIMAGELIST)SHGetFileInfo(path, 0, &sfi, sizeof(sfi), SHGFI_SYSICONINDEX | SHGFI_SMALLICON); // returns a persistent handle, no need to release
+                    HIMAGELIST hSysImageList = (HIMAGELIST)SalSHGetFileInfoIcons(path, 0, &sfi, SHGFI_SYSICONINDEX | SHGFI_SMALLICON); // returns a persistent handle, no need to release
                     if (hSysImageList != NULL)
                     {
                         hIconSmall = ImageList_GetIcon(hSysImageList, sfi.iIcon, ILD_NORMAL);
@@ -148,7 +167,7 @@ BOOL SalGetIconFromPIDL(IShellFolder* psf, const char* path, LPCITEMIDLIST pidl,
                     {
                         // Try asking directly for the icon
                         ZeroMemory(&sfi, sizeof(sfi));
-                        if (SHGetFileInfo(path, 0, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_SMALLICON) != 0)
+                        if (SalSHGetFileInfoIcons(path, 0, &sfi, SHGFI_ICON | SHGFI_SMALLICON) != 0)
                             hIconSmall = sfi.hIcon;
                         //TRACE_I("  SalGetIconFromPIDL() SHGetFileInfo for SHGFI_ICON | SHGFI_SMALLICON hIconSmall="<<hIconSmall);
                     }
@@ -187,7 +206,7 @@ BOOL SalGetIconFromPIDL(IShellFolder* psf, const char* path, LPCITEMIDLIST pidl,
                         // Try asking the system for the system image list index and use that handle to extract the icon
                         SHFILEINFO sfi;
                         ZeroMemory(&sfi, sizeof(sfi));
-                        HIMAGELIST hSysImageList = (HIMAGELIST)SHGetFileInfo(path, 0, &sfi, sizeof(sfi), SHGFI_SYSICONINDEX | SHGFI_ICON);
+                        HIMAGELIST hSysImageList = (HIMAGELIST)SalSHGetFileInfoIcons(path, 0, &sfi, SHGFI_SYSICONINDEX | SHGFI_ICON);
                         if (hSysImageList != NULL)
                         {
                             hIconLarge = ImageList_GetIcon(hSysImageList, sfi.iIcon, ILD_NORMAL);
@@ -197,7 +216,7 @@ BOOL SalGetIconFromPIDL(IShellFolder* psf, const char* path, LPCITEMIDLIST pidl,
                         {
                             // Try asking directly for the icon
                             ZeroMemory(&sfi, sizeof(sfi));
-                            if (SHGetFileInfo(path, 0, &sfi, sizeof(sfi), SHGFI_ICON | SHGFI_LARGEICON) != 0)
+                            if (SalSHGetFileInfoIcons(path, 0, &sfi, SHGFI_ICON | SHGFI_LARGEICON) != 0)
                                 hIconLarge = sfi.hIcon;
                             //TRACE_I("  SalGetIconFromPIDL() SHGetFileInfo for SHGFI_ICON | SHGFI_LARGEICON hIconLarge="<<hIconLarge);
                         }

@@ -463,6 +463,8 @@
     </ClCompile>
     <ClCompile Include="..\packers.cpp">
     </ClCompile>
+    <ClCompile Include="..\pluglegacy.cpp">
+    </ClCompile>
     <ClCompile Include="..\plugins1.cpp">
     </ClCompile>
     <ClCompile Include="..\plugins2.cpp">
@@ -788,6 +790,8 @@
     <ClInclude Include="..\olespy.h">
     </ClInclude>
     <ClInclude Include="..\pack.h">
+    </ClInclude>
+    <ClInclude Include="..\pluglegacy.h">
     </ClInclude>
     <ClInclude Include="..\plugins.h">
     </ClInclude>

@@ -342,6 +342,7 @@ void CFoundFilesListView::CheckAndRemoveSelectedItems(BOOL forceRemove, int last
     int removedItems = 0;
 
     int totalCount = ListView_GetItemCount(HWindow);
+    CSalPathBuf fullPath; // UTF-8, long-path capable (feature 004)
     int i;
     for (i = totalCount - 1; i >= 0; i--)
     {
@@ -351,16 +352,8 @@ void CFoundFilesListView::CheckAndRemoveSelectedItems(BOOL forceRemove, int last
             BOOL remove = forceRemove;
             if (!forceRemove)
             {
-                char fullPath[MAX_PATH];
-                int pathLen = lstrlen(ptr->Path);
-                memmove(fullPath, ptr->Path, pathLen + 1);
-                if (ptr->Path[pathLen - 1] != '\\')
-                {
-                    fullPath[pathLen] = '\\';
-                    fullPath[pathLen + 1] = '\0';
-                }
-                lstrcat(fullPath, ptr->Name);
-                remove = (SalGetFileAttributes(fullPath) == -1);
+                if (fullPath.Set(ptr->Path) && fullPath.AppendComponent(ptr->Name))
+                    remove = (SalGetFileAttributes(fullPath.Get()) == -1);
             }
             if (remove)
             {
@@ -849,8 +842,10 @@ BOOL GetNextItemFromFind(int index, char* path, char* name, void* param)
     if (index >= 0 && index < data->Count)
     {
         CFoundFilesData* file = listView->At(data->Index[index]);
-        strcpy(path, file->Path);
-        strcpy(name, file->Name);
+        // the UM_GetNextFileName contract provides MAX_PATH buffers; longer
+        // UTF-8 paths/names are truncated here (User Menu is not long-path capable yet)
+        lstrcpyn(path, file->Path, MAX_PATH);
+        lstrcpyn(name, file->Name, MAX_PATH);
         return TRUE;
     }
     if (data->Index != NULL)
@@ -2374,14 +2369,11 @@ BOOL CFindDialog::GetFocusedFile(char* buffer, int bufferLen, int* viewedIndex)
     CFoundFilesData* data = FoundFilesListView->At(index);
     if (data->IsDir)
         return FALSE;
-    char longName[MAX_PATH];
-    int len = (int)strlen(data->Path);
-    memmove(longName, data->Path, len);
-    if (data->Path[len - 1] != '\\')
-        longName[len++] = '\\';
-    strcpy(longName + len, data->Name);
+    CSalPathBuf longName; // UTF-8, long-path capable (feature 004)
+    if (!longName.Set(data->Path) || !longName.AppendComponent(data->Name))
+        return FALSE;
 
-    lstrcpyn(buffer, longName, bufferLen);
+    lstrcpyn(buffer, longName.Get(), bufferLen);
     return TRUE;
 }
 
@@ -2413,9 +2405,9 @@ void CFindDialog::UpdateInternalViewerData()
 void CFindDialog::OnViewFile(BOOL alternate)
 {
     CALL_STACK_MESSAGE2("CFindDialog::OnViewFile(%d)", alternate);
-    char longName[MAX_PATH];
+    char longName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
     int viewedIndex = 0;
-    if (!GetFocusedFile(longName, MAX_PATH, &viewedIndex))
+    if (!GetFocusedFile(longName, _countof(longName), &viewedIndex))
         return;
 
     if (SalamanderBusy)
@@ -2440,8 +2432,8 @@ void CFindDialog::OnViewFile(BOOL alternate)
 void CFindDialog::OnEditFile()
 {
     CALL_STACK_MESSAGE1("CFindDialog::OnEditFile()");
-    char longName[MAX_PATH];
-    if (!GetFocusedFile(longName, MAX_PATH, NULL))
+    char longName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
+    if (!GetFocusedFile(longName, _countof(longName), NULL))
         return;
 
     if (SalamanderBusy)
@@ -2461,9 +2453,9 @@ void CFindDialog::OnEditFile()
 void CFindDialog::OnViewFileWith()
 {
     CALL_STACK_MESSAGE1("CFindDialog::OnViewFileWith()");
-    char longName[MAX_PATH];
+    char longName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
     int viewedIndex = 0;
-    if (!GetFocusedFile(longName, MAX_PATH, &viewedIndex))
+    if (!GetFocusedFile(longName, _countof(longName), &viewedIndex))
         return;
 
     if (SalamanderBusy)
@@ -2510,8 +2502,8 @@ void CFindDialog::OnViewFileWith()
 void CFindDialog::OnEditFileWith()
 {
     CALL_STACK_MESSAGE1("CFindDialog::OnEditFileWith()");
-    char longName[MAX_PATH];
-    if (!GetFocusedFile(longName, MAX_PATH, NULL))
+    char longName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
+    if (!GetFocusedFile(longName, _countof(longName), NULL))
         return;
 
     if (SalamanderBusy)
@@ -2601,6 +2593,7 @@ void CFindDialog::OnUserMenu()
 
         char* listFull = userMenuAdvancedData.ListOfSelFullNames;
         char* listFullEnd = listFull + USRMNUARGS_MAXLEN - 1;
+        CSalPathBuf fullName; // UTF-8, long-path capable (feature 004)
         findItem = -1;
         for (i = 0; i < selectedCount; i++) // fill the list of selected names
         {
@@ -2615,10 +2608,8 @@ void CFindDialog::OnUserMenu()
                         break;
                 }
                 CFoundFilesData* file = FoundFilesListView->At(findItem);
-                char fullName[MAX_PATH];
-                lstrcpyn(fullName, file->Path, MAX_PATH);
-                if (!SalPathAppend(fullName, file->Name, MAX_PATH) ||
-                    !AddToListOfNames(&listFull, listFullEnd, fullName, (int)strlen(fullName)))
+                if (!fullName.Set(file->Path) || !fullName.AppendComponent(file->Name) ||
+                    !AddToListOfNames(&listFull, listFullEnd, fullName.Get(), fullName.Length()))
                     break;
             }
         }
@@ -2690,41 +2681,40 @@ void CFindDialog::OnCopyNameToClipboard(CCopyNameToClipboardModeEnum mode)
     if (index < 0)
         return;
     CFoundFilesData* data = FoundFilesListView->At(index);
-    char buff[2 * MAX_PATH];
-    buff[0] = 0;
+    char name[SAL_FIND_NAME_U8]; // altered name (UTF-8)
     switch (mode)
     {
     case cntcmFullName:
     {
-        strcpy(buff, data->Path);
-        int len = (int)strlen(buff);
-        if (len > 0 && buff[len - 1] != '\\')
-            strcat(buff, "\\");
-        AlterFileName(buff + strlen(buff), data->Name, -1, FileNameFormat, 0, data->IsDir);
+        AlterFileName(name, data->Name, -1, FileNameFormat, 0, data->IsDir);
+        CSalPathBuf buff; // UTF-8, long-path capable (feature 004)
+        if (buff.Set(data->Path) && buff.AppendComponent(name))
+            CopyTextToClipboard(buff.Get());
+        else
+            TRACE_E(LOW_MEMORY);
         break;
     }
 
     case cntcmName:
     {
-        AlterFileName(buff, data->Name, -1, FileNameFormat, 0, data->IsDir);
+        AlterFileName(name, data->Name, -1, FileNameFormat, 0, data->IsDir);
+        CopyTextToClipboard(name);
         break;
     }
 
     case cntcmFullPath:
     {
-        strcpy(buff, data->Path);
+        CopyTextToClipboard(data->Path);
         break;
     }
 
     case cntcmUNCName:
     {
-        AlterFileName(buff, data->Name, -1, FileNameFormat, 0, data->IsDir);
-        CopyUNCPathToClipboard(data->Path, buff, data->IsDir, HWindow);
+        AlterFileName(name, data->Name, -1, FileNameFormat, 0, data->IsDir);
+        CopyUNCPathToClipboard(data->Path, name, data->IsDir, HWindow);
         break;
     }
     }
-    if (mode != cntcmUNCName)
-        CopyTextToClipboard(buff);
 }
 
 BOOL CFindDialog::IsMenuBarMessage(CONST MSG* lpMsg)
@@ -3825,7 +3815,14 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
             int prevBkMode = SetBkMode(di->hDC, TRANSPARENT);
             char buff[MAX_PATH + 50];
             SearchingText.Get(buff, MAX_PATH + 50);
-            DrawText(di->hDC, buff, (int)strlen(buff), &di->rcItem, DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_PATH_ELLIPSIS);
+            WCHAR* buffW = SalU8ToWAlloc(buff); // UTF-8 -> wide for correct display (feature 004)
+            if (buffW != NULL)
+            {
+                DrawTextW(di->hDC, buffW, (int)wcslen(buffW), &di->rcItem, DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_PATH_ELLIPSIS);
+                free(buffW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                DrawText(di->hDC, buff, (int)strlen(buff), &di->rcItem, DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_PATH_ELLIPSIS);
             SetBkMode(di->hDC, prevBkMode);
             return TRUE;
         }
@@ -3990,11 +3987,28 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
 
                         // DT_PATH_ELLIPSIS doesn't work on some strings and causing clipped text to be printed
                         // PathCompactPath() requires a copy in a local buffer but doesn't clip text
-                        char buff[2 * MAX_PATH];
-                        strncpy_s(buff, _countof(buff), item2->Path, _TRUNCATE);
-                        PathCompactPath(CacheBitmap->HMemDC, buff, r2.right - r2.left);
-                        DrawText(CacheBitmap->HMemDC, buff, -1, &r2,
-                                 DT_VCENTER | DT_LEFT | DT_NOPREFIX | DT_SINGLELINE);
+                        // paths are UTF-8: render via the W API (feature 004); MAX_PATH headroom
+                        // covers in-place edits done by PathCompactPathW()
+                        WCHAR* pathW = NULL;
+                        int pathWLen = SalU8ToW(item2->Path, -1, NULL, 0);
+                        if (pathWLen > 0)
+                            pathW = (WCHAR*)malloc((pathWLen + MAX_PATH) * sizeof(WCHAR));
+                        if (pathW != NULL && SalU8ToW(item2->Path, -1, pathW, pathWLen + MAX_PATH) > 0)
+                        {
+                            PathCompactPathW(CacheBitmap->HMemDC, pathW, r2.right - r2.left);
+                            DrawTextW(CacheBitmap->HMemDC, pathW, -1, &r2,
+                                      DT_VCENTER | DT_LEFT | DT_NOPREFIX | DT_SINGLELINE);
+                        }
+                        else // not valid UTF-8 (transitional): keep the legacy path
+                        {
+                            char buff[2 * MAX_PATH];
+                            strncpy_s(buff, _countof(buff), item2->Path, _TRUNCATE);
+                            PathCompactPath(CacheBitmap->HMemDC, buff, r2.right - r2.left);
+                            DrawText(CacheBitmap->HMemDC, buff, -1, &r2,
+                                     DT_VCENTER | DT_LEFT | DT_NOPREFIX | DT_SINGLELINE);
+                        }
+                        if (pathW != NULL)
+                            free(pathW);
                         //                DrawText(CacheBitmap->HMemDC, item2->Path, -1, &r2,
                         //                         DT_VCENTER | DT_LEFT | DT_NOPREFIX | DT_SINGLELINE | DT_PATH_ELLIPSIS);
                         SetTextColor(CacheBitmap->HMemDC, oldTextColor);

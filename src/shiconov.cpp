@@ -803,12 +803,14 @@ CShellIconOverlays::GetIconOverlayIndex(WCHAR* wPath, WCHAR* wName, char* aPath,
 {
     CALL_STACK_MESSAGE_NONE // the call stack would only slow things down here
 
-        if ((wName - wPath) + strlen(name) >= MAX_PATH)
+        if ((wName - wPath) + strlen(name) >= MAX_PATH ||
+            (aName - aPath) + strlen(name) >= MAX_PATH) // aPath is a MAX_PATH buffer; UTF-8 bytes may outnumber WCHARs
     {
         TRACE_I("CShellIconOverlays::GetIconOverlayIndex(): too long file name: " << name);
         return ICONOVERLAYINDEX_NOTUSED;
     }
-    MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, wName, MAX_PATH - (int)(wName - wPath));
+    if (SalU8ToW(name, -1, wName, MAX_PATH - (int)(wName - wPath)) == 0) // name is UTF-8 (feature 004)
+        MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, name, -1, wName, MAX_PATH - (int)(wName - wPath));
     wPath[MAX_PATH - 1] = 0; // just to be safe
     strcpy(aName, name);
 

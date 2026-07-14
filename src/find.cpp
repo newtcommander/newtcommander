@@ -823,15 +823,18 @@ BOOL CDuplicateCandidates::GetMD5Digest(CGrepData* data, CFoundFilesData* file,
                                         int* progress, CQuadWord* readSize, const CQuadWord* totalSize)
 {
     // build full path to the file
-    char fullPath[MAX_PATH];
-    lstrcpyn(fullPath, file->Path, MAX_PATH);
-    SalPathAppend(fullPath, file->Name, MAX_PATH);
+    CSalPathBuf fullPath; // UTF-8, long-path capable (feature 004)
+    if (!fullPath.Set(file->Path) || !fullPath.AppendComponent(file->Name))
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
 
-    data->SearchingText->Set(fullPath); // set the current file
+    data->SearchingText->Set(fullPath.Get()); // set the current file
 
     // open the file for reading with sequential access
-    HANDLE hFile = HANDLES_Q(CreateFile(fullPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                        NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+    HANDLE hFile = SalCreateFile(fullPath.Get(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                 NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (hFile != INVALID_HANDLE_VALUE)
     {
         BYTE buffer[DUPLICATES_BUFFER_SIZE];
@@ -851,7 +854,7 @@ BOOL CDuplicateCandidates::GetMD5Digest(CGrepData* data, CFoundFilesData* file,
                 FIND_LOG_ITEM log;
                 log.Flags = FLI_ERROR;
                 log.Text = buf;
-                log.Path = fullPath;
+                log.Path = fullPath.Get();
                 SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
 
                 return FALSE;
@@ -903,7 +906,7 @@ BOOL CDuplicateCandidates::GetMD5Digest(CGrepData* data, CFoundFilesData* file,
         FIND_LOG_ITEM log;
         log.Flags = FLI_ERROR;
         log.Text = buf;
-        log.Path = fullPath;
+        log.Path = fullPath.Get();
         SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
 
         return FALSE;
@@ -1367,11 +1370,11 @@ BOOL TestFileContent(DWORD sizeLow, DWORD sizeHigh, const char* path, CGrepData*
     {
         DWORD err = ERROR_SUCCESS;
         data->SearchingText->Set(path); // set the current file
-        HANDLE hFile = HANDLES_Q(CreateFile(path, GENERIC_READ,
-                                            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                            OPEN_EXISTING,
-                                            FILE_FLAG_SEQUENTIAL_SCAN,
-                                            NULL));
+        HANDLE hFile = SalCreateFile(path, GENERIC_READ,
+                                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                     OPEN_EXISTING,
+                                     FILE_FLAG_SEQUENTIAL_SCAN,
+                                     NULL);
         BOOL getLinkFileSizeErr = FALSE;
         if (hFile != INVALID_HANDLE_VALUE)
         {
@@ -1524,13 +1527,16 @@ BOOL AddFoundItem(const char* path, const char* name, DWORD sizeLow, DWORD sizeH
 // 'dirStack' is NULL.
 // If 'duplicateCandidates' != NULL, found items will be added to this array
 // instead of data->FoundFilesListView
-void SearchDirectory(char (&path)[MAX_PATH], char* end, int startPathLen,
+// 'path' is the searched directory (UTF-8) with a trailing backslash; recursion
+// keeps the growing path on the heap (CSalPathBuf), so trees deeper than
+// MAX_PATH are searched too (feature 004)
+void SearchDirectory(const char* path, int startPathLen,
                      CMaskGroup* masksGroup, BOOL includeSubDirs, CGrepData* data,
                      TDirectArray<char*>* dirStack, int dirStackCount,
                      CDuplicateCandidates* duplicateCandidates,
                      CFindIgnore* ignoreList, char (&message)[2 * MAX_PATH])
 {
-    SLOW_CALL_STACK_MESSAGE6("SearchDirectory(%s, , %d, %s, %d, , , %d, , )", path, startPathLen,
+    SLOW_CALL_STACK_MESSAGE6("SearchDirectory(%s, %d, %s, %d, , , %d, , )", path, startPathLen,
                              masksGroup->GetMasksString(), includeSubDirs, dirStackCount);
 
     if (ignoreList != NULL && ignoreList->Contains(path, startPathLen))
@@ -1543,201 +1549,161 @@ void SearchDirectory(char (&path)[MAX_PATH], char* end, int startPathLen,
         return;
     }
 
-    if ((end - path) + 1 < _countof(path))
-        strcpy_s(end, _countof(path) - (end - path), "*");
-    else
+    CSalPathBuf myPath; // recursive function: keep the full path on the heap
+    if (!myPath.Set(path) || !myPath.AddBackslash() || !myPath.Append("*"))
     {
-        FIND_LOG_ITEM log;
-        log.Flags = FLI_ERROR;
-        log.Text = LoadStr(IDS_TOOLONGNAME);
-        log.Path = path;
-        SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
+        TRACE_E(LOW_MEMORY);
         return;
     }
 
-    WIN32_FIND_DATA file;
-    HANDLE find = HANDLES_Q(FindFirstFile(path, &file));
+    WIN32_FIND_DATAW file;
+    HANDLE find = SalFindFirstFile(myPath.Get(), &file);
+    myPath.CutLastComponent(); // remove the "*" (also strips the trailing backslash except for a root)
     if (find != INVALID_HANDLE_VALUE)
     {
-        if (end - path > 3)
-            *(end - 1) = 0;
-        else
-            *end = 0;
-        data->SearchingText->Set(path); // set the current path
-        if (end - path > 3)
-            *(end - 1) = '\\';
-        else
-            *end = 0;
+        data->SearchingText->Set(myPath.Get()); // set the current path
 
         int dirStackEnterCount = 0; // number of items before starting the search at this level
         if (dirStack != NULL)
             dirStackEnterCount = dirStackCount;
         BOOL testFindNextErr = TRUE;
+        char nameU8[SAL_FIND_NAME_U8]; // UTF-8 of cFileName
 
         do
         {
+            SalConvertFindDataW(&file, NULL, nameU8, sizeof(nameU8), NULL, 0);
             BOOL isDir = (file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-            BOOL ignoreDir = isDir && (lstrcmp(file.cFileName, ".") == 0 || lstrcmp(file.cFileName, "..") == 0);
-            if (ignoreDir || (end - path) + lstrlen(file.cFileName) < _countof(path))
+            BOOL ignoreDir = isDir && (strcmp(nameU8, ".") == 0 || strcmp(nameU8, "..") == 0);
+
+            // after finding an item without displaying it and once 0.5 s have passed since the last redraw,
+            // we request the listview to redraw
+            if (data->NeedRefresh && GetTickCount() - data->FoundVisibleTick >= 500)
             {
-                // after finding an item without displaying it and once 0.5 s have passed since the last redraw,
-                // we request the listview to redraw
-                if (data->NeedRefresh && GetTickCount() - data->FoundVisibleTick >= 500)
-                {
-                    SendMessage(data->HWindow, WM_USER_ADDFILE, 0, 0);
-                    data->NeedRefresh = FALSE;
-                }
+                SendMessage(data->HWindow, WM_USER_ADDFILE, 0, 0);
+                data->NeedRefresh = FALSE;
+            }
 
-                if (file.cFileName[0] != 0 && !ignoreDir)
-                {
-                    // add all files and directories except "." and ".."
+            if (nameU8[0] != 0 && !ignoreDir)
+            {
+                // add all files and directories except "." and ".."
 
-                    // test the criteria attributes, size, date and time
-                    CQuadWord size(file.nFileSizeLow, file.nFileSizeHigh);
-                    if (data->Criteria.Test(file.dwFileAttributes, &size, &file.ftLastWriteTime))
+                // test the criteria attributes, size, date and time
+                CQuadWord size(file.nFileSizeLow, file.nFileSizeHigh);
+                if (data->Criteria.Test(file.dwFileAttributes, &size, &file.ftLastWriteTime))
+                {
+                    // file name
+                    // let the extension be resolved if ext==NULL
+                    if (masksGroup->AgreeMasks(nameU8, NULL)) // mask is OK
                     {
-                        // file name
-                        // let the extension be resolved if ext==NULL
-                        if (masksGroup->AgreeMasks(file.cFileName, NULL)) // mask is OK
+                        BOOL ok;
+                        if (data->Grep)
                         {
-                            BOOL ok;
-                            if (data->Grep)
+                            // content
+                            if (isDir)
+                                ok = FALSE; // a directory cannot be grepped
+                            else
                             {
-                                // content
-                                if (isDir)
-                                    ok = FALSE; // a directory cannot be grepped
-                                else
+                                if (myPath.AppendComponent(nameU8))
                                 {
-                                    strcpy_s(end, _countof(path) - (end - path), file.cFileName);
                                     // links: file.nFileSizeLow == 0 && file.nFileSizeHigh == 0, the file size
                                     // must be additionally obtained via SalGetFileSize()
                                     BOOL isLink = (file.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-                                    ok = TestFileContent(file.nFileSizeLow, file.nFileSizeHigh, path, data, isLink);
-                                }
-                            }
-                            else
-                                ok = TRUE;
-
-                            // if the item matches all criteria,
-                            // add it to the list of found items
-                            if (ok)
-                            {
-                                if (end - path > 3)
-                                    *(end - 1) = 0;
-                                else
-                                    *end = 0;
-
-                                AddFoundItem(path, file.cFileName, file.nFileSizeLow, file.nFileSizeHigh,
-                                             file.dwFileAttributes, &file.ftLastWriteTime, isDir, data,
-                                             duplicateCandidates);
-
-                                if (end - path > 3)
-                                    *(end - 1) = '\\';
-                                else
-                                    *end = 0;
-                            }
-                        }
-                    }
-                }
-                if (isDir && includeSubDirs && !ignoreDir) // directory + not "." or ".."
-                {
-                    int l = (int)strlen(file.cFileName);
-
-                    if ((end - path) + l + 1 /* 1 za backslash */ < _countof(path))
-                    {
-                        BOOL searchNow = TRUE;
-
-                        if (dirStack != NULL)
-                        {
-                            // just store for later search
-                            char* newFileName = new char[l + 1];
-                            if (newFileName != NULL)
-                            {
-                                memmove(newFileName, file.cFileName, l + 1);
-                                if (dirStackCount < dirStack->Count)
-                                {
-                                    // no need to assign an item - we have space
-                                    dirStack->At(dirStackCount) = newFileName;
-                                    dirStackCount++;
-                                    searchNow = FALSE;
+                                    ok = TestFileContent(file.nFileSizeLow, file.nFileSizeHigh, myPath.Get(), data, isLink);
+                                    myPath.CutLastComponent(); // restore the directory path
                                 }
                                 else
                                 {
-                                    // we must allocate a new item in the array
-                                    dirStack->Add(newFileName);
-                                    if (dirStack->IsGood())
-                                    {
-                                        dirStackCount++;
-                                        searchNow = FALSE;
-                                    }
-                                    else
-                                    {
-                                        dirStack->ResetState();
-                                        delete[] newFileName;
-                                    }
+                                    TRACE_E(LOW_MEMORY);
+                                    ok = FALSE;
                                 }
                             }
                         }
+                        else
+                            ok = TRUE;
 
-                        if (searchNow)
+                        // if the item matches all criteria,
+                        // add it to the list of found items
+                        if (ok)
                         {
-                            // out of memory - we will not use dirStack
-                            strcpy_s(end, _countof(path) - (end - path), file.cFileName);
-                            strcat_s(end, _countof(path) - (end - path), "\\");
-                            l++;
-                            SearchDirectory(path, end + l, startPathLen, masksGroup, includeSubDirs, data, NULL,
-                                            0, duplicateCandidates, ignoreList, message);
+                            AddFoundItem(myPath.Get(), nameU8, file.nFileSizeLow, file.nFileSizeHigh,
+                                         file.dwFileAttributes, &file.ftLastWriteTime, isDir, data,
+                                         duplicateCandidates);
                         }
-                    }
-                    else
-                    {
-                        FIND_LOG_ITEM log;
-                        log.Flags = FLI_ERROR;
-                        log.Text = LoadStr(IDS_TOOLONGNAME);
-                        strcpy_s(end, _countof(path) - (end - path), file.cFileName);
-                        log.Path = path;
-                        SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
                     }
                 }
             }
-            else // too long file-name
+            if (isDir && includeSubDirs && !ignoreDir) // directory + not "." or ".."
             {
-                FIND_LOG_ITEM log;
-                log.Flags = FLI_ERROR;
-                log.Text = LoadStr(IDS_TOOLONGNAME);
-                *end = 0;
-                strcpy_s(message, path);
-                strcat_s(message, file.cFileName);
-                log.Path = message;
-                SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
+                int l = (int)strlen(nameU8);
+                BOOL searchNow = TRUE;
+
+                if (dirStack != NULL)
+                {
+                    // just store for later search
+                    char* newFileName = new char[l + 1];
+                    if (newFileName != NULL)
+                    {
+                        memmove(newFileName, nameU8, l + 1);
+                        if (dirStackCount < dirStack->Count)
+                        {
+                            // no need to assign an item - we have space
+                            dirStack->At(dirStackCount) = newFileName;
+                            dirStackCount++;
+                            searchNow = FALSE;
+                        }
+                        else
+                        {
+                            // we must allocate a new item in the array
+                            dirStack->Add(newFileName);
+                            if (dirStack->IsGood())
+                            {
+                                dirStackCount++;
+                                searchNow = FALSE;
+                            }
+                            else
+                            {
+                                dirStack->ResetState();
+                                delete[] newFileName;
+                            }
+                        }
+                    }
+                }
+
+                if (searchNow)
+                {
+                    // out of memory - we will not use dirStack
+                    if (myPath.AppendComponent(nameU8))
+                    {
+                        if (myPath.AddBackslash())
+                        {
+                            SearchDirectory(myPath.Get(), startPathLen, masksGroup, includeSubDirs, data, NULL,
+                                            0, duplicateCandidates, ignoreList, message);
+                        }
+                        else
+                            TRACE_E(LOW_MEMORY);
+                        myPath.CutLastComponent(); // restore the directory path
+                    }
+                    else
+                        TRACE_E(LOW_MEMORY);
+                }
             }
             if (data->StopSearch)
             {
                 testFindNextErr = FALSE;
                 break;
             }
-        } while (FindNextFile(find, &file));
+        } while (SalFindNextFile(find, &file));
         DWORD err = GetLastError();
         HANDLES(FindClose(find));
 
         if (testFindNextErr && err != ERROR_NO_MORE_FILES)
         {
-            if (end - path > 3)
-                *(end - 1) = 0;
-            else
-                *end = 0;
-
             sprintf(message, LoadStr(IDS_DIRERRORFORMAT), GetErrorText(err));
             FIND_LOG_ITEM log;
             log.Flags = FLI_ERROR;
             log.Text = message;
-            log.Path = path;
+            log.Path = myPath.Get();
             SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
-
-            if (end - path > 3)
-                *(end - 1) = '\\';
-            else
-                *end = 0;
         }
 
         // search through directories
@@ -1749,10 +1715,19 @@ void SearchDirectory(char (&path)[MAX_PATH], char* end, int startPathLen,
                 char* newFileName = (char*)dirStack->At(i);
                 if (!data->StopSearch) // may be set during SearchDirectory
                 {
-                    strcpy_s(end, _countof(path) - (end - path), newFileName);
-                    strcat_s(end, _countof(path) - (end - path), "\\");
-                    SearchDirectory(path, end + strlen(end), startPathLen, masksGroup, includeSubDirs, data,
-                                    dirStack, dirStackCount, duplicateCandidates, ignoreList, message);
+                    if (myPath.AppendComponent(newFileName))
+                    {
+                        if (myPath.AddBackslash())
+                        {
+                            SearchDirectory(myPath.Get(), startPathLen, masksGroup, includeSubDirs, data,
+                                            dirStack, dirStackCount, duplicateCandidates, ignoreList, message);
+                        }
+                        else
+                            TRACE_E(LOW_MEMORY);
+                        myPath.CutLastComponent(); // restore the directory path
+                    }
+                    else
+                        TRACE_E(LOW_MEMORY);
                 }
             }
             // and release data from this level
@@ -1765,26 +1740,15 @@ void SearchDirectory(char (&path)[MAX_PATH], char* end, int startPathLen,
         DWORD err = GetLastError();
         if (err != ERROR_FILE_NOT_FOUND && err != ERROR_NO_MORE_FILES)
         {
-            if (end - path > 3)
-                *(end - 1) = 0;
-            else
-                *end = 0;
-
             sprintf(message, LoadStr(IDS_DIRERRORFORMAT), GetErrorText(err));
 
             FIND_LOG_ITEM log;
             log.Flags = FLI_ERROR | FLI_IGNORE;
             log.Text = message;
-            log.Path = path;
+            log.Path = myPath.Get();
             SendMessage(data->HWindow, WM_USER_ADDLOG, (WPARAM)&log, 0);
-
-            if (end - path > 3)
-                *(end - 1) = '\\';
-            else
-                *end = 0;
         }
     }
-    *end = 0;
 }
 
 void RefineData(CMaskGroup* masksGroup, CGrepData* data)
@@ -1828,15 +1792,19 @@ void RefineData(CMaskGroup* masksGroup, CGrepData* data)
                 ok = FALSE; // a directory cannot be grepped
             else
             {
-                char fullPath[MAX_PATH];
-                strcpy(fullPath, refineData->Path);
-                if (fullPath[strlen(fullPath) - 1] != '\\')
-                    strcat(fullPath, "\\");
-                strcat(fullPath, refineData->Name);
-                // links: refineData->Size == 0, the file size must be additionally obtained via SalGetFileSize()
-                BOOL isLink = (refineData->Attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0; // size == 0, the file size must be obtained via SalGetFileSize()
-                ok = TestFileContent(refineData->Size.LoDWord, refineData->Size.HiDWord,
-                                     fullPath, data, isLink);
+                CSalPathBuf fullPath; // UTF-8, long-path capable (feature 004)
+                if (fullPath.Set(refineData->Path) && fullPath.AppendComponent(refineData->Name))
+                {
+                    // links: refineData->Size == 0, the file size must be additionally obtained via SalGetFileSize()
+                    BOOL isLink = (refineData->Attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0; // size == 0, the file size must be obtained via SalGetFileSize()
+                    ok = TestFileContent(refineData->Size.LoDWord, refineData->Size.HiDWord,
+                                         fullPath.Get(), data, isLink);
+                }
+                else
+                {
+                    TRACE_E(LOW_MEMORY);
+                    ok = FALSE;
+                }
             }
         }
 
@@ -1863,20 +1831,10 @@ unsigned GrepThreadFBody(void* ptr)
     CGrepData* data = (CGrepData*)ptr;
     data->NeedRefresh = FALSE;
     data->Criteria.PrepareForTest();
-    char path[MAX_PATH];
-    char* end;
     if (data->Refine != 0)
     {
         if (data->Data->Count > 0)
         {
-            strcpy_s(path, data->Data->At(0)->Dir);
-            int len = (int)strlen(path);
-            if (path[len - 1] != '\\')
-            {
-                strcat_s(path, "\\");
-                len++;
-            }
-            end = path + len;
             CMaskGroup* mg = &data->Data->At(0)->MasksGroup;
             int errorPos;
             if (mg->PrepareMasks(errorPos))
@@ -1912,14 +1870,13 @@ unsigned GrepThreadFBody(void* ptr)
             int i;
             for (i = 0; i < data->Data->Count; i++)
             {
-                strcpy_s(path, data->Data->At(i)->Dir);
-                int len = (int)strlen(path);
-                if (path[len - 1] != '\\')
+                CSalPathBuf path; // UTF-8, long-path capable (feature 004)
+                if (!path.Set(data->Data->At(i)->Dir) || !path.AddBackslash())
                 {
-                    strcat_s(path, "\\");
-                    len++;
+                    TRACE_E(LOW_MEMORY);
+                    data->StopSearch = TRUE;
+                    break;
                 }
-                end = path + len;
                 CMaskGroup* mg = &data->Data->At(i)->MasksGroup;
                 int errorPos;
                 if (!mg->PrepareMasks(errorPos))
@@ -1953,7 +1910,7 @@ unsigned GrepThreadFBody(void* ptr)
                 }
 
                 char message[2 * MAX_PATH];
-                SearchDirectory(path, end, (int)(end - path), mg, includeSubDirs, data, dirStack, 0,
+                SearchDirectory(path.Get(), path.Length(), mg, includeSubDirs, data, dirStack, 0,
                                 duplicateCandidates, ignoreList, message);
 
                 if (ignoreList != NULL)

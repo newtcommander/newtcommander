@@ -49,7 +49,14 @@ void CViewerWindow::SetViewerCaption()
             sprintf(caption + strlen(caption), " - [%s]", codeName);
         }
     }
-    SetWindowText(HWindow, caption);
+    WCHAR* captionW = SalU8ToWAlloc(caption); // the title carries a UTF-8 file name (feature 004)
+    if (captionW != NULL)
+    {
+        SetWindowTextW(HWindow, captionW);
+        free(captionW);
+    }
+    else // not valid UTF-8 (transitional): keep the legacy path
+        SetWindowText(HWindow, caption);
 }
 
 //

@@ -495,8 +495,8 @@ struct CMD5Digest
 
 struct CFoundFilesData
 {
-    char* Name;
-    char* Path;
+    char* Name; // UTF-8, long-path capable (feature 004)
+    char* Path; // UTF-8, long-path capable (feature 004)
     CQuadWord Size;
     DWORD Attr;
     FILETIME LastWrite;
@@ -536,8 +536,9 @@ struct CFoundFilesData
     BOOL Set(const char* path, const char* name, const CQuadWord& size, DWORD attr,
              const FILETIME* lastWrite, BOOL isDir);
     // if 'i' refers to Name or Path, returns a pointer to the corresponding variable
-    // otherwise fills the buffer 'text' (must be at least 50 characters long) with the appropriate value
-    // and returns a pointer to 'text'
+    // otherwise fills the buffer 'text' with the appropriate value and returns a pointer
+    // to 'text'; for the Name column the buffer must hold SAL_FIND_NAME_U8 bytes,
+    // other columns need at least 50 characters
     // 'fileNameFormat' determines formatting of names of found items
     char* GetText(int i, char* text, int fileNameFormat);
 };
@@ -718,7 +719,7 @@ protected:
     BOOL TwoParts;     // does the status bar have two texts?
                        //    CFindAdvancedDialog FindAdvanced;
     CFoundFilesListView* FoundFilesListView;
-    char FoundFilesDataTextBuffer[MAX_PATH]; // for obtaining text from CFoundFilesData::GetText
+    char FoundFilesDataTextBuffer[SAL_FIND_NAME_U8]; // for obtaining text from CFoundFilesData::GetText (UTF-8 names, feature 004)
     CFindTBHeader* TBHeader;
     BOOL SearchInProgress;
     BOOL CanClose; // the window can be closed (we are not inside a method of this object)

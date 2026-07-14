@@ -36,10 +36,10 @@ void PrepareMask(char* mask, const char* src)
     *mask = 0;
 }
 
-BOOL AgreeMask(const char* filename, const char* mask, BOOL hasExtension, BOOL extendedMode)
+static BOOL AgreeMaskA(const char* filename, const char* mask, BOOL hasExtension, BOOL extendedMode)
 {
     CALL_STACK_MESSAGE_NONE;
-    //  CALL_STACK_MESSAGE4("AgreeMask(%s, %s, %d)", filename, mask, hasExtension);  // slows things down massively (called recursively)
+    //  CALL_STACK_MESSAGE4("AgreeMaskA(%s, %s, %d)", filename, mask, hasExtension);  // slows things down massively (called recursively)
     while (*filename != 0)
     {
         if (*mask == 0)
@@ -60,7 +60,7 @@ BOOL AgreeMask(const char* filename, const char* mask, BOOL hasExtension, BOOL e
             mask++;
             while (*filename != 0)
             {
-                if (AgreeMask(filename, mask, hasExtension, extendedMode))
+                if (AgreeMaskA(filename, mask, hasExtension, extendedMode))
                     return TRUE; // the rest of the mask matches
                 filename++;
             }
@@ -75,6 +75,79 @@ BOOL AgreeMask(const char* filename, const char* mask, BOOL hasExtension, BOOL e
         return *(mask + 1) == 0 || (*(mask + 1) == '*' && *(mask + 2) == 0);
     else
         return *mask == 0;
+}
+
+// wide twin of AgreeMaskA for names/masks with non-ASCII content (feature 004):
+// per-character case folding via CharLowerW, '?' matches one UTF-16 unit
+static BOOL AgreeMaskW(const WCHAR* filename, const WCHAR* mask, BOOL hasExtension, BOOL extendedMode)
+{
+    CALL_STACK_MESSAGE_NONE;
+    while (*filename != 0)
+    {
+        if (*mask == 0)
+            return FALSE; // mask is too short
+        WCHAR fLow = (WCHAR)(UINT_PTR)CharLowerW((LPWSTR)(UINT_PTR)(WORD)*filename);
+        WCHAR mLow = (WCHAR)(UINT_PTR)CharLowerW((LPWSTR)(UINT_PTR)(WORD)*mask);
+        BOOL agree;
+        if (extendedMode)
+            agree = (fLow == mLow || *mask == L'?' ||
+                     (*mask == L'#' && *filename >= L'0' && *filename <= L'9'));
+        else
+            agree = (fLow == mLow || *mask == L'?');
+        if (agree)
+        {
+            filename++;
+            mask++;
+        }
+        else if (*mask == L'*')
+        {
+            mask++;
+            while (*filename != 0)
+            {
+                if (AgreeMaskW(filename, mask, hasExtension, extendedMode))
+                    return TRUE;
+                filename++;
+            }
+            break;
+        }
+        else
+            return FALSE;
+    }
+    if (*mask == L'*')
+        mask++;
+    if (!hasExtension && *mask == L'.')
+        return *(mask + 1) == 0 || (*(mask + 1) == L'*' && *(mask + 2) == 0);
+    else
+        return *mask == 0;
+}
+
+BOOL AgreeMask(const char* filename, const char* mask, BOOL hasExtension, BOOL extendedMode)
+{
+    CALL_STACK_MESSAGE_NONE;
+    // ASCII fast path keeps the exact legacy semantics; anything else matches on
+    // NFC-normalized UTF-16 so canonically equivalent spellings match (FR-008)
+    if (SalIsASCII(filename) && SalIsASCII(mask))
+        return AgreeMaskA(filename, mask, hasExtension, extendedMode);
+    WCHAR* fw = SalU8ToWAlloc(filename);
+    WCHAR* mw = SalU8ToWAlloc(mask);
+    BOOL ret;
+    if (fw != NULL && mw != NULL)
+    {
+        WCHAR* fn = SalNormalizeNFCAlloc(fw, -1);
+        WCHAR* mn = SalNormalizeNFCAlloc(mw, -1);
+        ret = AgreeMaskW(fn != NULL ? fn : fw, mn != NULL ? mn : mw, hasExtension, extendedMode);
+        if (fn != NULL)
+            free(fn);
+        if (mn != NULL)
+            free(mn);
+    }
+    else // not valid UTF-8 (transitional): legacy byte matching
+        ret = AgreeMaskA(filename, mask, hasExtension, extendedMode);
+    if (fw != NULL)
+        free(fw);
+    if (mw != NULL)
+        free(mw);
+    return ret;
 }
 
 char* MaskName(char* buffer, int bufSize, const char* name, const char* mask)

@@ -79,12 +79,12 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T024 [P] [US2] Panel painting to W: all `ExtTextOut` sites in `src/fileswn4.cpp` (`:744,749,770,850,880,892,909,935,1508,1515,1896,1911,1922` — draw/thumbnail/tile) convert UTF-8→UTF-16 (transient per-draw buffer; cache decision deferred to T059)
 - [X] T025 [P] [US2] Width measurement to W: all `GetTextExtentPoint32` sites in `src/fileswn2.cpp` (`:3539-4008` layout pass) — stop equating `NameLen` bytes with glyph counts
 - [X] T026 [US2] UTF-8-aware sorting in `src/sort.cpp`: `CmpNameExt`/`CmpNameExtIgnCase`/`RegSetStrICmp*` (`:75-319`) — ASCII fast path, else UTF-16 `CompareStringEx`, binary tie-break for canonical equivalents (R5, FR-009)
-- [ ] T027 [P] [US2] Name-bearing dialog/control texts via W getters/setters: rename/overwrite/properties dialogs in `src/dialogs3.cpp`, `src/dialogs4.cpp`, `src/fileswn5.cpp` (`GetDlgItemTextW`/`SetDlgItemTextW` on name fields)
-- [ ] T028 [P] [US2] Window chrome titles with Unicode names: `SetWindowTextW` paths in `src/mainwnd3.cpp`, viewer/find window titles in `src/viewer3.cpp`, `src/finddlg1.cpp`
-- [ ] T029 [US2] Inline rename input: `CQuickRenameWindow` `WM_CHAR` handling in `src/fileswn5.cpp:2870` accepts full Unicode (W control text read-back; no byte gate)
-- [ ] T030 [US2] Name fidelity audit in the operation pipeline: `src/worker.cpp` target-name construction copies source bytes verbatim (no `CharUpper`/`OemToChar`-family touches on the name path; FR-006)
-- [ ] T031 [US2] Equivalent-pair notice (FR-007): detection when an operation first creates a canonically-equivalent byte-different pair in one directory (`src/worker.cpp` completion path), one-time info dialog, new strings in `src/lang/` resources
-- [ ] T032 [P] [US2] Icon/association/shell-icon lookup for Unicode names: `src/shiconov.cpp` (incl. existing `\\?\` detection `:130-134`) via W conversions
+- [X] T027 [P] [US2] Name-bearing dialog/control texts via W getters/setters: rename/overwrite/properties dialogs in `src/dialogs3.cpp`, `src/dialogs4.cpp`, `src/fileswn5.cpp` (`GetDlgItemTextW`/`SetDlgItemTextW` on name fields)
+- [X] T028 [P] [US2] Window chrome titles with Unicode names: `SetWindowTextW` paths in `src/mainwnd3.cpp`, viewer/find window titles in `src/viewer3.cpp`, `src/finddlg1.cpp`
+- [X] T029 [US2] Inline rename input: `CQuickRenameWindow` `WM_CHAR` handling in `src/fileswn5.cpp:2870` accepts full Unicode (W control text read-back; no byte gate)
+- [X] T030 [US2] Name fidelity audit in the operation pipeline: `src/worker.cpp` target-name construction copies source bytes verbatim (no `CharUpper`/`OemToChar`-family touches on the name path; FR-006)
+- [X] T031 [US2] Equivalent-pair notice (FR-007): detection when an operation first creates a canonically-equivalent byte-different pair in one directory (`src/worker.cpp` completion path), one-time info dialog, new strings in `src/lang/` resources
+- [X] T032 [P] [US2] Icon/association/shell-icon lookup for Unicode names: `src/shiconov.cpp` (incl. existing `\\?\` detection `:130-134`) via W conversions
 - [ ] T033 [US2] Validate quickstart #3, #4, #7; byte-exact round-trip check (`Get-ChildItem` codepoint dump); SC-003 Explorer-parity render pass
 
 **Checkpoint**: US1 + US2 = both P1 defects fixed in the core — MVP complete
@@ -97,11 +97,11 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 **Independent Test**: quickstart.md scenarios #5–6 — typing NFC `č` hits the NFD file in quick search; Find returns both forms incl. the deep NFD file
 
-- [ ] T034 [US3] Activate the dormant W window-class path for the panel windows: `src/common/winlib.cpp:499-521` (`RegisterClassW`/`CWindowProcW`/`CreateExW`) used by the file-list window so `WM_CHAR` delivers UTF-16 (R7)
-- [ ] T035 [US3] Rework quick search: `CFilesWindow::OnChar` in `src/fileswn0.cpp:879-1032` — remove `wParam < 256` gates (`:894,:1021`), accumulate surrogate pairs, store UTF-8 in dynamic buffers replacing `char QuickSearch[MAX_PATH]`/`QuickSearchMask[MAX_PATH]` (`src/fileswnd.h:832-833`), fix byte-wise backspace logic (`:1387-1411`)
-- [ ] T036 [US3] Quick-search matching via `SalNameMatchCI` (NFC-equivalent, case-insensitive): `PrepareQSMask`/`AgreeQSMask` in `src/fileswn0.cpp:44-78` (FR-008)
-- [ ] T037 [P] [US3] Find dialog + engine: `src/find.cpp`, `src/finddlg1.cpp`, `src/finddlg2.cpp` — W enumeration for deep recursion, `CFoundFilesData{Name,Path}` (`src/find.h:496-499`) as UTF-8, NFC-equivalent name matching, results grid W rendering, operations from results at long paths
-- [ ] T038 [P] [US3] Wildcard mask engine NFC/case-insensitive per R4: `CMaskGroup`/mask matching in `src/salamdr2.cpp` (masks used by Find, file operations, associations)
+- [X] T034 [US3] Activate the dormant W window-class path for the panel windows: `src/common/winlib.cpp:499-521` (`RegisterClassW`/`CWindowProcW`/`CreateExW`) used by the file-list window so `WM_CHAR` delivers UTF-16 (R7)
+- [X] T035 [US3] Rework quick search: `CFilesWindow::OnChar` in `src/fileswn0.cpp:879-1032` — remove `wParam < 256` gates (`:894,:1021`), accumulate surrogate pairs, store UTF-8 in dynamic buffers replacing `char QuickSearch[MAX_PATH]`/`QuickSearchMask[MAX_PATH]` (`src/fileswnd.h:832-833`), fix byte-wise backspace logic (`:1387-1411`)
+- [X] T036 [US3] Quick-search matching via `SalNameMatchCI` (NFC-equivalent, case-insensitive): `PrepareQSMask`/`AgreeQSMask` in `src/fileswn0.cpp:44-78` (FR-008)
+- [X] T037 [P] [US3] Find dialog + engine: `src/find.cpp`, `src/finddlg1.cpp`, `src/finddlg2.cpp` — W enumeration for deep recursion, `CFoundFilesData{Name,Path}` (`src/find.h:496-499`) as UTF-8, NFC-equivalent name matching, results grid W rendering, operations from results at long paths
+- [X] T038 [P] [US3] Wildcard mask engine NFC/case-insensitive per R4: `CMaskGroup`/mask matching in `src/salamdr2.cpp` (masks used by Find, file operations, associations)
 - [ ] T039 [US3] Path entry fields (change-directory bar, command line, Shift+F7 path dialog) accept and match Unicode input via W text APIs in `src/dialogs2.cpp`, `src/mainwnd*.cpp`
 - [ ] T040 [US3] Validate quickstart #5–6; SC-005 matrix (query NFC↔stored NFD and inverse, case variants, masks)
 
@@ -117,7 +117,7 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 ### SDK, loader, shell (prerequisites within US4)
 
-- [ ] T041 [US4] Loader capability gate: record UTF-8/long-path semantics per plugin from `BuiltForVersion >= 104` in `CPluginData::InitDLL` (`src/plugins1.cpp:2193-2306`), keep the existing too-old gate; expose capability to call sites via `src/plugins.h`
+- [X] T041 [US4] Loader capability gate: record UTF-8/long-path semantics per plugin from `BuiltForVersion >= 104` in `CPluginData::InitDLL` (`src/plugins1.cpp:2193-2306`), keep the existing too-old gate; expose capability to call sites via `src/plugins.h`
 - [ ] T042 [US4] Legacy adaptation shim per `contracts/plugin-interface-vnext.md` §2: new `src/pluglegacy.cpp` + `src/pluglegacy.h` — UTF-8→system-ACP conversion (no best-fit) with lossless check for every core→plugin string, legacy-layout `CFileData` materialization for `<104` binaries, ACP→UTF-8 on return; wire into plugin call surfaces in `src/plugins2.cpp`/`src/plugins3.cpp`
 - [ ] T043 [US4] FR-014 refusal UX: per-item "name/path not representable by plugin X" skip dialog (strings in `src/lang/`), continue-with-remaining semantics in the operation drivers (`src/worker.cpp`, archive op entry points in `src/fileswn*.cpp`)
 - [ ] T044 [P] [US4] SDK v-next finalization: UTF-8 semantics + limits documented in `src/plugins/shared/spl_base.h`, `spl_com.h`, `spl_gen.h`, `spl_fs.h`, `spl_gui.h`; add plugin-callable conversion/normalization helpers to `CSalamanderGeneralAbstract` (contract §2); update `src/plugins/shared/spl_vers.h` version-history comment block

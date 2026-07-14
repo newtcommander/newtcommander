@@ -2709,6 +2709,11 @@
 // shutdown: wait window: Closing Find windows, please wait...
 #define IDS_CLOSINGFINDWINDOWS          14195
 
+// feature 004 (long paths + Unicode): FR-007 equivalent-name-pair notice and
+// FR-014 legacy-plugin refusal message
+#define IDS_EQUIVNAMESPAIR              14196
+#define IDS_PLUGINCANTHANDLENAME        14197
+
 //#define CM_TEXTS_MAX                  18000    // maximal texts id
 
 #endif // __TEXTS_RH2

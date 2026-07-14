@@ -279,7 +279,7 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                     if (targetPath[0] != 0) // zmena fokusu na 'targetPath'
                     {
-                        lstrcpyn(NextFocusName, targetPath, MAX_PATH);
+                        lstrcpyn(NextFocusName, targetPath, _countof(NextFocusName));
                         // RefreshDirectory nemusi probehnout - zdroj se nemusel zmenit - pro sichr postneme message
                         PostMessage(HWindow, WM_USER_DONEXTFOCUS, 0, 0);
                     }
@@ -1013,15 +1013,15 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         ToggleDirectoryLine();
         //---  nahozeni typu viewu + nacteni obsahu adresare
         SetThumbnailSize(Configuration.ThumbnailSize); // musi existovat ListBox
-        if (!ListBox->CreateEx(WS_EX_WINDOWEDGE,
-                               CFILESBOX_CLASSNAME,
-                               "",
-                               WS_BORDER | WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-                               0, 0, 0, 0, // dummy
-                               HWindow,
-                               (HMENU)IDC_FILES,
-                               HInstance,
-                               ListBox))
+        if (!ListBox->CreateExW(WS_EX_WINDOWEDGE,
+                                CFILESBOX_CLASSNAMEW,
+                                L"",
+                                WS_BORDER | WS_CHILD | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+                                0, 0, 0, 0, // dummy
+                                HWindow,
+                                (HMENU)IDC_FILES,
+                                HInstance,
+                                ListBox))
         {
             TRACE_E("Unable to create listbox.");
             return -1;

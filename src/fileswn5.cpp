@@ -2576,7 +2576,11 @@ void CFilesWindow::AdjustQuickRenameWindow()
     MapWindowPoints(NULL, HWindow, (POINT*)&r, 2);
 
     char buff[3 * MAX_PATH];
-    GetWindowText(QuickRenameWindow.HWindow, buff, 3 * MAX_PATH);
+    WCHAR buffW[3 * MAX_PATH]; // the edited name is Unicode (feature 004): read as wide text
+    buffW[0] = 0;
+    GetWindowTextW(QuickRenameWindow.HWindow, buffW, _countof(buffW));
+    if (SalWToU8(buffW, -1, buff, _countof(buff)) == 0) // UTF-8 does not fit: keep the legacy A call
+        GetWindowText(QuickRenameWindow.HWindow, buff, 3 * MAX_PATH);
     AdjustQuickRenameRect(buff, &r);
     SetWindowPos(QuickRenameWindow.HWindow, NULL, 0, 0,
                  r.right - r.left, r.bottom - r.top,
@@ -2692,20 +2696,34 @@ void CFilesWindow::QuickRenameBegin(int index, const RECT* labelRect)
     RECT r = *labelRect;
     AdjustQuickRenameRect(formatedFileName, &r);
 
-    HWND hWnd = QuickRenameWindow.CreateEx(0,
-                                           "edit",
-                                           formatedFileName,
-                                           WS_BORDER | WS_CHILD | WS_CLIPSIBLINGS | ES_AUTOHSCROLL | ES_LEFT,
-                                           r.left, r.top, r.right - r.left, r.bottom - r.top,
-                                           GetListBoxHWND(),
-                                           NULL,
-                                           HInstance,
-                                           &QuickRenameWindow);
+    // the name is UTF-8 (feature 004): create the edit with wide text so it is not mangled
+    WCHAR fileNameW[SAL_FIND_NAME_U8];
+    BOOL fileNameWValid = SalU8ToW(formatedFileName, -1, fileNameW, _countof(fileNameW)) != 0;
+    if (!fileNameWValid)
+        fileNameW[0] = 0;
+    if (fileNameWValid && selectionEnd > 0)
+    {
+        // EM_SETSEL takes WCHAR offsets: recompute the UTF-8 byte offset of the dot
+        int selEndW = SalU8ToW(formatedFileName, selectionEnd, NULL, 0);
+        if (selEndW > 0)
+            selectionEnd = selEndW - 1; // returned size includes the terminator
+    }
+    HWND hWnd = QuickRenameWindow.CreateExW(0,
+                                            L"edit",
+                                            fileNameW,
+                                            WS_BORDER | WS_CHILD | WS_CLIPSIBLINGS | ES_AUTOHSCROLL | ES_LEFT,
+                                            r.left, r.top, r.right - r.left, r.bottom - r.top,
+                                            GetListBoxHWND(),
+                                            NULL,
+                                            HInstance,
+                                            &QuickRenameWindow);
     if (hWnd == NULL)
     {
         TRACE_E("Cannot create QuickRenameWindow");
         return;
     }
+    if (!fileNameWValid) // not valid UTF-8 (transitional): keep the legacy A text
+        SetWindowText(hWnd, formatedFileName);
 
     BeginSuspendMode(TRUE); // snooper takes a break
 
@@ -2763,7 +2781,11 @@ BOOL CFilesWindow::HandeQuickRenameWindowKey(WPARAM wParam)
 
     HWND hWnd = QuickRenameWindow.HWindow;
     char newName[MAX_PATH];
-    GetWindowText(hWnd, newName, MAX_PATH);
+    WCHAR newNameW[MAX_PATH]; // the edited name is Unicode (feature 004): read as wide text
+    newNameW[0] = 0;
+    GetWindowTextW(hWnd, newNameW, _countof(newNameW));
+    if (SalWToU8(newNameW, -1, newName, MAX_PATH) == 0) // UTF-8 does not fit: keep the legacy A call
+        GetWindowText(hWnd, newName, MAX_PATH);
 
     // lower the thread priority to "normal" (so operations don't overload the machine)
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_NORMAL);
@@ -2789,7 +2811,10 @@ BOOL CFilesWindow::HandeQuickRenameWindowKey(WPARAM wParam)
         if (!ret && !cancel)
         {
             tryAgain = TRUE;
-            SetWindowText(hWnd, newName);
+            if (SalU8ToW(newName, -1, newNameW, _countof(newNameW)) != 0) // the name is UTF-8 (feature 004)
+                SetWindowTextW(hWnd, newNameW);
+            else // not valid UTF-8 (transitional): keep the legacy path
+                SetWindowText(hWnd, newName);
         }
         else
         {
@@ -2843,7 +2868,7 @@ void CFilesWindow::KillQuickRenameTimer()
 //
 
 CQuickRenameWindow::CQuickRenameWindow()
-    : CWindow(ooStatic)
+    : CWindow(ooStatic, TRUE /*unicodeWnd: the edited name is Unicode (feature 004)*/)
 {
     FilesWindow = NULL;
     CloseEnabled = TRUE;

@@ -163,19 +163,47 @@ void CFindDialog::OnDelete(BOOL toRecycle)
         lastFocusedItem.Set(lastItem->Path, lastItem->Name, lastItem->Size, lastItem->Attr, &lastItem->LastWrite, lastItem->IsDir);
     }
 
+    // names are UTF-8: convert the double-null list to wide so Unicode and
+    // long names survive the shell call (feature 004); UTF-16 never needs
+    // more units than the UTF-8 byte count
+    WCHAR* listW = (WCHAR*)malloc(listSize * sizeof(WCHAR));
+    if (listW != NULL && SalU8ToW(list, (int)listSize, listW, (int)listSize) == 0)
+    {
+        free(listW); // not valid UTF-8 (transitional): fall back to the ANSI call
+        listW = NULL;
+    }
+
     CShellExecuteWnd shellExecuteWnd;
-    SHFILEOPSTRUCT fo;
-    fo.hwnd = shellExecuteWnd.Create(HWindow, "SEW: CFindDialog::OnDelete toRecycle=%d", toRecycle);
-    fo.wFunc = FO_DELETE;
-    fo.pFrom = list;
-    fo.pTo = NULL;
-    fo.fFlags = toRecycle ? FOF_ALLOWUNDO : 0;
-    fo.fAnyOperationsAborted = FALSE;
-    fo.hNameMappings = NULL;
-    fo.lpszProgressTitle = "";
+    HWND hSEW = shellExecuteWnd.Create(HWindow, "SEW: CFindDialog::OnDelete toRecycle=%d", toRecycle);
     // perform the deletion itself - incredibly easy, unfortunately it sometimes crashes ;-)
     CALL_STACK_MESSAGE1("CFindDialog::OnDelete::SHFileOperation");
-    SHFileOperation(&fo);
+    if (listW != NULL)
+    {
+        SHFILEOPSTRUCTW fo;
+        fo.hwnd = hSEW;
+        fo.wFunc = FO_DELETE;
+        fo.pFrom = listW;
+        fo.pTo = NULL;
+        fo.fFlags = toRecycle ? FOF_ALLOWUNDO : 0;
+        fo.fAnyOperationsAborted = FALSE;
+        fo.hNameMappings = NULL;
+        fo.lpszProgressTitle = L"";
+        SHFileOperationW(&fo);
+        free(listW);
+    }
+    else
+    {
+        SHFILEOPSTRUCT fo;
+        fo.hwnd = hSEW;
+        fo.wFunc = FO_DELETE;
+        fo.pFrom = list;
+        fo.pTo = NULL;
+        fo.fFlags = toRecycle ? FOF_ALLOWUNDO : 0;
+        fo.fAnyOperationsAborted = FALSE;
+        fo.hNameMappings = NULL;
+        fo.lpszProgressTitle = "";
+        SHFileOperation(&fo);
+    }
     free(list);
 
     // update the list
@@ -1209,9 +1237,8 @@ BOOL CFindDialog::GetCommonPrefixPath(char* buffer, int bufferMax, int& commonPr
         return FALSE;
     }
 
-    char path[MAX_PATH];
+    CSalPathBuf path; // UTF-8, long-path capable (feature 004)
     int pathLen = 0;
-    path[0] = 0;
 
     int index = -1;
     do
@@ -1220,18 +1247,22 @@ BOOL CFindDialog::GetCommonPrefixPath(char* buffer, int bufferMax, int& commonPr
         if (index != -1)
         {
             CFoundFilesData* file = FoundFilesListView->At(index);
-            if (path[0] == 0)
+            if (path.IsEmpty())
             {
-                lstrcpy(path, file->Path); // in the first step we only copy the path
-                pathLen = lstrlen(path);
+                if (!path.Set(file->Path)) // in the first step we only copy the path
+                {
+                    TRACE_E(LOW_MEMORY);
+                    return FALSE;
+                }
+                pathLen = path.Length();
             }
             else
             {
-                int count = CommonPrefixLength(path, file->Path);
+                int count = CommonPrefixLength(path.Get(), file->Path);
                 if (count < pathLen)
                 {
-                    // the path has shortened
-                    path[count] = 0;
+                    // the path has shortened (truncation in place, never reallocates)
+                    path.Set(path.Get(), count);
                     pathLen = count;
                 }
                 if (count == 0)
@@ -1247,7 +1278,7 @@ BOOL CFindDialog::GetCommonPrefixPath(char* buffer, int bufferMax, int& commonPr
         TRACE_E("Buffer is small. " << pathLen + 1 << " bytes is needed");
         return FALSE;
     }
-    lstrcpy(buffer, path);
+    lstrcpy(buffer, path.Get());
     commonPrefixChars = pathLen;
     return TRUE;
 }
@@ -1260,7 +1291,7 @@ struct CMyEnumFileNamesData
     int LastIndex;
 };
 
-static char MyEnumFileNamesBuffer[MAX_PATH]; // function is called from the GUI => cannot be called from multiple threads => we can afford a static buffer
+static char MyEnumFileNamesBuffer[SAL_MAX_PATH_UTF8]; // function is called from the GUI => cannot be called from multiple threads => we can afford a static buffer; long-path capable (feature 004)
 const char* MyEnumFileNames(int index, void* param)
 {
     CMyEnumFileNamesData* data = (CMyEnumFileNamesData*)param;
@@ -1274,7 +1305,7 @@ const char* MyEnumFileNames(int index, void* param)
         if (*p != 0)
         {
             lstrcpy(MyEnumFileNamesBuffer, p);
-            SalPathAddBackslash(MyEnumFileNamesBuffer, MAX_PATH);
+            SalPathAddBackslash(MyEnumFileNamesBuffer, _countof(MyEnumFileNamesBuffer));
         }
         else
             MyEnumFileNamesBuffer[0] = 0;
@@ -1591,10 +1622,9 @@ void CFindDialog::OnOpen(BOOL onlyFocused)
             if (setWait)
                 oldCur = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-            char fullPath[MAX_PATH];
-            lstrcpy(fullPath, file->Path);
-            if (SalPathAppend(fullPath, file->Name, MAX_PATH))
-                MainWindow->FileHistory->AddFile(fhitOpen, 0, fullPath);
+            CSalPathBuf fullPath; // UTF-8, long-path capable (feature 004)
+            if (fullPath.Set(file->Path) && fullPath.AppendComponent(file->Name))
+                MainWindow->FileHistory->AddFile(fhitOpen, 0, fullPath.Get());
 
             ExecuteAssociation(HWindow, file->Path, file->Name);
             if (setWait)
@@ -1828,7 +1858,17 @@ void CFindLogDialog::Transfer(CTransferInfo& ti)
                     buff[j] = ' ';
 
             ListView_SetItemText(HListView, i, 1, buff);
-            ListView_SetItemText(HListView, i, 2, item->Path);
+            WCHAR* pathW = SalU8ToWAlloc(item->Path); // paths are UTF-8: set the column wide (feature 004)
+            if (pathW != NULL)
+            {
+                LVITEMW lviW;
+                lviW.iSubItem = 2;
+                lviW.pszText = pathW;
+                SendMessageW(HListView, LVM_SETITEMTEXTW, i, (LPARAM)&lviW);
+                free(pathW);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+                ListView_SetItemText(HListView, i, 2, item->Path);
         }
 
         if (Log->GetSkippedCount() > 0)
@@ -1872,7 +1912,7 @@ void CFindLogDialog::OnFocusFile()
             return;
         }
     }
-    static char FocusPath[2 * MAX_PATH];
+    static char FocusPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
     lstrcpyn(FocusPath, item->Path, _countof(FocusPath));
     char buffEmpty[] = "";
     char* p = buffEmpty;
