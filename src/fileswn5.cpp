@@ -1118,8 +1118,8 @@ BOOL ViewFileInt(HWND parent, const char* name, BOOL altView, DWORD handlerID, B
                         strcpy(expInitDir, name);
                         CutDirectory(expInitDir);
                     }
-                    if (!HANDLES(CreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
-                                               NORMAL_PRIORITY_CLASS, NULL, expInitDir, &si, &pi)))
+                    if (!SalCreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
+                                          NORMAL_PRIORITY_CLASS, NULL, expInitDir, &si, &pi))
                     {
                         DWORD err = GetLastError();
                         char buff[4 * MAX_PATH];
@@ -1441,8 +1441,8 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
                     strcpy(expInitDir, name);
                     CutDirectory(expInitDir);
                 }
-                if (!HANDLES(CreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
-                                           NORMAL_PRIORITY_CLASS, NULL, expInitDir, &si, &pi)))
+                if (!SalCreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
+                                      NORMAL_PRIORITY_CLASS, NULL, expInitDir, &si, &pi))
                 {
                     DWORD err = GetLastError();
                     char buff[4 * MAX_PATH];

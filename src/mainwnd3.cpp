@@ -4203,9 +4203,9 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
 
             PROCESS_INFORMATION pi;
 
-            if (!HANDLES(CreateProcess(NULL, cmd, NULL, NULL, FALSE,
-                                       CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS, NULL,
-                                       (activePanel->Is(ptDisk) || activePanel->Is(ptZIPArchive)) ? activePanel->GetPath() : NULL, &si, &pi)))
+            if (!SalCreateProcess(NULL, cmd, NULL, NULL, FALSE,
+                                  CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS, NULL,
+                                  (activePanel->Is(ptDisk) || activePanel->Is(ptZIPArchive)) ? activePanel->GetPath() : NULL, &si, &pi))
             {
                 DWORD err = GetLastError();
                 SalMessageBox(HWindow, GetErrorText(err),

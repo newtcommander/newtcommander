@@ -49,6 +49,28 @@ HANDLE SalCreateFileNH(const char* u8path, DWORD desiredAccess, DWORD shareMode,
                        LPSECURITY_ATTRIBUTES securityAttributes, DWORD creationDisposition,
                        DWORD flagsAndAttributes, HANDLE templateFile);
 
+//*****************************************************************************
+//
+// SalCreateProcess
+//
+// CreateProcessW with UTF-8 inputs (feature 004, FR-011): the command line and
+// the working directory may contain names that the active code page cannot
+// represent, so the A variant would launch the wrong (or no) file. 'siA' is the
+// caller's STARTUPINFO - its non-string fields are copied; lpDesktop/lpTitle
+// are not supported (must be NULL). The returned handles are registered with
+// the HANDLES tracker exactly like HANDLES(CreateProcess(...)) did.
+//
+BOOL SalCreateProcess(const char* u8AppName, const char* u8CmdLine,
+                      LPSECURITY_ATTRIBUTES processAttrs, LPSECURITY_ATTRIBUTES threadAttrs,
+                      BOOL inheritHandles, DWORD creationFlags, LPVOID environment,
+                      const char* u8CurrentDir, STARTUPINFOA* siA, PROCESS_INFORMATION* pi);
+
+// ShellExecuteExW with UTF-8 inputs (feature 004, FR-011). The A structure is
+// taken as input; its string fields (lpVerb/lpFile/lpParameters/lpDirectory/
+// lpClass) are converted from UTF-8; other fields are copied through and the
+// output fields (hInstApp, hProcess, ...) are copied back.
+BOOL SalShellExecuteEx(SHELLEXECUTEINFOA* seiA);
+
 BOOL SalDeleteFile(const char* u8path);
 BOOL SalRemoveDirectory(const char* u8path);
 BOOL SalCreateDirectory(const char* u8path, LPSECURITY_ATTRIBUTES securityAttributes);

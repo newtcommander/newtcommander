@@ -1265,7 +1265,16 @@ BOOL CHyperLink::ExecuteIt()
     if (File[0] != 0)
     {
         // do not switch to shellExecuteWnd, we use BugReport
-        int err = (int)(INT_PTR)ShellExecute(HWindow, "open", File, NULL, NULL, SW_SHOWNORMAL);
+        // W launch: 'File' is UTF-8 and may hold names outside the ACP (feature 004)
+        int err;
+        WCHAR* fileW = SalU8ToWAlloc(File, -1);
+        if (fileW != NULL)
+        {
+            err = (int)(INT_PTR)ShellExecuteW(HWindow, L"open", fileW, NULL, NULL, SW_SHOWNORMAL);
+            free(fileW);
+        }
+        else
+            err = (int)(INT_PTR)ShellExecute(HWindow, "open", File, NULL, NULL, SW_SHOWNORMAL);
         if (err <= 32)
         {
             ret = FALSE;

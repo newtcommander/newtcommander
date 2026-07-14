@@ -913,7 +913,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                         sei.lpDirectory = (initDir[0] != 0) ? initDir : NULL;
                         sei.nShow = SW_SHOWNORMAL;
 
-                        if (!ShellExecuteEx(&sei))
+                        if (!SalShellExecuteEx(&sei)) // W launch: names may be outside the ACP (feature 004)
                         {
                             DWORD err = GetLastError();
                             char buff[4 * MAX_PATH];
@@ -978,9 +978,9 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                         else
                             strcpy(cmdLine, batName);
 
-                        if (!HANDLES(CreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
-                                                   CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                                                   NULL, NULL, &si, &pi)))
+                        if (!SalCreateProcess(NULL, cmdLine, NULL, NULL, FALSE,
+                                              CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                                              NULL, NULL, &si, &pi))
                         {
                             DWORD err = GetLastError();
                             char buff[4 * MAX_PATH];

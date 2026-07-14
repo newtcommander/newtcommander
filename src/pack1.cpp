@@ -706,8 +706,8 @@ BOOL PackList(CFilesWindow* panel, const char* archiveFileName, CSalamanderDirec
     si.hStdOutput = StdOutWr;
     si.hStdError = StdErrWr;
     // and start it ...
-    if (!HANDLES(CreateProcess(NULL, cmdLine, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                               NULL, currentDir, &si, &pi)))
+    if (!SalCreateProcess(NULL, cmdLine, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                          NULL, currentDir, &si, &pi))
     {
         // if this failed, we have a bad path to salspawn
         DWORD err = GetLastError();

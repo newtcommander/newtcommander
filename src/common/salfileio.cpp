@@ -106,6 +106,125 @@ HANDLE SalCreateFileNH(const char* u8path, DWORD desiredAccess, DWORD shareMode,
 
 //*****************************************************************************
 //
+// SalCreateProcess
+//
+
+BOOL SalCreateProcess(const char* u8AppName, const char* u8CmdLine,
+                      LPSECURITY_ATTRIBUTES processAttrs, LPSECURITY_ATTRIBUTES threadAttrs,
+                      BOOL inheritHandles, DWORD creationFlags, LPVOID environment,
+                      const char* u8CurrentDir, STARTUPINFOA* siA, PROCESS_INFORMATION* pi)
+{
+    WCHAR* appW = u8AppName == NULL ? NULL : SalU8ToWAlloc(u8AppName, -1);
+    WCHAR* cmdW = u8CmdLine == NULL ? NULL : SalU8ToWAlloc(u8CmdLine, -1); // CreateProcessW may modify it
+    WCHAR* dirW = u8CurrentDir == NULL ? NULL : SalU8ToWAlloc(u8CurrentDir, -1);
+    if ((u8AppName != NULL && appW == NULL) || (u8CmdLine != NULL && cmdW == NULL) ||
+        (u8CurrentDir != NULL && dirW == NULL))
+    {
+        free(appW);
+        free(cmdW);
+        free(dirW);
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+
+    STARTUPINFOW siW;
+    memset(&siW, 0, sizeof(siW));
+    siW.cb = sizeof(siW);
+    if (siA != NULL)
+    { // copy the non-string fields (lpDesktop/lpTitle are not used by our call sites)
+        siW.dwX = siA->dwX;
+        siW.dwY = siA->dwY;
+        siW.dwXSize = siA->dwXSize;
+        siW.dwYSize = siA->dwYSize;
+        siW.dwXCountChars = siA->dwXCountChars;
+        siW.dwYCountChars = siA->dwYCountChars;
+        siW.dwFillAttribute = siA->dwFillAttribute;
+        siW.dwFlags = siA->dwFlags;
+        siW.wShowWindow = siA->wShowWindow;
+        siW.hStdInput = siA->hStdInput;
+        siW.hStdOutput = siA->hStdOutput;
+        siW.hStdError = siA->hStdError;
+    }
+
+    BOOL ret = CreateProcessW(appW, cmdW, processAttrs, threadAttrs, inheritHandles,
+                              creationFlags, environment, dirW, &siW, pi);
+    DWORD err = GetLastError();
+    free(appW);
+    free(cmdW);
+    free(dirW);
+    if (ret && pi != NULL)
+    {
+        if (pi->hProcess != NULL)
+            HANDLES_ADD(__htProcess, __hoCreateProcess, pi->hProcess);
+        if (pi->hThread != NULL)
+            HANDLES_ADD(__htThread, __hoCreateProcess, pi->hThread);
+    }
+    SetLastError(err);
+    return ret;
+}
+
+//*****************************************************************************
+//
+// SalShellExecuteEx
+//
+
+BOOL SalShellExecuteEx(SHELLEXECUTEINFOA* seiA)
+{
+    if (seiA == NULL)
+        return FALSE;
+
+    WCHAR* verbW = seiA->lpVerb == NULL ? NULL : SalU8ToWAlloc(seiA->lpVerb, -1);
+    WCHAR* fileW = seiA->lpFile == NULL ? NULL : SalU8ToWAlloc(seiA->lpFile, -1);
+    WCHAR* paramsW = seiA->lpParameters == NULL ? NULL : SalU8ToWAlloc(seiA->lpParameters, -1);
+    WCHAR* dirW = seiA->lpDirectory == NULL ? NULL : SalU8ToWAlloc(seiA->lpDirectory, -1);
+    WCHAR* classW = (seiA->fMask & SEE_MASK_CLASSNAME) && seiA->lpClass != NULL ? SalU8ToWAlloc(seiA->lpClass, -1) : NULL;
+
+    BOOL convOK = (seiA->lpVerb == NULL || verbW != NULL) &&
+                  (seiA->lpFile == NULL || fileW != NULL) &&
+                  (seiA->lpParameters == NULL || paramsW != NULL) &&
+                  (seiA->lpDirectory == NULL || dirW != NULL);
+
+    BOOL ret = FALSE;
+    if (convOK)
+    {
+        SHELLEXECUTEINFOW seiW;
+        memset(&seiW, 0, sizeof(seiW));
+        seiW.cbSize = sizeof(seiW);
+        seiW.fMask = seiA->fMask;
+        seiW.hwnd = seiA->hwnd;
+        seiW.lpVerb = verbW;
+        seiW.lpFile = fileW;
+        seiW.lpParameters = paramsW;
+        seiW.lpDirectory = dirW;
+        seiW.nShow = seiA->nShow;
+        seiW.lpIDList = seiA->lpIDList;
+        seiW.lpClass = classW;
+        seiW.hkeyClass = seiA->hkeyClass;
+        seiW.dwHotKey = seiA->dwHotKey;
+        seiW.hIcon = seiA->hIcon;
+        seiW.hProcess = seiA->hProcess;
+
+        ret = ShellExecuteExW(&seiW);
+
+        seiA->hInstApp = seiW.hInstApp; // copy the output fields back
+        seiA->hProcess = seiW.hProcess;
+        seiA->hIcon = seiW.hIcon;
+    }
+    else
+        SetLastError(ERROR_INVALID_NAME);
+
+    DWORD err = GetLastError();
+    free(verbW);
+    free(fileW);
+    free(paramsW);
+    free(dirW);
+    free(classW);
+    SetLastError(err);
+    return ret;
+}
+
+//*****************************************************************************
+//
 // single-path operations
 //
 

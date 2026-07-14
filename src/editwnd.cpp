@@ -478,9 +478,9 @@ CEditLine::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         CALL_STACK_MESSAGE3("CEditLine::WindowProc::CreateProcess(, %s, , , , , , %s, ,)",
                                             strlen(cmd) > 300 ? "(very long cmd)" : cmd,
                                             MainWindow->GetActivePanel()->GetPath());
-                        proc_ret = HANDLES(CreateProcess(NULL, cmd, NULL, NULL, FALSE,
-                                                         CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                                                         NULL, MainWindow->GetActivePanel()->GetPath(), &si, &pi));
+                        proc_ret = SalCreateProcess(NULL, cmd, NULL, NULL, FALSE,
+                                                    CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                                                    NULL, MainWindow->GetActivePanel()->GetPath(), &si, &pi);
                         err = GetLastError();
                     }
                     if (cmdTooLong || !proc_ret)

@@ -3258,8 +3258,8 @@ void StartNotepad(const char* file)
     GetSystemDirectory(buf, MAX_PATH); // dame mu systemovy adresar, at neblokuje mazani soucasneho pracovniho adresare
     wsprintf(buf2, "notepad.exe \"%s\"", file);
     si.cb = sizeof(STARTUPINFO);
-    if (HANDLES(CreateProcess(NULL, buf2, NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                              NULL, buf, &si, &pi)))
+    if (SalCreateProcess(NULL, buf2, NULL, NULL, TRUE, CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                         NULL, buf, &si, &pi))
     {
         HANDLES(CloseHandle(pi.hProcess));
         HANDLES(CloseHandle(pi.hThread));
