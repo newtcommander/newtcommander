@@ -798,6 +798,19 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    case WM_USER_EQUIVPAIRNOTICE:
+    { // feature 004 (FR-007): the listing found two canonically equivalent but
+      // differently stored names; inform the user once (after the listing is done)
+        if (GetEquivalentPairNoticeName()[0] != 0)
+        {
+            char buf[SAL_FIND_NAME_U8 + 300];
+            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_EQUIVNAMESPAIR), GetEquivalentPairNoticeName());
+            SetEquivalentPairNoticeName(NULL);
+            SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
+        }
+        return 0;
+    }
+
     case WM_USER_CHANGEDIR:
     {
         // postprocessing provedeme jen u cest, ktere jsme ziskali jako text (a ne primo dropnutim adresare)

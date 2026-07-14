@@ -1187,6 +1187,11 @@ struct COpenViewerData
 
 #define WM_USER_USERMENUICONS_READY WM_APP + 415 // [bkgndReaderData, threadID] - notifikace pro hl. okno, ze se dokoncilo cteni ikon pro User Menu v threadu s ID 'threadID'
 
+// feature 004 (FR-007): panel pri listovani nasel dvojici jmen, ktera jsou
+// kanonicky ekvivalentni, ale ulozena ruzne (NFC vs NFD); hlaska se ukazuje az
+// po dokonceni vypisu (modalni box behem ReadDirectory by zablokoval listing)
+#define WM_USER_EQUIVPAIRNOTICE WM_APP + 416 // [0, 0]
+
 // states for Shift+F1 help mode
 #define HELP_INACTIVE 0 // not in Shift+F1 help mode (must be 0)
 #define HELP_ACTIVE 1   // in Shift+F1 help mode (non-zero)

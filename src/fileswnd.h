@@ -479,8 +479,9 @@ private:
     char Path[SAL_MAX_PATH_UTF8]; // path for a ptDisk panel - normal ("c:\path") or UNC ("\\server\share\path");
                                   // UTF-8, long-path capable (feature 004)
     BOOL SuppressAutoRefresh; // TRUE if the user canceled directory listing during reading and chose temporary auto-refresh suppression
-    BOOL EquivalentPairNoticeShown; // feature 004 (FR-007): TRUE once the one-time notice about a canonically
-                                    // equivalent (NFC vs NFD) name pair was shown for the current path
+    BOOL EquivalentPairNoticeShown;                  // feature 004 (FR-007): TRUE once the one-time notice about a canonically
+                                                     // equivalent (NFC vs NFD) name pair was shown for the current path
+    char EquivalentPairNoticeName[SAL_FIND_NAME_U8]; // name to show in that notice (empty = nothing pending)
 
     CPanelType PanelType; // type of panel (disk, archive, plugin FS)
 
@@ -566,6 +567,11 @@ public:
     BOOL GetSuppressAutoRefresh() { return SuppressAutoRefresh; }
     BOOL GetEquivalentPairNoticeShown() { return EquivalentPairNoticeShown; }
     void SetEquivalentPairNoticeShown(BOOL shown) { EquivalentPairNoticeShown = shown; }
+    const char* GetEquivalentPairNoticeName() { return EquivalentPairNoticeName; }
+    void SetEquivalentPairNoticeName(const char* name)
+    {
+        lstrcpyn(EquivalentPairNoticeName, name == NULL ? "" : name, _countof(EquivalentPairNoticeName));
+    }
 
     void SetPath(const char* path);
     void SetMonitorChanges(BOOL monitorChanges) { MonitorChanges = monitorChanges; }

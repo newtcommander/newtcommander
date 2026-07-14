@@ -34,6 +34,7 @@ CFilesWindowAncestor::CFilesWindowAncestor()
     Path[0] = 0;
     SuppressAutoRefresh = FALSE;
     EquivalentPairNoticeShown = FALSE;
+    EquivalentPairNoticeName[0] = 0;
     PanelType = ptDisk;
     MonitorChanges = TRUE;
     DriveType = DRIVE_UNKNOWN;

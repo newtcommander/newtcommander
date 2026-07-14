@@ -1000,11 +1000,11 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 }
             }
             if (equivName != NULL)
-            {
+            { // the notice must not be shown from here - a modal box would block the
+              // rest of the listing; post it and show it once the panel is refreshed
                 SetEquivalentPairNoticeShown(TRUE);
-                char buf[SAL_FIND_NAME_U8 + 300];
-                _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_EQUIVNAMESPAIR), equivName);
-                SalMessageBox(parent, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
+                SetEquivalentPairNoticeName(equivName);
+                PostMessage(HWindow, WM_USER_EQUIVPAIRNOTICE, 0, 0);
             }
         }
 
