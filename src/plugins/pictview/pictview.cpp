@@ -191,7 +191,9 @@ MENU_TEMPLATE_ITEM MenuTemplate[] =
         {MNTT_PB, IDS_MENU_FILE, MNTS_B | MNTS_I | MNTS_A, CML_FILE, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_FILE_OPEN, MNTS_B | MNTS_I | MNTS_A, CMD_OPEN, IDX_TB_OPEN, 0, (DWORD*)vweNotLoading},
         {MNTT_IT, IDS_MENU_FILE_REFRESH, MNTS_B | MNTS_I | MNTS_A, CMD_RELOAD, -1, 0, (DWORD*)vweFileOpened2},
-        {MNTT_IT, IDS_MENU_FILE_SAVEAS, MNTS_B | MNTS_I | MNTS_A, CMD_SAVEAS, IDX_TB_SAVE, 0, (DWORD*)vweFileOpened},
+        // feature 006: Save As has no engine backing (the built-in WIC engine
+        // does not encode) - item removed; the command degrades gracefully if
+        // still reached via an accelerator
         {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_FILE_CAPTURE, MNTS_B | MNTS_I | MNTS_A, CMD_CAPTURE, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_FILE_SCAN, MNTS_B | MNTS_I | MNTS_A, CMD_SCAN, -1, 0, NULL},
@@ -219,8 +221,7 @@ MENU_TEMPLATE_ITEM MenuTemplate[] =
         {MNTT_IT, IDS_MENU_FILE_DELETE, MNTS_B | MNTS_I | MNTS_A, CMD_IMG_DELETE, -1, 0, (DWORD*)vweFileOpened2},
         {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
         //    {MNTT_IT,    IDS_MENU_FILE_PAGE,           MNTS_B|MNTS_I|MNTS_A, CMD_PAGE_SETUP,             -1,                      0,                 (DWORD*)vweFileOpened},
-        {MNTT_IT, IDS_MENU_FILE_PRINT, MNTS_B | MNTS_I | MNTS_A, CMD_PRINT, IDX_TB_PRINT, 0, (DWORD*)vweFileOpened},
-        {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
+        // feature 006: Print relied on the removed engine's encoder - item removed
         {MNTT_PB, IDS_MENU_FILE_OTHER, MNTS_B | MNTS_I | MNTS_A, CML_OTHERFILES, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_FILE_PREV, MNTS_B | MNTS_I | MNTS_A, CMD_FILE_PREV, IDX_TB_PREV, 0, (DWORD*)vwePrevFile},
         {MNTT_IT, IDS_MENU_FILE_NEXT, MNTS_B | MNTS_I | MNTS_A, CMD_FILE_NEXT, IDX_TB_NEXT, 0, (DWORD*)vweNextFile},
@@ -242,13 +243,12 @@ MENU_TEMPLATE_ITEM MenuTemplate[] =
         // Edit
         {MNTT_PB, IDS_MENU_EDIT, MNTS_B | MNTS_I | MNTS_A, CML_EDIT, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_EDIT_COPY, MNTS_B | MNTS_I | MNTS_A, CMD_COPY, IDX_TB_COPY, 0, (DWORD*)vweFileOpened},
-        {MNTT_IT, IDS_MENU_EDIT_PASTE, MNTS_B | MNTS_I | MNTS_A, CMD_PASTE, IDX_TB_PASTE, 0, (DWORD*)vwePaste},
+        // feature 006: Paste (clipboard image decode) has no engine backing - removed
         {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_EDIT_SELECTALL, MNTS_B | MNTS_I | MNTS_A, CMD_SELECTALL, -1, 0, (DWORD*)vweFileOpened},
         {MNTT_IT, IDS_MENU_EDIT_DESELECT, MNTS_B | MNTS_I | MNTS_A, CMD_DESELECT, -1, 0, (DWORD*)vweSelection},
         {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_EDIT_CROP, MNTS_B | MNTS_I | MNTS_A, CMD_CROP, IDX_TB_CROP, 0, (DWORD*)vweSelection},
-        {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
+        // feature 006: Crop relied on the removed engine's encoder - removed
         {MNTT_IT, IDS_MENU_EDIT_LEFT, MNTS_B | MNTS_I | MNTS_A, CMD_ROTATE_LEFT, IDX_TB_LEFT, 0, (DWORD*)vweFileOpened},
         {MNTT_IT, IDS_MENU_EDIT_RIGHT, MNTS_B | MNTS_I | MNTS_A, CMD_ROTATE_RIGHT, IDX_TB_RIGHT, 0, (DWORD*)vweFileOpened},
         {MNTT_IT, IDS_MENU_EDIT_180, MNTS_B | MNTS_I | MNTS_A, CMD_ROTATE180, IDX_TB_180, 0, (DWORD*)vweFileOpened},
@@ -314,7 +314,7 @@ MENU_TEMPLATE_ITEM PopupMenuTemplate[] =
         {MNTT_IT, IDS_MENU_FILE_PREV, MNTS_B | MNTS_I | MNTS_A, CMD_FILE_PREV, IDX_TB_PREV, 0, (DWORD*)vwePrevFile},
         {MNTT_IT, IDS_MENU_FILE_NEXT, MNTS_B | MNTS_I | MNTS_A, CMD_FILE_NEXT, IDX_TB_NEXT, 0, (DWORD*)vweNextFile},
         {MNTT_IT, IDS_MENU_EDIT_COPY, MNTS_B | MNTS_I | MNTS_A, CMD_COPY, IDX_TB_COPY, 0, (DWORD*)vweFileOpened},
-        {MNTT_IT, IDS_MENU_EDIT_PASTE, MNTS_B | MNTS_I | MNTS_A, CMD_PASTE, IDX_TB_PASTE, 0, (DWORD*)vwePaste},
+        // feature 006: Paste removed (no clipboard image decode in the WIC engine)
         {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
         {MNTT_IT, IDS_MENU_FILE_PROP, MNTS_B | MNTS_I | MNTS_A, CMD_IMG_PROP, IDX_TB_PROPERTIES, 0, (DWORD*)vweImgInfoAvailable},
         {MNTT_IT, IDS_MENU_FILE_EXIF, MNTS_B | MNTS_I | MNTS_A, CMD_IMG_EXIF, -1, 0, (DWORD*)vweImgExifAvailable},
@@ -345,9 +345,8 @@ CButtonData ToolBarButtons[] =
         // ImageIndex          ToolTipResID          ID               Enabler
 
         {IDX_TB_OPEN, IDS_TT_OPEN, CMD_OPEN, vweNotLoading},
-        {IDX_TB_SAVE, IDS_TT_SAVE, CMD_SAVEAS, vweFileOpened},
+        // feature 006: Save/Print buttons removed (no encoder in the WIC engine)
         {IDX_TB_PROPERTIES, IDS_TT_PROPERTIES, CMD_IMG_PROP, vweFileOpened},
-        {IDX_TB_PRINT, IDS_TT_PRINT, CMD_PRINT, vweFileOpened},
         {IDX_TB_SEPARATOR},
         {IDX_TB_PREV, IDS_TT_PREV, CMD_FILE_PREV, vwePrevFile},
         {IDX_TB_NEXT, IDS_TT_NEXT, CMD_FILE_NEXT, vweNextFile},
@@ -356,7 +355,7 @@ CButtonData ToolBarButtons[] =
         {IDX_TB_NEXTSELFILE, IDS_TT_NEXTSELFILE, CMD_FILE_NEXTSELFILE, vweNextSelFile},
         {IDX_TB_SEPARATOR},
         {IDX_TB_COPY, IDS_TT_COPY, CMD_COPY, vweFileOpened},
-        {IDX_TB_PASTE, IDS_TT_PASTE, CMD_PASTE, vwePaste},
+        // feature 006: Paste button removed (no clipboard image decode)
         {IDX_TB_SEPARATOR},
         {IDX_TB_HAND, IDS_TT_TOOL_HAND, CMD_TOOLS_HAND, vweFileOpened},
         {IDX_TB_ZOOM, IDS_TT_TOOL_ZOOM, CMD_TOOLS_ZOOM, vweFileOpened},
@@ -365,7 +364,7 @@ CButtonData ToolBarButtons[] =
         {IDX_TB_SEPARATOR},
         {IDX_TB_LEFT, IDS_TT_LEFT, CMD_ROTATE_LEFT, vweFileOpened},
         {IDX_TB_RIGHT, IDS_TT_RIGHT, CMD_ROTATE_RIGHT, vweFileOpened},
-        {IDX_TB_CROP, IDS_TT_CROP, CMD_CROP, vweSelection},
+        // feature 006: Crop button removed (no encoder in the WIC engine)
         {IDX_TB_SEPARATOR},
         {IDX_TB_ZOOMOUT, IDS_TT_ZOOM_OUT, CMD_ZOOM_OUT, vweFileOpened},
         {IDX_TB_ZOOMNUMBER, IDS_TT_ZOOM_TO, CMD_ZOOM_TO, vweFileOpened},
