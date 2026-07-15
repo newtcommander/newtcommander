@@ -32,6 +32,23 @@ int DeleteThroughRecycleBinAux(SHFILEOPSTRUCT* fo)
     return 1; // != 0
 }
 
+// feature 005: the ANSI SHFileOperation reinterprets the UTF-8 name/path bytes
+// through the ACP, so files whose names are outside the code page (accented,
+// decomposed, non-Latin) are not found and the Recycle Bin delete silently
+// fails. Use the W variant with UTF-16 names instead.
+int DeleteThroughRecycleBinAuxW(SHFILEOPSTRUCTW* fo)
+{
+    __try
+    {
+        return SHFileOperationW(fo);
+    }
+    __except (CCallStack::HandleException(GetExceptionInformation(), 5))
+    {
+        FGIExceptionHasOccured++;
+    }
+    return 1; // != 0
+}
+
 BOOL PathContainsValidComponents(char* path, BOOL cutPath)
 {
     char* s = path;
@@ -98,19 +115,33 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
 
     SetCurrentDirectory(GetPath()); // for faster operation
 
+    // feature 005: 'names' holds a UTF-8 double-null list; convert it to UTF-16
+    // and call the W shell API so non-ACP / decomposed names reach the Recycle
+    // Bin (the A variant mangled them through the code page and deleted nothing)
+    int wchars = MultiByteToWideChar(CP_UTF8, 0, names.Text, names.Length, NULL, 0);
+    WCHAR* fromW = wchars > 0 ? (WCHAR*)malloc((wchars + 1) * sizeof(WCHAR)) : NULL;
+    if (fromW == NULL)
+    {
+        SetCurrentDirectoryToSystem();
+        return FALSE;
+    }
+    MultiByteToWideChar(CP_UTF8, 0, names.Text, names.Length, fromW, wchars);
+    fromW[wchars] = 0; // ensure the extra terminator of the double-null list
+
     CShellExecuteWnd shellExecuteWnd;
-    SHFILEOPSTRUCT fo;
+    SHFILEOPSTRUCTW fo;
     fo.hwnd = shellExecuteWnd.Create(MainWindow->HWindow, "SEW: CFilesWindow::DeleteThroughRecycleBin");
     fo.wFunc = FO_DELETE;
-    fo.pFrom = names.Text;
+    fo.pFrom = fromW;
     fo.pTo = NULL;
     fo.fFlags = FOF_ALLOWUNDO;
     fo.fAnyOperationsAborted = FALSE;
     fo.hNameMappings = NULL;
-    fo.lpszProgressTitle = "";
+    fo.lpszProgressTitle = L"";
     // Perform the actual deletion - wonderfully simple, unfortunately it sometimes crashes ;-)
     CALL_STACK_MESSAGE1("CFilesWindow::DeleteThroughRecycleBin::SHFileOperation");
-    BOOL ret = DeleteThroughRecycleBinAux(&fo) == 0;
+    BOOL ret = DeleteThroughRecycleBinAuxW(&fo) == 0;
+    free(fromW);
     SetCurrentDirectoryToSystem();
 
     return FALSE; /*ret && !fo.fAnyOperationsAborted*/

@@ -2359,11 +2359,31 @@ void CFilesWindow::RenameFile(int specialIndex)
     char formatedFileName[SAL_FIND_NAME_U8]; // UTF-8 name (feature 004)
     AlterFileName(formatedFileName, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
 
+    // feature 005: show the name in NFC (precomposed) form in the edit field so
+    // a decomposed accent (e.g. "c" + combining caron) renders as a single glyph
+    // instead of a detached mark. The stored form is NOT changed - if the user
+    // confirms an equivalent name, the original (possibly decomposed) baseline is
+    // applied (see below), so the on-disk form is preserved.
+    char editName[SAL_FIND_NAME_U8];
+    lstrcpyn(editName, formatedFileName, SAL_FIND_NAME_U8);
+    WCHAR* nameW = SalU8ToWAlloc(formatedFileName);
+    if (nameW != NULL)
+    {
+        WCHAR* nfcW = SalNormalizeNFCAlloc(nameW);
+        if (nfcW != NULL)
+        {
+            if (SalWToU8(nfcW, -1, editName, SAL_FIND_NAME_U8) == 0)
+                lstrcpyn(editName, formatedFileName, SAL_FIND_NAME_U8); // overflow: keep original
+            free(nfcW);
+        }
+        free(nameW);
+    }
+
     char buff[200];
     sprintf(buff, LoadStr(IDS_RENAME_TO), LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
     CTruncatedString subject;
-    subject.Set(buff, formatedFileName);
-    CCopyMoveDialog dlg(HWindow, formatedFileName, SAL_FIND_NAME_U8, LoadStr(IDS_RENAME_TITLE),
+    subject.Set(buff, editName);
+    CCopyMoveDialog dlg(HWindow, editName, SAL_FIND_NAME_U8, LoadStr(IDS_RENAME_TITLE),
                         &subject, IDD_RENAMEDIALOG, Configuration.QuickRenameHistory,
                         QUICKRENAME_HISTORY_SIZE, FALSE);
 
@@ -2400,10 +2420,13 @@ void CFilesWindow::RenameFile(int specialIndex)
                 int selectionEnd = -1;
                 if (!isDir)
                 {
-                    const char* dot = strrchr(formatedFileName, '.');
-                    if (dot != NULL && dot > formatedFileName) // although ".cvspass" is an extension in Windows, Explorer selects the entire name, so we do the same
-                                                               //        if (dot != NULL)
-                        selectionEnd = (int)(dot - formatedFileName);
+                    const char* dot = strrchr(editName, '.');
+                    if (dot != NULL && dot > editName) // although ".cvspass" is an extension in Windows, Explorer selects the entire name, so we do the same
+                    {                                  //        if (dot != NULL)
+                        // CB_SETEDITSEL positions are in WCHARs, not bytes
+                        int w = SalU8ToW(editName, (int)(dot - editName), NULL, 0);
+                        selectionEnd = w > 0 ? w - 1 : (int)(dot - editName);
+                    }
                 }
                 dlg.SetSelectionEnd(selectionEnd);
             }
@@ -2418,7 +2441,12 @@ void CFilesWindow::RenameFile(int specialIndex)
                 UpdateWindow(MainWindow->HWindow);
 
                 BOOL tryAgain;
-                RenameFileInternal(f, formatedFileName, &mayChange, &tryAgain);
+                // feature 005: if the edited (NFC) name is canonically equivalent
+                // to the original baseline, apply the baseline so the stored
+                // composed/decomposed form is preserved (no silent normalization);
+                // otherwise apply what the user typed
+                const char* applyName = SalNameEquivalent(editName, formatedFileName) ? formatedFileName : editName;
+                RenameFileInternal(f, applyName, &mayChange, &tryAgain);
                 if (!tryAgain)
                     break;
             }
