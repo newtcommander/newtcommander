@@ -442,7 +442,12 @@ static PVCODE DecodeFrame(CWicImage* img, int frame, TProgressProc progress, voi
     if (factory == NULL)
         return PVC_EXCEPTION;
 
-    if (progress != NULL && !progress(0, appSpecific))
+    // PictView's TProgressProc returns TRUE to CANCEL (e.g. the user pressed a
+    // page/file-navigation key) and FALSE to continue - the opposite of the
+    // header's "return FALSE to cancel" comment. Honor a real cancel before we
+    // start decoding; the inverted check here was skipping the very first draw,
+    // leaving the window blank until a resize/zoom forced a repaint.
+    if (progress != NULL && progress(0, appSpecific))
         return PVC_CANCELED;
 
     IWICBitmapFrameDecode* fr = NULL;
@@ -492,8 +497,10 @@ static PVCODE DecodeFrame(CWicImage* img, int frame, TProgressProc progress, voi
     img->DecodedFrame = frame;
     img->InfoFrame = (UINT)frame;
 
-    if (progress != NULL && !progress(100, appSpecific))
-        return PVC_CANCELED;
+    // decode is complete; report 100% but never abort a finished frame (a late
+    // cancel must not suppress drawing the image we already have in the DIB)
+    if (progress != NULL)
+        progress(100, appSpecific);
     return PVC_OK;
 }
 
