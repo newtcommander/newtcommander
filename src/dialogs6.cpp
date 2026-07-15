@@ -503,11 +503,12 @@ void CSharesDialog::Refresh()
             lvi.iSubItem = 0;
             lvi.iImage = 0;
             lvi.state = INDEXTOOVERLAYMASK(1);
-            lvi.pszText = (char*)remoteName;
+            lvi.pszText = (char*)""; // feature 005: set name/path/comment wide below
             lvi.lParam = i; // for later sorting
             int index = ListView_InsertItem(HListView, &lvi);
-            ListView_SetItemText(HListView, index, 1, (char*)localPath);
-            ListView_SetItemText(HListView, index, 2, (char*)comment);
+            SalListViewSetItemTextU8(HListView, index, 0, (const char*)remoteName); // share name is UTF-8 (feature 005)
+            SalListViewSetItemTextU8(HListView, index, 1, (const char*)localPath);  // path is UTF-8
+            SalListViewSetItemTextU8(HListView, index, 2, (const char*)comment);
         }
     }
     SortItems();
@@ -1291,11 +1292,12 @@ void CDisconnectDialog::Refresh()
         lvi.iItem = i;
         lvi.iSubItem = 0;
         lvi.iImage = Connections[i].IconIndex;
-        lvi.pszText = Connections[i].Name;
+        lvi.pszText = (char*)""; // feature 005: set name/path wide below
         lvi.lParam = i; // for later sorting
         lvi.iIndent = (Connections[i].Type == citGroup) ? 0 : 1;
         int index = ListView_InsertItem(HListView, &lvi);
-        ListView_SetItemText(HListView, index, 1, Connections[i].Path);
+        SalListViewSetItemTextU8(HListView, index, 0, Connections[i].Name); // name is UTF-8 (feature 005)
+        SalListViewSetItemTextU8(HListView, index, 1, Connections[i].Path); // UNC path is UTF-8
         if (Connections[i].Default)
         {
             if (defaultIndex == -1)

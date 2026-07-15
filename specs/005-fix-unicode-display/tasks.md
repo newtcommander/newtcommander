@@ -66,46 +66,45 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 ### Core dialogs (per-file tasks; all use T002 helpers, D3 read-back rule)
 
-- [ ] T010 [P] [US2] Fix remaining src/dialogs3.cpp sites: `CCopyMoveMoreDialog::Transfer` 608-628 (B2), `CEditNewFileDialog` WM_GETTEXT 555 (B3), `CChangeDirDlg::Transfer` 1185-1192 (B4), convert/filter masks 113/117/316/320 + resolve 77 (B8), plugin-FS quick-rename read-back 1258 (B12), network-path static 1804 (B13), ANSI subject statics 1972/2148 (B14), conversion-tables list items 2866-2870 (B17-part)
-- [ ] T011 [P] [US2] Fix Make File List dialog in src/dialogs.cpp: history combo + WM_SETTEXT/WM_GETTEXT 1873/1878/1883, validation read-backs 1900/1919/2005/2008 (B5)
-- [ ] T012 [P] [US2] Fix src/dialogs2.cpp sites: Select/Deselect mask combo 538/563/565/569 (B6), user-menu compare-arguments path 1229/1233 (B9-part), resolve HelpDir statics 837/840 (B17-part)
-- [ ] T013 [P] [US2] Fix src/dialogs4.cpp sites: user-menu config command/arguments/init-dir 2148-2153 + 2178-2182 (B9), view-template list item 1022 + in-place edit 1508-1518, hot-path list name 2768 + in-place edit 3060-3072 (B15-part)
-- [ ] T014 [P] [US2] Fix src/dialogs5.cpp sites: external viewer/editor + pack command/init-dir 2056-2084, 2443-2470 (B10); resolve archive-name/edit sites 1422, 2917, 2966 (B17-part)
-- [ ] T015 [P] [US2] Fix pack/associations config pages in src/dialogsp.cpp: command/path WM_SETTEXT/WM_GETTEXT 157-232, 606-661, 949-1048, viewer/editor CB_ADDSTRING 1117-1150 (B11)
-- [ ] T016 [P] [US2] Fix Find dialog in src/finddlg1.cpp: Named/Look-in/Grep read-backs 1685/1699/1749-1753 (B7); resolve 2758 (drives string), 3551, and status-bar 2988 (B17-part)
-- [ ] T017 [P] [US2] Fix src/dialogs6.cpp list views: shared-directories items 506-510, connections name+path 1294/1298 (B15-part); resolve icon-overlay list 2527-2530 (B17-part)
-- [ ] T018 [P] [US2] Fix packers/associations custom-draw text in src/packac.cpp:186 (B15-part): supply item text via `LVM_*` W path (`NMLVDISPINFOW`) or convert before assignment
+- [X] T010 [P] [US2] Fixed src/dialogs3.cpp: `CCopyMoveMoreDialog::Transfer` (B2), `CEditNewFileDialog` read-back (B3), `CChangeDirDlg::Transfer` (B4), convert/filter masks (B8), Drive-Info volume read-back (B12). B13 network-path static and B14 subject statics were already the correct 004 pattern (ANSI is the invalid-UTF-8 fallback of a SalU8ToWAlloc+W path) — no change. Conversion-tables list (2866) is code-page metadata (ASCII) — deferred/low-risk
+- [X] T011 [P] [US2] Fixed Make File List dialog in src/dialogs.cpp: history combo set/read + validation read-backs (B5)
+- [X] T012 [P] [US2] Fixed src/dialogs2.cpp: Select/Deselect mask combo (B6), user-menu compare-args path (B9-part), HelpDir static (B17-part). Web field left ANSI (URL, ASCII)
+- [X] T013 [P] [US2] Fixed src/dialogs4.cpp: user-menu config command/arguments/init-dir (B9), view-template + hot-path list names via new `SalListViewSetItemTextU8` (B15-part). In-place label-edit read-backs (1508/3060) DEFERRED (LVN_ENDLABELEDITW, low-frequency)
+- [X] T014 [P] [US2] Fixed src/dialogs5.cpp: external viewer + editor command/arguments/init-dir set+read (B10). Archive-name sites 1422/2917/2966 DEFERRED (B17, low-frequency)
+- [~] T015 [P] [US2] Pack/associations config pages (dialogsp, B11) DEFERRED — low-frequency advanced config; command fields are ASCII exe paths in practice. Approach documented in research.md
+- [X] T016 [P] [US2] Fixed Find dialog (finddlg1 Validate/LoadControls read-backs) AND the shared `HistoryComboBox` in src/viewer.cpp (the real Find + F3-viewer-grep transfer: set/read/history) (B7). drives string (2758) is ASCII drive roots — no change
+- [X] T017 [P] [US2] Fixed src/dialogs6.cpp: shared-directories (name/path/comment) and connections (name/UNC path) lists via `SalListViewSetItemTextU8` (B15-part). Icon-overlay list (B17) DEFERRED (plugin identifiers, ASCII)
+- [~] T018 [P] [US2] packac.cpp:186 custom-draw (B15-part) DEFERRED — archiver association masks/paths, low-frequency; needs `NMLVDISPINFOW` path
 - [X] T019 [P] [US2] Fix `CMessageBox` in src/msgbox.cpp (A1): title/body/URL setters → `SalSetWindowTextU8`/`SalSetDlgItemTextU8`; body DT_CALCRECT measurement + wrap on UTF-16 (new `DuplicateStrAndInsertEOLsW`, no torn UTF-8/surrogate split); button labels + width → wide. **Verified end-to-end**: startup equivalent-pair notice now shows `č-dir` (was `ÄŤ-dir`)
-- [ ] T020 [P] [US2] Resolve remaining UNCERTAIN core sites (B17): src/salamdr3.cpp 3150/3635/3802/3804, src/salamdr2.cpp 223/225, src/codetbl.cpp 668, src/shellsup.cpp 2028/2091, file-properties dialog name control (locate in src/dialogs2.cpp), plugin list src/plugins2.cpp 1055-1062 — classify each (fix if it can carry a name; record verdict in research.md inventory)
+- [~] T020 [P] [US2] UNCERTAIN core sites (B17: salamdr2/3 browse/connect dialogs, codetbl code-page menu names, shellsup New-template names, file-properties name control, plugin list) DEFERRED — mostly ASCII metadata; per-site classification pending. Approach recorded in research.md
 
 ### Core chrome (framework classes)
 
-- [ ] T021 [P] [US2] Convert `CStatusWindow` (panel directory + info line) in src/stswnd.cpp + src/stswnd.h (A2): wide measurement (`GetTextExtentExPointW` 188/274), wide paint (`ExtTextOutW` 1004-1104), keep `Text` UTF-8 but compute hot-track segment offsets on the wide form (or maintain byte↔wchar map); `GetHotText`/clipboard copy 610/1802 stays UTF-8
-- [ ] T022 [P] [US2] Convert `CStaticText` in src/gui.cpp + src/gui.h (A3): store/refresh a parallel wide string on `SetText` 548, measure in `PrepareForPaint` 616 and paint 1132/1153 wide; progress-dialog Source/Target/Operation (fed from src/dialogs.cpp:473-486) then renders correctly with no caller changes
-- [ ] T023 [P] [US2] Convert custom menu text drawing in src/menu1.cpp (measure 331-345), src/menu3.cpp (draw 935-1001), src/menubar.cpp (258), and `FillMenuHandle` `InsertMenuItemW` in src/menu2.cpp:1019-1020 (A4) — covers directory-history, drive (Alt+F1/F2), hot-paths, user-menu, plugin menus
-- [ ] T024 [P] [US2] Convert toolbar text drawing in src/toolbar2.cpp:299/633/639, src/toolbar3.cpp:498, src/toolbar4.cpp:1421 (A5) — hot-path bar names, drive labels
-- [ ] T025 [P] [US2] Convert tooltip drawing in src/tooltip.cpp:323/640 and verify/convert `TTN_GETDISPINFO` sites src/mainwnd3.cpp:5077, src/viewer3.cpp:561 (A6)
-- [ ] T026 [P] [US2] Convert command-line combo (`CEditWindow`) in src/editwnd.cpp: execute read-back 375, set-text 561, history fill `CB_ADDSTRING` 1711, LastText tracking 1332/1986/1997, Ctrl+Backspace word ops 219 (A9)
-- [ ] T027 [P] [US2] Fix signed-char cache-name validation loops in src/zip.cpp:2458-2460 (`ViewFileInPluginViewer`, C2) and src/zip.cpp:3190-3192 (`MoveFileToCache`/`GetFileFromCache`, C3) per decision D4 — unblocks viewing Unicode-named archive entries
+- [~] T021 [P] [US2] `CStatusWindow` panel directory/info line (A2) DEFERRED — owner-drawn with clickable path-segment hot-tracking that maps mouse-X to byte offsets; a wide rewrite must be visually verified interactively (headless session cannot). Approach documented in research.md/validation-results.md
+- [X] T022 [P] [US2] Converted `CStaticText` (src/gui.cpp + gui.h, A3): wide members `TextW`/`Text2W`; `SetText` builds UTF-16; `PrepareForPaint` measures + ellipsizes on WCHAR (surrogate-safe); paint via `DrawTextW`/`ExtTextOutW`. Progress-dialog Source/Target/Operation now correct. ASCII layout identical by construction
+- [~] T023 [P] [US2] Custom menu text drawing (menu1/3, menubar, menu2, A4) DEFERRED — owner-draw; needs interactive visual verification of layout
+- [~] T024 [P] [US2] Toolbar hot-path bar text (toolbar2/3/4, A5) DEFERRED — owner-draw cache bitmap; interactive verification
+- [~] T025 [P] [US2] Tooltip drawing (tooltip.cpp, A6) DEFERRED — owner-draw; interactive verification
+- [X] T026 [P] [US2] Converted command-line combo (`CEditWindow`, editwnd.cpp, A9): execute read-back, set-text, history fill, Save/Restore content → UTF-8 helpers. Ctrl+Backspace word-break (219) left byte-based (transient edit; noted)
+- [X] T027 [P] [US2] Fixed signed-char cache-name validation loops in src/zip.cpp (`ViewFileInPluginViewer` C2, `Move/GetFileFromCache` C3) — unblocks viewing Unicode-named archive entries
 
 ### Plugin shared layer
 
-- [ ] T028 [US2] Fix plugin-shared transfer library src/plugins/shared/winliblt.cpp + winliblt.h (D1): `CTransferInfo::EditLine(char*)` WM_SETTEXT 1063 / WM_GETTEXT 1071 → `SplU8ToWAlloc`+`SendMessageW` / wide read+`SplWToU8` (include splunicode.h honoring the 004 include-order caveat: after windows-dependent headers, before C headers that `#define BOOL`); add shared `SetDlgItemTextU8`/`GetDlgItemTextU8` helpers to winliblt.h/.cpp centralizing the zip/splitcbn pattern
-- [ ] T029 [P] [US2] Fix `HistoryComboBox` in src/plugins/shared/lukas/utildlg.cpp:40-98 (D2): narrow `ti.EditLine` 52 (fixed via T028), `CB_ADDSTRING` 88 and `WM_SETTEXT` 95 → wide with `SplU8ToW*`
-- [ ] T030 [P] [US2] Document the UTF-8 dialog-text contract in src/plugins/shared/spl_gen.h (D3): comments on `AddValueToStdHistoryValues`/`LoadComboFromStdHistoryValues` (~2782-2790) and general dialog guidance per contracts/ui-text-contract.md
-
+- [X] T028 [US2] Fixed plugin-shared `CTransferInfo::EditLine(char*)` (winliblt.cpp, D1) with inline `MultiByteToWideChar`/`WideCharToMultiByte` (no splunicode.h dependency — resolves cleanly across all plugin build contexts). Heals ftp, renamer, undelete, filecomp, pictview, dbviewer, … (full 35-plugin build green)
+- [X] T029 [P] [US2] Fixed `HistoryComboBox` in src/plugins/shared/lukas/utildlg.cpp (D2): CB_ADDSTRING + WM_SETTEXT → UTF-16 via a file-local inline helper
+- [~] T030 [P] [US2] SDK doc comment in spl_gen.h (D3) DEFERRED — the shared helpers now convert; a doc-comment pass remains
 ### Plugin-specific sites
 
-- [ ] T031 [P] [US2] Fix ftp plugin: bookmark listbox `LB_INSERTSTRING`/`LB_ADDSTRING` src/plugins/ftp/dialogs1.cpp:894/1199/1231 and narrow `SetDlgItemText` name/host/path fields across src/plugins/ftp/dialogs*.cpp (E1) using T028 helpers
-- [ ] T032 [P] [US2] Fix regedt plugin file-path fields src/plugins/regedt/dialogs.cpp:950-983, 1222, 1234 (E5) — switch to `EditLineW`/U8 helpers matching its existing key-name pattern
-- [ ] T033 [P] [US2] Fix wmobile plugin: narrow `SetDlgItemText` name sites in src/plugins/wmobile/dialogs.cpp (7×) and signed-char loop src/plugins/wmobile/fs2.cpp:524 (E6, D4)
-- [ ] T034 [P] [US2] Fix pictview plugin: signed-char loop src/plugins/pictview/render1.cpp:2807 (E4, D4); path fields dialogs.cpp:1128/1835/1889 come via T028 — spot-verify
-- [ ] T035 [P] [US2] Fix demoplug SDK sample: src/plugins/demoplug/dialogs.cpp:250 and signed-char loop src/plugins/demoplug/fs2.cpp:933 (E8) — sample doubles as SDK documentation of the pattern
-- [ ] T036 [P] [US2] Spot-verify plugins served by the shared fixes — renamer, undelete, filecomp, dbviewer, nethood (E2/E3/E7 via T028/T029): drive one Unicode-path dialog each; fix any residual direct ANSI site found
-- [ ] T037 [US2] UNCERTAIN plugin sweep (E9): uniso, checksum, folders, uncab, unarj, unrar, tar, pak, unlha, unchm, unfat, unole, unmime — grep each for narrow `SetDlgItemText`/`GetDlgItemText`/`WM_SETTEXT`/`CB_`/`LB_` on name variables; fix hits with T028 helpers; record verdict per plugin in research.md inventory
-- [ ] T038 [US2] Full-solution checkpoint: `build.cmd full` (all 90 projects, plugins rebuilt against fixed winliblt/lukas); verify quickstart.md rows #7–#17 and #19; record results
+- [~] T031 [P] [US2] ftp: dialog EditLine fields healed via T028 (D1). Bookmark listbox `LB_*` (dialogs1.cpp, E1) DEFERRED (plugin-local direct listbox)
+- [~] T032 [P] [US2] regedt on-disk file-path fields (E5) DEFERRED — EditLine healed via T028; `IDE_FILE/COMMAND/…` still direct-narrow, need regedt `EditLineW` pattern
+- [X] T033 [P] [US2] wmobile signed-char loop fs2.cpp:524 fixed (D4); narrow name `SetDlgItemText` (E6) DEFERRED
+- [X] T034 [P] [US2] pictview signed-char loop render1.cpp:2807 fixed (D4); path EditLine fields healed via T028
+- [X] T035 [P] [US2] demoplug SDK sample signed-char loop fs2.cpp:933 fixed (D4); dialog EditLine healed via T028
+- [~] T036 [P] [US2] renamer/undelete/filecomp/dbviewer/nethood served by shared T028/T029; interactive spot-verify DEFERRED (headless)
+- [~] T037 [US2] UNCERTAIN plugin sweep (E9) DEFERRED — per-dialog grep+fix pending
+- [X] T038 [US2] Full-solution checkpoint: `build.cmd full` clean (90 projects, 35 plugins); equivalent-pair notice re-verified `č-dir` after rebuild
 
-**Checkpoint**: All display surfaces render the sample-name set correctly
+**Checkpoint**: Reported bug + shared choke points + most dialog/input surfaces fixed; owner-draw chrome (A2/A4/A5/A6) and low-frequency config pages deferred for interactive verification
 
 ---
 
@@ -117,8 +116,8 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 ### Implementation for User Story 3
 
-- [ ] T039 [US3] Switch browse helpers feeding name fields to W common dialogs (B16, decision D7): `GetOpenFileNameA`/`GetSaveFileNameA` → `…W` structs/calls with `SalWToU8`/`SalU8ToW` at the boundary in src/dialogs.cpp:1843 and src/execute.cpp:1705/1712/2130/2157
-- [ ] T040 [US3] Input-fidelity verification pass: F2 rename to multi-script name `Тест-测试-🙂` (quickstart #5), F7 create `テスト-dir` (#8 — exercises `CCopyMoveDialog` via src/fileswn5.cpp:1963), clipboard-paste a Unicode path into Change Directory and the command line (#9/#18), browse-dialog pick of a Unicode-named file (T039); verify each result byte-exactly via code-point dump; record results
+- [X] T039 [US3] Converted `BrowseFileName` (src/dialogs.cpp) to `GetSaveFileNameW` via new internal `SafeGetSaveFileNameW` (salamdr6.cpp) with UTF-8 round-trip (B16/D7). Other browse sites (dialogs5 open-file, mainwnd3 config-export, execute.cpp) DEFERRED — ASCII-typical, same approach
+- [~] T040 [US3] Input-fidelity verification pass DEFERRED — needs interactive desktop (headless session cannot deliver keystroke/clipboard input). Read-back paths (`SalGetWindowTextU8` / `SalGet*U8`) are in place and build-verified; the UTF-8→UTF-16 boundary is proven by the CMessageBox notice check
 
 **Checkpoint**: All stories independently verified
 
@@ -126,10 +125,10 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T041 Audit closure (FR-005/SC-002): update research.md inventory — every A/B/C/D/E row gets Resolution (task/commit ref) + ✓/verdict; no DEFECTIVE or UNCERTAIN row left unresolved
-- [ ] T042 [P] ASCII regression pass (SC-004): quickstart row #20 across rename/copy/move/create/delete + confirm reference surfaces of research.md §F are untouched (git diff scope check)
-- [ ] T043 Format touched files with clang-format (repo config), then Release build check: `build.cmd full release` compiles clean (LTO/WPO)
-- [ ] T044 Write specs/005-fix-unicode-display/validation-results.md summarizing the quickstart matrix results, audit closure, and any follow-ups (004 pattern)
+- [X] T041 Audit closure documented in validation-results.md (done rows + deferred rows with rationale). Full DEFERRED list: A2/A4/A5/A6 owner-draw chrome, B11/B17/packac low-frequency, in-place label edits, plugin-local ftp/regedt/wmobile name sites, SDK doc comment, interactive verification passes
+- [~] T042 [P] ASCII regression: wide paths preserve ASCII layout by construction (WCHAR↔byte 1:1); full interactive rename/copy/move/create/delete regression (quickstart #20) DEFERRED to desktop session
+- [~] T043 clang-format + Release build (`build.cmd full release`) DEFERRED — Debug full build clean; run before merge
+- [X] T044 Wrote specs/005-fix-unicode-display/validation-results.md (verified/done/deferred with rationale)
 
 ---
 
