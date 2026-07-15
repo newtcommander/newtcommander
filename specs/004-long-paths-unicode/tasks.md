@@ -143,7 +143,7 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T051 [P] [US4] Port `src/plugins/7zip/` to SDK 104 (7za backend already has W file classes — bridge at plugin boundary)
 - [X] T052 [P] [US4] Port `src/plugins/unarj/` to SDK 104
 - [X] T053 [P] [US4] Port `src/plugins/uncab/` to SDK 104
-- [ ] T054 [P] [US4] Port `src/plugins/unchm/` to SDK 104
+- [X] T054 [P] [US4] Port `src/plugins/unchm/` to SDK 104
 - [X] T055 [P] [US4] Port `src/plugins/uniso/` to SDK 104
 - [ ] T056 [P] [US4] Port `src/plugins/unlha/` to SDK 104
 - [ ] T057 [P] [US4] Port `src/plugins/unmime/` to SDK 104
@@ -192,11 +192,11 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 
 - [X] T085 SC-009 benchmark: 100k-item listing/sort/scroll vs. previous release (fixture from T005); if >±10%, implement per-item cached UTF-16 name/sort key per R5 fallback in `src/fileswn3.cpp`/`src/sort.cpp`
 - [X] T086 [P] SC-006 regression checklist run on ordinary ASCII paths (browse, ops, sort, config save/load, session restore) vs. previous release
-- [ ] T087 [P] Edge-case matrix from spec.md: 255-char component at depth, FAT32/exFAT destination limits, non-BMP names in sort/column widths, UNC deep paths, config round-trip with Unicode hot paths/history (FR-010)
+- [X] T087 [P] Edge-case matrix from spec.md: 255-char component at depth, FAT32/exFAT destination limits, non-BMP names in sort/column widths, UNC deep paths, config round-trip with Unicode hot paths/history (FR-010)
 - [X] T088 [P] Manifest verification per `contracts/app-manifest.md`: `mt.exe -inputresource` dump asserts `longPathAware`; quickstart #1–2 re-run with `LongPathsEnabled` absent
 - [X] T089 [P] Update `architecture/08-code-standards.md` with the UTF-8-internal string convention + new-module docs; note SDK 104 in `architecture/06-plugin-architecture.md`
 - [ ] T090 [P] English resource strings finalized in `src/lang/` and exported for `translations/` (FR-007 notice, FR-014 refusals, error texts)
-- [ ] T091 Full quickstart.md pass (#1–10) as release gate; record results in `specs/004-long-paths-unicode/checklists/`
+- [X] T091 Full quickstart.md pass (#1–10) as release gate; record results in `specs/004-long-paths-unicode/checklists/`
 
 ---
 
