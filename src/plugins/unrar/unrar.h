@@ -42,7 +42,7 @@
 
 struct CFileHeader
 {
-    char FileName[260];
+    char FileName[3 * MAX_PATH]; // UTF-8 entry name (interface 104); headroom for multi-byte names
     CQuadWord Size;
     CQuadWord CompSize;
     FILETIME Time;

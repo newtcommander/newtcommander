@@ -446,16 +446,19 @@ int LHAGetHeader(FILE* fp, LHA_HEADER* lpHeader)
         name_length += dir_length;
     }
 
-    // LHA format boundary (interface 104): names are stored in the OEM code page ->
-    // convert OEM -> UTF-16 -> UTF-8 (the encoding crossing the plugin interface)
+    // LHA format boundary (interface 104): the name must cross the plugin interface as
+    // UTF-8. ASCII is already valid UTF-8 byte for byte (short-circuit); a name that is
+    // already valid UTF-8 is kept verbatim (never rewrite name bytes); everything else is
+    // a legacy OEM name -> convert OEM -> UTF-16 -> UTF-8.
+    if (!SplIsASCII(lpHeader->name) &&
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, lpHeader->name, -1, NULL, 0) <= 0)
     {
         WCHAR wname[3 * MAX_PATH];
         char u8name[3 * MAX_PATH];
         if (MultiByteToWideChar(CP_OEMCP, 0, lpHeader->name, -1, wname, _countof(wname)) > 0 &&
             SplWToU8(wname, u8name, sizeof(u8name)) > 0)
             strcpy(lpHeader->name, u8name);
-        else
-            OemToChar(lpHeader->name, lpHeader->name); // fallback: legacy ACP behavior
+        // else: undecodable either way -> leave the bytes untouched
     }
 
     for (i = 0;; i++)

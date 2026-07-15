@@ -259,7 +259,12 @@ BOOL CPluginInterfaceForArchiver::ListArchive(CSalamanderForOperationsAbstract* 
     ArchiveData->RefCount = 0;
 
     // get the filetime of the "archive" - files inside will have the same time
-    HANDLE hFile = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    // interface 104: the archive path is UTF-8 -> extended-length UTF-16 for the file API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    HANDLE hFile = wFileName != NULL
+                       ? CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)
+                       : INVALID_HANDLE_VALUE;
+    free(wFileName);
     if (hFile != INVALID_HANDLE_VALUE)
     {
         GetFileTime(hFile, NULL, NULL, &ArchiveData->ft);
@@ -428,7 +433,12 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                         fileName, mask, targetDir, delArchiveWhenDone);
     CArchiveData ArchiveData;
     // get the filetime of the "archive" - files inside will have the same time
-    HANDLE hFile = CreateFile(fileName, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    // interface 104: the archive path is UTF-8 -> extended-length UTF-16 for the file API
+    WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+    HANDLE hFile = wFileName != NULL
+                       ? CreateFileW(wFileName, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL)
+                       : INVALID_HANDLE_VALUE;
+    free(wFileName);
     if (hFile != INVALID_HANDLE_VALUE)
     {
         GetFileTime(hFile, NULL, NULL, &ArchiveData.ft);

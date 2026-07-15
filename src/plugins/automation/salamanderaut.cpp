@@ -412,7 +412,6 @@ void CSalamanderAutomation::OnEndExecution()
 {
     HRESULT hr = S_OK;
     int err;
-    _bstr_t fileT(file);
     CSalamanderPluginInternalViewerData viewerData;
     TCHAR caption[512];
     int cacheMode;
@@ -447,10 +446,15 @@ void CSalamanderAutomation::OnEndExecution()
         return E_INVALIDARG;
     }
 
+    // 'file' is a script BSTR; interface paths are UTF-8 (interface 104)
+    char* fileU8 = SplWToU8Alloc(file);
+    if (fileU8 == NULL)
+        return E_INVALIDARG;
+
     viewerData.Size = sizeof(viewerData);
-    viewerData.FileName = fileT;
+    viewerData.FileName = fileU8;
     viewerData.Mode = 0; // text mode
-    StringCchPrintf(caption, _countof(caption), _T("%s - %s"), (PCTSTR)fileT,
+    StringCchPrintf(caption, _countof(caption), _T("%s - %s"), fileU8,
                     SalamanderGeneral->LoadStr(g_hLangInst, IDS_PLUGINNAME));
     viewerData.Caption = caption;
     viewerData.WholeCaption = TRUE;
@@ -463,20 +467,26 @@ void CSalamanderAutomation::OnEndExecution()
 
         if (SalamanderGeneral->SalGetTempFileName(NULL, _T("AUT"), szTempFile, TRUE, &dwDosErr))
         {
-            if (CopyFile(fileT, szTempFile, FALSE))
+            // copy on the W layer; both paths are UTF-8 (interface 104)
+            WCHAR* wSrc = SplU8ToWExtAlloc(fileU8);
+            WCHAR* wTmp = SplU8ToWExtAlloc(szTempFile);
+            if (wSrc != NULL && wTmp != NULL && CopyFileW(wSrc, wTmp, FALSE))
             {
                 viewerData.FileName = szTempFile;
             }
             else
             {
-                dwDosErr = GetLastError();
+                dwDosErr = (wSrc == NULL || wTmp == NULL) ? ERROR_INVALID_NAME : GetLastError();
             }
+            free(wSrc);
+            free(wTmp);
         }
 
         if (dwDosErr != NO_ERROR)
         {
             SetCursor(hOldCursor);
             RaiseDosError(dwDosErr, __uuidof(ISalamander), GetProgId());
+            free(fileU8);
             return HRESULT_FROM_WIN32(dwDosErr);
         }
     }
@@ -486,7 +496,7 @@ void CSalamanderAutomation::OnEndExecution()
             &viewerData,
             cacheMode > 0,
             NULL,
-            PathFindFileName(fileT),
+            PathFindFileName(fileU8),
             err))
     {
         hr = E_FAIL;
@@ -516,6 +526,7 @@ void CSalamanderAutomation::OnEndExecution()
 
     SetCursor(hOldCursor);
 
+    free(fileU8);
     return hr;
 }
 

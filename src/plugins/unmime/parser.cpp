@@ -211,8 +211,13 @@ static int __cdecl compare_header_names(const void* elem1, const void* elem2)
 BOOL CInputFile::Open(LPCTSTR pszName)
 {
     CALL_STACK_MESSAGE1("CInputFile::Open()");
-    if ((hFile = CreateFile(pszName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                            FILE_FLAG_SEQUENTIAL_SCAN, NULL)) == INVALID_HANDLE_VALUE)
+    // interface 104: the archive path is UTF-8 -> extended-length UTF-16 for the file API
+    WCHAR* wName = SplU8ToWExtAlloc(pszName);
+    hFile = wName != NULL
+                ? CreateFileW(wName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
+                : INVALID_HANDLE_VALUE;
+    free(wName);
+    if (hFile == INVALID_HANDLE_VALUE)
     {
         iErrorStr = -1;
         return Error(IDS_OPENERROR);

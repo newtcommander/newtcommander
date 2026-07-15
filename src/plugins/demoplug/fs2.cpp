@@ -1493,7 +1493,7 @@ CPluginFSInterface::Delete(const char* fsName, int mode, HWND parent, int panel,
           while (1)
           {
             SalamanderGeneral->ClearReadOnlyAttr(fileName, f->Attr);  // allow deletion of read-only items
-            if (!DeleteFile(fileName))
+            if (!DiskDeleteFileU8(fileName)) // UTF-8 disk path -> W file API (interface 104)
             {
               if (!skipAllErrors)
               {
@@ -2279,7 +2279,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                             char tmpName2[MAX_PATH];
                             if (SalamanderGeneral->SalGetTempFileName(NULL, "DFS", tmpName2, TRUE, NULL))
                             {
-                                if (CopyFile(targetName, tmpName2, FALSE))
+                                if (DiskCopyFileU8(targetName, tmpName2, FALSE)) // UTF-8 disk paths -> W (interface 104)
                                 {
                                     BOOL alreadyExists;
                                     if (!SalamanderGeneral->MoveFileToCache(dfsSourceName, f->Name, NULL, tmpName2,
@@ -2295,7 +2295,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                                 {
                                     // clear the read-only attribute so the temporary copy can be deleted
                                     SalamanderGeneral->ClearReadOnlyAttr(tmpName2);
-                                    DeleteFile(tmpName2);
+                                    DiskDeleteFileU8(tmpName2); // UTF-8 disk path -> W (interface 104)
                                 }
                             }
                             else
@@ -2329,7 +2329,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                         // (the ConfirmOnFileOverwrite and ConfirmOnSystemHiddenFileOverwrite flags apply)
                         while (1)
                         {
-                            if (!CopyFile(tmpName, targetName, TRUE))
+                            if (!DiskCopyFileU8(tmpName, targetName, TRUE)) // UTF-8 disk paths -> W (interface 104)
                             {
                                 if (!skipAllErrors)
                                 {
@@ -2375,7 +2375,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                         {
                             // allow deletion of read-only items
                             SalamanderGeneral->ClearReadOnlyAttr(sourceName, f->Attr);
-                            if (!DeleteFile(sourceName))
+                            if (!DiskDeleteFileU8(sourceName)) // UTF-8 disk path -> W (interface 104)
                             {
                                 if (!skipAllErrors)
                                 {
@@ -2785,7 +2785,7 @@ CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, const char* fsNa
                 // (the ConfirmOnFileOverwrite and ConfirmOnSystemHiddenFileOverwrite flags apply)
                 while (1)
                 {
-                    if (!CopyFile(sourceName, targetName, TRUE))
+                    if (!DiskCopyFileU8(sourceName, targetName, TRUE)) // UTF-8 disk paths -> W (interface 104)
                     {
                         if (!skipAllErrors)
                         {
@@ -2828,7 +2828,7 @@ CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, const char* fsNa
                         // allow deletion of read-only items
                         SalamanderGeneral->ClearReadOnlyAttr(sourceName, attr);
 
-                        if (!DeleteFile(sourceName))
+                        if (!DiskDeleteFileU8(sourceName)) // UTF-8 disk path -> W (interface 104)
                         {
                             if (!skipAllErrors)
                             {

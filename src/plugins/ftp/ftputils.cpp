@@ -1677,6 +1677,22 @@ BOOL FTPReadFTPReply(char* readBytes, int readBytesCount, int readBytesOffset,
     return ret;
 }
 
+// interface 104: the path extracted from a "257" reply arrives in the server's
+// encoding; decode it to UTF-8 in place (symmetrically with listing entry names,
+// see FTPListingFieldToU8) so the working path matches the UTF-8 names built on
+// top of it. ASCII (the common case) is left byte-for-byte unchanged.
+static void FTPDecodeServerReplyPathInPlace(char* dirBuf, int dirBufSize)
+{
+    if (dirBufSize <= 0 || dirBuf[0] == 0 || SplIsASCII(dirBuf))
+        return;
+    char* u8 = FTPListingFieldToU8(dirBuf, (int)strlen(dirBuf));
+    if (u8 != NULL)
+    {
+        lstrcpyn(dirBuf, u8, dirBufSize); // truncation only for pathological over-long legacy paths
+        SalamanderGeneral->Free(u8);
+    }
+}
+
 BOOL FTPGetDirectoryFromReply(const char* reply, int replySize, char* dirBuf, int dirBufSize)
 {
     CALL_STACK_MESSAGE3("FTPGetDirectoryFromReply(, %d, , %d)", replySize, dirBufSize);
@@ -1712,6 +1728,7 @@ BOOL FTPGetDirectoryFromReply(const char* reply, int replySize, char* dirBuf, in
                 len = dirBufSize - 1;
             memcpy(dirBuf, s + 1, len);
             dirBuf[len] = 0;
+            FTPDecodeServerReplyPathInPlace(dirBuf, dirBufSize); // server encoding -> UTF-8
             return TRUE;
         }
         while (s < end && *s != '"')
@@ -1737,7 +1754,9 @@ BOOL FTPGetDirectoryFromReply(const char* reply, int replySize, char* dirBuf, in
         }
         *d = 0;
     }
-    if (!ok)
+    if (ok)
+        FTPDecodeServerReplyPathInPlace(dirBuf, dirBufSize); // server encoding -> UTF-8
+    else
         TRACE_E("Syntax error in get-directory reply (reply code 257) in FTPGetDirectoryFromReply().");
     return ok;
 }

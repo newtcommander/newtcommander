@@ -173,6 +173,35 @@ void RARSetPassword(HANDLE hArcData, char* Password)
 
 // ****************************************************************************
 //
+// UTF-8 wrappers for disk file APIs
+//
+// Since interface 104 the char* paths handed to the plugin are UTF-8, so the
+// A variants of the file APIs would corrupt non-ASCII names. Convert to an
+// extended-length wide path and call the W variant.
+//
+
+static BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    free(w);
+    return ret;
+}
+
+static BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    free(w);
+    return ret;
+}
+
+// ****************************************************************************
+//
 // CPluginInterface
 //
 
@@ -512,9 +541,9 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
                     SetFileTime(TargetFile, NULL, NULL, &header.Time);
                     CloseHandle(TargetFile);
                     if (!ret)
-                        DeleteFile(TargetName);
+                        DeleteFileU8(TargetName);
                     else
-                        SetFileAttributes(TargetName, header.Attr);
+                        SetFileAttributesU8(TargetName, header.Attr);
                 }
                 if (Abort)
                 {
@@ -700,11 +729,11 @@ BOOL CPluginInterfaceForArchiver::UnpackOneFile(CSalamanderForOperationsAbstract
                 CloseHandle(TargetFile);
                 if (r)
                 {
-                    SetFileAttributes(TargetName, header.Attr);
+                    SetFileAttributesU8(TargetName, header.Attr);
                     ret = TRUE;
                 }
                 else
-                    DeleteFile(TargetName);
+                    DeleteFileU8(TargetName);
             }
             if (match || !r)
                 break;
@@ -837,7 +866,7 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                         if (!(header.Flags & RHDF_DIRECTORY))
                             op = RAR_TEST;
                         else
-                            SetFileAttributes(TargetName, header.Attr);
+                            SetFileAttributesU8(TargetName, header.Attr);
                     }
                     break;
                 }
@@ -850,9 +879,9 @@ BOOL CPluginInterfaceForArchiver::UnpackWholeArchive(CSalamanderForOperationsAbs
                 SetFileTime(TargetFile, NULL, NULL, &header.Time);
                 CloseHandle(TargetFile);
                 if (!ret)
-                    DeleteFile(TargetName);
+                    DeleteFileU8(TargetName);
                 else
-                    SetFileAttributes(TargetName, header.Attr);
+                    SetFileAttributesU8(TargetName, header.Attr);
             }
             if (Abort)
             {
@@ -977,8 +1006,11 @@ BOOL CPluginInterfaceForArchiver::OpenArchive()
     CALL_STACK_MESSAGE1("CPluginInterfaceForArchiver::OpenArchive()");
     RAROpenArchiveDataEx oad;
     ZeroMemory(&oad, sizeof(oad));
-    oad.ArcName = ArcFileName;
-    oad.ArcNameW = NULL;
+    // interface 104: ArcFileName is UTF-8; pass the wide archive name so
+    // unrar.dll opens archives whose path contains non-ASCII characters
+    WCHAR* arcNameW = SplU8ToWAlloc(ArcFileName);
+    oad.ArcName = ArcFileName; // kept for compatibility (ASCII paths)
+    oad.ArcNameW = arcNameW;   // authoritative for the modern DLL
     // Warning: RAR_OM_LIST lists files spanned over multiple parts only once,
     // but RAR_OM_EXTRACT lists every file segment
     oad.OpenMode = List ? RAR_OM_LIST : RAR_OM_EXTRACT;
@@ -988,6 +1020,8 @@ BOOL CPluginInterfaceForArchiver::OpenArchive()
     PluginData->PasswordForOpenArchive = TRUE;
     ArcHandle = RAROpenArchiveEx(&oad);
     PluginData->PasswordForOpenArchive = FALSE;
+    if (arcNameW != NULL)
+        free(arcNameW); // the DLL only needs the name during the open call
     if (!ArcHandle)
     {
         int err;
@@ -1057,17 +1091,21 @@ BOOL CPluginInterfaceForArchiver::ReadHeader(CFileHeader* header)
     {
     case 0:
     {
-        // Not every char representable in ANSI page can be reprsented in OEM page used by RAR files
-        // e.g. the Ellipsis character 0x2026
+        // interface 104: CFileData names are UTF-8. Prefer the wide entry name
+        // (FileNameW) filled by unrar.dll and convert it to UTF-8; fall back to
+        // the legacy OEM-encoded FileName only when no wide name is provided.
         if (headerData.FileNameW[0])
         {
-            WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, headerData.FileNameW, -1, header->FileName,
-                                sizeof(header->FileName), NULL, NULL);
+            if (SplWToU8(headerData.FileNameW, header->FileName, sizeof(header->FileName)) == 0)
+                header->FileName[0] = 0;
         }
         else
         {
-            lstrcpy(header->FileName, headerData.FileName + (headerData.FileName[0] == '\\' ? 1 : 0));
-            OemToChar(header->FileName, header->FileName);
+            const char* oemName = headerData.FileName + (headerData.FileName[0] == '\\' ? 1 : 0);
+            WCHAR wName[1024];
+            if (MultiByteToWideChar(CP_OEMCP, 0, oemName, -1, wName, _countof(wName)) == 0 ||
+                SplWToU8(wName, header->FileName, sizeof(header->FileName)) == 0)
+                header->FileName[0] = 0;
         }
         header->Size = CQuadWord(headerData.UnpSize, headerData.UnpSizeHigh);
         header->CompSize = CQuadWord(headerData.PackSize, headerData.PackSizeHigh);
@@ -1494,7 +1532,7 @@ BOOL CPluginInterfaceForArchiver::MakeFilesList(TIndirectArray2<CRARExtractInfo>
                                                    &PluginData->Silent, TRUE, &skip, NULL, 0, NULL, NULL) == INVALID_HANDLE_VALUE &&
                 !skip)
                 return FALSE;
-            SetFileAttributes(dir, pFileData->Attr);
+            SetFileAttributesU8(dir, pFileData->Attr);
         }
         else
         {
@@ -1524,10 +1562,10 @@ BOOL CPluginInterfaceForArchiver::DoThisFile(CFileHeader* header, const char* ar
 {
     CALL_STACK_MESSAGE3("CPluginInterfaceForArchiver::DoThisFile(, %s, %s)", arcName,
                         targetDir);
-    char message[MAX_PATH + 32];
+    char message[3 * MAX_PATH + 64];
 
-    lstrcpy(message, LoadStr(IDS_EXTRACTING));
-    lstrcat(message, header->FileName);
+    // bounded: header->FileName is a UTF-8 entry name up to 3*MAX_PATH bytes
+    _snprintf_s(message, _TRUNCATE, "%s%s", LoadStr(IDS_EXTRACTING), header->FileName);
     Salamander->ProgressDialogAddText(message, TRUE);
     if (header->Flags & RHDF_SPLITBEFORE)
     {

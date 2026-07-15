@@ -74,15 +74,18 @@ HRESULT CSalamanderPanelAutomation::RaiseChPPErr(int nErr)
 /* [propput][id] */ HRESULT STDMETHODCALLTYPE CSalamanderPanelAutomation::put_Path(
     /* [in] */ BSTR path)
 {
-    _bstr_t pathT(path);
+    // 'path' is a script BSTR (UTF-16); Salamander interface paths are UTF-8 (interface 104)
+    char* pathU8 = SplWToU8Alloc(path);
     int err;
+    HRESULT hr = S_OK;
 
-    if (!SalamanderGeneral->ChangePanelPath(m_nPanel, pathT, &err) && err != CHPPFR_FILENAMEFOCUSED) // path contained filename part, the file name was focused
+    if (!SalamanderGeneral->ChangePanelPath(m_nPanel, pathU8, &err) && err != CHPPFR_FILENAMEFOCUSED) // path contained filename part, the file name was focused
     {
-        return RaiseChPPErr(err);
+        hr = RaiseChPPErr(err);
     }
 
-    return S_OK;
+    free(pathU8);
+    return hr;
 }
 
 /* [propget][id] */ HRESULT STDMETHODCALLTYPE CSalamanderPanelAutomation::get_Path(
@@ -91,7 +94,6 @@ HRESULT CSalamanderPanelAutomation::RaiseChPPErr(int nErr)
     TCHAR szPath[MAX_PATH];
     int type;
     TCHAR* pszArchiveOrFs;
-    _bstr_t pathT;
 
     if (!SalamanderGeneral->GetPanelPath(
             m_nPanel,
@@ -104,8 +106,10 @@ HRESULT CSalamanderPanelAutomation::RaiseChPPErr(int nErr)
         return E_FAIL;
     }
 
-    pathT = szPath;
-    *path = pathT.Detach();
+    // interface path is UTF-8 (interface 104) -> hand the script a UTF-16 BSTR
+    WCHAR* wPath = SplU8ToWAlloc(szPath);
+    *path = SysAllocString(wPath != NULL ? wPath : L"");
+    free(wPath);
 
     return S_OK;
 }

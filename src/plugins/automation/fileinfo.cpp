@@ -245,7 +245,9 @@ PTSTR CFileInfo::DupWideStr(PCWSTR s, int len)
         return EmptyStr();
     }
 
-    cch = WideCharToMultiByte(CP_ACP, 0, s, len, NULL, 0, NULL, NULL);
+    // the narrowed string is handed to Salamander's Dialog* APIs (Path/error text),
+    // which expect UTF-8 since plugin interface 104
+    cch = WideCharToMultiByte(CP_UTF8, 0, s, len, NULL, 0, NULL, NULL);
     if (cch <= 0)
     {
         _ASSERTE(0);
@@ -255,12 +257,12 @@ PTSTR CFileInfo::DupWideStr(PCWSTR s, int len)
     if (len < 0)
     {
         dup = new char[cch];
-        cch = WideCharToMultiByte(CP_ACP, 0, s, len, dup, cch, NULL, NULL);
+        cch = WideCharToMultiByte(CP_UTF8, 0, s, len, dup, cch, NULL, NULL);
     }
     else
     {
         dup = new char[cch + 1];
-        cch = WideCharToMultiByte(CP_ACP, 0, s, len, dup, cch + 1, NULL, NULL);
+        cch = WideCharToMultiByte(CP_UTF8, 0, s, len, dup, cch + 1, NULL, NULL);
         if (cch > 0)
         {
             dup[cch] = _T('\0');

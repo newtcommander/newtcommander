@@ -666,7 +666,7 @@ static BOOL Decode(CDecoder* pDec, BOOL bOnlyOneFile)
         if (InputFile.iCurrentLine >= pNextMarker->iLine)
         {
             iNextMarker++;
-            char text[MAX_PATH + 32]; // must be longer than MAX_PATH due to "too long name" (see below)
+            char text[3 * MAX_PATH]; // interface 104: UTF-8 name (up to 3 bytes/char) + "too long name" slack (see below)
             if (pNextMarker->iMarkerType == MARKER_START)
             {
                 CStartMarker* pStartMarker = (CStartMarker*)pNextMarker;
@@ -681,16 +681,16 @@ static BOOL Decode(CDecoder* pDec, BOOL bOnlyOneFile)
                 }
                 else
                 {
-                    strncpy_s(text, MAX_PATH, pszDir, _TRUNCATE);
-                    if (!SalamanderGeneral->SalPathAppend(text, pStartMarker->cFileName, MAX_PATH))
+                    strncpy_s(text, 3 * MAX_PATH, pszDir, _TRUNCATE);
+                    if (!SalamanderGeneral->SalPathAppend(text, pStartMarker->cFileName, 3 * MAX_PATH))
                     { // too long name - reported in SalamanderSafeFile->SafeFileCreate
                         char* end = text + strlen(text);
                         if (end > text && *(end - 1) != '\\')
                             *end++ = '\\';
                         strncpy_s(end, _countof(text) - (end - text), pStartMarker->cFileName, _TRUNCATE);
                     }
-                    strcpy_s(pszText2, MAX_PATH, pszArcName);
-                    SalamanderGeneral->SalPathAppend(pszText2, pStartMarker->cFileName, MAX_PATH);
+                    strcpy_s(pszText2, 3 * MAX_PATH, pszArcName);
+                    SalamanderGeneral->SalPathAppend(pszText2, pStartMarker->cFileName, 3 * MAX_PATH);
                     GetInfo(pszBuf, pFileTime, pStartMarker->iSize);
                     BOOL bSkip;
                     hFile = SalamanderSafeFile->SafeFileCreate(text, GENERIC_WRITE, FILE_SHARE_READ,
@@ -736,8 +736,8 @@ static BOOL Decode(CDecoder* pDec, BOOL bOnlyOneFile)
 
                 if (!bNull && Salamander != NULL)
                 {
-                    strcpy_s(pszText2, MAX_PATH, LoadStr(IDS_UNPACKING));
-                    strcat_s(pszText2, MAX_PATH, pStartMarker->cFileName);
+                    strcpy_s(pszText2, 3 * MAX_PATH, LoadStr(IDS_UNPACKING));
+                    strcat_s(pszText2, 3 * MAX_PATH, pStartMarker->cFileName);
                     Salamander->ProgressDialogAddText(pszText2, TRUE);
                     Salamander->ProgressSetTotalSize(CQuadWord(pStartMarker->iSize, 0), CQuadWord(-1, -1));
                     if (!Salamander->ProgressSetSize(CQuadWord(0, 0), currentProgress, TRUE))
@@ -766,7 +766,13 @@ static BOOL Decode(CDecoder* pDec, BOOL bOnlyOneFile)
                     else
                     {
                         CloseHandle(hFile);
-                        DeleteFile(text);
+                        // interface 104: 'text' is a UTF-8 target path -> extended-length UTF-16 for the file API
+                        WCHAR* wText = SplU8ToWExtAlloc(text);
+                        if (wText != NULL)
+                        {
+                            DeleteFileW(wText);
+                            free(wText);
+                        }
                     }
 
                 if (err || bAbort)
@@ -809,7 +815,7 @@ BOOL DecodeSelectedBlocks(LPCTSTR pszFileName, CParserOutput* output, LPCTSTR di
     Salamander = sal;
     currentProgress = CQuadWord(0, 0);
     bAbort = FALSE;
-    pszText2 = new char[MAX_PATH];
+    pszText2 = new char[3 * MAX_PATH]; // interface 104: holds a UTF-8 path/name (up to 3 bytes/char)
     pszBuf = new char[100];
     bLastLine = FALSE;
 

@@ -8,8 +8,10 @@
 	Copyright (c) 2010-2023 Open Salamander Authors
 	
 	strconv.cpp
-	Convenience classes to convert ANSI strings to OLE strings
-	and vice versa.
+	Convenience classes to convert Salamander interface strings to OLE
+	strings and vice versa. Since plugin interface 104 every char* name/path
+	crossing the Salamander interface is UTF-8, so these converters use
+	CP_UTF8 (a script's BSTR is UTF-16, Salamander's char* is UTF-8).
 */
 
 #include "precomp.h"
@@ -43,18 +45,18 @@ OLE2A::operator const char*()
         return m_pszDynamicBuffer;
     }
 
-    int len = WideCharToMultiByte(CP_ACP, 0, m_pstrOleString, -1,
+    int len = WideCharToMultiByte(CP_UTF8, 0, m_pstrOleString, -1,
                                   m_szStaticBuffer, sizeof(m_szStaticBuffer), NULL, NULL);
     if (len > 0)
     {
         return m_szStaticBuffer;
     }
 
-    len = WideCharToMultiByte(CP_ACP, 0, m_pstrOleString, -1,
+    len = WideCharToMultiByte(CP_UTF8, 0, m_pstrOleString, -1,
                               NULL, 0, NULL, NULL);
 
     m_pszDynamicBuffer = new char[len];
-    WideCharToMultiByte(CP_ACP, 0, m_pstrOleString, -1,
+    WideCharToMultiByte(CP_UTF8, 0, m_pstrOleString, -1,
                         m_pszDynamicBuffer, len, NULL, NULL);
 
     return m_pszDynamicBuffer;
@@ -90,18 +92,18 @@ A2OLE::operator LPCOLESTR()
         return m_pstrDynamicBuffer;
     }
 
-    int len = MultiByteToWideChar(CP_ACP, 0, m_pszAnsiString, -1,
+    int len = MultiByteToWideChar(CP_UTF8, 0, m_pszAnsiString, -1,
                                   m_achStaticBuffer, _countof(m_achStaticBuffer));
     if (len > 0)
     {
         return m_achStaticBuffer;
     }
 
-    len = MultiByteToWideChar(CP_ACP, 0, m_pszAnsiString, -1,
+    len = MultiByteToWideChar(CP_UTF8, 0, m_pszAnsiString, -1,
                               NULL, 0);
 
     m_pstrDynamicBuffer = new OLECHAR[len];
-    MultiByteToWideChar(CP_ACP, 0, m_pszAnsiString, -1,
+    MultiByteToWideChar(CP_UTF8, 0, m_pszAnsiString, -1,
                         m_pstrDynamicBuffer, len);
 
     return m_pstrDynamicBuffer;

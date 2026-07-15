@@ -20,6 +20,8 @@
 
 #include "versinfo.rh2"
 
+#include "splunicode.h"
+
 #include "spl_com.h"
 #include "spl_base.h"
 #include "spl_gen.h"

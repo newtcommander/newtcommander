@@ -1621,7 +1621,10 @@ void CPluginFSInterface::ContextMenu(const char* fsName, HWND parent, int menuX,
 #if defined(_DEBUG) && _WIN32_WINNT >= 0x0501
 void DumpExistingFileLayout(FILE* file, const char* fileName, CVolume<char>* volume)
 {
-    HANDLE hFile = HANDLES_Q(CreateFile(fileName, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL));
+    // fileName is UTF-8 (plugin interface 104): open the local file on the W layer
+    WCHAR* fileNameW = SplU8ToWExtAlloc(fileName);
+    HANDLE hFile = fileNameW == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(CreateFileW(fileNameW, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL));
+    free(fileNameW);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         DWORD err = GetLastError();
@@ -1816,7 +1819,10 @@ BOOL CPluginFSInterface::TestUndeleteOnExistingFile(FILE* file, FILE_RECORD_I<ch
         }
         Progress->SetSourceFileName(path);
 
-        FILE* orgFile = fopen(path, "rb");
+        // path is UTF-8 (plugin interface 104): open on the W layer
+        WCHAR* pathW = SplU8ToWExtAlloc(path);
+        FILE* orgFile = pathW == NULL ? NULL : _wfopen(pathW, L"rb");
+        free(pathW);
         if (orgFile != NULL)
         {
             // extract data
@@ -1925,7 +1931,10 @@ void CPluginFSInterface::DumpDebugInformation(HWND parent, const DIR_ITEM_I<char
     char fileNameBuf[MAX_PATH + MAX_PATH]; // + for stream name
     if (SalamanderGeneral->SalGetTempFileName(tempdir, "view", fileNameBuf, TRUE, &error))
     {
-        FILE* file = fopen(fileNameBuf, "w");
+        // fileNameBuf is UTF-8 (plugin interface 104): open on the W layer
+        WCHAR* fileNameBufW = SplU8ToWExtAlloc(fileNameBuf);
+        FILE* file = fileNameBufW == NULL ? NULL : _wfopen(fileNameBufW, L"w");
+        free(fileNameBufW);
         if (file != NULL)
         {
             char path[MAX_PATH];
@@ -2005,7 +2014,11 @@ void CPluginFSInterface::FragmentFile(HWND parent, const DIR_ITEM_I<char>* di, c
     SalamanderGeneral->SalPathRemoveBackslash(sourcePanelGUIDPath);
 
     // open volume
-    hVolume = CreateFile(sourcePanelGUIDPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    // sourcePanelGUIDPath is a UTF-8 "\\?\Volume{GUID}" device path (plugin
+    // interface 104): open the volume on the W layer (plain convert, keep "\\?\")
+    WCHAR* volumeGuidW = SplU8ToWAlloc(sourcePanelGUIDPath);
+    hVolume = volumeGuidW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(volumeGuidW, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    free(volumeGuidW);
     if (hVolume == INVALID_HANDLE_VALUE)
     {
         DWORD err = GetLastError();
@@ -2070,8 +2083,13 @@ void CPluginFSInterface::FragmentFile(HWND parent, const DIR_ITEM_I<char>* di, c
 
     // fragment required file: move first cluster of file to freeLCN cluster
 
-    // open volume
-    hFile = CreateFile(fullPath, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    // open volume; fullPath is UTF-8 (plugin interface 104). The wide buffer is
+    // scoped so it does not cross the goto into 'exit'.
+    {
+        WCHAR* fullPathW = SplU8ToWExtAlloc(fullPath);
+        hFile = fullPathW == NULL ? NULL : CreateFileW(fullPathW, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+        free(fullPathW);
+    }
     if (hFile == NULL)
     {
         TRACE_E("Cannot open file " << hFile);
@@ -2136,7 +2154,10 @@ void CPluginFSInterface::SetFileValidData(HWND parent, const DIR_ITEM_I<char>* d
     LONGLONG size{};
     DWORD loSize{};
 
-    HANDLE hFile = CreateFile(fullPath, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    // fullPath is UTF-8 (plugin interface 104): open on the W layer
+    WCHAR* fullPathW = SplU8ToWExtAlloc(fullPath);
+    HANDLE hFile = fullPathW == NULL ? NULL : CreateFileW(fullPathW, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    free(fullPathW);
     if (hFile == NULL)
     {
         TRACE_E("CreateFile() failed on " << fullPath);
@@ -2185,7 +2206,10 @@ exit:
 
 void CPluginFSInterface::SetFileSparse(HWND parent, const DIR_ITEM_I<char>* di, const char* fullPath)
 {
-    HANDLE hFile = CreateFile(fullPath, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    // fullPath is UTF-8 (plugin interface 104): open on the W layer
+    WCHAR* fullPathW = SplU8ToWExtAlloc(fullPath);
+    HANDLE hFile = fullPathW == NULL ? NULL : CreateFileW(fullPathW, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    free(fullPathW);
     DWORD hiSize{};
     DWORD loSize{};
     LONGLONG size{};

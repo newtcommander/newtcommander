@@ -71,8 +71,10 @@ void CSalamanderPanelItemAutomation::Set(const CFileData* pData, PCTSTR pszPath)
 
     cchNameLenA = _tcslen(pData->Name);
 
-    cchPathLenW = MultiByteToWideChar(CP_ACP, 0, pszPath, (int)cchPathLenA, NULL, 0);
-    cchNameLenW = MultiByteToWideChar(CP_ACP, 0, pData->Name, (int)cchNameLenA, NULL, 0);
+    // 'pszPath' (GetPanelPath) and 'pData->Name' (CFileData) are UTF-8 interface
+    // strings (interface 104); widen them to UTF-16 for the script-visible BSTR
+    cchPathLenW = MultiByteToWideChar(CP_UTF8, 0, pszPath, (int)cchPathLenA, NULL, 0);
+    cchNameLenW = MultiByteToWideChar(CP_UTF8, 0, pData->Name, (int)cchNameLenA, NULL, 0);
 
     cchNewLen = cchPathLenW + cchNameLenW + (bHasSlash ? 0 : 1) + 1;
     if (cchNewLen > m_cchFullPath)
@@ -86,14 +88,14 @@ void CSalamanderPanelItemAutomation::Set(const CFileData* pData, PCTSTR pszPath)
         m_cchFullPath = cchNewLen;
     }
 
-    cchPathLenW = MultiByteToWideChar(CP_ACP, 0, pszPath, (int)cchPathLenA, m_pszFullPath, (int)m_cchFullPath);
+    cchPathLenW = MultiByteToWideChar(CP_UTF8, 0, pszPath, (int)cchPathLenA, m_pszFullPath, (int)m_cchFullPath);
     if (!bHasSlash)
     {
         m_pszFullPath[cchPathLenW] = L'\\';
         ++cchPathLenW;
     }
 
-    cchNameLenW = MultiByteToWideChar(CP_ACP, 0, pData->Name, (int)cchNameLenA, m_pszFullPath + cchPathLenW, (int)(m_cchFullPath - cchPathLenW));
+    cchNameLenW = MultiByteToWideChar(CP_UTF8, 0, pData->Name, (int)cchNameLenA, m_pszFullPath + cchPathLenW, (int)(m_cchFullPath - cchPathLenW));
     m_pszFullPath[cchPathLenW + cchNameLenW] = L'\0';
 
     m_pszName = PathFindFileNameW(m_pszFullPath);
