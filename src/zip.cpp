@@ -2455,8 +2455,9 @@ BOOL ViewFileInPluginViewer(const char* pluginSPL,
         if (fileNameInCache != NULL)
         {
             s = fileNameInCache;
+            // feature 005: bytes >= 0x80 are UTF-8 lead/trail bytes, always legal
             while (*s != 0 && *s != '\\' && *s != '/' && *s != ':' &&
-                   *s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
+                   (unsigned char)*s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
                 s++;
         }
         if (fileNameInCache == NULL || fileNameInCache[0] == 0 || *s != 0)
@@ -3187,8 +3188,9 @@ BOOL CSalamanderGeneral::MoveFileToCache(const char* uniqueFileName, const char*
 
     // verify that 'nameInCache' is valid (a name without a path)
     const char* s = nameInCache;
+    // feature 005: bytes >= 0x80 are UTF-8 lead/trail bytes, always legal
     while (*s != 0 && *s != '\\' && *s != '/' && *s != ':' &&
-           *s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
+           (unsigned char)*s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
         s++;
     if (nameInCache[0] == 0 || *s != 0)
     {

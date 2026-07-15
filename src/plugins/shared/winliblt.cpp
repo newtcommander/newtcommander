@@ -1059,6 +1059,21 @@ void CTransferInfo::EditLine(int ctrlID, char* buffer, DWORD bufferSize, BOOL se
         {
         case ttDataToWindow:
         {
+            // feature 005: plugin narrow buffers carry UTF-8 (interface 104);
+            // standard controls are Unicode windows, so cross as UTF-16.
+            // Invalid UTF-8 falls back to the legacy A path.
+            int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, buffer, -1, NULL, 0);
+            WCHAR* w = wlen > 0 ? (WCHAR*)malloc(wlen * sizeof(WCHAR)) : NULL;
+            if (w != NULL)
+            {
+                MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, buffer, -1, w, wlen);
+                SendMessageW(HWindow, EM_LIMITTEXT, bufferSize - 1, 0);
+                SendMessageW(HWindow, WM_SETTEXT, 0, (LPARAM)w);
+                free(w);
+                if (select)
+                    SendMessage(HWindow, EM_SETSEL, 0, -1);
+                break;
+            }
             SendMessage(HWindow, EM_LIMITTEXT, bufferSize - 1, 0);
             SendMessage(HWindow, WM_SETTEXT, 0, (LPARAM)buffer);
             if (select)
@@ -1068,6 +1083,18 @@ void CTransferInfo::EditLine(int ctrlID, char* buffer, DWORD bufferSize, BOOL se
 
         case ttDataFromWindow:
         {
+            // read wide and store UTF-8; when the UTF-8 result would not fit
+            // the caller's buffer, fall back to the legacy A read
+            int wchars = GetWindowTextLengthW(HWindow) + 1;
+            WCHAR* w = (WCHAR*)malloc(wchars * sizeof(WCHAR));
+            if (w != NULL)
+            {
+                GetWindowTextW(HWindow, w, wchars);
+                int u8len = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, w, -1, buffer, bufferSize, NULL, NULL);
+                free(w);
+                if (u8len > 0)
+                    break;
+            }
             SendMessage(HWindow, WM_GETTEXT, bufferSize, (LPARAM)buffer);
             break;
         }

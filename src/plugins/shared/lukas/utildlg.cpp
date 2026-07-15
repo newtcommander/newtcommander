@@ -3,6 +3,21 @@
 
 #include "precomp.h"
 
+// feature 005: UTF-8 (interface 104) -> UTF-16 for the Unicode combo; caller
+// free()s the result, NULL on invalid UTF-8 (legacy A fallback)
+static WCHAR* HistU8ToWAlloc(const char* u8)
+{
+    if (u8 == NULL)
+        return NULL;
+    int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u8, -1, NULL, 0);
+    if (wlen <= 0)
+        return NULL;
+    WCHAR* w = (WCHAR*)malloc(wlen * sizeof(WCHAR));
+    if (w != NULL)
+        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, u8, -1, w, wlen);
+    return w;
+}
+
 // ****************************************************************************
 //
 // CDialogEx
@@ -85,14 +100,30 @@ void HistoryComboBox(CTransferInfo& ti, int id, char* text, int textMax,
     {
         if (history[i] == NULL)
             break;
-        SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)history[i]);
+        // feature 005: history entries carry UTF-8 - add as UTF-16 to the
+        // Unicode combo; invalid UTF-8 falls back to the legacy A path
+        WCHAR* w = HistU8ToWAlloc(history[i]);
+        if (w != NULL)
+        {
+            SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)w);
+            free(w);
+        }
+        else
+            SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)history[i]);
     }
     if (ti.Type == ttDataFromWindow)
         SendMessage(combo, CB_SETCURSEL, 0, 0);
     else
     {
         SendMessage(combo, CB_LIMITTEXT, textMax - 1, 0);
-        SendMessage(combo, WM_SETTEXT, 0, (LPARAM)text);
+        WCHAR* w = HistU8ToWAlloc(text);
+        if (w != NULL)
+        {
+            SendMessageW(combo, WM_SETTEXT, 0, (LPARAM)w);
+            free(w);
+        }
+        else
+            SendMessage(combo, WM_SETTEXT, 0, (LPARAM)text);
         SendMessage(combo, CB_SETEDITSEL, 0, -1);
     }
 }
