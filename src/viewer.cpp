@@ -59,16 +59,16 @@ void HistoryComboBox(HWND hWindow, CTransferInfo& ti, int ctrlID, char* Text,
         {
             SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
             SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
+            SalSetWindowTextU8(hwnd, Text); // mask/path/search text is UTF-8 (feature 005)
         }
         else
         {
             if (!changeOnlyHistory)
             {
-                SendMessage(hwnd, WM_GETTEXT, textLen, (LPARAM)Text);
+                SalGetWindowTextU8(hwnd, Text, textLen); // feature 005
                 SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
                 SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
-                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
+                SalSetWindowTextU8(hwnd, Text);
             }
 
             // hex mode handling
@@ -153,7 +153,7 @@ void HistoryComboBox(HWND hWindow, CTransferInfo& ti, int ctrlID, char* Text,
             int i;
             for (i = 0; i < historySize; i++) // fill the combo-box list
                 if (history[i] != NULL)
-                    SendMessage(hwnd, CB_ADDSTRING, 0, (LPARAM)history[i]);
+                    SalComboAddStringU8(hwnd, history[i]); // history is UTF-8 (feature 005)
                 else
                     break;
         }

@@ -929,8 +929,9 @@ CPluginFSInterface::QuickRename(const char* fsName, int mode, HWND parent, CFile
     // validate the entered name (syntactically)
     char* s = newName;
     char buf[2 * MAX_PATH];
+    // feature 005: bytes >= 0x80 are UTF-8 lead/trail bytes, always legal
     while (*s != 0 && *s != '\\' && *s != '/' && *s != ':' &&
-           *s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
+           (unsigned char)*s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
         s++;
     if (newName[0] == 0 || *s != 0)
     {

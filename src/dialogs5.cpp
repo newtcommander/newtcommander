@@ -2053,13 +2053,11 @@ void CCfgPageViewers::LoadControls()
     SendMessage(GetDlgItem(HWindow, IDE_COMMAND), EM_LIMITTEXT, MAX_PATH - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_LIMITTEXT, MAX_PATH - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_LIMITTEXT, MAX_PATH - 1, 0);
-    SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->Command));
-    SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->Arguments));
+    // feature 005: command/arguments/init-dir carry UTF-8 paths
+    SalSetDlgItemTextU8(HWindow, IDE_COMMAND, empty ? "" : item->Command);
+    SalSetDlgItemTextU8(HWindow, IDE_ARGUMENTS, empty ? "" : item->Arguments);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_SETSEL, 0, -1); // so the browse overwrites the content
-    SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->InitDir));
+    SalSetDlgItemTextU8(HWindow, IDE_INITDIR, empty ? "" : item->InitDir);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_SETSEL, 0, -1); // so the browse overwrites the content
     DisableNotification = FALSE;
 }
@@ -2077,12 +2075,10 @@ void CCfgPageViewers::StoreControls()
         char command[MAX_PATH];
         char arguments[MAX_PATH];
         char initdir[MAX_PATH];
-        SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)command);
-        SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)arguments);
-        SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)initdir);
+        // feature 005: read UTF-8 paths back from the Unicode controls
+        SalGetDlgItemTextU8(HWindow, IDE_COMMAND, command, MAX_PATH);
+        SalGetDlgItemTextU8(HWindow, IDE_ARGUMENTS, arguments, MAX_PATH);
+        SalGetDlgItemTextU8(HWindow, IDE_INITDIR, initdir, MAX_PATH);
         item->Set(item->Masks->GetMasksString(), command, arguments, initdir);
 
         int cmbSel = (int)SendDlgItemMessage(HWindow, IDC_VIEW_TYPE, CB_GETCURSEL, 0, 0);
@@ -2440,13 +2436,11 @@ void CCfgPageEditors::LoadControls()
     SendMessage(GetDlgItem(HWindow, IDE_COMMAND), EM_LIMITTEXT, MAX_PATH - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_LIMITTEXT, MAX_PATH - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_LIMITTEXT, MAX_PATH - 1, 0);
-    SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->Command));
-    SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->Arguments));
+    // feature 005: command/arguments/init-dir carry UTF-8 paths
+    SalSetDlgItemTextU8(HWindow, IDE_COMMAND, empty ? "" : item->Command);
+    SalSetDlgItemTextU8(HWindow, IDE_ARGUMENTS, empty ? "" : item->Arguments);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_SETSEL, 0, -1); // so the browse overwrites the content
-    SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->InitDir));
+    SalSetDlgItemTextU8(HWindow, IDE_INITDIR, empty ? "" : item->InitDir);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_SETSEL, 0, -1); // so the browse overwrites the content
     DisableNotification = FALSE;
 }
@@ -2463,12 +2457,10 @@ void CCfgPageEditors::StoreControls()
         char command[MAX_PATH];
         char arguments[MAX_PATH];
         char initdir[MAX_PATH];
-        SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)command);
-        SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)arguments);
-        SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)initdir);
+        // feature 005: read UTF-8 paths back from the Unicode controls
+        SalGetDlgItemTextU8(HWindow, IDE_COMMAND, command, MAX_PATH);
+        SalGetDlgItemTextU8(HWindow, IDE_ARGUMENTS, arguments, MAX_PATH);
+        SalGetDlgItemTextU8(HWindow, IDE_INITDIR, initdir, MAX_PATH);
         item->Set(item->Masks->GetMasksString(), command, arguments, initdir);
     }
 }

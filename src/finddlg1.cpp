@@ -1682,7 +1682,7 @@ void CFindDialog::Validate(CTransferInfo& ti)
         strcpy(bufNamed, Data.NamedText);
         strcpy(bufLookIn, Data.LookInText);
 
-        SendMessage(hNamesWnd, WM_GETTEXT, NAMED_TEXT_LEN, (LPARAM)Data.NamedText);
+        SalGetWindowTextU8(hNamesWnd, Data.NamedText, NAMED_TEXT_LEN); // mask matched against UTF-8 names (feature 005)
         CMaskGroup mask(Data.NamedText);
         int errorPos;
         if (!mask.PrepareMasks(errorPos))
@@ -1696,7 +1696,7 @@ void CFindDialog::Validate(CTransferInfo& ti)
 
         if (ti.IsGood())
         {
-            SendMessage(hLookInWnd, WM_GETTEXT, LOOKIN_TEXT_LEN, (LPARAM)Data.LookInText);
+            SalGetWindowTextU8(hLookInWnd, Data.LookInText, LOOKIN_TEXT_LEN); // path is UTF-8 (feature 005)
 
             BuildSerchForData();
             if (SearchForData.Count == 0)
@@ -1744,13 +1744,13 @@ void CFindDialog::LoadControls(int index)
     CALL_STACK_MESSAGE2("CFindDialog::LoadControls(0x%X)", index);
     Data = *FindOptions.At(index);
 
-    // if any edit line is empty, keep its previous value
+    // if any edit line is empty, keep its previous value (feature 005: UTF-8)
     if (Data.NamedText[0] == 0)
-        GetDlgItemText(HWindow, IDC_FIND_NAMED, Data.NamedText, NAMED_TEXT_LEN);
+        SalGetDlgItemTextU8(HWindow, IDC_FIND_NAMED, Data.NamedText, NAMED_TEXT_LEN);
     if (Data.LookInText[0] == 0)
-        GetDlgItemText(HWindow, IDC_FIND_LOOKIN, Data.LookInText, LOOKIN_TEXT_LEN);
+        SalGetDlgItemTextU8(HWindow, IDC_FIND_LOOKIN, Data.LookInText, LOOKIN_TEXT_LEN);
     if (Data.GrepText[0] == 0)
-        GetDlgItemText(HWindow, IDC_FIND_CONTAINING, Data.GrepText, GREP_TEXT_LEN);
+        SalGetDlgItemTextU8(HWindow, IDC_FIND_CONTAINING, Data.GrepText, GREP_TEXT_LEN);
 
     TransferData(ttDataToWindow);
 
