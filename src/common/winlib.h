@@ -331,6 +331,9 @@ int SalGetWindowTextU8(HWND hWnd, char* u8Buf, int u8BufSize);
 BOOL SalSetDlgItemTextU8(HWND hDlg, int ctrlID, const char* u8Text);
 int SalGetDlgItemTextU8(HWND hDlg, int ctrlID, char* u8Buf, int u8BufSize);
 LRESULT SalComboAddStringU8(HWND combo, const char* u8Text); // CB_ADDSTRING result
+// set a listview item/subitem text (UTF-8) via LVM_SETITEMTEXTW so a Unicode
+// name/path is not mangled by the ANSI listview text path
+void SalListViewSetItemTextU8(HWND lv, int item, int subItem, const char* u8Text);
 #endif // INSIDE_SALAMANDER && !_UNICODE
 
 // ****************************************************************************

@@ -1875,12 +1875,12 @@ void CFileListDialog::Transfer(CTransferInfo& ti)
             const char* text = "";
             if (history[0] != NULL)
                 text = history[0];
-            SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)text);
+            SalSetWindowTextU8(hWnd, text); // history entry is UTF-8 (feature 005)
         }
         else
         {
             char buff[MAX_PATH];
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)buff);
+            SalGetWindowTextU8(hWnd, buff, MAX_PATH);
             AddValueToStdHistoryValues(history, FILELIST_HISTORY_SIZE, buff, FALSE);
         }
     }
@@ -1897,7 +1897,7 @@ void CFileListDialog::Validate(CTransferInfo& ti)
     if (ti.GetControl(hWnd, IDC_FL_LINE))
     {
         char buff[MAX_PATH];
-        SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)buff);
+        SalGetWindowTextU8(hWnd, buff, MAX_PATH); // feature 005
         int errorPos1, errorPos2;
         if (!ValidateMakeFileList(HWindow, buff, errorPos1, errorPos2))
         {
@@ -1916,7 +1916,7 @@ void CFileListDialog::Validate(CTransferInfo& ti)
             MainWindow->UpdateDefaultDir(TRUE);
 
             char buffFile[MAX_PATH];
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)buffFile);
+            SalGetWindowTextU8(hWnd, buffFile, MAX_PATH); // feature 005
             int errTextID;
             if (!SalGetFullName(buffFile, &errTextID, MainWindow->GetActivePanel()->Is(ptDisk) ? MainWindow->GetActivePanel()->GetPath() : NULL))
             {
@@ -2002,10 +2002,10 @@ CFileListDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             // DefaultDir restoration
             MainWindow->UpdateDefaultDir(TRUE);
 
-            SendMessage(GetDlgItem(HWindow, IDC_FL_FILENAME), WM_GETTEXT, MAX_PATH, (LPARAM)buffFile);
+            SalGetDlgItemTextU8(HWindow, IDC_FL_FILENAME, buffFile, MAX_PATH); // feature 005
             if (!SalGetFullName(buffFile, NULL, MainWindow->GetActivePanel()->Is(ptDisk) ? MainWindow->GetActivePanel()->GetPath() : NULL))
             { // we cannot do it, so let Windows Browse handle it however it wants...
-                SendMessage(GetDlgItem(HWindow, IDC_FL_FILENAME), WM_GETTEXT, MAX_PATH, (LPARAM)buffFile);
+                SalGetDlgItemTextU8(HWindow, IDC_FL_FILENAME, buffFile, MAX_PATH);
             }
 
             BrowseFileName(HWindow, IDC_FL_FILENAME, buffFile);

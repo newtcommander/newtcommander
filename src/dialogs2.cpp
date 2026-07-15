@@ -535,7 +535,7 @@ void CSelectDialog::Validate(CTransferInfo& ti)
         {
             char buf[MAX_PATH];
             strcpy(buf, Mask); // backup
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)Mask);
+            SalGetWindowTextU8(hWnd, Mask, MAX_PATH); // mask matched against UTF-8 names (feature 005)
             CMaskGroup mask(Mask);
             int errorPos;
             if (!mask.PrepareMasks(errorPos))
@@ -562,11 +562,11 @@ void CSelectDialog::Transfer(CTransferInfo& ti)
         {
             LoadComboFromStdHistoryValues(hWnd, history, SELECT_HISTORY_SIZE);
             SendMessage(hWnd, CB_LIMITTEXT, MAX_PATH - 1, 0);
-            SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Mask);
+            SalSetWindowTextU8(hWnd, Mask); // mask matched against UTF-8 names (feature 005)
         }
         else
         {
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)Mask);
+            SalGetWindowTextU8(hWnd, Mask, MAX_PATH);
             AddValueToStdHistoryValues(history, SELECT_HISTORY_SIZE, Mask, FALSE);
         }
     }
@@ -837,7 +837,7 @@ void CLanguageSelectorDialog::FillControls()
         SetDlgItemText(HWindow, IDC_SLG_WEB, Items[index].Web);
         SetDlgItemTextW(HWindow, IDC_SLG_COMMENT, Items[index].CommentW);
         if (PluginName == NULL)
-            SetDlgItemText(HWindow, IDC_SLG_HELPDIR, Items[index].HelpDir);
+            SalSetDlgItemTextU8(HWindow, IDC_SLG_HELPDIR, Items[index].HelpDir); // path is UTF-8 (feature 005)
         if (Web != NULL)
         {
             char buff[300];
@@ -1226,11 +1226,11 @@ CCompareArgsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             else
             {
                 char path[MAX_PATH];
-                GetDlgItemText(HWindow, editID, path, MAX_PATH);
+                SalGetDlgItemTextU8(HWindow, editID, path, MAX_PATH); // path is UTF-8 (feature 005)
                 if (GetTargetDirectory(HWindow, HWindow, LoadStr(IDS_BROWSEUMCDIRTITLE),
                                        LoadStr(IDS_BROWSEUMCDIRTEXT), path, FALSE, path))
                 {
-                    SetDlgItemText(HWindow, editID, path);
+                    SalSetDlgItemTextU8(HWindow, editID, path);
                 }
             }
             return TRUE;

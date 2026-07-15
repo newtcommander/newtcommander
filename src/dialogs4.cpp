@@ -1015,12 +1015,12 @@ void CCfgPageView::Transfer(CTransferInfo& ti)
         for (i = 0; i < VIEW_TEMPLATES_COUNT; i++)
         {
             LVITEM lvi;
-            lvi.mask = LVIF_TEXT | LVIF_STATE;
+            lvi.mask = LVIF_STATE;
             lvi.iItem = i;
             lvi.iSubItem = 0;
             lvi.state = 0;
-            lvi.pszText = Config.Items[i].Name;
             ListView_InsertItem(HListView, &lvi);
+            SalListViewSetItemTextU8(HListView, i, 0, Config.Items[i].Name); // name is UTF-8 (feature 005)
 
             switch (Config.Items[i].Mode)
             {
@@ -2145,13 +2145,11 @@ void CCfgPageUserMenu::LoadControls()
     SendMessage(GetDlgItem(HWindow, IDE_COMMAND), EM_LIMITTEXT, MAX_PATH - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_LIMITTEXT, USRMNUARGS_MAXLEN - 1, 0);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_LIMITTEXT, MAX_PATH - 1, 0);
-    SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->UMCommand));
-    SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->Arguments));
+    // feature 005: command/arguments/init-dir carry UTF-8 paths
+    SalSetDlgItemTextU8(HWindow, IDE_COMMAND, empty ? "" : item->UMCommand);
+    SalSetDlgItemTextU8(HWindow, IDE_ARGUMENTS, empty ? "" : item->Arguments);
     SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), EM_SETSEL, 0, -1); // so that Browse overwrites the content
-    SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_SETTEXT, 0,
-                (LPARAM)(empty ? "" : item->InitDir));
+    SalSetDlgItemTextU8(HWindow, IDE_INITDIR, empty ? "" : item->InitDir);
     SendMessage(GetDlgItem(HWindow, IDE_INITDIR), EM_SETSEL, 0, -1); // so that Browse overwrites the content
 
     //  SmallIcon->SetIcon(!empty ? item->HIcon : NULL);
@@ -2175,12 +2173,10 @@ void CCfgPageUserMenu::StoreControls()
         char command[MAX_PATH];
         char arguments[USRMNUARGS_MAXLEN];
         char initdir[MAX_PATH];
-        SendMessage(GetDlgItem(HWindow, IDE_COMMAND), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)command);
-        SendMessage(GetDlgItem(HWindow, IDE_ARGUMENTS), WM_GETTEXT,
-                    USRMNUARGS_MAXLEN, (LPARAM)arguments);
-        SendMessage(GetDlgItem(HWindow, IDE_INITDIR), WM_GETTEXT,
-                    MAX_PATH, (LPARAM)initdir);
+        // feature 005: read UTF-8 paths back from the Unicode controls
+        SalGetDlgItemTextU8(HWindow, IDE_COMMAND, command, MAX_PATH);
+        SalGetDlgItemTextU8(HWindow, IDE_ARGUMENTS, arguments, USRMNUARGS_MAXLEN);
+        SalGetDlgItemTextU8(HWindow, IDE_INITDIR, initdir, MAX_PATH);
 
         item->Set(item->ItemName, command, arguments, initdir, item->Icon);
 
@@ -2759,14 +2755,14 @@ void CCfgPageHotPath::Transfer(CTransferInfo& ti)
         for (i = 0; i < HOT_PATHS_COUNT; i++)
         {
             LVITEM lvi;
-            lvi.mask = LVIF_TEXT | LVIF_STATE;
+            lvi.mask = LVIF_STATE;
             lvi.iItem = i;
             lvi.iSubItem = 0;
             lvi.state = 0;
             name[0] = 0;
             Config->GetName(i, name, MAX_PATH);
-            lvi.pszText = name;
             ListView_InsertItem(HListView, &lvi);
+            SalListViewSetItemTextU8(HListView, i, 0, name); // hot-path name is UTF-8 (feature 005)
 
             UINT state = INDEXTOSTATEIMAGEMASK((Config->GetVisible(i) ? 2 : 1));
             ListView_SetItemState(HListView, i, state, LVIS_STATEIMAGEMASK);

@@ -110,11 +110,11 @@ void CConvertFilesDlg::Transfer(CTransferInfo& ti)
         {
             LoadComboFromStdHistoryValues(hWnd, history, CONVERT_HISTORY_SIZE);
             SendMessage(hWnd, CB_LIMITTEXT, MAX_PATH - 1, 0);
-            SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Mask);
+            SalSetWindowTextU8(hWnd, Mask); // mask matched against UTF-8 names (feature 005)
         }
         else
         {
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)Mask);
+            SalGetWindowTextU8(hWnd, Mask, MAX_PATH);
             AddValueToStdHistoryValues(history, CONVERT_HISTORY_SIZE, Mask, FALSE);
         }
     }
@@ -313,11 +313,11 @@ void CFilterDialog::Transfer(CTransferInfo& ti)
         {
             LoadComboFromStdHistoryValues(hWnd, history, FILTER_HISTORY_SIZE);
             SendMessage(hWnd, CB_LIMITTEXT, MAX_PATH - 1, 0);
-            SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Filter->GetMasksString());
+            SalSetWindowTextU8(hWnd, Filter->GetMasksString()); // mask matched against UTF-8 names (feature 005)
         }
         else
         {
-            SendMessage(hWnd, WM_GETTEXT, MAX_PATH, (LPARAM)Filter->GetWritableMasksString());
+            SalGetWindowTextU8(hWnd, Filter->GetWritableMasksString(), MAX_PATH);
             AddValueToStdHistoryValues(history, FILTER_HISTORY_SIZE, Filter->GetMasksString(), FALSE);
         }
     }
@@ -552,7 +552,7 @@ MENU_TEMPLATE_ITEM EditNewFileDialogMenu[] =
             if (cmd == 1)
             {
                 Configuration.UseEditNewFileDefault = TRUE;
-                SendDlgItemMessage(HWindow, IDE_PATH, WM_GETTEXT, MAX_PATH, (LPARAM)Configuration.EditNewFileDefault);
+                SalGetDlgItemTextU8(HWindow, IDE_PATH, Configuration.EditNewFileDefault, MAX_PATH); // name is UTF-8 (feature 005)
             }
             if (cmd == 2)
             {
@@ -617,11 +617,11 @@ void CCopyMoveMoreDialog::Transfer(CTransferInfo& ti)
             {
                 LoadComboFromStdHistoryValues(hWnd, History, HistoryCount);
                 SendMessage(hWnd, CB_LIMITTEXT, PathBufSize - 1, 0);
-                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Path);
+                SalSetWindowTextU8(hWnd, Path); // Path carries UTF-8 (feature 005)
             }
             else
             {
-                SendMessage(hWnd, WM_GETTEXT, PathBufSize, (LPARAM)Path);
+                SalGetWindowTextU8(hWnd, Path, PathBufSize);
                 AddValueToStdHistoryValues(History, HistoryCount, Path, FALSE);
             }
         }
@@ -1184,11 +1184,11 @@ void CChangeDirDlg::Transfer(CTransferInfo& ti)
         {
             LoadComboFromStdHistoryValues(hWnd, history, CHANGEDIR_HISTORY_SIZE);
             SendMessage(hWnd, CB_LIMITTEXT, 2 * MAX_PATH - 1, 0);
-            SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Path);
+            SalSetWindowTextU8(hWnd, Path); // Path carries UTF-8 (feature 005)
         }
         else
         {
-            SendMessage(hWnd, WM_GETTEXT, 2 * MAX_PATH, (LPARAM)Path);
+            SalGetWindowTextU8(hWnd, Path, 2 * MAX_PATH);
             AddValueToStdHistoryValues(history, CHANGEDIR_HISTORY_SIZE, Path, FALSE);
         }
     }
@@ -1255,7 +1255,7 @@ void CDriveInfo::Validate(CTransferInfo& ti)
     if (ti.GetControl(edit, IDE_VOLNAME) && ti.Type == ttDataFromWindow)
     {
         char newName[MAX_PATH];
-        SendMessage(edit, WM_GETTEXT, MAX_PATH, (LPARAM)newName);
+        SalGetWindowTextU8(edit, newName, MAX_PATH); // volume label is UTF-8 (feature 005)
 
         if (strcmp(OldVolumeName, newName) != 0)
         {
