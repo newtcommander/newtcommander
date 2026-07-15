@@ -1689,12 +1689,12 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
                 if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY))
                 { // try to clear the read-only attribute and open the file again
                     readonly = TRUE;
-                    SetFileAttributes(fullName, attr & (~FILE_ATTRIBUTE_READONLY));
-                    file = HANDLES_Q(CreateFile(fullName,
-                                                GENERIC_READ /* we will read and check the overlap */ |
-                                                    GENERIC_WRITE,
-                                                FILE_SHARE_READ, NULL,
-                                                OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+                    FTPSetFileAttributesU8(fullName, attr & (~FILE_ATTRIBUTE_READONLY));
+                    file = FTPCreateFileU8(fullName,
+                                           GENERIC_READ /* we will read and check the overlap */ |
+                                               GENERIC_WRITE,
+                                           FILE_SHARE_READ, NULL,
+                                           OPEN_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
                     winErr = GetLastError();
                 }
             }
@@ -1768,7 +1768,7 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
             if (action == 2 /* resume */ || denyOverwrite)
             {
                 if (readonly)
-                    SetFileAttributes(fullName, attr); // restore the read-only attribute (failed to open the file)
+                    FTPSetFileAttributesU8(fullName, attr); // restore the read-only attribute (failed to open the file)
 
                 localWork.ProblemID = ITEMPR_CANNOTCREATETGTFILE;
                 localWork.WinError = winErr;
@@ -1787,11 +1787,11 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
                 if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY))
                 { // try to clear the read-only attribute
                     readonly = TRUE;
-                    SetFileAttributes(fullName, attr & (~FILE_ATTRIBUTE_READONLY));
+                    FTPSetFileAttributesU8(fullName, attr & (~FILE_ATTRIBUTE_READONLY));
                 }
             }
-            file = HANDLES_Q(CreateFile(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                                        CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+            file = FTPCreateFileU8(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                   CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
             if (file == INVALID_HANDLE_VALUE) // cannot open the file
             {
                 winErr = GetLastError();
@@ -1803,10 +1803,10 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
                 // (on Samba it is possible to allow deleting read-only files, which makes deleting a read-only file possible,
                 //  otherwise it cannot be deleted because Windows cannot remove a read-only file and at the same time
                 //  the "read-only" attribute cannot be cleared on that file because the current user is not the owner)
-                if (DeleteFile(fullName)) // if it is read-only, it can be deleted only on Samba with "delete readonly" enabled
+                if (FTPDeleteFileU8(fullName)) // if it is read-only, it can be deleted only on Samba with "delete readonly" enabled
                 {
-                    file = HANDLES_Q(CreateFile(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                                                CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+                    file = FTPCreateFileU8(fullName, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                                           CREATE_ALWAYS, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
                     winErr = GetLastError();
                 }
             }
@@ -1823,7 +1823,7 @@ void DoCreateFile(CFTPDiskWork& localWork, char* fullName, BOOL& workDone, BOOL&
             else
             {
                 if (readonly)
-                    SetFileAttributes(fullName, attr); // restore the read-only attribute (failed to delete the file)
+                    FTPSetFileAttributesU8(fullName, attr); // restore the read-only attribute (failed to delete the file)
 
                 localWork.ProblemID = ITEMPR_CANNOTCREATETGTFILE;
                 localWork.WinError = winErr;
@@ -1979,12 +1979,12 @@ void DoCreateAndWriteFile(CFTPDiskWork& localWork, BOOL& needCopyBack, BOOL& wor
     HANDLE file = NULL;
     if (localWork.WorkFile == NULL) // the file has not been created yet
     {
-        SetFileAttributes(localWork.Name, FILE_ATTRIBUTE_NORMAL); // to allow overwriting a read-only file as well
-        HANDLE f = HANDLES_Q(CreateFile(localWork.Name, GENERIC_WRITE,
-                                        FILE_SHARE_READ, NULL,
-                                        CREATE_ALWAYS,
-                                        FILE_FLAG_SEQUENTIAL_SCAN,
-                                        NULL));
+        FTPSetFileAttributesU8(localWork.Name, FILE_ATTRIBUTE_NORMAL); // to allow overwriting a read-only file as well
+        HANDLE f = FTPCreateFileU8(localWork.Name, GENERIC_WRITE,
+                                   FILE_SHARE_READ, NULL,
+                                   CREATE_ALWAYS,
+                                   FILE_FLAG_SEQUENTIAL_SCAN,
+                                   NULL);
         if (f != INVALID_HANDLE_VALUE)
         {
             file = f;
@@ -2028,8 +2028,8 @@ void DoListDirectory(CFTPDiskWork& localWork, BOOL& needCopyBack)
         {
             SalamanderGeneral->SalPathAppend(srcPath, "*.*", MAX_PATH + 10); // cannot fail
             char* srcPathEnd = strrchr(srcPath, '\\');                       // cannot fail either
-            WIN32_FIND_DATA fileData;
-            HANDLE search = HANDLES_Q(FindFirstFile(srcPath, &fileData));
+            WIN32_FIND_DATAW fileData; // interface 104: enumerate wide, transcode names to UTF-8
+            HANDLE search = FTPFindFirstFileU8(srcPath, &fileData);
             if (search == INVALID_HANDLE_VALUE)
             {
                 DWORD err = GetLastError();
@@ -2044,16 +2044,19 @@ void DoListDirectory(CFTPDiskWork& localWork, BOOL& needCopyBack)
             {
                 do
                 {
-                    char* s = fileData.cFileName;
+                    char cFileNameU8[3 * MAX_PATH];
+                    if (SplWToU8(fileData.cFileName, cFileNameU8, sizeof(cFileNameU8)) == 0)
+                        continue; // skip names that are not valid UTF-16
+                    char* s = cFileNameU8;
                     if (*s == '.' && (*(s + 1) == 0 || *(s + 1) == '.' && *(s + 2) == 0))
                         continue; // skip "." and ".."
                     // links: size == 0, the file size must be obtained via SalGetFileSize2() afterwards
                     BOOL isDir = (fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                     CQuadWord size(fileData.nFileSizeLow, fileData.nFileSizeHigh);
                     if (!isDir && (fileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
-                        srcPathEnd != NULL && (srcPathEnd + 1) - srcPath + strlen(fileData.cFileName) < MAX_PATH)
+                        srcPathEnd != NULL && (srcPathEnd + 1) - srcPath + strlen(s) < MAX_PATH)
                     { // it's a link and the full link name is not too long
-                        strcpy(srcPathEnd + 1, fileData.cFileName);
+                        strcpy(srcPathEnd + 1, s);
                         DWORD err; // obtain the target file size
                         if (!SalamanderGeneral->SalGetFileSize2(srcPath, size, &err))
                         { // ignore errors; they will show up later + we do not strictly need the size, but log TRACE_E for debugging
@@ -2084,7 +2087,7 @@ void DoListDirectory(CFTPDiskWork& localWork, BOOL& needCopyBack)
                         localWork.ProblemID = ITEMPR_LOWMEM;
                         break;
                     }
-                } while (FindNextFile(search, &fileData));
+                } while (FindNextFileW(search, &fileData));
                 DWORD err = GetLastError();
                 HANDLES(FindClose(search));
                 if (localWork.State != sqisFailed && err != ERROR_NO_MORE_FILES)
@@ -2123,13 +2126,13 @@ void DoDeleteDir(CFTPDiskWork& localWork, BOOL& needCopyBack)
     {
         DWORD attr = SalamanderGeneral->SalGetFileAttributes(delPath);
         BOOL chAttrs = SalamanderGeneral->ClearReadOnlyAttr(delPath, attr); // so it can be deleted ...
-        if (!RemoveDirectory(delPath))
+        if (!FTPRemoveDirectoryU8(delPath))
         {
             DWORD err = GetLastError();
             if (err != ERROR_FILE_NOT_FOUND && err != ERROR_PATH_NOT_FOUND)
             { // if the directory no longer exists, everything is OK, otherwise print an error:
                 if (chAttrs)
-                    SetFileAttributes(delPath, attr); // deletion failed, so at least try to restore its attributes
+                    FTPSetFileAttributesU8(delPath, attr); // deletion failed, so at least try to restore its attributes
                 localWork.State = sqisFailed;
                 localWork.ProblemID = ITEMPR_UNABLETODELETEDISKDIR;
                 localWork.WinError = err;
@@ -2153,13 +2156,13 @@ void DoDeleteFile(CFTPDiskWork& localWork, BOOL& needCopyBack)
     {
         DWORD attr = SalamanderGeneral->SalGetFileAttributes(delPath);
         BOOL chAttrs = SalamanderGeneral->ClearReadOnlyAttr(delPath, attr); // so it can be deleted ...
-        if (!DeleteFile(delPath))
+        if (!FTPDeleteFileU8(delPath))
         {
             DWORD err = GetLastError();
             if (err != ERROR_FILE_NOT_FOUND && err != ERROR_PATH_NOT_FOUND)
             { // if the file no longer exists, everything is OK, otherwise print an error:
                 if (chAttrs)
-                    SetFileAttributes(delPath, attr); // deletion failed, so at least try to restore its attributes
+                    FTPSetFileAttributesU8(delPath, attr); // deletion failed, so at least try to restore its attributes
                 localWork.State = sqisFailed;
                 localWork.ProblemID = ITEMPR_UNABLETODELETEDISKFILE;
                 localWork.WinError = err;
@@ -2184,9 +2187,9 @@ void DoOpenFileForReading(CFTPDiskWork& localWork, BOOL& needCopyBack)
     BOOL ok = FALSE;
     if (SalamanderGeneral->SalPathAppend(fileName, localWork.Name, MAX_PATH))
     {
-        HANDLE in = HANDLES_Q(CreateFile(fileName, GENERIC_READ,
-                                         FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                                         OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL));
+        HANDLE in = FTPCreateFileU8(fileName, GENERIC_READ,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                    OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
         if (in != INVALID_HANDLE_VALUE)
         {
             CQuadWord size;
@@ -2466,7 +2469,7 @@ CFTPDiskThread::Body()
             }
             HANDLES(CloseHandle(fileToClose->File));
             if (delFile)
-                DeleteFile(fileToClose->FileName);
+                FTPDeleteFileU8(fileToClose->FileName);
             delete fileToClose;
 
             HANDLES(EnterCriticalSection(&DiskCritSect));
@@ -2600,7 +2603,7 @@ CFTPDiskThread::Body()
                     {
                         if (workDone)
                         {
-                            if (!RemoveDirectory(fullName))
+                            if (!FTPRemoveDirectoryU8(fullName))
                                 TRACE_E("CFTPDiskThread::Body(): cancelling disk operation: unable to remove directory: " << fullName);
                         }
                         break;
@@ -2612,7 +2615,7 @@ CFTPDiskThread::Body()
                     {
                         if (workDone)
                         {
-                            if (!DeleteFile(fullName)) // the created file cannot have the read-only attribute; otherwise it could not be opened for writing
+                            if (!FTPDeleteFileU8(fullName)) // the created file cannot have the read-only attribute; otherwise it could not be opened for writing
                                 TRACE_E("CFTPDiskThread::Body(): cancelling disk operation: unable to remove file: " << fullName);
                         }
                         break;
@@ -2622,7 +2625,7 @@ CFTPDiskThread::Body()
                     {
                         if (workDone)
                         {
-                            if (!DeleteFile(localWork.Name)) // the created file cannot have the read-only attribute
+                            if (!FTPDeleteFileU8(localWork.Name)) // the created file cannot have the read-only attribute
                                 TRACE_E("CFTPDiskThread::Body(): cancelling disk operation: unable to remove target file: " << localWork.Name);
                         }
                         // break; // no break here intentionally

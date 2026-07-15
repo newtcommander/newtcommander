@@ -1833,7 +1833,9 @@ void NavigateAux(CSite* m_pSite, const char* fileName, IStream* contentStream)
 // NULL on failure
 static WCHAR* PathToFileURLAlloc(const WCHAR* path)
 {
-    DWORD len = (DWORD)wcslen(path) * 3 + 16; // percent-encoding may triple the length
+    // percent-encoding of a non-ASCII UTF-16 unit can reach 12 URL chars (up to 4 UTF-8
+    // bytes as %XX), plus the "file:///" prefix
+    DWORD len = (DWORD)wcslen(path) * 12 + 16;
     WCHAR* url = (WCHAR*)malloc(len * sizeof(WCHAR));
     if (url == NULL)
         return NULL;

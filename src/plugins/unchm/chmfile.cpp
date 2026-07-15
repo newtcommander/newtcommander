@@ -91,7 +91,12 @@ BOOL CCHMFile::Open(const char* fileName, BOOL quiet /* = FALSE*/)
         ChmRetrieveObject = (CHM_RETRIEVE_OBJECT_PROC)GetProcAddress(hDLL, "chm_retrieve_object");
 
         // get filetime (must go before chm_open)
-        HANDLE hCHM = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        // interface 104: the archive path is UTF-8 -> extended-length UTF-16 for the W API
+        WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+        HANDLE hCHM = wFileName != NULL
+                          ? CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
+                          : INVALID_HANDLE_VALUE;
+        free(wFileName);
         if (hCHM != INVALID_HANDLE_VALUE)
         {
             GetFileTime(hCHM, NULL, NULL, &FileTime);
@@ -252,15 +257,21 @@ int CCHMFile::ExtractObject(CSalamanderForOperationsAbstract* salamander, const 
 {
     CALL_STACK_MESSAGE5("CCHMFile::ExtractObject( , %s, %s, , %u, %d)", srcPath, path, silent, toSkip);
 
-    char nameInArc[MAX_PATH + MAX_PATH];
-    strcpy(nameInArc, FileName);
-    SalamanderGeneral->SalPathAppend(nameInArc, srcPath, MAX_PATH + MAX_PATH);
-    SalamanderGeneral->SalPathAppend(nameInArc, fileData->Name, MAX_PATH + MAX_PATH);
+    // interface 104: FileName/srcPath/path are UTF-8 and may be long paths -> heap
+    CU8PathBuf nameInArc;
+    CU8PathBuf name;
+    if (!nameInArc.IsOk() || !name.IsOk())
+    {
+        Error(IDS_INSUFFICIENT_MEMORY);
+        return UNPACK_CANCEL;
+    }
+    lstrcpyn(nameInArc, FileName, U8_MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, srcPath, U8_MAX_PATH);
+    SalamanderGeneral->SalPathAppend(nameInArc, fileData->Name, U8_MAX_PATH);
 
     ///
-    char name[MAX_PATH];
-    strcpy(name, path);
-    if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, MAX_PATH))
+    lstrcpyn(name, path, U8_MAX_PATH);
+    if (!SalamanderGeneral->SalPathAppend(name, fileData->Name, U8_MAX_PATH))
         return UNPACK_ERROR;
 
     char fileInfo[100];
@@ -359,12 +370,12 @@ int CCHMFile::ExtractObject(CSalamanderForOperationsAbstract* salamander, const 
         // because it is created with the read-only attribute, we must clear the R attribute
         // to allow the file to be deleted
         attrs &= ~FILE_ATTRIBUTE_READONLY;
-        if (!SetFileAttributes(name, attrs))
+        if (!SetFileAttributesU8(name, attrs)) // interface 104: UTF-8 target path -> W file API
             Error(LoadStr(IDS_CANT_SET_ATTRS), GetLastError());
 
         // the user canceled the operation
         // delete the incomplete file afterwards
-        if (!DeleteFile(name))
+        if (!DeleteFileU8(name)) // interface 104: UTF-8 target path -> W file API
             Error(LoadStr(IDS_CANT_DELETE_TEMP_FILE), GetLastError());
     }
 
@@ -429,7 +440,7 @@ int CCHMFile::ExtractAllObjects(CSalamanderForOperationsAbstract* salamander, ch
             return UNPACK_CANCEL;
 
         CSalamanderDirectoryAbstract const* subDir = dir->GetSalDir(i);
-        SalamanderGeneral->SalPathAppend(srcPath, file->Name, MAX_PATH);
+        SalamanderGeneral->SalPathAppend(srcPath, file->Name, U8_MAX_PATH); // interface 104: srcPath is a U8_MAX_PATH buffer
         if (ExtractAllObjects(salamander, srcPath, subDir, mask, path, pathBufSize, silent, toSkip) == UNPACK_CANCEL)
             return UNPACK_CANCEL;
 

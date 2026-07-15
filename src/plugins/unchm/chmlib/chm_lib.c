@@ -656,6 +656,51 @@ static Int64 _chm_fetch_bytes(struct chmFile* h,
     return readLen;
 }
 
+#if defined(WIN32) && !defined(PPC_BSTR)
+/* interface 104: 'filename' crosses the plugin interface as UTF-8. Convert it to an
+   extended-length ("\\?\") UTF-16 path so CreateFileW accepts Unicode names and long
+   (> MAX_PATH) archive paths. free() the result; NULL on failure. */
+static WCHAR* _chm_u8_to_w_ext(const char* u8)
+{
+    int wl, isDrive, isUNC, isExt;
+    WCHAR* w;
+    wl = MultiByteToWideChar(CP_UTF8, 0, u8, -1, NULL, 0); /* includes the terminator */
+    if (wl <= 0)
+        return NULL;
+    isExt = u8[0] == '\\' && u8[1] == '\\' && u8[2] == '?' && u8[3] == '\\';
+    isDrive = ((u8[0] >= 'A' && u8[0] <= 'Z') || (u8[0] >= 'a' && u8[0] <= 'z')) &&
+              u8[1] == ':' && u8[2] == '\\';
+    isUNC = u8[0] == '\\' && u8[1] == '\\';
+    if (isExt || (!isDrive && !isUNC))
+    {
+        /* already extended or a relative path -> plain conversion */
+        w = (WCHAR*)malloc(wl * sizeof(WCHAR));
+        if (w != NULL)
+            MultiByteToWideChar(CP_UTF8, 0, u8, -1, w, wl);
+        return w;
+    }
+    if (isDrive)
+    {
+        /* "C:\..." -> "\\?\C:\..." (prefix is 4 wide chars) */
+        w = (WCHAR*)malloc((wl + 4) * sizeof(WCHAR));
+        if (w != NULL)
+        {
+            memcpy(w, L"\\\\?\\", 4 * sizeof(WCHAR));
+            MultiByteToWideChar(CP_UTF8, 0, u8, -1, w + 4, wl);
+        }
+        return w;
+    }
+    /* UNC "\\server\share" -> "\\?\UNC\server\share" (drop the leading "\\", prepend 8 chars) */
+    w = (WCHAR*)malloc((wl + 6) * sizeof(WCHAR));
+    if (w != NULL)
+    {
+        memcpy(w, L"\\\\?\\UNC\\", 8 * sizeof(WCHAR));
+        MultiByteToWideChar(CP_UTF8, 0, u8 + 2, -1, w + 8, wl - 2);
+    }
+    return w;
+}
+#endif
+
 /* open an ITS archive */
 #ifdef PPC_BSTR
 /* RWE 6/12/2003 */
@@ -701,13 +746,15 @@ struct chmFile* chm_open(const char* filename)
         return NULL;
     }
 #else
-    if ((newHandle->fd = CreateFileA(filename,
-                                     GENERIC_READ,
-                                     0,
-                                     NULL,
-                                     OPEN_EXISTING,
-                                     FILE_ATTRIBUTE_NORMAL,
-                                     NULL)) == CHM_NULL_FD)
+    /* interface 104: open the UTF-8 archive path via the W API (Unicode + long paths) */
+    {
+        WCHAR* wname = _chm_u8_to_w_ext(filename);
+        newHandle->fd = wname != NULL
+                            ? CreateFileW(wname, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
+                            : CHM_NULL_FD;
+        free(wname);
+    }
+    if (newHandle->fd == CHM_NULL_FD)
     {
         free(newHandle);
         return NULL;

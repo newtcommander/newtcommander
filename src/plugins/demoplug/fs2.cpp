@@ -424,7 +424,7 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
 #endif // DEMOPLUG_QUIET
 
     CFileData file;
-    WIN32_FIND_DATA data;
+    WIN32_FIND_DATAW data; // enumerate on the W layer; 'Path' is UTF-8 (interface 104)
 
     pluginData = new CPluginFSDataInterface(Path);
     if (pluginData == NULL)
@@ -442,7 +442,11 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
     strcpy(curPath, Path);
     SalamanderGeneral->SalPathAppend(curPath, "*.*", MAX_PATH + 4);
     char* name = curPath + strlen(curPath) - 3;
-    HANDLE find = HANDLES_Q(FindFirstFile(curPath, &data));
+    // 'curPath' is a UTF-8 search pattern: file-I/O APIs take the \\?\-prefixed
+    // UTF-16 path (long-path capable), so convert with SplU8ToWExtAlloc
+    WCHAR* wCurPath = SplU8ToWExtAlloc(curPath);
+    HANDLE find = wCurPath == NULL ? INVALID_HANDLE_VALUE : HANDLES_Q(FindFirstFileW(wCurPath, &data));
+    free(wCurPath);
 
     if (find == INVALID_HANDLE_VALUE)
     {
@@ -482,13 +486,18 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
 
     while (find != INVALID_HANDLE_VALUE)
     {
-        if (data.cFileName[0] != 0 && strcmp(data.cFileName, ".") != 0 && // skip "."
-            (!isRootPath || strcmp(data.cFileName, "..") != 0))           // skip ".." at the root
+        // WIN32_FIND_DATAW carries the name as UTF-16; convert it to UTF-8 (the
+        // encoding of every CFileData::Name in interface 104). A single name
+        // component fits in 3*MAX_PATH bytes (up to 3 UTF-8 bytes per UTF-16 unit).
+        char u8Name[3 * MAX_PATH];
+        if (SplWToU8(data.cFileName, u8Name, sizeof(u8Name)) > 0 &&
+            u8Name[0] != 0 && strcmp(u8Name, ".") != 0 && // skip "."
+            (!isRootPath || strcmp(u8Name, "..") != 0))   // skip ".." at the root
         {
-            file.Name = SalamanderGeneral->DupStr(data.cFileName);
+            file.Name = SalamanderGeneral->DupStr(u8Name);
             if (file.Name == NULL)
                 goto ERR_2;
-            file.NameLen = strlen(file.Name);
+            file.NameLen = (unsigned)strlen(file.Name);
             if (!sortByExtDirsAsFiles && (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
             {
                 file.Ext = file.Name + file.NameLen; // directories have no extension
@@ -511,22 +520,29 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
             file.IconOverlayIndex = file.Attr & FILE_ATTRIBUTE_READONLY ? 1 : file.Attr & FILE_ATTRIBUTE_SYSTEM ? 0
                                                                                                                 : ICONOVERLAYINDEX_NOTUSED;
 
-            SHFILEINFO shfi;
-            lstrcpyn(name, file.Name, MAX_PATH + 4 - (int)(name - curPath));
+            char shTypeName[3 * MAX_PATH]; // shell type name, converted UTF-16 -> UTF-8
+            lstrcpyn(name, file.Name, MAX_PATH + 4 - (int)(name - curPath)); // build "Path\name" (UTF-8) in curPath
             BOOL isUpDir;
             isUpDir = strcmp(file.Name, "..") == 0;
             if (!isUpDir)
             {
-                if (!SHGetFileInfo(curPath, 0, &shfi, sizeof(shfi), SHGFI_TYPENAME))
+                // Query the shell type name on the W layer. Note: SHGetFileInfoW gets a
+                // PLAIN UTF-16 path (SplU8ToWAlloc), not the \\?\ form - the shell name
+                // space does not accept the extended-length prefix.
+                SHFILEINFOW shfi;
+                WCHAR* wPath = SplU8ToWAlloc(curPath);
+                if (wPath == NULL || !SHGetFileInfoW(wPath, 0, &shfi, sizeof(shfi), SHGFI_TYPENAME) ||
+                    SplWToU8(shfi.szTypeName, shTypeName, sizeof(shTypeName)) <= 0)
                 {
-                    strcpy(shfi.szTypeName, "(error)");
+                    strcpy(shTypeName, "(error)");
                 }
+                free(wPath);
             }
             else
-                strcpy(shfi.szTypeName, "Go to Upper Directory");
+                strcpy(shTypeName, "Go to Upper Directory");
 
             CFSData* extData;
-            extData = new CFSData(data.ftCreationTime, data.ftLastAccessTime, shfi.szTypeName);
+            extData = new CFSData(data.ftCreationTime, data.ftLastAccessTime, shTypeName);
             if (extData == NULL || !extData->IsGood())
                 goto ERR_1;
             file.PluginData = (DWORD_PTR)extData;
@@ -588,7 +604,7 @@ CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* dir,
     }
     //end j.r.
 */
-        if (!FindNextFile(find, &data))
+        if (!FindNextFileW(find, &data))
         {
             HANDLES(FindClose(find));
             break; // end of enumeration
@@ -940,7 +956,7 @@ CPluginFSInterface::QuickRename(const char* fsName, int mode, HWND parent, CFile
         // 'newName' is returned after adjustment (mask applied)
         return FALSE; // error -> show the standard dialog again
     }
-    if (!MoveFile(nameFrom, nameTo))
+    if (!DiskMoveFileU8(nameFrom, nameTo)) // UTF-8 disk paths -> W file API (interface 104)
     {
         // (overwriting is not handled here; treat it as an error as well)
         SalamanderGeneral->GetErrorText(GetLastError(), buf, 2 * MAX_PATH);
@@ -1234,11 +1250,15 @@ CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
     if (!fileExists) // preparing the file copy (download) is necessary
     {
         const char* name = uniqueFileName + strlen(fsName) + 1;
-        if (CopyFile(name, tmpFileName, TRUE)) // the copy succeeded
+        // 'name' and 'tmpFileName' are UTF-8 disk paths (interface 104) -> W file API
+        if (DiskCopyFileU8(name, tmpFileName, TRUE)) // the copy succeeded
         {
             newFileOK = TRUE; // if determining the file size fails, newFileSize stays zero (not too important)
-            HANDLE hFile = HANDLES_Q(CreateFile(tmpFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                                NULL, OPEN_EXISTING, 0, NULL));
+            WCHAR* wTmpFileName = SplU8ToWExtAlloc(tmpFileName);
+            HANDLE hFile = wTmpFileName == NULL ? INVALID_HANDLE_VALUE
+                                                : HANDLES_Q(CreateFileW(wTmpFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                                        NULL, OPEN_EXISTING, 0, NULL));
+            free(wTmpFileName);
             if (hFile != INVALID_HANDLE_VALUE)
             { // ignore errors; the exact file size is not essential
                 DWORD err;
@@ -2213,7 +2233,7 @@ CPluginFSInterface::CopyOrMoveFromFS(BOOL copy, int mode, const char* fsName, HW
                         // (the ConfirmOnFileOverwrite and ConfirmOnSystemHiddenFileOverwrite flags apply)
                         while (1)
                         {
-                            if (!CopyFile(sourceName, targetName, TRUE))
+                            if (!DiskCopyFileU8(sourceName, targetName, TRUE)) // UTF-8 disk paths -> W (interface 104)
                             {
                                 if (!skipAllErrors)
                                 {

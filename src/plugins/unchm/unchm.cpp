@@ -67,6 +67,34 @@ char* LoadStr(int resID)
     return SalamanderGeneral->LoadStr(HLanguage, resID);
 }
 
+//
+// interface 104: UTF-8 paths -> W file APIs (see splunicode.h)
+//
+
+BOOL DeleteFileU8(const char* name)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = DeleteFileW(w);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err); // preserve the API's error across free()
+    return ret;
+}
+
+BOOL SetFileAttributesU8(const char* name, DWORD attrs)
+{
+    WCHAR* w = SplU8ToWExtAlloc(name);
+    if (w == NULL)
+        return FALSE;
+    BOOL ret = SetFileAttributesW(w, attrs);
+    DWORD err = GetLastError();
+    free(w);
+    SetLastError(err);
+    return ret;
+}
+
 int WINAPI SalamanderPluginGetReqVer()
 {
     return LAST_VERSION_OF_SALAMANDER;
@@ -334,18 +362,25 @@ BOOL CPluginInterfaceForArchiver::UnpackArchive(CSalamanderForOperationsAbstract
         DWORD silent = 0;
         BOOL toSkip = FALSE;
 
-        char currentPath[MAX_PATH];
-        strcpy(currentPath, archiveRoot);
+        // interface 104: archiveRoot/targetDir/name are UTF-8 and may be long paths -> heap
+        CU8PathBuf currentPath;
+        CU8PathBuf destPath;
+        if (!currentPath.IsOk() || !destPath.IsOk())
+        {
+            Error(IDS_INSUFFICIENT_MEMORY);
+            salamander->CloseProgressDialog();
+            return FALSE;
+        }
+        lstrcpyn(currentPath, archiveRoot, U8_MAX_PATH);
 
         ret = TRUE;
         next(NULL, -1, NULL, NULL, NULL, nextParam, NULL);
         while ((name = next(NULL /* do not report errors the second time */, 1, &isDir, &size, &fileData, nextParam, NULL)) != NULL)
         {
             // directories do not concern us; they are created when unpacking files
-            char destPath[MAX_PATH];
-            strcpy(destPath, targetDir);
+            lstrcpyn(destPath, targetDir, U8_MAX_PATH);
 
-            if (SalamanderGeneral->SalPathAppend(destPath, name, MAX_PATH))
+            if (SalamanderGeneral->SalPathAppend(destPath, name, U8_MAX_PATH))
             {
                 if (isDir)
                 {

@@ -1114,7 +1114,7 @@ BOOL CPluginFSInterface::EditNewFile()
         if (ret == ERROR_SUCCESS)
         {
             char buf[3 * MAX_FULL_KEYNAME + 200];
-            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_REPLACEVAL), fullNameA);
+            _snprintf_s(buf, sizeof(buf), _TRUNCATE, LoadStr(IDS_REPLACEVAL), fullNameA);
 
             if (SG->SalMessageBox(GetParent(), buf, LoadStr(IDS_QUESTION), MB_ICONQUESTION | MB_YESNOCANCEL) != IDYES)
             {
