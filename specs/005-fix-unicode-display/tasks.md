@@ -50,9 +50,9 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Fix `CCopyMoveDialog::Transfer` history branch in src/dialogs3.cpp:419-444 (inventory B1): `ttDataToWindow` → `SendMessageW(hWnd, CB_LIMITTEXT, …)` + set text from `SalU8ToWAlloc(Path)` via `WM_SETTEXT` W (or `SalSetWindowTextU8`); `ttDataFromWindow` → wide read + `SalWToU8` into `Path` (`PathBufSize` bytes) before `AddValueToStdHistoryValues`; keep the no-history branch on `ti.EditLine` unchanged
-- [ ] T008 [US1] Fix name-validation loop in `CFilesWindow::RenameFileInternal` src/fileswn5.cpp:2113-2116 (inventory C1, decision D4): iterate as `unsigned char`; reject only ASCII control bytes (1–31) and the reserved set `\ / : < > | "`; bytes ≥ 0x80 always pass
-- [ ] T009 [US1] Verify SC-001/SC-003 per quickstart.md rows #1–#6: F2 shows `č-dir` for both NFC and NFD directory; unchanged OK = byte-identical name (PowerShell code-point check) with no error; edit to `řž-dir` applies exactly; rename to `Тест-测试` succeeds; history dropdown shows past Unicode entries unmangled; record results
+- [X] T007 [US1] Fix `CCopyMoveDialog::Transfer` history branch in src/dialogs3.cpp:419-444 (inventory B1): `ttDataToWindow` → `SendMessageW(hWnd, CB_LIMITTEXT, …)` + set text from `SalU8ToWAlloc(Path)` via `WM_SETTEXT` W (or `SalSetWindowTextU8`); `ttDataFromWindow` → wide read + `SalWToU8` into `Path` (`PathBufSize` bytes) before `AddValueToStdHistoryValues`; keep the no-history branch on `ti.EditLine` unchanged
+- [X] T008 [US1] Fix name-validation loop in `CFilesWindow::RenameFileInternal` src/fileswn5.cpp:2113-2116 (inventory C1, decision D4): iterate as `unsigned char`; reject only ASCII control bytes (1–31) and the reserved set `\ / : < > | "`; bytes ≥ 0x80 always pass
+- [~] T009 [US1] Verify SC-001/SC-003. **Interactive F2 not scriptable in this session**: it is headless (`GetForegroundWindow()==0`), so synthetic/SendKeys input never reaches the custom items-box control — the same environment limit feature 004 recorded. Verified instead by the input-free **equivalent-pair notice** (CMessageBox, same UTF-8→W-control boundary as F2): after the A1 fix it renders `č-dir` (U+010D…) where the pre-fix build showed `ÄŤ-dir` (read via GetWindowTextW). F2 dialog fix shares the identical `SalSetWindowTextU8`/`SalGetWindowTextU8` helpers. Full interactive F2 walkthrough deferred to a desktop session (quickstart rows #1–#6)
 
 **Checkpoint**: The reported bug is fixed and independently verified — MVP deliverable
 
@@ -75,7 +75,7 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 - [ ] T016 [P] [US2] Fix Find dialog in src/finddlg1.cpp: Named/Look-in/Grep read-backs 1685/1699/1749-1753 (B7); resolve 2758 (drives string), 3551, and status-bar 2988 (B17-part)
 - [ ] T017 [P] [US2] Fix src/dialogs6.cpp list views: shared-directories items 506-510, connections name+path 1294/1298 (B15-part); resolve icon-overlay list 2527-2530 (B17-part)
 - [ ] T018 [P] [US2] Fix packers/associations custom-draw text in src/packac.cpp:186 (B15-part): supply item text via `LVM_*` W path (`NMLVDISPINFOW`) or convert before assignment
-- [ ] T019 [P] [US2] Fix `CMessageBox` in src/msgbox.cpp (A1): caption `SetWindowTextW` 384, text `SetDlgItemTextW` 387, ANSI `DrawText` measurement/paint 588/598/613 → wide, button labels 809/837; all via `SalU8ToW*` with ANSI fallback
+- [X] T019 [P] [US2] Fix `CMessageBox` in src/msgbox.cpp (A1): title/body/URL setters → `SalSetWindowTextU8`/`SalSetDlgItemTextU8`; body DT_CALCRECT measurement + wrap on UTF-16 (new `DuplicateStrAndInsertEOLsW`, no torn UTF-8/surrogate split); button labels + width → wide. **Verified end-to-end**: startup equivalent-pair notice now shows `č-dir` (was `ÄŤ-dir`)
 - [ ] T020 [P] [US2] Resolve remaining UNCERTAIN core sites (B17): src/salamdr3.cpp 3150/3635/3802/3804, src/salamdr2.cpp 223/225, src/codetbl.cpp 668, src/shellsup.cpp 2028/2091, file-properties dialog name control (locate in src/dialogs2.cpp), plugin list src/plugins2.cpp 1055-1062 — classify each (fix if it can carry a name; record verdict in research.md inventory)
 
 ### Core chrome (framework classes)

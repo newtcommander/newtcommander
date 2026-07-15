@@ -264,6 +264,82 @@ char* DuplicateStrAndInsertEOLs(const char* src, HDC hDC, int maxWidth)
     return NULL;
 }
 
+// feature 005: wide variant of DuplicateStrAndInsertEOLs. Message-box body
+// text carries UTF-8 file names; wrapping must happen on the UTF-16 form so a
+// break never lands inside a multi-byte sequence (which would tear the name).
+// Returns a newly allocated wide string (free() it) or NULL when no break is
+// needed / on failure.
+WCHAR* DuplicateStrAndInsertEOLsW(const WCHAR* src, HDC hDC, int maxWidth)
+{
+    if (src == NULL || *src == 0)
+        return NULL;
+
+    int srcLen = (int)wcslen(src);
+
+    int* alpDx = (int*)malloc((1 + srcLen + 1) * sizeof(int));
+    if (alpDx == NULL)
+    {
+        TRACE_E(LOW_MEMORY);
+        return NULL;
+    }
+    alpDx[0] = 0;
+
+    SIZE sz;
+    if (!GetTextExtentExPointW(hDC, src, srcLen, 0, NULL, alpDx + 1, &sz))
+    {
+        free(alpDx);
+        return NULL;
+    }
+
+    int breakCount = 0;
+    int lineLen = 0;
+    int i;
+    for (i = 0; i < srcLen; i++)
+    {
+        if (src[i] == L'\n')
+        {
+            lineLen = 0;
+        }
+        else
+        {
+            if (lineLen + (alpDx[i + 1] - alpDx[i]) > maxWidth)
+            {
+                // never break inside a surrogate pair
+                int brk = i;
+                if (brk > 0 && IS_LOW_SURROGATE(src[brk]) && IS_HIGH_SURROGATE(src[brk - 1]))
+                    brk--;
+                alpDx[breakCount] = brk;
+                breakCount++;
+                lineLen = 0;
+            }
+            else
+            {
+                lineLen += alpDx[i + 1] - alpDx[i];
+            }
+        }
+    }
+
+    if (breakCount > 0)
+    {
+        WCHAR* text = (WCHAR*)malloc((srcLen + breakCount + 1) * sizeof(WCHAR));
+        if (text != NULL)
+        {
+            memcpy(text, src, (srcLen + 1) * sizeof(WCHAR));
+            int i2;
+            for (i2 = 0; i2 < breakCount; i2++)
+            {
+                memmove(text + alpDx[i2] + 1, text + alpDx[i2], (srcLen - alpDx[i2] + 1 + i2) * sizeof(WCHAR));
+                text[alpDx[i2]] = L'\n';
+            }
+            free(alpDx);
+            return text;
+        }
+    }
+
+    free(alpDx);
+    return NULL;
+}
+
 BOOL CMessageBox::CopyToClipboard()
 {
     const char* separator = "---------------------------\r\n";
@@ -380,11 +456,12 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (!EscapeEnabled())
             EnableMenuItem(GetSystemMenu(HWindow, FALSE), SC_CLOSE, MF_BYCOMMAND | MF_GRAYED);
 
-        // set the window title and body text
-        SetWindowText(HWindow, Title);
+        // set the window title and body text (feature 005: title/body may carry
+        // UTF-8 file names - cross to the Unicode controls as UTF-16)
+        SalSetWindowTextU8(HWindow, Title);
         if (Text.NeedTruncate())
             Text.TruncateText(GetDlgItem(HWindow, IDS_MSGBOX_TEXT), TRUE);
-        SetDlgItemText(HWindow, IDS_MSGBOX_TEXT, Text.Get());
+        SalSetDlgItemTextU8(HWindow, IDS_MSGBOX_TEXT, Text.Get());
 
         const char* urlText = NULL;
         if (URL != NULL)
@@ -392,7 +469,7 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             CHyperLink* hl = new CHyperLink(HWindow, IDS_MSGBOX_URL);
             hl->SetActionOpen(URL);
             urlText = URLText != NULL ? URLText : URL;
-            SetDlgItemText(HWindow, IDS_MSGBOX_URL, urlText);
+            SalSetDlgItemTextU8(HWindow, IDS_MSGBOX_URL, urlText);
         }
         else
             DestroyWindow(GetDlgItem(HWindow, IDS_MSGBOX_URL));
@@ -584,20 +661,43 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (maxTextWidth > fontCharWidth * 90) // since Windows Vista dialogs are narrower again - wrap at 90 average characters
             maxTextWidth = fontCharWidth * 90;
 
+        // feature 005: measure and wrap the body on its UTF-16 form so widths
+        // are correct and hard breaks never split a UTF-8 sequence; invalid
+        // UTF-8 (transitional) keeps the legacy narrow path
+        WCHAR* bodyW = SalU8ToWAlloc(Text.Get());
+        const UINT calcFlags = DT_CALCRECT | DT_LEFT | DT_WORDBREAK | DT_EXPANDTABS | DT_NOPREFIX;
+
         tR.right = maxTextWidth;
-        DrawText(hDC, Text.Get(), -1, &tR, DT_CALCRECT | DT_LEFT | DT_WORDBREAK | DT_EXPANDTABS | DT_NOPREFIX);
+        if (bodyW != NULL)
+            DrawTextW(hDC, bodyW, -1, &tR, calcFlags);
+        else
+            DrawText(hDC, Text.Get(), -1, &tR, calcFlags);
 
         if (tR.right > maxTextWidth)
         {
             // text width exceeds maxTextWidth limit, so we create a new one
             // text into which we will insert hard line breaks
-            const char* newText = DuplicateStrAndInsertEOLs(Text.Get(), hDC, maxTextWidth);
-            if (newText != NULL)
+            if (bodyW != NULL)
             {
-                tR.right = maxTextWidth;
-                DrawText(hDC, newText, -1, &tR, DT_CALCRECT | DT_LEFT | DT_WORDBREAK | DT_EXPANDTABS | DT_NOPREFIX);
-                SetDlgItemText(HWindow, IDS_MSGBOX_TEXT, newText);
-                free((void*)newText);
+                WCHAR* newTextW = DuplicateStrAndInsertEOLsW(bodyW, hDC, maxTextWidth);
+                if (newTextW != NULL)
+                {
+                    tR.right = maxTextWidth;
+                    DrawTextW(hDC, newTextW, -1, &tR, calcFlags);
+                    SetWindowTextW(GetDlgItem(HWindow, IDS_MSGBOX_TEXT), newTextW);
+                    free(newTextW);
+                }
+            }
+            else
+            {
+                const char* newText = DuplicateStrAndInsertEOLs(Text.Get(), hDC, maxTextWidth);
+                if (newText != NULL)
+                {
+                    tR.right = maxTextWidth;
+                    DrawText(hDC, newText, -1, &tR, calcFlags);
+                    SetDlgItemText(HWindow, IDS_MSGBOX_TEXT, newText);
+                    free((void*)newText);
+                }
             }
         }
         else
@@ -610,11 +710,16 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 goodRight = iterRect.right;
                 iterRect.right -= 5; // step by five pixels
-                DrawText(hDC, Text.Get(), -1, &iterRect, DT_CALCRECT | DT_LEFT | DT_WORDBREAK | DT_EXPANDTABS | DT_NOPREFIX);
+                if (bodyW != NULL)
+                    DrawTextW(hDC, bodyW, -1, &iterRect, calcFlags);
+                else
+                    DrawText(hDC, Text.Get(), -1, &iterRect, calcFlags);
                 //        TRACE_I("Iter: right="<<iterRect.right);
             } while (iterRect.bottom == tR.bottom && iterRect.right < goodRight && iterRect.right >= 0);
             tR.right = goodRight;
         }
+        if (bodyW != NULL)
+            free(bodyW);
 
         // if there's a URL below the text, we add it to the text height for simplicity
         RECT urlR = {0};
@@ -806,7 +911,7 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         if (btnID[i] == id)
                         {
                             btnTextWasSet = TRUE;
-                            SetWindowText(hButton, aliasName);
+                            SalSetWindowTextU8(hButton, aliasName); // feature 005: label may be a localized UTF-8 string
 
                             // measure whether the button needs to be expanded
                             char btnText2[300];
@@ -816,7 +921,14 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                             SIZE sz;
                             HDC hDC2 = HANDLES(GetDC(HWindow));
                             HFONT hOldFont2 = (HFONT)SelectObject(hDC2, hFont);
-                            GetTextExtentPoint32(hDC2, btnText2, (int)strlen(btnText2), &sz);
+                            WCHAR* btnText2W = SalU8ToWAlloc(btnText2);
+                            if (btnText2W != NULL)
+                            {
+                                GetTextExtentPoint32W(hDC2, btnText2W, (int)wcslen(btnText2W), &sz);
+                                free(btnText2W);
+                            }
+                            else
+                                GetTextExtentPoint32(hDC2, btnText2, (int)strlen(btnText2), &sz);
                             SelectObject(hDC2, hOldFont2);
                             HANDLES(ReleaseDC(HWindow, hDC2));
 
@@ -834,7 +946,7 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                 }
                 if (!btnTextWasSet)
-                    SetWindowText(hButton, LoadStr(btnText[i]));
+                    SalSetWindowTextU8(hButton, LoadStr(btnText[i])); // feature 005: localized label may be UTF-8
 
                 // request to receive Ctrl+C in the form of WM_COPY
                 CKeyForwarderWindow* wnd = new CKeyForwarderWindow(HWindow, btnID[i]);
