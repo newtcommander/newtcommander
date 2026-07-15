@@ -110,6 +110,34 @@ recorded for features 004/005. Deferred:
   engine yet — a follow-up (the WIC decoder can fill the RAW 32bpp buffer
   directly). Not required for US1–US3.
 
+## Build-system fix: plugins.ver version regression (PictView missing from Plugin Manager)
+
+Reported after the code fix: "with `build.cmd release full` PictView is
+missing from the build — I don't see it at all." Investigated and root-caused
+as a **build-script defect independent of the plugin code**:
+
+- Debug and Release of the same platform share one registry key
+  (`Software\Open Salamander\5.0`) and one counter,
+  `Configuration\Plugins.ver Version (x64)`.
+- The old `build.cmd` generated `plugins.ver` with a per-output-directory
+  counter that **restarted at 1** for each configuration. Salamander skips a
+  `plugins.ver` whose version is `<=` the recorded one (plugins2.cpp:2817), so
+  after Debug builds pushed the registry to a higher number, a fresh Release
+  build's version-1 file was ignored — **none of its plugins auto-installed**,
+  including the newly built PictView. Confirmed live: registry version = 1,
+  33 of 35 plugins installed, PictView absent.
+
+Fix (`build.cmd`): the `plugins.ver` version is now a **monotonic clock-based
+token** — minutes since 2000-01-01 (fits a 32-bit int until ~4085) — so every
+build, in any configuration, strictly increases and always exceeds any value
+already written to the registry. No per-directory state.
+
+**Verified end-to-end (headless):** launched the Release build; the registry
+version advanced **1 → 13957450**, the installed-plugin count went **33 → 34**,
+and **PictView is now present in the Plugin Manager list** (script
+`scratchpad/verify-autoinstall.ps1`). SaveConfig persists the new version at
+startup (salamdr1.cpp:4349), so no special exit is required.
+
 ## Regression posture
 
 - No plugin ABI change; the `PVW32DLL` table shape and `lib/PVW32DLL.h`
