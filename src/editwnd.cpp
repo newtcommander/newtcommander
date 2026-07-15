@@ -372,7 +372,7 @@ CEditLine::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             else
             {
                 char cmdLine[SALCMDLINE_MAXLEN + 1];
-                SendMessage(HWindow, WM_GETTEXT, SALCMDLINE_MAXLEN + 1, (LPARAM)cmdLine);
+                SalGetWindowTextU8(HWindow, cmdLine, SALCMDLINE_MAXLEN + 1); // command line is UTF-8 (feature 005)
 
                 MainWindow->SetDefaultDirectories();
 
@@ -558,7 +558,7 @@ CEditLine::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         selTo = 0;
                     if (selTo > l)
                         selTo = l;
-                    SendMessage(HWindow, WM_SETTEXT, 0, (LPARAM)command);
+                    SalSetWindowTextU8(HWindow, command); // command line is UTF-8 (feature 005)
                     SendMessage(HWindow, EM_SETSEL, selFrom, selTo);
                 }
             }
@@ -1708,7 +1708,7 @@ void CEditWindow::FillHistory()
         int i;
         for (i = 0; i < EDIT_HISTORY_SIZE; i++)
             if (Configuration.EditHistory[i] != NULL)
-                SendMessage(HWindow, CB_ADDSTRING, 0, (LPARAM)Configuration.EditHistory[i]);
+                SalComboAddStringU8(HWindow, Configuration.EditHistory[i]); // history is UTF-8 (feature 005)
     }
 }
 
@@ -1980,10 +1980,10 @@ void CEditWindow::StoreContent()
     int textLen = GetWindowTextLength(EditLine->HWindow);
     if (textLen > 0)
     {
-        LastText = (char*)malloc(textLen + 1);
+        LastText = (char*)malloc(3 * textLen + 1); // UTF-8 worst case 3 B per WCHAR (feature 005)
         if (LastText != NULL)
         {
-            GetWindowText(EditLine->HWindow, LastText, textLen + 1);
+            SalGetWindowTextU8(EditLine->HWindow, LastText, 3 * textLen + 1);
             SendMessage(EditLine->HWindow, EM_GETSEL, (WPARAM)&LastSelStart, (LPARAM)&LastSelEnd);
         }
     }
@@ -1994,7 +1994,7 @@ void CEditWindow::RestoreContent()
     if (Enabled && LastText != NULL)
     {
         // if the old window state (contents and selection) was saved, we restore it
-        SetWindowText(HWindow, LastText);
+        SalSetWindowTextU8(HWindow, LastText); // command line is UTF-8 (feature 005)
         SendMessage(EditLine->HWindow, EM_SETSEL, (WPARAM)LastSelStart, (LPARAM)LastSelEnd);
     }
 }
