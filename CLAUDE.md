@@ -48,6 +48,11 @@ translations/          UI translations
 set OPENSAL_BUILD_DIR=D:\Build\OpenSal\
 build.cmd                       :: Debug x64 incremental build (from repo root)
 build.cmd rebuild               :: Full clean + rebuild Debug x64
+build.cmd full                  :: Complete build: also copies runtime data
+                                ::   (convert tables, toolbars, scripts) and
+                                ::   generates plugins\plugins.ver so all 35
+                                ::   plugins auto-register in Plugin Manager
+build.cmd full release          :: Complete Release x64 build
 ```
 
 Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (interactive menu).

@@ -2,11 +2,15 @@
 setlocal enabledelayedexpansion
 
 :: Open Salamander Build Script
-:: Usage: build.cmd [rebuild] [release]
+:: Usage: build.cmd [rebuild] [release] [full]
 ::   (no args)       Incremental Debug x64 build
 ::   rebuild         Full clean + rebuild
 ::   release         Release x64 build
 ::   rebuild release Full clean + rebuild Release x64
+::   full            Complete build: app + all plugins + language modules,
+::                   plus runtime data files (conversion tables, toolbars,
+::                   sample scripts) and plugins\plugins.ver so that all
+::                   built plugins auto-register in Plugin Manager
 ::   help            Show this help message
 
 if /i "%~1"=="help" goto :show_help
@@ -20,11 +24,13 @@ if /i "%~1"=="-h" goto :show_help
 set "BUILD_TARGET=build"
 set "BUILD_CONFIG=Debug"
 set "BUILD_PLATFORM=x64"
+set "BUILD_FULL=0"
 
 :: Parse all arguments (order-independent)
 for %%a in (%*) do (
     if /i "%%~a"=="rebuild" set "BUILD_TARGET=rebuild"
     if /i "%%~a"=="release" set "BUILD_CONFIG=Release"
+    if /i "%%~a"=="full" set "BUILD_FULL=1"
 )
 
 :: ============================================================
@@ -111,6 +117,7 @@ echo  Open Salamander Build
 echo ============================================================
 echo  Configuration : %BUILD_CONFIG% %BUILD_PLATFORM%
 echo  Mode          : %BUILD_TARGET%
+if "%BUILD_FULL%"=="1" echo  Full build    : runtime data files + plugins.ver
 echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 echo  MSBuild       : %MSBUILD_PATH%
 echo ============================================================
@@ -130,6 +137,12 @@ pushd "%~dp0src\vcxproj"
 set "BUILD_EXIT=%errorlevel%"
 
 popd
+
+:: Full build: copy runtime data files and generate plugins.ver
+if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
+    call :populate_runtime
+    if errorlevel 1 set "BUILD_EXIT=1"
+)
 
 :: Record end time
 set "END_TIME=%time%"
@@ -170,10 +183,114 @@ if %BUILD_EXIT% equ 0 (
 echo  Configuration : %BUILD_CONFIG% %BUILD_PLATFORM%
 echo  Duration      : %DUR_M% min %DUR_S% sec
 echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
+if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
+    echo  Plugins       : %PLUG_COUNT% registered in plugins.ver ^(version %NEW_VER%^)
+    echo  Languages     : %LANG_COUNT% language modules ^(english^)
+)
 echo ============================================================
 echo.
 
 exit /b %BUILD_EXIT%
+
+:: ============================================================
+:: Full build: populate runtime layout
+:: ============================================================
+:: Copies runtime data files next to the built binaries and
+:: generates plugins\plugins.ver (same format as the installer:
+:: first line = version number, then "<version>:<relative .spl
+:: path>" lines). On next start Salamander auto-installs every
+:: entry newer than its registry counter and skips plugins it
+:: already knows, so all built plugins appear in Plugin Manager.
+
+:populate_runtime
+set "OUT_DIR=%OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
+echo.
+echo Populating runtime layout: %OUT_DIR%
+
+if not exist "%OUT_DIR%\plugins" (
+    echo ERROR: Plugins output directory not found: !OUT_DIR!\plugins
+    exit /b 1
+)
+
+:: Character conversion tables (viewer "Convert" feature)
+for %%d in (centeuro cyrillic westeuro) do (
+    robocopy "%~dp0convert\%%d" "%OUT_DIR%\convert\%%d" convert.cfg *.tab >nul
+    if errorlevel 8 (
+        echo ERROR: Failed to copy conversion tables: %%d
+        exit /b 1
+    )
+)
+
+:: Toolbar icons
+robocopy "%~dp0src\res\toolbars" "%OUT_DIR%\toolbars" >nul
+if errorlevel 8 (
+    echo ERROR: Failed to copy toolbar icons.
+    exit /b 1
+)
+
+:: Automation plugin: sample scripts
+robocopy "%~dp0src\plugins\automation\sample-scripts" "%OUT_DIR%\plugins\automation\scripts" >nul
+if errorlevel 8 (
+    echo ERROR: Failed to copy automation sample scripts.
+    exit /b 1
+)
+
+:: IEViewer plugin: markdown CSS
+robocopy "%~dp0src\plugins\ieviewer\cmark-gfm\css" "%OUT_DIR%\plugins\ieviewer\css" >nul
+if errorlevel 8 (
+    echo ERROR: Failed to copy ieviewer CSS.
+    exit /b 1
+)
+
+:: ZIP plugin: Zip2SFX configuration samples
+robocopy "%~dp0src\plugins\zip\zip2sfx" "%OUT_DIR%\plugins\zip\zip2sfx" readme.txt sam_cz.set sample.set >nul
+if errorlevel 8 (
+    echo ERROR: Failed to copy zip2sfx files.
+    exit /b 1
+)
+
+:: Generate plugins\plugins.ver; bump the version above the
+:: previous file so Salamander processes the new list even if it
+:: has already seen an older one (registry counter comparison)
+set "PLUG_DIR=%OUT_DIR%\plugins"
+set "PLUG_VER=%PLUG_DIR%\plugins.ver"
+set "NEW_VER=1"
+if exist "%PLUG_VER%" (
+    set "PV_FIRST="
+    set /p PV_FIRST=<"!PLUG_VER!"
+    for /f "delims=:" %%v in ("!PV_FIRST!") do set /a NEW_VER=%%v+1
+)
+set "PLUG_COUNT=0"
+> "%PLUG_VER%" echo %NEW_VER%
+for %%p in ("%PLUG_DIR%") do for /r "%PLUG_DIR%" %%f in (*.spl) do (
+    set "REL=%%f"
+    set "REL=!REL:%%~p\=!"
+    if /i "!REL!"=="!REL:Intermediate=!" (
+        >> "%PLUG_VER%" echo %NEW_VER%:!REL!
+        set /a PLUG_COUNT+=1
+    )
+)
+
+if %PLUG_COUNT% equ 0 (
+    echo ERROR: No plugins ^(*.spl^) found in !PLUG_DIR!
+    exit /b 1
+)
+
+:: Count built language modules (.slg)
+set "LANG_COUNT=0"
+for /r "%OUT_DIR%" %%f in (*.slg) do (
+    set "REL=%%f"
+    if /i "!REL!"=="!REL:Intermediate=!" set /a LANG_COUNT+=1
+)
+
+echo   plugins.ver version %NEW_VER%: %PLUG_COUNT% plugins registered for auto-install
+echo   language modules built: %LANG_COUNT% ^(english^)
+echo.
+echo   NOTE: Translations in translations\ ^(czech, german, ...^) are Translator
+echo         source data ^(.slt^) and cannot be compiled from this repository.
+echo   NOTE: pictview/unrar additionally need pvw32cnv.dll/unrar.dll at runtime
+echo         ^(not in repo^); winscp is not part of salamand.sln.
+exit /b 0
 
 :: ============================================================
 :: Help
@@ -189,6 +306,10 @@ echo Commands:
 echo   (none)           Incremental Debug x64 build (default)
 echo   rebuild          Full clean + rebuild
 echo   release          Release x64 build
+echo   full             Complete build: app + all plugins + language modules,
+echo                    plus runtime data files (conversion tables, toolbars,
+echo                    sample scripts) and plugins\plugins.ver so that all
+echo                    built plugins appear in Plugin Manager on next start
 echo   help             Show this help message
 echo.
 echo   Arguments can be combined in any order.
@@ -203,5 +324,7 @@ echo   build.cmd                  Debug incremental build
 echo   build.cmd release          Release incremental build
 echo   build.cmd rebuild          Debug clean rebuild
 echo   build.cmd rebuild release  Release clean rebuild
+echo   build.cmd full             Complete Debug build (plugins in Plugin Manager)
+echo   build.cmd full release     Complete Release build
 echo.
 exit /b 0
