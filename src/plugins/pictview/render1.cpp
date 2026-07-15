@@ -258,7 +258,6 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
     PVCODE code;
     LPPVHandle OldPVHandle = PVHandle;
     PVOpenImageExInfo oiei;
-    char* nameA = NULL; // 'name' is UTF-8, PVW32Cnv.dll wants ANSI
 
     if (showCmd != -1)
     {
@@ -284,20 +283,11 @@ BOOL CRendererWindow::OpenFile(LPCTSTR name, int showCmd, HBITMAP hBmp)
     }
     else
     {
-        nameA = U8ToDLLPathAlloc(name);
-        oiei.FileName = nameA;
+        // 'name' is UTF-8; the WIC engine opens Unicode/long paths directly (feature 006)
+        oiei.FileName = name;
     }
     FreeComment();
-    if (hBmp == NULL && nameA == NULL) // the DLL cannot reach this file through an ANSI path
-    {
-        PVHandle = NULL;
-        code = PVC_CANNOT_OPEN_FILE;
-    }
-    else
-    {
-        code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
-    }
-    free(nameA);
+    code = PVW32DLL.PVOpenImageEx(&PVHandle, &oiei, &pvii, sizeof(pvii));
 
     if (code == PVC_OK)
     {

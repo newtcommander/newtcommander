@@ -850,14 +850,6 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
 
     pvoi.DataSize = ExtractWinThumbnail(filename, &thumbData);
 
-    // 'filename' is UTF-8, PVW32Cnv.dll wants ANSI
-    char* filenameA = U8ToDLLPathAlloc(filename);
-    if (filenameA == NULL)
-    {
-        free(thumbData);
-        return FALSE; // the DLL cannot reach the file through an ANSI path
-    }
-
     for (;;)
     {
         pvoi.cbSize = sizeof(pvoi);
@@ -865,7 +857,8 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         //     pvoi.Flags  = PVFF_FAST | (G.IgnoreThumbnails ? 0 : PVOF_THUMBNAIL);
         pvoi.Flags = PVFF_FAST | (G.IgnoreThumbnails ? 0 : (fastThumbnail ? PVOF_THUMBNAIL : 0));
 
-        pvoi.FileName = filenameA;
+        // 'filename' is UTF-8; the WIC engine opens Unicode/long paths directly (feature 006)
+        pvoi.FileName = filename;
         if (pvoi.DataSize)
         {
             pvoi.Flags |= PVOF_USERDEFINED_INPUT;
@@ -881,14 +874,12 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         if (code != PVC_OK)
         {
             free(thumbData);
-            free(filenameA);
             return FALSE; // probably not a bitmap
         }
         if (pvii.Height * pvii.Width > G.MaxThumbImgSize * 1024 * 1024)
         {
             // image too large and presumably thumbnailing it would take too much time
             free(thumbData);
-            free(filenameA);
             PVW32DLL.PVCloseImage(hPVImage);
             return FALSE;
         }
@@ -934,12 +925,15 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         InitEXIF(NULL, TRUE);
         if (EXIFLibrary)
         {
+            // EXIF.DLL has an ANSI-only interface; skip orientation when the
+            // name is not reachable through an ANSI path (feature 006)
+            char* filenameA = U8ToDLLPathAlloc(filename);
             EXIFGETORIENTATIONINFO getInfo = (EXIFGETORIENTATIONINFO)GetProcAddress(EXIFLibrary, "EXIFGetOrientationInfo");
-            if (getInfo)
+            if (getInfo && filenameA != NULL)
             {
                 SThumbExifInfo info;
 
-                getInfo(filenameA, &info); // EXIF.DLL has an ANSI-only interface
+                getInfo(filenameA, &info);
                 if ((info.flags & (TEI_WIDTH | TEI_HEIGHT)) == (TEI_WIDTH | TEI_HEIGHT))
                 {
                     if (((DWORD)info.Width != pvii.Width) || ((DWORD)info.Height != pvii.Height) || (info.Width < info.Height))
@@ -978,6 +972,7 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
                     break;
                 }
             }
+            free(filenameA);
         }
     }
     memset(&sii, 0, sizeof(sii));
@@ -1025,7 +1020,6 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         free(thumbData);
         PVW32DLL.PVCloseImage(hPVImage);
     }
-    free(filenameA);
     return TRUE;
 }
 

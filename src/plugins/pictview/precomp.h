@@ -19,12 +19,14 @@
 #define new new (_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
+// feature 006: PICTVIEW_DLL_IN_SEPARATE_PROCESS retired - the proprietary
+// 32-bit pvw32cnv.dll and its salpvenv.exe IPC host were removed for GPL
+// reasons; the viewer now runs on the in-process WIC engine (wicengine.cpp)
 #ifdef _WIN64
-#define PICTVIEW_DLL_IN_SEPARATE_PROCESS // the x64 version of PictView uses the 32-bit pvw32cnv.dll via IPC (inter-process communication) with salpvenv.exe
-#define ENABLE_WIA                       // the x64 version of PictView uses WIA 1.0 for scanning
-#else                                    // _WIN64
-#define ENABLE_TWAIN32                   // the x86 version of PictView uses TWAIN 1.x for scanning (which internally also supports WIA)
-#endif                                   // _WIN64
+#define ENABLE_WIA     // the x64 version of PictView uses WIA 1.0 for scanning
+#else                  // _WIN64
+#define ENABLE_TWAIN32 // the x86 version of PictView uses TWAIN 1.x for scanning (which internally also supports WIA)
+#endif                 // _WIN64
 
 // workaround for runtime check failure in the debug build: the original version of the macro casts rgb to WORD,
 // reporting a data loss (the RED component)

@@ -22,9 +22,9 @@ Plugin lives under `src/plugins/pictview/`; VS project under `src/plugins/pictvi
 
 **Purpose**: Reproduce the defect and stand up the new engine's build slot
 
-- [ ] T001 Build baseline `build.cmd full`, launch the app, and confirm the reproduction: PictView shows the "not loaded" error box (`IDS_PLUGININVALID2`) at startup; record it. Also create the image fixtures from quickstart.md (`%TEMP%\salamander-test\images` with test.{png,jpg,bmp,gif,tif}, a Unicode-named copy, and broken.jpg)
-- [ ] T002 [P] Create empty new source files `src/plugins/pictview/wicengine.h` and `src/plugins/pictview/wicengine.cpp` with the file header/license banner and an `InitWicEngine(CPVW32DLL* table)` declaration/definition stub returning success (no logic yet)
-- [ ] T003 Wire the build: in `src/plugins/pictview/vcxproj/pictview.vcxproj` add `wicengine.cpp`/`wicengine.h` to the item groups, add `windowscodecs.lib` and `ole32.lib` to the linker inputs; confirm the project still compiles with the empty engine
+- [X] T001 Build baseline `build.cmd full`, launch the app, and confirm the reproduction: PictView shows the "not loaded" error box (`IDS_PLUGININVALID2`) at startup; record it. Also create the image fixtures from quickstart.md (`%TEMP%\salamander-test\images` with test.{png,jpg,bmp,gif,tif}, a Unicode-named copy, and broken.jpg)
+- [X] T002 [P] Create empty new source files `src/plugins/pictview/wicengine.h` and `src/plugins/pictview/wicengine.cpp` with the file header/license banner and an `InitWicEngine(CPVW32DLL* table)` declaration/definition stub returning success (no logic yet)
+- [X] T003 Wire the build: in `src/plugins/pictview/vcxproj/pictview.vcxproj` add `wicengine.cpp`/`wicengine.h` to the item groups, add `windowscodecs.lib` and `ole32.lib` to the linker inputs; confirm the project still compiles with the empty engine
 
 **Checkpoint**: Solution builds with the new (empty) engine unit linked
 
@@ -36,9 +36,9 @@ Plugin lives under `src/plugins/pictview/`; VS project under `src/plugins/pictvi
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Define the per-image context `CWicImage` in `src/plugins/pictview/wicengine.cpp` per data-model.md §3 (decoder, optional IStream, current-frame DIB + bits + BITMAPINFO, PVImageInfo snapshot, stretch state {target W/H signed=mirror, StretchBlt mode}, background COLORREF, frame count, current index) — struct only, no method bodies yet
-- [ ] T005 Implement COM/WIC lifecycle in `src/plugins/pictview/wicengine.cpp` (decision D9): a shared agile `IWICImagingFactory` accessor with `CoInitializeEx` guarded per calling thread (viewer + thumbnail threads), and teardown; helper to create a `IWICBitmapDecoder` from a wide filename or an `IStream`
-- [ ] T006 Implement `InitWicEngine(CPVW32DLL* table)` in `src/plugins/pictview/wicengine.cpp` to assign every table slot (real fns declared, stubs for the rest) so the table is fully non-NULL (satisfies the init guard at pictview.cpp:1473); declare in `wicengine.h`
+- [X] T004 Define the per-image context `CWicImage` in `src/plugins/pictview/wicengine.cpp` per data-model.md §3 (decoder, optional IStream, current-frame DIB + bits + BITMAPINFO, PVImageInfo snapshot, stretch state {target W/H signed=mirror, StretchBlt mode}, background COLORREF, frame count, current index) — struct only, no method bodies yet
+- [X] T005 Implement COM/WIC lifecycle in `src/plugins/pictview/wicengine.cpp` (decision D9): a shared agile `IWICImagingFactory` accessor with `CoInitializeEx` guarded per calling thread (viewer + thumbnail threads), and teardown; helper to create a `IWICBitmapDecoder` from a wide filename or an `IStream`
+- [X] T006 Implement `InitWicEngine(CPVW32DLL* table)` in `src/plugins/pictview/wicengine.cpp` to assign every table slot (real fns declared, stubs for the rest) so the table is fully non-NULL (satisfies the init guard at pictview.cpp:1473); declare in `wicengine.h`
 
 **Checkpoint**: Engine unit exposes a fully-populated table (functions may still be stubs) — foundation ready
 
@@ -52,11 +52,11 @@ Plugin lives under `src/plugins/pictview/`; VS project under `src/plugins/pictvi
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Rewrite `LoadPictViewDll` (src/plugins/pictview/pictview.cpp:1431) to call `InitWicEngine(&PVW32DLL)` and always return TRUE — never `LoadLibrary("PVW32Cnv.dll")`, never `InitPVEXEWrapper`; remove the `IDS_DLL_NOTFOUND`/`IDS_DLL_WRONG_VERSION` abort paths and the `PICTVIEW_DLL_IN_SEPARATE_PROCESS` branch (precomp.h:22-23 use)
-- [ ] T008 [US1] Fix the engine-version text and `PVSetParam` wiring in `InitViewer` (src/plugins/pictview/pictview.cpp:1532-1536): report the built-in engine version (`PVGetDLLVersion` stub) instead of the "PVW32Cnv.dll" string; keep the `PVSetParam(GetExtText)` call working against the stub
-- [ ] T009 [US1] De-wire the IPC/envelope teardown in `ReleaseViewer` (src/plugins/pictview/pictview.cpp:1618-1619): drop the `ReleasePVEXEWrapper` call; ensure `PVCloseImage`/engine teardown is called instead
-- [ ] T010 [US1] Remove the IPC sources from the build in `src/plugins/pictview/vcxproj/pictview.vcxproj` (the `PVEXEWrapper.cpp`, `PVMessage.cpp`, `PVMessageWrapper.cpp` item entries) and drop the `salpvenv.vcxproj` ProjectReference; keep `lib/PVW32DLL.h` and the `exif` reference
-- [ ] T011 [US1] `build.cmd full` and verify US1: no PictView error box at startup, PictView listed as loaded in Plugin Manager, `pictview.spl` produced without any PVW32Cnv/salpvenv input. Headless: enumerate top-level `#32770` windows and assert the PictView error text is absent; record results
+- [X] T007 [US1] Rewrite `LoadPictViewDll` (src/plugins/pictview/pictview.cpp:1431) to call `InitWicEngine(&PVW32DLL)` and always return TRUE — never `LoadLibrary("PVW32Cnv.dll")`, never `InitPVEXEWrapper`; remove the `IDS_DLL_NOTFOUND`/`IDS_DLL_WRONG_VERSION` abort paths and the `PICTVIEW_DLL_IN_SEPARATE_PROCESS` branch (precomp.h:22-23 use)
+- [X] T008 [US1] Fix the engine-version text and `PVSetParam` wiring in `InitViewer` (src/plugins/pictview/pictview.cpp:1532-1536): report the built-in engine version (`PVGetDLLVersion` stub) instead of the "PVW32Cnv.dll" string; keep the `PVSetParam(GetExtText)` call working against the stub
+- [X] T009 [US1] De-wire the IPC/envelope teardown in `ReleaseViewer` (src/plugins/pictview/pictview.cpp:1618-1619): drop the `ReleasePVEXEWrapper` call; ensure `PVCloseImage`/engine teardown is called instead
+- [X] T010 [US1] Remove the IPC sources from the build in `src/plugins/pictview/vcxproj/pictview.vcxproj` (the `PVEXEWrapper.cpp`, `PVMessage.cpp`, `PVMessageWrapper.cpp` item entries) and drop the `salpvenv.vcxproj` ProjectReference; keep `lib/PVW32DLL.h` and the `exif` reference
+- [X] T011 [US1] `build.cmd full` and verify US1: no PictView error box at startup, PictView listed as loaded in Plugin Manager, `pictview.spl` produced without any PVW32Cnv/salpvenv input. Headless: enumerate top-level `#32770` windows and assert the PictView error text is absent; record results
 
 **Checkpoint**: The reported bug is gone — the plugin loads clean. MVP deliverable
 
