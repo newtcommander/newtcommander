@@ -22,7 +22,7 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 **Purpose**: Baseline build + reproducible defect state
 
-- [ ] T001 Verify fixtures per quickstart.md (`%TEMP%\salamander-test` NFC/NFD `č-dir` pair + unicode sample set; recreate if missing), run `build.cmd full`, launch the built binary, and confirm the baseline repro: F2 on the two `č-dir` directories shows `ÄŤ-dir` / `cĚŚ-dir` (record in notes)
+- [X] T001 Verify fixtures per quickstart.md (`%TEMP%\salamander-test` NFC/NFD `č-dir` pair + unicode sample set; recreate if missing), run `build.cmd full`, launch the built binary, and confirm the baseline repro: F2 on the two `č-dir` directories shows `ÄŤ-dir` / `cĚŚ-dir` (record in notes)
 
 ---
 
@@ -32,11 +32,11 @@ Single native-app codebase: all paths relative to repository root `E:\Projects\s
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Add central UTF-8 window-text helpers `SalSetWindowTextU8`, `SalGetWindowTextU8`, `SalSetDlgItemTextU8`, `SalGetDlgItemTextU8`, `SalComboAddStringU8` in src/common/winlib.h + src/common/winlib.cpp (decisions D2/D3: `SalU8ToWAlloc` → `W` message; read-back `GetWindowTextW` + `SalWToU8` with 3×WCHAR+1 sizing; invalid-UTF-8 ANSI fallback identical to `CTransferInfo::EditLine` at winlib.cpp:1042-1055; guard with `#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)` like EditLine)
-- [ ] T003 [P] Fix `LoadComboFromStdHistoryValues` in src/salamdr6.cpp:383-391 (inventory A7): convert each history entry via `SalU8ToWAlloc` and add with `SendMessageW(combo, CB_ADDSTRING, …)`; ANSI fallback for invalid UTF-8
-- [ ] T004 [P] Fix `CTruncatedString::TruncateText` in src/salamdr4.cpp:157+ (inventory A8, decision D5): convert `Text` to UTF-16 once, measure with `GetTextExtentExPointW`, truncate at WCHAR boundaries without splitting surrogate pairs, re-encode to valid UTF-8 (or store a parallel wide result); both `forMessageBox` and dialog paths
-- [ ] T005 [P] Drop invalid-UTF-8 history entries at registry load in src/mainwnd2.cpp (`LoadHistory` counterpart of `SaveHistory` at mainwnd2.cpp:2054-2077; decision D6): validate each loaded string with the existing UTF-8 validity check (`SalU8ToW` failure) and skip the entry
-- [ ] T006 Build checkpoint: `build.cmd` compiles clean; app starts; no visible behavior change yet (helpers unused outside T003–T005)
+- [X] T002 Add central UTF-8 window-text helpers `SalSetWindowTextU8`, `SalGetWindowTextU8`, `SalSetDlgItemTextU8`, `SalGetDlgItemTextU8`, `SalComboAddStringU8` in src/common/winlib.h + src/common/winlib.cpp (decisions D2/D3: `SalU8ToWAlloc` → `W` message; read-back `GetWindowTextW` + `SalWToU8` with 3×WCHAR+1 sizing; invalid-UTF-8 ANSI fallback identical to `CTransferInfo::EditLine` at winlib.cpp:1042-1055; guard with `#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)` like EditLine)
+- [X] T003 [P] Fix `LoadComboFromStdHistoryValues` in src/salamdr6.cpp:383-391 (inventory A7): convert each history entry via `SalU8ToWAlloc` and add with `SendMessageW(combo, CB_ADDSTRING, …)`; ANSI fallback for invalid UTF-8
+- [X] T004 [P] Fix `CTruncatedString::TruncateText` in src/salamdr4.cpp:157+ (inventory A8, decision D5): convert `Text` to UTF-16 once, measure with `GetTextExtentExPointW`, truncate at WCHAR boundaries without splitting surrogate pairs, re-encode to valid UTF-8 (or store a parallel wide result); both `forMessageBox` and dialog paths
+- [X] T005 [P] Drop invalid-UTF-8 history entries at registry load (decision D6) — implemented in `LoadHistory` src/salamdr2.cpp:2397 (the actual load site; mainwnd2.cpp only calls it): entries failing `SalU8ToW` validation are freed and skipped
+- [X] T006 Build checkpoint: `build.cmd` compiles clean (BUILD SUCCEEDED, winlib.cpp + salamdr2/4/6.cpp recompiled, salamand.exe relinked)
 
 **Checkpoint**: Foundation ready — user story implementation can begin
 

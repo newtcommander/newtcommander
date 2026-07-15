@@ -2421,6 +2421,14 @@ BOOL LoadHistory(HKEY hKey, const char* name, char* history[], int maxCount)
                 }
                 if (!GetValue(historyKey, buf, REG_SZ, history[i], bufferSize))
                     break;
+                // feature 005: entries must be valid UTF-8 (feature 004 contract);
+                // drop entries corrupted by older builds that read dialog text
+                // back through ANSI APIs (no reliable re-encoding exists)
+                if (SalU8ToW(history[i], -1, NULL, 0) == 0)
+                {
+                    free(history[i]);
+                    history[i] = NULL;
+                }
             }
         }
         CloseKey(historyKey);

@@ -387,7 +387,7 @@ void LoadComboFromStdHistoryValues(HWND combo, char** historyArr, int historyIte
     int i;
     for (i = 0; i < historyItemsCount; i++)
         if (historyArr[i] != NULL && strlen(historyArr[i]) > 0)
-            SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)historyArr[i]);
+            SalComboAddStringU8(combo, historyArr[i]); // entries carry UTF-8 (feature 005)
 }
 
 BOOL IsPathOnVolumeSupADS(const char* path, BOOL* isFAT32)

@@ -169,6 +169,110 @@ BOOL CTruncatedString::TruncateText(HWND hWindow, BOOL forMessageBox)
     int fitChars;
     int alpDx[8000]; // for measuring widths
     int textLen = (int)strlen(Text);
+
+    // feature 005: Text carries UTF-8 - measure and truncate on the UTF-16
+    // form so a multi-byte sequence is never split (torn UTF-8 would knock
+    // the wide display paths back to their mojibake fallback); invalid UTF-8
+    // (transitional) keeps the legacy byte-based logic below
+    WCHAR* textW = SalU8ToWAlloc(Text);
+    int subStrIndexW = SubStrIndex > 0 ? SalU8ToW(Text, SubStrIndex, NULL, 0) - 1 : 0;
+    int subStrLenW = SubStrLen > 0 ? SalU8ToW(Text + SubStrIndex, SubStrLen, NULL, 0) - 1 : 0;
+    if (textW != NULL && subStrIndexW >= 0 && subStrLenW >= 0)
+    {
+        int textLenW = (int)wcslen(textW);
+        if (textLenW > 7999)
+        {
+            TRACE_E("Text was truncated (to 7999 characters)");
+            textLenW = 7999;
+            if (IS_HIGH_SURROGATE(textW[textLenW - 1]))
+                textLenW--;
+            textW[textLenW] = 0;
+            if (subStrIndexW > textLenW)
+                subStrIndexW = textLenW;
+            if (subStrIndexW + subStrLenW > textLenW)
+                subStrLenW = textLenW - subStrIndexW;
+        }
+        WCHAR* truncatedW = (WCHAR*)malloc((textLenW + 1 + 3) * sizeof(WCHAR));
+        char* truncated = (char*)malloc(textLen + 1 + 3); // UTF-8 result: truncation only removes bytes, "..." is ASCII
+        if (truncatedW == NULL || truncated == NULL)
+        {
+            TRACE_E(LOW_MEMORY);
+            if (truncatedW != NULL)
+                free(truncatedW);
+            if (truncated != NULL)
+                free(truncated);
+            ret = FALSE;
+        }
+        else
+        {
+            int keep = -1; // WCHARs kept before the ellipsis; -1 = no truncation needed
+            SIZE sz;
+            if (forMessageBox)
+            {
+                // for message boxes -- we just ensure that the substring is not larger than 400 points (so it fits even on 640x480)
+                int maxWidth = 400;
+                GetTextExtentExPointW(hDC, textW + subStrIndexW, subStrLenW, maxWidth, &fitChars, alpDx, &sz);
+                if (fitChars < subStrLenW)
+                    keep = subStrIndexW + fitChars;
+            }
+            else
+            {
+                // single-line layout for dialogs
+                // determine the maximum width we can afford
+                RECT r;
+                GetClientRect(hWindow, &r);
+                int maxWidth = r.right;
+
+                GetTextExtentExPointW(hDC, textW, textLenW, 0, NULL, alpDx, &sz);
+                if (sz.cx > maxWidth)
+                {
+                    int width = sz.cx;
+
+                    GetTextExtentPoint32W(hDC, L"...", 3, &sz);
+                    maxWidth -= sz.cx;
+
+                    // we will subtract from the part that can be shortened
+                    int index = subStrIndexW + subStrLenW - 1;
+                    while (width > maxWidth && index >= subStrIndexW && index > 0)
+                    {
+                        width -= (alpDx[index] - alpDx[index - 1]);
+                        index--;
+                    }
+                    keep = index;
+                }
+            }
+
+            if (keep != -1)
+            {
+                if (keep > 0 && IS_HIGH_SURROGATE(textW[keep - 1]))
+                    keep--; // never split a surrogate pair
+                memcpy(truncatedW, textW, keep * sizeof(WCHAR));
+                memcpy(truncatedW + keep, L"...", 3 * sizeof(WCHAR));
+                wcscpy(truncatedW + keep + 3, textW + subStrIndexW + subStrLenW);
+            }
+            else
+                wcscpy(truncatedW, textW);
+
+            if (SalWToU8(truncatedW, -1, truncated, textLen + 1 + 3) != 0)
+            {
+                if (TruncatedText != NULL)
+                    free(TruncatedText);
+                TruncatedText = truncated;
+            }
+            else
+            {
+                free(truncated); // cannot happen (the result re-encodes original bytes) - stay safe
+                ret = FALSE;
+            }
+            free(truncatedW);
+        }
+        free(textW);
+        SelectObject(hDC, hOldFont);
+        HANDLES(ReleaseDC(hWindow, hDC));
+        return ret;
+    }
+    if (textW != NULL)
+        free(textW);
     char* truncated = (char*)malloc(textLen + 1 + 3); // 3: reserve for an ellipsis in the extreme case
     if (truncated == NULL)
     {

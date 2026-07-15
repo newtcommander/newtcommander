@@ -1086,6 +1086,79 @@ void CTransferInfo::EditLine(int ctrlID, TCHAR* buffer, DWORD bufferSizeInChars,
     }
 }
 
+#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)
+
+// feature 005: UTF-8 <-> Unicode-window text helpers, see winlib.h
+
+BOOL SalSetWindowTextU8(HWND hWnd, const char* u8Text)
+{
+    if (u8Text == NULL)
+        u8Text = "";
+    WCHAR* w = SalU8ToWAlloc(u8Text);
+    if (w != NULL)
+    {
+        BOOL ret = SetWindowTextW(hWnd, w);
+        free(w);
+        return ret;
+    }
+    return SetWindowText(hWnd, u8Text); // not valid UTF-8 (transitional): keep the legacy path
+}
+
+int SalGetWindowTextU8(HWND hWnd, char* u8Buf, int u8BufSize)
+{
+    if (u8Buf == NULL || u8BufSize <= 0)
+        return 0;
+    u8Buf[0] = 0;
+    int wchars = GetWindowTextLengthW(hWnd) + 1;
+    WCHAR* w = (WCHAR*)malloc(wchars * sizeof(WCHAR));
+    if (w != NULL)
+    {
+        GetWindowTextW(hWnd, w, wchars);
+        int len = SalWToU8(w, -1, u8Buf, u8BufSize);
+        free(w);
+        if (len != 0)
+            return len - 1; // bytes written excluding the terminator
+        u8Buf[0] = 0;
+    }
+    return GetWindowText(hWnd, u8Buf, u8BufSize); // UTF-8 would not fit: legacy A read (pre-004 truncation semantics)
+}
+
+BOOL SalSetDlgItemTextU8(HWND hDlg, int ctrlID, const char* u8Text)
+{
+    HWND ctrl = GetDlgItem(hDlg, ctrlID);
+    if (ctrl == NULL)
+        return FALSE;
+    return SalSetWindowTextU8(ctrl, u8Text);
+}
+
+int SalGetDlgItemTextU8(HWND hDlg, int ctrlID, char* u8Buf, int u8BufSize)
+{
+    HWND ctrl = GetDlgItem(hDlg, ctrlID);
+    if (ctrl == NULL)
+    {
+        if (u8Buf != NULL && u8BufSize > 0)
+            u8Buf[0] = 0;
+        return 0;
+    }
+    return SalGetWindowTextU8(ctrl, u8Buf, u8BufSize);
+}
+
+LRESULT SalComboAddStringU8(HWND combo, const char* u8Text)
+{
+    if (u8Text == NULL)
+        u8Text = "";
+    WCHAR* w = SalU8ToWAlloc(u8Text);
+    if (w != NULL)
+    {
+        LRESULT ret = SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)w);
+        free(w);
+        return ret;
+    }
+    return SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)u8Text); // not valid UTF-8: legacy path
+}
+
+#endif // INSIDE_SALAMANDER && !_UNICODE
+
 #ifndef _UNICODE
 void CTransferInfo::EditLineW(int ctrlID, WCHAR* buffer, DWORD bufferSizeInChars, BOOL select)
 {

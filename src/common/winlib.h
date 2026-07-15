@@ -318,6 +318,21 @@ protected:
     HWND HDialog; // handle dialogu, pro ktery se provadi transfer
 };
 
+#if defined(INSIDE_SALAMANDER) && !defined(_UNICODE)
+// feature 005: narrow name/path buffers carry UTF-8 (feature 004 contract);
+// standard Win32 controls are Unicode windows, so text must cross the
+// boundary as UTF-16. These helpers convert via SalU8ToW*/SalWToU8 and use
+// the W APIs; invalid UTF-8 falls back to the legacy A call (transitional
+// rule identical to CTransferInfo::EditLine).
+BOOL SalSetWindowTextU8(HWND hWnd, const char* u8Text);
+// reads wide + converts; on UTF-8 overflow/failure falls back to the legacy
+// A read (pre-004 truncation semantics); returns text length in bytes
+int SalGetWindowTextU8(HWND hWnd, char* u8Buf, int u8BufSize);
+BOOL SalSetDlgItemTextU8(HWND hDlg, int ctrlID, const char* u8Text);
+int SalGetDlgItemTextU8(HWND hDlg, int ctrlID, char* u8Buf, int u8BufSize);
+LRESULT SalComboAddStringU8(HWND combo, const char* u8Text); // CB_ADDSTRING result
+#endif // INSIDE_SALAMANDER && !_UNICODE
+
 // ****************************************************************************
 
 class CDialog : public CWindowsObject
