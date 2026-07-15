@@ -428,11 +428,11 @@ void CCopyMoveDialog::Transfer(CTransferInfo& ti)
             {
                 LoadComboFromStdHistoryValues(hWnd, History, HistoryCount);
                 SendMessage(hWnd, CB_LIMITTEXT, PathBufSize - 1, 0);
-                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Path);
+                SalSetWindowTextU8(hWnd, Path); // Path carries UTF-8 (feature 005)
             }
             else
             {
-                SendMessage(hWnd, WM_GETTEXT, PathBufSize, (LPARAM)Path);
+                SalGetWindowTextU8(hWnd, Path, PathBufSize);
                 AddValueToStdHistoryValues(History, HistoryCount, Path, FALSE);
             }
         }

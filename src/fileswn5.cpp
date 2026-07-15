@@ -2110,8 +2110,10 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
 {
     *tryAgain = TRUE;
     const char* s = formatedFileName;
+    // bytes >= 0x80 are UTF-8 lead/trail bytes and always legal in names
+    // (feature 005: the signed compare rejected every non-ASCII name)
     while (*s != 0 && *s != '\\' && *s != '/' && *s != ':' &&
-           *s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
+           (unsigned char)*s >= 32 && *s != '<' && *s != '>' && *s != '|' && *s != '"')
         s++;
     if (formatedFileName[0] != 0 && *s == 0)
     {
@@ -2361,7 +2363,7 @@ void CFilesWindow::RenameFile(int specialIndex)
     sprintf(buff, LoadStr(IDS_RENAME_TO), LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
     CTruncatedString subject;
     subject.Set(buff, formatedFileName);
-    CCopyMoveDialog dlg(HWindow, formatedFileName, MAX_PATH, LoadStr(IDS_RENAME_TITLE),
+    CCopyMoveDialog dlg(HWindow, formatedFileName, SAL_FIND_NAME_U8, LoadStr(IDS_RENAME_TITLE),
                         &subject, IDD_RENAMEDIALOG, Configuration.QuickRenameHistory,
                         QUICKRENAME_HISTORY_SIZE, FALSE);
 
