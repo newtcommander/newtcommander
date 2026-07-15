@@ -815,8 +815,12 @@ BOOL CRendererWindow::OnFileSaveAs(LPCTSTR pInitDir)
                 }
             }
         }
-        hFile = CreateFile(fileName, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                           OPEN_EXISTING, 0, 0);
+        // 'fileName' is a UTF-8 save-target path (interface 104) -> W file API
+        WCHAR* wFileName = SplU8ToWExtAlloc(fileName);
+        hFile = wFileName == NULL ? INVALID_HANDLE_VALUE
+                                  : CreateFileW(wFileName, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+                                                OPEN_EXISTING, 0, 0);
+        free(wFileName);
         if (hFile != INVALID_HANDLE_VALUE)
         {
             CloseHandle(hFile);
@@ -867,9 +871,13 @@ BOOL CRendererWindow::OnFileSaveAs(LPCTSTR pInitDir)
                 // else: no rights: DeleteFile should also fail with ERROR_ACCESS_DENIED
             }
         }
-        if (!DeleteFile(fileName))
+        // 'fileName' is UTF-8 (interface 104) -> delete via the W file API
+        WCHAR* wDelName = SplU8ToWExtAlloc(fileName);
+        BOOL delOK = wDelName != NULL && DeleteFileW(wDelName);
+        ret = delOK ? NO_ERROR : (wDelName != NULL ? GetLastError() : ERROR_INVALID_NAME);
+        free(wDelName);
+        if (!delOK)
         {
-            ret = GetLastError();
             SalamanderGeneral->GetErrorText(ret, errBuff, SizeOf(errBuff));
             if (IDCANCEL == SalamanderGeneral->SalMessageBox(HWindow, errBuff,
                                                              LoadStr(IDS_ERRORTITLE), MB_ICONEXCLAMATION | MB_OKCANCEL))

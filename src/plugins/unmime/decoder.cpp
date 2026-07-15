@@ -106,7 +106,7 @@ BOOL CDecoder::Start(HANDLE hFile, char* fileName, BOOL bJustCalcSize)
     {
         HFile = hFile;
         if (fileName != NULL)
-            strcpy(FileName, fileName);
+            lstrcpynA(FileName, fileName, sizeof(FileName)); // bounded (interface 104: long UTF-8 path)
         PBuffer = new char[BUFSIZE];
         if (PBuffer == NULL)
         {

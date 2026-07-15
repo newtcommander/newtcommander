@@ -220,8 +220,13 @@ void CFilecompWorker::GuardedBody()
         // NOTE: IntViewer can open such files; users want FC to support them as well
         // See https://forum.altap.cz/viewtopic.php?t=2675
         // See also CHexFileViewWindow::SetData()
-        Files[i].File = CreateFile(Files[i].Name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                   NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+        // Files[i].Name is a UTF-8 interface path (interface 104) -> open via the W
+        // file API (Unicode + long-path capable through the \\?\ prefix)
+        WCHAR* wName = SplU8ToWExtAlloc(Files[i].Name);
+        Files[i].File = wName == NULL ? INVALID_HANDLE_VALUE
+                                      : CreateFileW(wName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                    NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+        free(wName);
         if (Files[i].File == INVALID_HANDLE_VALUE)
             CException::Raise(IDS_OPEN, GetLastError(), Files[i].Name);
 

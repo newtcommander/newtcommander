@@ -25,8 +25,65 @@
 #include <Queue.h>
 #include <Tools.h>
 #include <VCLCommon.h>
+
+#include <splunicode.h> // interface 104: UTF-8 <-> UTF-16 helpers for W file APIs
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
+//---------------------------------------------------------------------------
+// interface 104: every char* name/path crossing the Salamander plugin interface
+// is UTF-8 now. WinSCP keeps file names/paths as system-ANSI-code-page
+// AnsiStrings (the server's UTF-8 is turned into a WideString and then an ACP
+// AnsiString by DecodeUTF), so transcode ACP <-> UTF-8 at the Salamander
+// boundary. Pure ASCII is unchanged in either code page (the common case).
+// free() the WinscpAcpToU8Alloc result.
+static char* WinscpAcpToU8Alloc(const char* acp)
+{
+    if (acp == NULL)
+        return NULL;
+    int wLen = MultiByteToWideChar(CP_ACP, 0, acp, -1, NULL, 0);
+    if (wLen <= 0)
+        return NULL;
+    WCHAR* w = (WCHAR*)malloc(wLen * sizeof(WCHAR));
+    if (w == NULL)
+        return NULL;
+    MultiByteToWideChar(CP_ACP, 0, acp, -1, w, wLen);
+    int u8Len = WideCharToMultiByte(CP_UTF8, 0, w, -1, NULL, 0, NULL, NULL);
+    char* u8 = (u8Len > 0) ? (char*)malloc(u8Len) : NULL;
+    if (u8 != NULL)
+        WideCharToMultiByte(CP_UTF8, 0, w, -1, u8, u8Len, NULL, NULL);
+    free(w);
+    return u8;
+}
+//---------------------------------------------------------------------------
+// interface 104: inverse of WinscpAcpToU8Alloc - a UTF-8 name/path coming from
+// the Salamander interface back into WinSCP (which works in the system ANSI code
+// page). Invalid UTF-8 (should not happen) is passed through unchanged.
+static AnsiString WinscpU8ToAcp(const char* u8)
+{
+    if (u8 == NULL)
+        return AnsiString();
+    int wLen = MultiByteToWideChar(CP_UTF8, 0, u8, -1, NULL, 0);
+    if (wLen <= 0)
+        return AnsiString(u8);
+    WCHAR* w = (WCHAR*)malloc(wLen * sizeof(WCHAR));
+    if (w == NULL)
+        return AnsiString(u8);
+    MultiByteToWideChar(CP_UTF8, 0, u8, -1, w, wLen);
+    AnsiString Result(u8);
+    int aLen = WideCharToMultiByte(CP_ACP, 0, w, -1, NULL, 0, NULL, NULL);
+    if (aLen > 0)
+    {
+        char* a = (char*)malloc(aLen);
+        if (a != NULL)
+        {
+            WideCharToMultiByte(CP_ACP, 0, w, -1, a, aLen, NULL, NULL);
+            Result = a;
+            free(a);
+        }
+    }
+    free(w);
+    return Result;
+}
 //---------------------------------------------------------------------------
 CPluginFSInterface::CPluginFSInterface(CPluginInterface* APlugin) : CPluginFSInterfaceAbstract(), CSalamanderGeneralLocal(APlugin)
 {
@@ -287,7 +344,7 @@ void __fastcall CPluginFSInterface::CreateFileList(int Panel,
         {
             TObject* Param = (Side == osRemote) ? reinterpret_cast<TObject*>(File->PluginData) : NULL;
             assert((Side == osLocal) || (Param != NULL));
-            AnsiString FileName = File->Name;
+            AnsiString FileName = WinscpU8ToAcp(File->Name); // interface 104: UTF-8 -> WinSCP ACP
             if (Side == osLocal)
             {
                 assert(ExtractFilePath(FileName).IsEmpty());
@@ -322,7 +379,7 @@ void __fastcall CPluginFSInterface::CreateFileList(
 
         while ((FileName = Next(NULL, 0, NULL, NULL, NULL, NULL, NULL, NextParam, NULL)) != NULL)
         {
-            FFileList->Add(SourcePath + FileName);
+            FFileList->Add(SourcePath + WinscpU8ToAcp(FileName)); // interface 104: UTF-8 -> WinSCP ACP
         }
     }
     catch (...)
@@ -345,7 +402,7 @@ void __fastcall CPluginFSInterface::CreateFileList(CFileData* File,
     {
         TObject* Param = (Side == osRemote) ? reinterpret_cast<TObject*>(File->PluginData) : NULL;
         assert((Side == osLocal) || (Param != NULL));
-        FFileList->AddObject(File->Name, Param);
+        FFileList->AddObject(WinscpU8ToAcp(File->Name), Param); // interface 104: UTF-8 -> WinSCP ACP
     }
     catch (...)
     {
@@ -964,7 +1021,7 @@ void __fastcall CPluginFSInterface::GetSynchronizeOptions(
             FileData = SalamanderGeneral()->GetPanelSelectedItem(Panel, &Index, NULL);
             while (FileData != NULL)
             {
-                Options.Filter->Add(FileData->Name);
+                Options.Filter->Add(WinscpU8ToAcp(FileData->Name)); // interface 104: UTF-8 -> WinSCP ACP
                 FileData = SalamanderGeneral()->GetPanelSelectedItem(Panel, &Index, NULL);
             }
         }
@@ -1664,8 +1721,12 @@ BOOL WINAPI CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* Di
         {
             File = FTerminal->Files->Files[Index];
 
-            FileData.Name = SalamanderGeneral()->DupStr(File->FileName.c_str());
-            FileData.NameLen = File->FileName.Length();
+            // interface 104: hand the entry name to Salamander as UTF-8
+            char* NameU8 = WinscpAcpToU8Alloc(File->FileName.c_str());
+            FileData.Name = SalamanderGeneral()->DupStr(NameU8 != NULL ? NameU8 : File->FileName.c_str());
+            if (NameU8 != NULL)
+                free(NameU8);
+            FileData.NameLen = (FileData.Name != NULL) ? strlen(FileData.Name) : 0;
             if (FileData.Name != NULL)
             {
                 if (File->IsParentDirectory ||
@@ -2169,7 +2230,8 @@ BOOL WINAPI CPluginFSInterface::QuickRename(const char* /*FSName*/, int Mode,
 
             try
             {
-                FTerminal->RenameFile(RemoteFile, NewName, true);
+                // interface 104: NewName stays UTF-8 for Salamander; WinSCP needs ACP
+                FTerminal->RenameFile(RemoteFile, WinscpU8ToAcp(NewName), true);
             }
             __finally
             {
@@ -2281,8 +2343,14 @@ void WINAPI CPluginFSInterface::ViewFile(const char* /*FSName*/, HWND Parent,
                         DestroyFileList();
                     }
 
-                    HANDLE Handle = CreateFile(TempFileName, GENERIC_READ,
-                                               FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0);
+                    // interface 104: TempFileName is a UTF-8 local path (from the
+                    // Salamander disk cache) -> open it via the W API
+                    WCHAR* TempFileNameW = SplU8ToWExtAlloc(TempFileName);
+                    HANDLE Handle = (TempFileNameW != NULL) ? CreateFileW(TempFileNameW, GENERIC_READ,
+                                                                          FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, 0)
+                                                            : INVALID_HANDLE_VALUE;
+                    if (TempFileNameW != NULL)
+                        free(TempFileNameW);
                     CacheCreated = (Handle != INVALID_HANDLE_VALUE);
                     if (CacheCreated)
                     {

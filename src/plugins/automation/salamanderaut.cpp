@@ -537,8 +537,6 @@ void CSalamanderAutomation::OnEndExecution()
 {
     HRESULT hr = S_OK;
     CSalamanderMaskGroup* pMaskGroup;
-    _bstr_t fileT(file);
-    _bstr_t maskT(mask);
     int err;
 
     pMaskGroup = SalamanderGeneral->AllocSalamanderMaskGroup();
@@ -547,10 +545,14 @@ void CSalamanderAutomation::OnEndExecution()
         return E_OUTOFMEMORY;
     }
 
-    pMaskGroup->SetMasksString(maskT, TRUE);
+    // 'file'/'mask' are script BSTRs; interface strings are UTF-8 (interface 104)
+    char* fileU8 = SplWToU8Alloc(file);
+    char* maskU8 = SplWToU8Alloc(mask);
+
+    pMaskGroup->SetMasksString(maskU8, TRUE);
     if (pMaskGroup->PrepareMasks(err))
     {
-        *match = pMaskGroup->AgreeMasks(fileT, NULL) ? VARIANT_TRUE : VARIANT_FALSE;
+        *match = pMaskGroup->AgreeMasks(fileU8, NULL) ? VARIANT_TRUE : VARIANT_FALSE;
     }
     else
     {
@@ -567,6 +569,8 @@ void CSalamanderAutomation::OnEndExecution()
 
     SalamanderGeneral->FreeSalamanderMaskGroup(pMaskGroup);
 
+    free(fileU8);
+    free(maskU8);
     return hr;
 }
 
@@ -880,11 +884,12 @@ static void CALLBACK ShowQuestionDialogProc(void* pContext)
     HRESULT hr = S_OK;
     ISalamanderPanel* pPanel = NULL;
     const char* currentT = NULL;
-    _bstr_t pathT(path);
     TCHAR szPath[MAX_PATH];
 
-    // validate input
-    if (lstrlen(pathT) >= MAX_PATH)
+    // 'path' is a script BSTR; interface paths are UTF-8 (interface 104). Validate
+    // that its UTF-8 form fits szName[MAX_PATH] below (<= 3 UTF-8 bytes per BMP unit).
+    char pathU8[3 * MAX_PATH];
+    if (SplWToU8(path, pathU8, sizeof(pathU8)) <= 0 || strlen(pathU8) >= MAX_PATH)
     {
         return E_INVALIDARG;
     }
@@ -932,7 +937,7 @@ static void CALLBACK ShowQuestionDialogProc(void* pContext)
     }
 
     TCHAR szName[MAX_PATH];
-    StringCchCopy(szName, _countof(szName), pathT);
+    StringCchCopy(szName, _countof(szName), pathU8);
     int errTextID;
     BOOL ret = SalamanderGeneral->SalGetFullName(szName, &errTextID, currentT, NULL);
     if (!ret)

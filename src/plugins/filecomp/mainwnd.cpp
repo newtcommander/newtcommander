@@ -889,7 +889,10 @@ void CMainWindow::SpawnWorker(const char* path1, const char* path2,
             char buf[MAX_PATH * 2 + 200];
             sprintf(buf, LoadStr(IDS_MAINWNDHEADERCOMPUTING), SG->SalPathFindFileName(path1),
                     SG->SalPathFindFileName(path2));
-            SetWindowText(HWindow, buf);
+            // 'buf' is assembled from UTF-8 file names (interface 104) -> show via the W API
+            WCHAR* wBuf = SplU8ToWAlloc(buf);
+            SetWindowTextW(HWindow, wBuf != NULL ? wBuf : L"");
+            free(wBuf);
             SetWait(TRUE);
         }
     }
@@ -1579,7 +1582,12 @@ CMainWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 goto LDROPERROR;
             if (count >= 1)
             {
-                DragQueryFile(drop, 0, path1, MAX_PATH);
+                // shell drop paths arrive as UTF-16; store them as the UTF-8 that the
+                // Salamander interface expects (interface 104)
+                WCHAR wDrop[MAX_PATH];
+                DragQueryFileW(drop, 0, wDrop, MAX_PATH);
+                if (SplWToU8(wDrop, path1, MAX_PATH) <= 0)
+                    path1[0] = 0;
                 if (SG->SalGetFileAttributes(path1) & FILE_ATTRIBUTE_DIRECTORY)
                 {
                     Error(HWindow, IDS_NOTVALIDFILE, path1);
@@ -1588,8 +1596,11 @@ CMainWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             if (count >= 2)
             {
-                DragQueryFile(drop, 1, path2, MAX_PATH);
-                if (SG->SalGetFileAttributes(path1) & FILE_ATTRIBUTE_DIRECTORY)
+                WCHAR wDrop[MAX_PATH];
+                DragQueryFileW(drop, 1, wDrop, MAX_PATH);
+                if (SplWToU8(wDrop, path2, MAX_PATH) <= 0)
+                    path2[0] = 0;
+                if (SG->SalGetFileAttributes(path1) & FILE_ATTRIBUTE_DIRECTORY) // NOTE: pre-existing bug - checks path1, not path2
                 {
                     Error(HWindow, IDS_NOTVALIDFILE, path2);
                     goto LDROPERROR;
@@ -2029,7 +2040,10 @@ CMainWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             }
             _stprintf(buf, fmt, SG->SalPathFindFileName(Path1), SG->SalPathFindFileName(Path2),
                       LOWORD(lParam), HIWORD(lParam));
-            SetWindowText(HWindow, buf);
+            // 'buf' is assembled from UTF-8 file names (interface 104) -> show via the W API
+            WCHAR* wBuf = SplU8ToWAlloc(buf);
+            SetWindowTextW(HWindow, wBuf != NULL ? wBuf : L"");
+            free(wBuf);
             return 0;
         }
 
@@ -2118,7 +2132,10 @@ CMainWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             _tcscpy(buf, LoadStr(IDS_PLUGINNAME));
 
-        SetWindowText(HWindow, buf);
+        // 'buf' may carry UTF-8 file names (interface 104) -> show via the W API
+        WCHAR* wBuf = SplU8ToWAlloc(buf);
+        SetWindowTextW(HWindow, wBuf != NULL ? wBuf : L"");
+        free(wBuf);
 
         if ((wParam != WN_TEXT_FILES_DIFFER) && (wParam != WN_UNICODE_FILES_DIFFER) && (wParam != WN_BINARY_FILES_DIFFER))
         {

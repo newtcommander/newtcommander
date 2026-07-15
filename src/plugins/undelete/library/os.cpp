@@ -225,7 +225,11 @@ void OS<char>::OS_ReleaseShell32Bindings()
 template <>
 VolumeType OS<char>::OS_GetVolumeType(const char* root)
 {
-    return static_cast<VolumeType>(::GetDriveTypeA(root));
+    // root is UTF-8 (plugin interface 104): query on the W layer
+    WCHAR* rootW = SplU8ToWAlloc(root);
+    VolumeType type = static_cast<VolumeType>(rootW == NULL ? DRIVE_UNKNOWN : ::GetDriveTypeW(rootW));
+    free(rootW);
+    return type;
 }
 
 template <>
@@ -233,11 +237,14 @@ void OS<char>::OS_GetDisplayNameFromSystem(const char* root, char* volumeName, i
 {
     CALL_STACK_MESSAGE2("GetDisplayNameFromSystem(%s)", root);
 
-    SHFILEINFOA fi = {0};
-    if (SHGetFileInfoA(root, 0, &fi, sizeof(fi), SHGFI_DISPLAYNAME))
+    // root is UTF-8 (plugin interface 104): query on the W layer and hand the
+    // display name back as UTF-8
+    SHFILEINFOW fi = {0};
+    WCHAR* rootW = SplU8ToWAlloc(root);
+    if (rootW != NULL && SHGetFileInfoW(rootW, 0, &fi, sizeof(fi), SHGFI_DISPLAYNAME))
     {
-        lstrcpynA(volumeName, fi.szDisplayName, volumeNameBufSize);
-        char* s = strrchr(volumeName, '(');
+        SplWToU8(fi.szDisplayName, volumeName, volumeNameBufSize);
+        char* s = strrchr(volumeName, '('); // ASCII '(' is a single UTF-8 byte
         if (s != NULL)
         {
             while (s > volumeName && *(s - 1) == ' ')
@@ -247,6 +254,7 @@ void OS<char>::OS_GetDisplayNameFromSystem(const char* root, char* volumeName, i
     }
     else
         volumeName[0] = 0;
+    free(rootW);
 }
 
 template <>
@@ -254,8 +262,27 @@ BOOL OS<char>::OS_GetVolumeInfo(const char* rootPathName, char* volumeNameBuffer
                                 DWORD* volumeSerialNumber, DWORD* maximumComponentLength,
                                 DWORD* fileSystemFlags, char* fileSystemNameBuffer, DWORD fileSystemNameSize)
 {
-    return ::GetVolumeInformationA(rootPathName, volumeNameBuffer, volumeNameSize, volumeSerialNumber,
-                                   maximumComponentLength, fileSystemFlags, fileSystemNameBuffer, fileSystemNameSize);
+    // rootPathName is UTF-8 (plugin interface 104): query on the W layer and
+    // hand the volume label and file-system name back as UTF-8
+    WCHAR* rootW = SplU8ToWAlloc(rootPathName);
+    if (rootW == NULL)
+        return FALSE;
+    WCHAR volNameW[MAX_PATH];
+    WCHAR fsNameW[MAX_PATH];
+    BOOL ok = ::GetVolumeInformationW(rootW, volumeNameBuffer != NULL ? volNameW : NULL,
+                                      volumeNameBuffer != NULL ? MAX_PATH : 0,
+                                      volumeSerialNumber, maximumComponentLength, fileSystemFlags,
+                                      fileSystemNameBuffer != NULL ? fsNameW : NULL,
+                                      fileSystemNameBuffer != NULL ? MAX_PATH : 0);
+    free(rootW);
+    if (ok)
+    {
+        if (volumeNameBuffer != NULL)
+            SplWToU8(volNameW, volumeNameBuffer, (int)volumeNameSize);
+        if (fileSystemNameBuffer != NULL)
+            SplWToU8(fsNameW, fileSystemNameBuffer, (int)fileSystemNameSize);
+    }
+    return ok;
 }
 
 template <>

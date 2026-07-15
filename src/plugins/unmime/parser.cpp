@@ -646,6 +646,36 @@ static void DestroyIllegalChars(LPSTR pszPath)
     }
 }
 
+// MIME format boundary (interface 104): a decoded file name must cross the plugin
+// interface as UTF-8. ASCII is already valid UTF-8; a name that is already valid UTF-8
+// (e.g. a raw header name or a UTF-8 encoded-word) is kept verbatim; everything else -
+// the output of the legacy RFC 2047 charset chain (which recodes to the system ANSI code
+// page) as well as unencoded 8-bit names - is decoded from the ANSI code page to UTF-8.
+// Converts in place, bounded by 'bufSize'.
+static void NameToU8(char* name, int bufSize)
+{
+    if (name == NULL || SplIsASCII(name))
+        return;
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0) > 0)
+        return; // already valid UTF-8 -> keep the bytes verbatim
+    int wLen = MultiByteToWideChar(CP_ACP, 0, name, -1, NULL, 0);
+    if (wLen <= 0)
+        return; // undecodable either way -> leave the bytes untouched
+    WCHAR* w = (WCHAR*)malloc(wLen * sizeof(WCHAR));
+    if (w == NULL)
+        return;
+    if (MultiByteToWideChar(CP_ACP, 0, name, -1, w, wLen) > 0)
+    {
+        char* u8 = SplWToU8Alloc(w);
+        if (u8 != NULL)
+        {
+            lstrcpynA(name, u8, bufSize);
+            free(u8);
+        }
+    }
+    free(w);
+}
+
 ////// JMENA DEKODOVANYCH SOUBORU //////////////////////////////////////////////
 
 static void SetDefaultFileName(BOOL bAppendCharset)
@@ -687,7 +717,7 @@ static void SetDefaultMIMEFileName(LPCSTR pszType, LPCSTR pszSubType, BOOL bAppe
 
 static void InsertSuffix(char* filename, int suffix)
 {
-    char temp[MAX_PATH];
+    char temp[3 * MAX_PATH]; // interface 104: filename is a UTF-8 name (up to 3 bytes/char)
     char* ext = strrchr(filename, '.');
     if (ext != NULL) // ".cvspass" is an extension in Windows
     {
@@ -1646,6 +1676,16 @@ skipout:
                 break;
             }
         }
+    }
+
+    // interface 104: normalize every block's file name to UTF-8 before it crosses the
+    // plugin interface (encoded-word names arrive recoded to the ANSI code page, other
+    // names are raw 8-bit or already UTF-8; see NameToU8)
+    for (i = 0; i < pOutput->Markers.Count; i++)
+    {
+        CStartMarker* ptr = (CStartMarker*)pOutput->Markers[i];
+        if (ptr->iMarkerType == MARKER_START)
+            NameToU8(ptr->cFileName, sizeof(ptr->cFileName));
     }
 
     MakeNamesUnique(pOutput);

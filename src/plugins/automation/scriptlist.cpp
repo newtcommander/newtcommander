@@ -261,7 +261,13 @@ HRESULT CScriptInfo::LoadOleStringFromFile(PCTSTR pszFileName, __out LPOLESTR& s
     HRESULT hr;
     int cchRequired, cchConverted;
 
-    hFile = CreateFile(pszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    // 'pszFileName' is a UTF-8 path (interface 104) -> open via the W file API so
+    // scripts in non-ASCII or long paths load. The script TEXT decode below stays
+    // CP_ACP (script-body encoding is a separate concern, out of this migration).
+    WCHAR* wFileName = SplU8ToWExtAlloc(pszFileName);
+    hFile = wFileName == NULL ? INVALID_HANDLE_VALUE
+                              : CreateFileW(wFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+    free(wFileName);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         return HRESULT_FROM_WIN32(GetLastError());
@@ -856,13 +862,15 @@ int CScriptLookup::FillContainer(
 {
     HANDLE hFind;
     TCHAR szPattern[MAX_PATH];
-    WIN32_FIND_DATA fd;
+    WIN32_FIND_DATAW fd; // enumerate on the W layer; the paths are UTF-8 (interface 104)
     int cScripts = 0;
 
     g_oAutomationPlugin.ExpandPath(pContainer->GetPath(), szPattern, _countof(szPattern));
     SalamanderGeneral->SalPathAppend(szPattern, _T("*"), _countof(szPattern));
 
-    hFind = FindFirstFile(szPattern, &fd);
+    WCHAR* wPattern = SplU8ToWExtAlloc(szPattern);
+    hFind = wPattern == NULL ? INVALID_HANDLE_VALUE : FindFirstFileW(wPattern, &fd);
+    free(wPattern);
     if (hFind == INVALID_HANDLE_VALUE)
     {
         return 0;
@@ -875,19 +883,27 @@ int CScriptLookup::FillContainer(
             continue;
         }
 
+        // WIN32_FIND_DATAW carries the name as UTF-16 -> back to UTF-8 for the
+        // interface (a single name component fits in 3*MAX_PATH bytes)
+        char szName[3 * MAX_PATH];
+        if (SplWToU8(fd.cFileName, szName, sizeof(szName)) <= 0)
+        {
+            continue;
+        }
+
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            if (fd.cFileName[0] != _T('.')) // exclude . and .. as well as Unix-style hidden directories
+            if (szName[0] != '.') // exclude . and .. as well as Unix-style hidden directories
             {
                 int cSubScripts = 0;
                 CScriptContainer* pSubContainer;
                 bool bExisting;
 
-                pSubContainer = pContainer->FirstChild(fd.cFileName, false);
+                pSubContainer = pContainer->FirstChild(szName, false);
                 bExisting = (pSubContainer != NULL);
                 if (!bExisting)
                 {
-                    pSubContainer = new CScriptContainer(pContainer, fd.cFileName, false);
+                    pSubContainer = new CScriptContainer(pContainer, szName, false);
                 }
 
                 cSubScripts = FillContainer(pSubContainer, hKey, registry);
@@ -907,12 +923,12 @@ int CScriptLookup::FillContainer(
         }
         else
         {
-            PTSTR pszExt = PathFindExtension(fd.cFileName);
+            PTSTR pszExt = PathFindExtension(szName);
             if (pszExt && *pszExt && g_oScriptAssociations.FindEngineByExt(pszExt))
             {
                 TCHAR szFullPath[MAX_PATH];
                 StringCchCopy(szFullPath, _countof(szFullPath), pContainer->GetPath());
-                SalamanderGeneral->SalPathAppend(szFullPath, fd.cFileName, _countof(szFullPath));
+                SalamanderGeneral->SalPathAppend(szFullPath, szName, _countof(szFullPath));
                 if (AddScriptFromFile(pContainer, szFullPath, hKey, registry))
                 {
                     ++cScripts;
@@ -920,7 +936,7 @@ int CScriptLookup::FillContainer(
                 }
             }
         }
-    } while (FindNextFile(hFind, &fd));
+    } while (FindNextFileW(hFind, &fd));
 
     FindClose(hFind);
 

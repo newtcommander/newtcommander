@@ -28,6 +28,8 @@
 #include <Tlhelp32.h>
 #include "salamander.h"
 
+#include "splunicode.h" // UTF-8 <-> UTF-16 helpers (plugin interface 104)
+
 #define STRSAFE_NO_DEPRECATE
 #include <strsafe.h>
 

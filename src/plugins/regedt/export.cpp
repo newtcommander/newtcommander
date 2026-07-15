@@ -88,43 +88,58 @@ BOOL ExportKey(LPWSTR fullName)
 
         SG->CutDirectory(strcpy(LastExportPath, file));
 
-        char command[4096];
+        // build the command line on the W layer: 'file' is a UTF-8 interface
+        // path (plugin interface 104) and the key name is natively Unicode, so
+        // launch reg.exe/regedit.exe on the wide layer (FR-011)
+        WCHAR command[4096];
+        WCHAR fileW[MAX_PATH];
+        U8ToWStr(fileW, (int)(sizeof(fileW) / sizeof(fileW[0])), file, -1);
+        const WCHAR* keyArg = *fullName == L'\\' ? fullName + 1 : fullName;
         if (root != -1) // regedit.exe can do "export all", so we'll use it for this task even after XP
         {
             // starting with XP we invoke the reg.exe command line, see https://forum.altap.cz/viewtopic.php?f=24&t=5682
             // the advantage of reg.exe is that from Vista onward it does not require UAC elevation for exports
-            char sysdir[MAX_PATH];
-            if (!GetSystemDirectory(sysdir, MAX_PATH))
+            WCHAR sysdir[MAX_PATH];
+            if (!GetSystemDirectoryW(sysdir, MAX_PATH))
                 *sysdir = 0;
             else
-                SG->SalPathAddBackslash(sysdir, MAX_PATH);
-            SalPrintf(command, 4096, "\"%sreg.exe\" EXPORT \"%ls\" \"%s\"", sysdir,
-                      *fullName == L'\\' ? fullName + 1 : fullName, file);
+            {
+                size_t l = wcslen(sysdir);
+                if (l > 0 && sysdir[l - 1] != L'\\')
+                {
+                    sysdir[l] = L'\\';
+                    sysdir[l + 1] = 0;
+                }
+            }
+            _snwprintf_s(command, 4096, _TRUNCATE, L"\"%sreg.exe\" EXPORT \"%s\" \"%s\"", sysdir, keyArg, fileW);
         }
         else
         {
-            char windir[MAX_PATH];
-            if (!GetWindowsDirectory(windir, MAX_PATH))
+            WCHAR windir[MAX_PATH];
+            if (!GetWindowsDirectoryW(windir, MAX_PATH))
                 *windir = 0;
             else
-                SG->SalPathAddBackslash(windir, MAX_PATH);
-            if (root != -1)
-                SalPrintf(command, 4096, "\"%sregedit.exe\" /e \"%s\" \"%ls\"", windir, file,
-                          *fullName == L'\\' ? fullName + 1 : fullName);
-            else
-                SalPrintf(command, 4096, "\"%sregedit.exe\" /e \"%s\"", windir, file);
+            {
+                size_t l = wcslen(windir);
+                if (l > 0 && windir[l - 1] != L'\\')
+                {
+                    windir[l] = L'\\';
+                    windir[l + 1] = 0;
+                }
+            }
+            _snwprintf_s(command, 4096, _TRUNCATE, L"\"%sregedit.exe\" /e \"%s\"", windir, fileW);
         }
 
-        STARTUPINFO si;
+        STARTUPINFOW si;
         PROCESS_INFORMATION pi;
-        memset(&si, 0, sizeof(STARTUPINFO));
-        si.cb = sizeof(STARTUPINFO);
+        memset(&si, 0, sizeof(si));
+        si.cb = sizeof(si);
         si.lpTitle = NULL;
         si.dwFlags = STARTF_USESHOWWINDOW;
         si.wShowWindow = SW_HIDE;
 
-        if (!CreateProcess(NULL, command, NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
-                           NULL, NULL, &si, &pi))
+        if (!CreateProcessW(NULL, command, NULL, NULL, FALSE, CREATE_DEFAULT_ERROR_MODE | NORMAL_PRIORITY_CLASS,
+                            NULL, NULL, &si, &pi))
             return Error(IDS_PROCESS2, (root != -1) ? "reg.exe" : "regedit.exe");
 
         SG->CreateSafeWaitWindow(LoadStr(IDS_EXPORTING), LoadStr(IDS_PLUGINNAME), 500, FALSE, SG->GetMainWindowHWND());

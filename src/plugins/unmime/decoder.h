@@ -29,7 +29,7 @@ protected:
     BOOL bCalcSize;
     char* PBuffer;
     int iBufPos;
-    char FileName[MAX_PATH];
+    char FileName[3 * MAX_PATH]; // interface 104: UTF-8 target path (up to 3 bytes/char)
 
     virtual BOOL BufferedWrite(const void* pData, int nBytes);
 };

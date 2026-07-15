@@ -1112,7 +1112,11 @@ void CPluginFSInterface::OpenActiveFolder(const char* fsName, HWND parent)
     const char* path2 = path;
     if (*path2 == '\\')
         path2++;
-    RegSetValueEx(hKey, "LastKey", 0, REG_SZ, (LPBYTE)path2, lstrlen(path2) + 1);
+    // path2 is UTF-8 (plugin interface 104); write LastKey as Unicode so a
+    // non-ASCII key path reaches regedit.exe intact
+    WCHAR path2W[100 + MAX_PATH];
+    U8ToWStr(path2W, (int)(sizeof(path2W) / sizeof(path2W[0])), path2, -1);
+    RegSetValueExW(hKey, L"LastKey", 0, REG_SZ, (LPBYTE)path2W, (DWORD)((wcslen(path2W) + 1) * sizeof(WCHAR)));
     RegCloseKey(hKey);
 
     // launch regedit with optional elevation (Vista/7)

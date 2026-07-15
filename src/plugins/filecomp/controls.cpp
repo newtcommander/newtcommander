@@ -85,11 +85,14 @@ CFileHeaderWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         // DT_PATH_ELLIPSIS does not work on some strings, which prints clipped text
         // PathCompactPath() needs a copy in a local buffer, but it does not clip the text
-        char buff[2 * MAX_PATH];
-        strncpy_s(buff, _countof(buff), Text, _TRUNCATE);
-        PathCompactPath(dc, buff, r.right - r.left);
+        // 'Text' is a UTF-8 path (interface 104) -> render with the W text API so
+        // non-ASCII names are not misread through the ANSI code page
+        WCHAR buff[2 * MAX_PATH];
+        if (SplU8ToW(Text, buff, _countof(buff)) <= 0)
+            buff[0] = 0;
+        PathCompactPathW(dc, buff, r.right - r.left);
 
-        DrawText(dc, buff, -1, &r, /*DT_PATH_ELLIPSIS | */ DT_SINGLELINE | DT_NOPREFIX);
+        DrawTextW(dc, buff, -1, &r, /*DT_PATH_ELLIPSIS | */ DT_SINGLELINE | DT_NOPREFIX);
         SetBkColor(dc, oldBkColor);
         SetTextColor(dc, oldTexColor);
         SelectObject(dc, oldFont);

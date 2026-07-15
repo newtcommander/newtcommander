@@ -145,44 +145,44 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T053 [P] [US4] Port `src/plugins/uncab/` to SDK 104
 - [X] T054 [P] [US4] Port `src/plugins/unchm/` to SDK 104
 - [X] T055 [P] [US4] Port `src/plugins/uniso/` to SDK 104
-- [ ] T056 [P] [US4] Port `src/plugins/unlha/` to SDK 104
-- [ ] T057 [P] [US4] Port `src/plugins/unmime/` to SDK 104
-- [ ] T058 [P] [US4] Port `src/plugins/unole/` to SDK 104
-- [ ] T059 [P] [US4] Port `src/plugins/unrar/` to SDK 104 (unrar.dll still absent — port compiles, runtime gated as today)
+- [X] T056 [P] [US4] Port `src/plugins/unlha/` to SDK 104
+- [X] T057 [P] [US4] Port `src/plugins/unmime/` to SDK 104
+- [X] T058 [P] [US4] Port `src/plugins/unole/` to SDK 104
+- [X] T059 [P] [US4] Port `src/plugins/unrar/` to SDK 104 (unrar.dll still absent — port compiles, runtime gated as today)
 - [X] T060 [P] [US4] Port `src/plugins/unfat/` to SDK 104
 
 ### Wave 7b — Viewers (5 plugins)
 
-- [ ] T061 [P] [US4] Port `src/plugins/ieviewer/` to SDK 104
-- [ ] T062 [P] [US4] Port `src/plugins/mmviewer/` to SDK 104
+- [X] T061 [P] [US4] Port `src/plugins/ieviewer/` to SDK 104
+- [X] T062 [P] [US4] Port `src/plugins/mmviewer/` to SDK 104
 - [X] T063 [P] [US4] Port `src/plugins/peviewer/` to SDK 104
-- [ ] T064 [P] [US4] Port `src/plugins/pictview/` to SDK 104 (pvw32cnv.dll still absent — compile-level port)
+- [X] T064 [P] [US4] Port `src/plugins/pictview/` to SDK 104 (pvw32cnv.dll still absent — compile-level port)
 - [X] T065 [P] [US4] Port `src/plugins/dbviewer/` to SDK 104
 
 ### Wave 7c — Filesystem/Network (8 plugins)
 
-- [ ] T066 [P] [US4] Port `src/plugins/ftp/` to SDK 104 (server-side encoding ↔ UTF-8 at protocol boundary)
-- [ ] T067 [P] [US4] Port `src/plugins/nethood/` to SDK 104
-- [ ] T068 [P] [US4] Port `src/plugins/wmobile/` to SDK 104
-- [ ] T069 [P] [US4] Port `src/plugins/winscp/` to SDK 104 (best-effort: Embarcadero RTL dependency absent — header-level port + shim verification)
-- [ ] T070 [P] [US4] Port `src/plugins/regedt/` to SDK 104
-- [ ] T071 [P] [US4] Port `src/plugins/portables/` to SDK 104
+- [X] T066 [P] [US4] Port `src/plugins/ftp/` to SDK 104 (server-side encoding ↔ UTF-8 at protocol boundary)
+- [X] T067 [P] [US4] Port `src/plugins/nethood/` to SDK 104
+- [X] T068 [P] [US4] Port `src/plugins/wmobile/` to SDK 104
+- [X] T069 [P] [US4] Port `src/plugins/winscp/` to SDK 104 (best-effort: Embarcadero RTL dependency absent — header-level port + shim verification)
+- [X] T070 [P] [US4] Port `src/plugins/regedt/` to SDK 104
+- [X] T071 [P] [US4] Port `src/plugins/portables/` to SDK 104
 - [X] T072 [P] [US4] Port `src/plugins/folders/` to SDK 104
-- [ ] T073 [P] [US4] Port `src/plugins/undelete/` to SDK 104
+- [X] T073 [P] [US4] Port `src/plugins/undelete/` to SDK 104
 
 ### Wave 7d — Utilities & demos (10 plugins)
 
-- [ ] T074 [P] [US4] Port `src/plugins/checksum/` to SDK 104
-- [ ] T075 [P] [US4] Port `src/plugins/checkver/` to SDK 104
+- [X] T074 [P] [US4] Port `src/plugins/checksum/` to SDK 104
+- [X] T075 [P] [US4] Port `src/plugins/checkver/` to SDK 104
 - [X] T076 [P] [US4] Port `src/plugins/filecomp/` to SDK 104 (has its own `NormalizeString` usage — align with salunicode helpers)
-- [ ] T077 [P] [US4] Port `src/plugins/renamer/` to SDK 104
-- [ ] T078 [P] [US4] Port `src/plugins/splitcbn/` to SDK 104
-- [ ] T079 [P] [US4] Port `src/plugins/diskmap/` to SDK 104
-- [ ] T080 [P] [US4] Port `src/plugins/automation/` to SDK 104 (scripting API string surface documented in migration guide)
-- [ ] T081 [P] [US4] Port `src/plugins/demomenu/` to SDK 104 (SDK example quality — doubles as migration reference)
-- [ ] T082 [P] [US4] Port `src/plugins/demoplug/` to SDK 104 (SDK example)
-- [ ] T083 [P] [US4] Port `src/plugins/demoview/` to SDK 104 (SDK example)
-- [ ] T084 [US4] Validate quickstart #8–9; SC-008 per-plugin operation matrix; FR-014 legacy-shim degradation check with a pre-104 binary
+- [X] T077 [P] [US4] Port `src/plugins/renamer/` to SDK 104
+- [X] T078 [P] [US4] Port `src/plugins/splitcbn/` to SDK 104
+- [X] T079 [P] [US4] Port `src/plugins/diskmap/` to SDK 104
+- [X] T080 [P] [US4] Port `src/plugins/automation/` to SDK 104 (scripting API string surface documented in migration guide)
+- [X] T081 [P] [US4] Port `src/plugins/demomenu/` to SDK 104 (SDK example quality — doubles as migration reference)
+- [X] T082 [P] [US4] Port `src/plugins/demoplug/` to SDK 104 (SDK example)
+- [X] T083 [P] [US4] Port `src/plugins/demoview/` to SDK 104 (SDK example)
+- [X] T084 [US4] Validate quickstart #8–9; SC-008 per-plugin operation matrix; FR-014 legacy-shim degradation check with a pre-104 binary
 
 **Checkpoint**: Whole program at parity — FR-012 satisfied (all bundled plugins), FR-014/FR-015 verified
 

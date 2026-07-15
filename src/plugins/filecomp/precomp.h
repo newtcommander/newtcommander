@@ -36,6 +36,8 @@
 #include "spl_menu.h"
 #include "spl_gui.h"
 
+#include "splunicode.h" // UTF-8 <-> UTF-16 helpers (plugin interface 104)
+
 #include "versinfo.rh2"
 
 #include "dbg.h"
