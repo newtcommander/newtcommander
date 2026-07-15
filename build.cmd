@@ -249,17 +249,23 @@ if errorlevel 8 (
     exit /b 1
 )
 
-:: Generate plugins\plugins.ver; bump the version above the
-:: previous file so Salamander processes the new list even if it
-:: has already seen an older one (registry counter comparison)
+:: Generate plugins\plugins.ver. The version number MUST increase
+:: monotonically across ALL builds regardless of configuration:
+:: Salamander records the last processed version in the registry
+:: (Configuration.LastPluginVer) under a single key shared by Debug and
+:: Release of the same platform (Software\Open Salamander\5.0). A version
+:: that is <= the recorded one is silently skipped (plugins2.cpp) and the
+:: build's plugins never auto-install into Plugin Manager - the symptom
+:: being "a freshly built plugin is missing" after switching Debug<->Release.
+:: A per-directory counter restarting at 1 caused exactly that. Use a
+:: clock-based token (minutes since 2000-01-01, fits a 32-bit int until
+:: ~4085) so every build strictly increases and escapes any value already
+:: written to the registry by earlier builds.
 set "PLUG_DIR=%OUT_DIR%\plugins"
 set "PLUG_VER=%PLUG_DIR%\plugins.ver"
-set "NEW_VER=1"
-if exist "%PLUG_VER%" (
-    set "PV_FIRST="
-    set /p PV_FIRST=<"!PLUG_VER!"
-    for /f "delims=:" %%v in ("!PV_FIRST!") do set /a NEW_VER=%%v+1
-)
+set "NEW_VER="
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "[int][math]::Floor(((Get-Date).ToUniversalTime() - [datetime]'2000-01-01').TotalMinutes)"`) do set "NEW_VER=%%v"
+if not defined NEW_VER set "NEW_VER=1"
 set "PLUG_COUNT=0"
 > "%PLUG_VER%" echo %NEW_VER%
 for %%p in ("%PLUG_DIR%") do for /r "%PLUG_DIR%" %%f in (*.spl) do (
@@ -288,8 +294,9 @@ echo   language modules built: %LANG_COUNT% ^(english^)
 echo.
 echo   NOTE: Translations in translations\ ^(czech, german, ...^) are Translator
 echo         source data ^(.slt^) and cannot be compiled from this repository.
-echo   NOTE: pictview/unrar additionally need pvw32cnv.dll/unrar.dll at runtime
-echo         ^(not in repo^); winscp is not part of salamand.sln.
+echo   NOTE: unrar additionally needs unrar.dll at runtime ^(not in repo^);
+echo         winscp is not part of salamand.sln. pictview runs on the
+echo         built-in Windows imaging ^(WIC^) engine since feature 006.
 exit /b 0
 
 :: ============================================================

@@ -69,8 +69,9 @@ Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (inte
 - **90 projects** in salamand.sln (1 main app, 35 plugins, 36 lang
   modules, 7 helper libs, 5 utilities, 2 shell exts, 3 setup, 1 other)
 - **All dependencies are embedded** — zero NuGet packages
-- **Missing deps**: pvw32cnv.dll (pictview), unrar.dll (unrar),
-  OpenSSL (ftp), Embarcadero RTL (winscp — not in repo)
+- **Missing deps**: unrar.dll (unrar), OpenSSL (ftp), Embarcadero RTL
+  (winscp — not in repo); pictview runs on the built-in Windows WIC
+  engine since feature 006 (no pvw32cnv.dll needed)
 - **Encoding**: UTF-8-BOM, formatted with clang-format
 - **Comments**: Legacy Czech OK, new comments in English
 - **Debug builds** use fixed base addresses (no ASLR) for leak detection
