@@ -1659,6 +1659,7 @@ DWORD GetImageListColorFlags(); // vrati ILC_COLOR??? podle verzi Windows - odla
 // dialog pro Documents nebo Desktop.
 BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn);
 BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn);
+BOOL SafeGetSaveFileNameW(LPOPENFILENAMEW lpofn); // feature 005: UTF-8-fidelity browse (internal)
 
 extern char DecimalSeparator[5]; // "znaky" (max. 4 znaky) vytazene ze systemu
 extern int DecimalSeparatorLen;  // delka ve znacich bez nuly na konci

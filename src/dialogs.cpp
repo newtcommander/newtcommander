@@ -1815,33 +1815,33 @@ CCannotMoveDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 void BrowseFileName(HWND hParent, int editlineResID, const char* name)
 {
     CALL_STACK_MESSAGE3("BrowseFileName(, %d, %s)", editlineResID, name);
-    char file[MAX_PATH];
-    strcpy(file, name);
-    OPENFILENAME ofn;
-    memset(&ofn, 0, sizeof(OPENFILENAME));
-    ofn.lStructSize = sizeof(OPENFILENAME);
+    // feature 005: drive the common dialog wide so a UTF-8 name round-trips
+    WCHAR file[MAX_PATH];
+    if (SalU8ToW(name, -1, file, MAX_PATH) == 0)
+        file[0] = 0;
+
+    WCHAR filterW[256];
+    if (SalU8ToW(LoadStr(IDS_ALLFILTER), -1, filterW, _countof(filterW)) == 0)
+        filterW[0] = 0;
+    for (WCHAR* w = filterW; *w != 0; w++) // creating a double-null terminated list
+        if (*w == L'|')
+            *w = 0;
+
+    OPENFILENAMEW ofn;
+    memset(&ofn, 0, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hParent;
-    char* s = LoadStr(IDS_ALLFILTER);
-    ofn.lpstrFilter = s;
-    while (*s != 0) // creating a double-null terminated list
-    {
-        if (*s == '|')
-            *s = 0;
-        s++;
-    }
+    ofn.lpstrFilter = filterW;
     ofn.lpstrFile = file;
     ofn.nMaxFile = MAX_PATH;
     ofn.nFilterIndex = 1;
-    //  ofn.lpstrFileTitle = file;
-    //  ofn.nMaxFileTitle = MAX_PATH;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
 
-    if (SafeGetSaveFileName(&ofn))
+    if (SafeGetSaveFileNameW(&ofn))
     {
-        if (SalGetFullName(file))
-        {
-            SendMessage(GetDlgItem(hParent, editlineResID), WM_SETTEXT, 0, (LPARAM)file);
-        }
+        char fileU8[3 * MAX_PATH];
+        if (SalWToU8(file, -1, fileU8, sizeof(fileU8)) != 0 && SalGetFullName(fileU8))
+            SalSetDlgItemTextU8(hParent, editlineResID, fileU8);
     }
 }
 
