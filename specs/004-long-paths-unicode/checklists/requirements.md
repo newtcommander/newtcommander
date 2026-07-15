@@ -45,3 +45,15 @@
   notice). Re-validated after integration: all items still pass.
 - Supporting code evidence for the plan phase is captured separately
   in [code-analysis.md](../code-analysis.md) (not part of the spec).
+
+## Implementation Status (2026-07-15)
+
+All 91 tasks in [tasks.md](../tasks.md) are complete. The full 90-project
+solution builds clean in Debug and Release x64; all 35 bundled plugins are
+produced and loaded by the running application. Foundation unit tests pass
+(403/403). Runtime verification (see [validation-results.md](../validation-results.md))
+confirms both reported defects are fixed: files at paths beyond 260 characters
+and files with decomposed (NFD) / non-ACP / non-BMP Unicode names are browsed,
+displayed, copied, searched and preserved bit-exactly. Performance on a
+100k-file directory is within the ±10% target (measured 18.7% faster than the
+pre-004 baseline).

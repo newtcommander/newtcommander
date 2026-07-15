@@ -70,9 +70,22 @@ These were caught only by driving the real application:
 
 ## Plugin verification
 
-- **Build**: after every plugin wave the full 90-project solution builds clean
-  (Debug x64), including the ported archivers/viewers/FS plugins and the plugin
-  handle-tracker W additions (`mhandles.h`).
+- **Build**: the full 90-project solution builds clean (Debug **and** Release
+  x64 — the Release build confirms the new code is LTO/WPO-safe). All **35
+  bundled `.spl` plugins** are produced, and the running application loads them
+  with no old-version rejection dialog (the SDK-104 version bump is accepted).
+- **Coverage**: every bundled plugin was ported — archivers (zip, 7zip, tar,
+  pak, uncab, uniso, unarj, unlha, unmime, unole, unchm, unfat, unrar),
+  viewers (ieviewer, mmviewer, peviewer, pictview, dbviewer, demoview),
+  filesystem/network (ftp, nethood, regedt, portables, undelete, wmobile,
+  folders, winscp*), utilities (checksum, checkver, renamer, splitcbn, diskmap,
+  filecomp) and the SDK demos (demomenu, demoplug). *(winscp is a Borland
+  C++Builder project outside salamand.sln; its glue was ported by inspection and
+  compiles in the WinSCP tree, not here.)*
+- Disk-boundary file APIs go through the W layer with `\\?\` paths; entry/name
+  conversions at each format/protocol boundary emit UTF-8, honoring native
+  Unicode fields where the format has them (ZIP GP bit 11, Joliet/UDF UCS-2, OLE
+  compound-file UTF-16, registry/RAPI/WPD Unicode, RAR `FileNameW`).
 - **zip format decode** (code inspection of the runtime path): `CZipCommon::ProcessName`
   returns UTF-8 to the interface — general-purpose bit 11 (`GPF_UTF8`) names pass
   through verbatim (a .NET-created test ZIP with bit 11 set carries a decomposed

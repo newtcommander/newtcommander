@@ -195,7 +195,7 @@ Single native-app solution: all code under `src/`, projects under `src/vcxproj/`
 - [X] T087 [P] Edge-case matrix from spec.md: 255-char component at depth, FAT32/exFAT destination limits, non-BMP names in sort/column widths, UNC deep paths, config round-trip with Unicode hot paths/history (FR-010)
 - [X] T088 [P] Manifest verification per `contracts/app-manifest.md`: `mt.exe -inputresource` dump asserts `longPathAware`; quickstart #1–2 re-run with `LongPathsEnabled` absent
 - [X] T089 [P] Update `architecture/08-code-standards.md` with the UTF-8-internal string convention + new-module docs; note SDK 104 in `architecture/06-plugin-architecture.md`
-- [ ] T090 [P] English resource strings finalized in `src/lang/` and exported for `translations/` (FR-007 notice, FR-014 refusals, error texts)
+- [X] T090 [P] English resource strings finalized in `src/lang/` and exported for `translations/` (FR-007 notice, FR-014 refusals, error texts) — *IDS_EQUIVNAMESPAIR + IDS_PLUGINCANTHANDLENAME added to texts.rh2/texts.rc2 (English reference); localized variants are produced from the English original by the Translator tool (`translations/!update_langs_from_translator.bat`)*
 - [X] T091 Full quickstart.md pass (#1–10) as release gate; record results in `specs/004-long-paths-unicode/checklists/`
 
 ---
@@ -259,4 +259,4 @@ protection as third-party), so the app remains usable throughout.
 
 ### Format validation
 
-All 91 tasks follow `- [ ] T### [P?] [US#?] description + explicit path(s)`; story labels only in Phases 3–6; Setup/Foundational/Polish unlabeled.
+All 91 tasks follow the `T### [P?] [US#?] description + explicit path(s)` checklist format; story labels only in Phases 3–6; Setup/Foundational/Polish unlabeled.
