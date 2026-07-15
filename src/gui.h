@@ -108,11 +108,18 @@ protected:
     BOOL ShowHint();
 
     DWORD Flags;         // flagy pro chovani controlu
-    char* Text;          // alokovany text
-    int TextLen;         // delka retezce
+    char* Text;          // alokovany text (UTF-8, feature 005)
+    int TextLen;         // delka retezce v bajtech
     char* Text2;         // alokovany text obshujici vypustku; pouziva se se pouze s STF_END_ELLIPSIS nebo STF_PATH_ELLIPSIS
     int Text2Len;        // delka Text2
-    int* AlpDX;          // pole delek substringu; pouziva se se pouze s STF_END_ELLIPSIS nebo STF_PATH_ELLIPSIS
+    // feature 005: measurement, ellipsis and painting run on the UTF-16 form so
+    // Unicode names are not mangled by the ANSI GDI text path; AlpDX holds
+    // per-WCHAR cumulative widths. For ASCII these mirror the byte form 1:1.
+    WCHAR* TextW;        // alokovany text v UTF-16 (pro mereni a kresleni)
+    int TextLenW;        // delka TextW ve WCHARech
+    WCHAR* Text2W;       // UTF-16 varianta Text2 (s vypustkou)
+    int Text2LenW;       // delka Text2W ve WCHARech
+    int* AlpDX;          // pole delek substringu (per-WCHAR); pouziva se se pouze s STF_END_ELLIPSIS nebo STF_PATH_ELLIPSIS
     int TextWidth;       // sirka textu v bodech
     int TextHeight;      // vyska textu v bodech
     int Allocated;       // velikost alokovaneho bufferu 'Text' a 'AlpDX'

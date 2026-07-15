@@ -454,6 +454,10 @@ CStaticText::CStaticText(HWND hDlg, int ctrlID, DWORD flags)
     TextLen = 0;
     Text2 = NULL;
     Text2Len = 0;
+    TextW = NULL;
+    TextLenW = 0;
+    Text2W = NULL;
+    Text2LenW = 0;
     AlpDX = NULL;
     Allocated = 0;
     Bitmap = NULL;
@@ -534,6 +538,10 @@ CStaticText::~CStaticText()
         free(Text);
     if (Text2 != NULL)
         free(Text2);
+    if (TextW != NULL)
+        free(TextW);
+    if (Text2W != NULL)
+        free(Text2W);
     if (AlpDX != NULL)
         free(AlpDX);
     if (Bitmap != NULL)
@@ -563,6 +571,16 @@ BOOL CStaticText::SetText(const char* text)
             TRACE_E(LOW_MEMORY);
             return FALSE;
         }
+        // feature 005: wide buffers sized in WCHARs; UTF-16 length <= UTF-8 byte
+        // length, so 'l' WCHARs is always enough for TextW and Text2W
+        WCHAR* newTextW = (WCHAR*)realloc(TextW, (l + ST_ALLOC_GRANULARITY) * sizeof(WCHAR));
+        if (newTextW == NULL)
+        {
+            TRACE_E(LOW_MEMORY);
+            free(newText);
+            return FALSE;
+        }
+        TextW = newTextW;
         if (Flags & (STF_PATH_ELLIPSIS | STF_END_ELLIPSIS))
         {
             int* newAlpDX = (int*)realloc(AlpDX, (l + ST_ALLOC_GRANULARITY) * sizeof(int));
@@ -580,14 +598,35 @@ BOOL CStaticText::SetText(const char* text)
                 free(newAlpDX);
                 return FALSE;
             }
+            WCHAR* newText2W = (WCHAR*)realloc(Text2W, (l + ST_ALLOC_GRANULARITY + 3) * sizeof(WCHAR));
+            if (newText2W == NULL)
+            {
+                TRACE_E(LOW_MEMORY);
+                free(newText);
+                free(newAlpDX);
+                free(newText2);
+                return FALSE;
+            }
             AlpDX = newAlpDX;
             Text2 = newText2;
+            Text2W = newText2W;
         }
         Text = newText;
         Allocated = l + ST_ALLOC_GRANULARITY;
     }
     memmove(Text, text, l);
     TextLen = l - 1;
+    // build the UTF-16 form used for measurement and painting; invalid UTF-8
+    // (transitional) degrades to a byte-widened copy so drawing still works
+    TextLenW = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, Text, TextLen, TextW, Allocated);
+    if (TextLenW <= 0 && TextLen > 0)
+    {
+        int i;
+        for (i = 0; i < TextLen; i++)
+            TextW[i] = (unsigned char)Text[i];
+        TextLenW = TextLen;
+    }
+    TextW[TextLenW] = 0;
 
     PrepareForPaint();
 
@@ -618,13 +657,17 @@ void CStaticText::PrepareForPaint()
     ClipDraw = FALSE;
     Text2Draw = FALSE;
 
-    if (Text == NULL || TextLen == 0) // the algorithm is designed only for a non-zero number of characters
+    if (Text == NULL || TextLenW == 0) // the algorithm is designed only for a non-zero number of characters
     {
         TextWidth = 0;
         TextHeight = 0;
         return;
     }
 
+    // feature 005: everything below runs on the UTF-16 form (TextW), so widths
+    // and ellipsis positions are correct for Unicode names and no UTF-8 sequence
+    // is torn. AlpDX now holds per-WCHAR cumulative widths. For ASCII this is
+    // identical to the previous byte-based layout.
     HDC hDC = HANDLES(GetDC(HWindow));
     HFONT hOldFont = (HFONT)SelectObject(hDC, HFont);
     SIZE sz;
@@ -635,34 +678,37 @@ void CStaticText::PrepareForPaint()
             // STF_END_ELLIPSIS: the string will end with an ellipsis
             // we need lengths only for the characters that fit
             int fitChars;
-            GetTextExtentExPoint(hDC, Text, TextLen, Width, &fitChars, AlpDX, &sz);
+            GetTextExtentExPointW(hDC, TextW, TextLenW, Width, &fitChars, AlpDX, &sz);
 
-            if (fitChars < TextLen)
+            if (fitChars < TextLenW)
             {
                 //we it did not fit -- we must insert an ellipsis
 
                 // we get the width of "..." for the ellipsis
                 SIZE ellipsisSZ;
-                GetTextExtentPoint32(hDC, "...", 3, &ellipsisSZ);
+                GetTextExtentPoint32W(hDC, L"...", 3, &ellipsisSZ);
                 int ellipsisWidth = ellipsisSZ.cx;
 
                 // we search from the right end to find how much to trim so we can append the ellipsis
                 while (fitChars > 0 && AlpDX[fitChars - 1] + ellipsisWidth > Width)
                     fitChars--;
+                // never split a surrogate pair
+                if (fitChars > 0 && IS_LOW_SURROGATE(TextW[fitChars]) && IS_HIGH_SURROGATE(TextW[fitChars - 1]))
+                    fitChars--;
                 if (fitChars > 0)
                 {
-                    memmove(Text2, Text, fitChars);
+                    memmove(Text2W, TextW, fitChars * sizeof(WCHAR));
                     TextWidth = AlpDX[fitChars - 1];
-                    Text2Len = fitChars;
+                    Text2LenW = fitChars;
                 }
                 else
                 {
                     TextWidth = 0;
-                    Text2Len = 0;
+                    Text2LenW = 0;
                 }
-                strcpy(Text2 + fitChars, "...");
+                wcscpy(Text2W + fitChars, L"...");
                 TextWidth += ellipsisWidth;
-                Text2Len += 3;
+                Text2LenW += 3;
 
                 Text2Draw = TRUE;
             }
@@ -675,7 +721,7 @@ void CStaticText::PrepareForPaint()
         {
             // STF_PATH_ELLIPSIS: the ellipsis will be inside the text
             // we need lengths of all substrings
-            GetTextExtentExPoint(hDC, Text, TextLen, 0, NULL, AlpDX, &sz);
+            GetTextExtentExPointW(hDC, TextW, TextLenW, 0, NULL, AlpDX, &sz);
 
             if (sz.cx > Width)
             {
@@ -683,34 +729,35 @@ void CStaticText::PrepareForPaint()
 
                 // get the width of "..." for the ellipsis
                 SIZE ellipsisSZ;
-                GetTextExtentPoint32(hDC, "...", 3, &ellipsisSZ);
+                GetTextExtentPoint32W(hDC, L"...", 3, &ellipsisSZ);
                 int ellipsisWidth = ellipsisSZ.cx;
 
                 // search from the right end for the path separator
-                const char* p = Text + TextLen - 1;
-                while (*p != PathSeparator && p > Text)
+                const WCHAR sepW = (WCHAR)(unsigned char)PathSeparator;
+                const WCHAR* p = TextW + TextLenW - 1;
+                while (*p != sepW && p > TextW)
                     p--;
-                const char* p2 = p;
-                if (p > Text)
+                const WCHAR* p2 = p;
+                if (p > TextW)
                     p--;
-                int pIndex = (int)(p - Text);
+                int pIndex = (int)(p - TextW);
 
                 // the text from 'p' and further should fit entirely including the ellipsis
                 if (ellipsisWidth + sz.cx - AlpDX[pIndex] > Width)
                 {
                     // it did not fit =>we search from the left end for a place to insert the ellipsis
-                    while (pIndex < TextLen && (ellipsisWidth + sz.cx - AlpDX[pIndex] > Width))
+                    while (pIndex < TextLenW && (ellipsisWidth + sz.cx - AlpDX[pIndex] > Width))
                         pIndex++;
 
                     // we insert the ellipsis and then the rest of the text behind it
                     pIndex++;
-                    strcpy(Text2, "...");
-                    Text2Len = 3;
+                    wcscpy(Text2W, L"...");
+                    Text2LenW = 3;
                     TextWidth = ellipsisWidth;
-                    if (pIndex < TextLen)
+                    if (pIndex < TextLenW)
                     {
-                        memmove(Text2 + 3, Text + pIndex, TextLen - pIndex + 1); // including the terminator
-                        Text2Len += TextLen - pIndex;
+                        memmove(Text2W + 3, TextW + pIndex, (TextLenW - pIndex + 1) * sizeof(WCHAR)); // including the terminator
+                        Text2LenW += TextLenW - pIndex;
                         TextWidth += sz.cx - AlpDX[pIndex - 1];
                     }
                 }
@@ -721,22 +768,22 @@ void CStaticText::PrepareForPaint()
                     while (pIndex >= 0 && (AlpDX[pIndex] + ellipsisWidth + rightPartWidth) > Width)
                         pIndex--;
                     // left part
-                    Text2Len = 0;
+                    Text2LenW = 0;
                     TextWidth = 0;
                     if (pIndex >= 0)
                     {
-                        memmove(Text2, Text, pIndex + 1);
-                        Text2Len += pIndex + 1;
+                        memmove(Text2W, TextW, (pIndex + 1) * sizeof(WCHAR));
+                        Text2LenW += pIndex + 1;
                         TextWidth += AlpDX[pIndex];
                     }
                     // ellipsis
-                    memmove(Text2 + Text2Len, "...", 3);
-                    Text2Len += 3;
+                    memmove(Text2W + Text2LenW, L"...", 3 * sizeof(WCHAR));
+                    Text2LenW += 3;
                     TextWidth += ellipsisWidth;
                     // right part
-                    int rightPartLen = TextLen - (int)(p2 - Text);
-                    memmove(Text2 + Text2Len, p2, rightPartLen + 1);
-                    Text2Len += rightPartLen;
+                    int rightPartLen = TextLenW - (int)(p2 - TextW);
+                    memmove(Text2W + Text2LenW, p2, (rightPartLen + 1) * sizeof(WCHAR));
+                    Text2LenW += rightPartLen;
                     TextWidth += rightPartWidth;
                 }
 
@@ -756,13 +803,13 @@ void CStaticText::PrepareForPaint()
         {
             RECT r;
             GetClientRect(HWindow, &r);
-            DrawText(hDC, Text, TextLen, &r, DT_CALCRECT | DT_SINGLELINE | DT_LEFT);
+            DrawTextW(hDC, TextW, TextLenW, &r, DT_CALCRECT | DT_SINGLELINE | DT_LEFT);
             TextWidth = r.right;
             TextHeight = r.bottom;
         }
         else
         {
-            GetTextExtentPoint32(hDC, Text, TextLen, &sz);
+            GetTextExtentPoint32W(hDC, TextW, TextLenW, &sz);
             TextWidth = sz.cx + 1;
             TextHeight = sz.cy;
         }
@@ -1129,28 +1176,28 @@ CStaticText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (UIState & UISF_HIDEACCEL)
                     drawFlags |= DT_HIDEPREFIX;
 
-                DrawText(hDC, Text, TextLen, &r, drawFlags);
+                DrawTextW(hDC, TextW, TextLenW, &r, drawFlags); // feature 005: UTF-16 text
             }
             else
             {
-                const char* text;
+                const WCHAR* text;
                 int textLen;
                 if (Text2Draw)
                 {
-                    text = Text2;
-                    textLen = Text2Len;
+                    text = Text2W;
+                    textLen = Text2LenW;
                 }
                 else
                 {
-                    text = Text;
-                    textLen = TextLen;
+                    text = TextW;
+                    textLen = TextLenW;
                 }
                 DWORD drawFlags = (bkErased) ? 0 : ETO_OPAQUE;
                 // if (ClipDraw) // same problem as above
                 drawFlags |= ETO_CLIPPED;
 
                 int xOffset = GetTextXOffset();
-                ExtTextOut(hDC, r.left + xOffset, r.top, drawFlags, &r, text, textLen, NULL);
+                ExtTextOutW(hDC, r.left + xOffset, r.top, drawFlags, &r, text, textLen, NULL); // feature 005: UTF-16 text
             }
 
             if (Flags & STF_DOTUNDERLINE)
