@@ -92,6 +92,7 @@ Detailed analysis is in the `architecture/` directory:
 | [07-preprocessor-defs.md](architecture/07-preprocessor-defs.md) | All #defines by configuration |
 | [08-code-standards.md](architecture/08-code-standards.md) | Encoding, formatting, conventions |
 | [09-plugin-catalog.md](architecture/09-plugin-catalog.md) | All 36 plugins categorized by purpose |
+| [10-plugin-maintenance-outlook.md](architecture/10-plugin-maintenance-outlook.md) | Per-plugin 2026+ maintenance assessment (Czech) |
 
 ## Compiler Recommendation
 
