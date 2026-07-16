@@ -21,6 +21,18 @@ How it is built (no standalone project):
   but MUST NOT be compiled as separate translation units.
   zlib compression (LIBSSH2_HAVE_ZLIB) is not enabled.
 
+IMPORTANT build note (Debug builds):
+  The libssh2 C files MUST be compiled with /RTCc (SmallerTypeCheck) and
+  /RTC1 (BasicRuntimeChecks) DISABLED - sftp.vcxproj sets
+  <SmallerTypeCheck>false</SmallerTypeCheck> and
+  <BasicRuntimeChecks>Default</BasicRuntimeChecks> on every libssh2 ClCompile
+  entry. libssh2's crypto/transport code legitimately truncates integers to
+  smaller types; the shared plugin Debug property sheet enables /RTCc, whose
+  run-time check calls abort() on such truncation and crashes the Debug build
+  during the SSH handshake. This was found via the runtime smoke test
+  (test\sftp_smoke.c) - the Release build was unaffected because it does not
+  use /RTCc.
+
 How to update:
   1. git clone --depth 1 --branch libssh2-<ver> https://github.com/libssh2/libssh2
   2. Replace include\*.h and src\*.c/src\*.h with the new tree

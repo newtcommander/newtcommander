@@ -50,6 +50,26 @@ appears in Plugin Manager and as an item in the Alt+F1/F2 menu.
 | 13 | FTP plugin smoke: connect/list/download against any FTP server | Unchanged behavior | SC-009 |
 | 14 | `.ppk` v3 file as key | Clear rejection naming supported formats | FR-003 |
 
+## Runtime SSH/SFTP smoke test (no GUI needed)
+
+`test\sftp_smoke.c` is a standalone console program that runs the exact libssh2
+API sequence `CSFTPSession` uses (handshake → host-key hash → password auth →
+SFTP init → opendir/readdir with permissions → download) against a real OpenSSH
+server, linking the plugin's compiled libssh2 objects. It proves the libssh2 +
+WinCNG transport works at runtime — which compilation alone cannot.
+
+Verified on 2026-07-17 against OpenSSH in WSL2 (both Debug and Release builds):
+handshake, host-key SHA-256, **password authentication**, directory listing with
+correct Unix permissions (`-rwsr-xr-x` setuid, `drwxrwxrwt` sticky, `lrwxrwxrwx`
+symlinks), a **UTF-8 filename** (`žluťoučký_кůň_日本語.txt`), and file download —
+all passed. This covers the runtime core of SC-001, SC-002, and SC-005.
+
+Build & run:
+```
+cl /MD /DLIBSSH2_WINCNG /I<dep>\libssh2\include test\sftp_smoke.c <intermediate>\libssh2_*.obj ws2_32.lib bcrypt.lib crypt32.lib
+sftp_smoke <host> <port> <user> <password> <remotedir>
+```
+
 ## Dev test harness (pure units)
 
 Key-loader and rights-formatter units (OpenSSH container parser, bcrypt

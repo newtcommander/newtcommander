@@ -119,131 +119,183 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_agent.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\bcrypt_pbkdf.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_bcrypt_pbkdf.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\channel.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_channel.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\comp.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_comp.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\chacha.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_chacha.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\cipher-chachapoly.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_cipher_chachapoly.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\crypt.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_crypt.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\crypto.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_crypto.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\global.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_global.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\hostkey.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_hostkey.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\keepalive.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_keepalive.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\kex.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_kex.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\knownhost.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_knownhost.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\mac.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_mac.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\misc.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_misc.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\packet.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_packet.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\pem.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_pem.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\poly1305.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_poly1305.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\publickey.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_publickey.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\scp.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_scp.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\session.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_session.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\sftp.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_sftp.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\transport.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_transport.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\userauth.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_userauth.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\userauth_kbd_packet.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_userauth_kbd_packet.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\..\common\dep\libssh2\src\version.c">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)libssh2_version.obj</ObjectFileName>
       <WarningLevel>Level1</WarningLevel>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <SmallerTypeCheck>false</SmallerTypeCheck>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
