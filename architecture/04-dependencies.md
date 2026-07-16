@@ -19,6 +19,7 @@ in the repository or provided as pre-built binaries in
 | NanoSVG | src/common/dep/nanosvg/ | zlib License | Yes | salamand (SVG icons) |
 | fmt | src/common/dep/fmt/ | MIT | Yes | salamand (formatting) |
 | WIL | src/common/dep/wil/ | MIT | Yes | salamand, plugins |
+| libssh2 | src/common/dep/libssh2/ | BSD-3-Clause | Yes | sftp plugin (WinCNG backend) |
 | libexif | src/plugins/pictview/ | LGPL 2.1 | Yes | pictview plugin |
 | CHMLIB | src/plugins/unchm/ | LGPL 2.1 | Yes | unchm plugin |
 
