@@ -300,3 +300,36 @@ proxies/jump hosts, OpenSSH `known_hosts` import, F4 edit.
 
 All spec NEEDS-CLARIFICATION items were resolved in `/speckit.clarify`
 (5 questions, recorded in spec.md); no open unknowns remain for planning.
+
+## 8. Spike S1 result (2026-07-17) — libssh2 WinCNG key-format coverage
+
+Ran `libssh2_userauth_publickey_fromfile_ex` (the exact call
+`CSFTPSession::Authenticate` uses) via a standalone test
+(`test/key_auth.c`) against real OpenSSH in WSL2, one key per format:
+
+| Key file format | Result |
+|---|---|
+| **Classic PEM RSA** (`-----BEGIN RSA PRIVATE KEY-----`) | **works** |
+| OpenSSH container, ed25519 (`-----BEGIN OPENSSH PRIVATE KEY-----`) | fails (rc −1) |
+| OpenSSH container, RSA | fails (rc −1) |
+| OpenSSH container, ECDSA | fails (rc −1) |
+
+**Conclusion**: the WinCNG backend of libssh2 reads *only* classic
+PKCS#1 PEM RSA private keys from file. It cannot parse the modern
+OpenSSH private-key container at all — independent of the key type
+inside it. This confirms research §D3's prediction and firmly scopes the
+remaining User Story 5 work (tasks T051–T054): to support the keys
+`ssh-keygen` produces **by default today** (OpenSSH-container, ed25519),
+the plugin **must** ship its own key loader:
+
+- OpenSSH-container parser + (for encrypted keys) bcrypt-KDF,
+- ed25519 signing via a vendored reference implementation,
+- RSA keys from the container imported into CNG,
+- feeding libssh2 through the callback-based `libssh2_userauth_publickey`
+  sign path rather than `..._fromfile`.
+
+**Interim behavior of the current build**: key auth works for classic
+PEM RSA keys only. A user with an OpenSSH-format RSA key can convert it
+with `ssh-keygen -p -m PEM -f <key>`; an ed25519 key cannot be converted
+to PEM and therefore requires the loader (T051–T054). Password auth is
+unaffected and fully working (verified end-to-end).

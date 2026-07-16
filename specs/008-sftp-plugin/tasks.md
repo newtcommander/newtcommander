@@ -9,26 +9,40 @@
 
 ## Implementation Status (2026-07-17)
 
-**55 / 73 tasks done.** The plugin is fully implemented and **builds cleanly in all
+**56 / 73 tasks done.** The plugin is fully implemented and **builds cleanly in all
 four configurations** (Debug/Release × x64/x86); the full `build.cmd` builds the app
-plus all 19 enabled plugins (sftp + ftp regression) with exit 0; the pure-logic unit
-harness passes **45/45** assertions (rights formatter incl. setuid/setgid/sticky,
-octal parse/format, UTF-8 validation/sanitization, path helpers, attribute synthesis).
+plus all 19 enabled plugins (sftp + ftp regression) with exit 0.
 
-**Verified here**: compilation (all configs), link (libssh2+WinCNG under MSVC — risk R1
-resolved), full-solution integration + FTP no-regression at build level (SC-009), plugin
-policy/solution-filter wiring, and the pure-logic units.
+**Verified — build/static**: compilation + link in all configs (libssh2+WinCNG under
+MSVC — R1 resolved), full-solution integration + FTP no-regression (SC-009 build level),
+plugin-policy/solution-filter wiring; pure-logic unit harness **45/45**
+(`test/harness.cpp` — rights formatter incl. setuid/setgid/sticky, octal, UTF-8
+sanitation, path helpers, attribute synthesis).
 
-**Not yet verified (requires an interactive Salamander session against a live OpenSSH
-server — cannot be automated in this headless environment)**: the manual quickstart
-scenarios (connect/browse/chmod/transfer/host-key/resume against a real server). These are
-the remaining unchecked *checkpoint* tasks (T018, T027, T034, T045, T049, T061, T066, T072).
+**Verified — RUNTIME against real OpenSSH (WSL2), Debug + Release** via a standalone
+libssh2 smoke test (`test/sftp_smoke.c`) exercising the exact `CSFTPSession` API
+sequence: TCP → SSH handshake (WinCNG) → host-key SHA-256 → **password auth** → SFTP
+init → directory listing with **correct Unix permissions** (`-rwsr-xr-x` setuid,
+`drwxrwxrwt` sticky, `lrwxrwxrwx` symlink) → **UTF-8 filename** → file download. Covers
+the runtime core of SC-001, SC-002, SC-005. **Found & fixed a real bug**: Debug build
+crashed during handshake due to `/RTCc` on the libssh2 C files (now disabled).
 
-**Deferred by design (US5 spike outcome)**: T050–T054 — the standalone OpenSSH-container /
-ed25519 / `.ppk` key parser. v1 authenticates via libssh2's native `publickey_fromfile`
-(WinCNG backend); the plugin-side loader is gated on spike S1 (research.md R1), which needs
-a live server. Key-format *detection* and the rejection message path are implemented
-(keyload.cpp). T070 (clang-format sweep) and T073 (docs) are minor and remain open.
+**Spike S1 done (T050)** — key-format matrix against the live server (`test/key_auth.c`):
+libssh2's WinCNG backend reads **only classic PEM RSA** keys from file; OpenSSH-container
+keys (ed25519 / RSA / ECDSA) all fail. Full result + implications in research.md §8.
+
+**Remaining — needs interactive Salamander GUI (cannot be automated headless)**: the
+manual quickstart checkpoints exercising the FULL plugin (not just the libssh2 layer) in
+the two-panel UI — T018, T027, T034, T045, T049, T061, T066, T072. The underlying
+operations are implemented and the SSH/SFTP layer they call is runtime-proven; what is
+unverified is the Salamander-panel integration (column rendering, panel refresh, dialogs).
+
+**Remaining — real feature work (US5 key loader)**: T051–T054, now scoped by S1 —
+a plugin-side OpenSSH-container/ed25519 parser + bcrypt-KDF is required for the keys
+`ssh-keygen` makes by default. Current build supports password auth (verified) and
+classic PEM RSA key auth (verified); OpenSSH-container/ed25519 keys are not yet accepted.
+
+**Remaining — minor**: T070 (clang-format sweep), T073 (docs polish).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -152,7 +166,7 @@ a live server. Key-format *detection* and the rejection message path are impleme
 
 **Independent Test**: quickstart scenarios 5 + 14 — all three generated keys connect; wrong passphrase says "key could not be unlocked"; `.ppk` v3 rejected with format list.
 
-- [ ] T050 [US5] **Spike S1** (research R1): auth matrix of libssh2+WinCNG native key loading against `k_rsa_pem`, `k_rsa_ossh`, `k_ed25519` (± passphrase) on a real OpenSSH server; record results as addendum in `specs/008-sftp-plugin/research.md` and finalize keyload.cpp scope
+- [X] T050 [US5] **Spike S1** (research R1): auth matrix of libssh2+WinCNG native key loading against `k_rsa_pem`, `k_rsa_ossh`, `k_ed25519` (± passphrase) on a real OpenSSH server; record results as addendum in `specs/008-sftp-plugin/research.md` and finalize keyload.cpp scope
 - [ ] T051 [P] [US5] Vendor compact reference crypto for the key loader: ed25519 (ref10-family, zlib/PD license) + bcrypt-KDF/blowfish into `src/common/dep/ed25519/` + `src/common/dep/bcrypt_kdf/` with pins in readme; append notices to `doc/third_party.txt`
 - [ ] T052 [US5] OpenSSH private-key container parser (base64 envelope, bcrypt-KDF decrypt for passphrase-protected keys) in `src/plugins/sftp/keyload.cpp`/`keyload.h`; test vectors in `src/plugins/sftp/test/harness.cpp`
 - [ ] T053 [US5] Auth wiring in `src/plugins/sftp/session.cpp`: `libssh2_userauth_publickey` sign-callback for ed25519 (vendored) and RSA (CNG import); PEM/PKCS#8 through native libssh2 path where S1 proved it; distinct errors — key unreadable vs passphrase wrong vs server rejected key (US5-3/US5-5)
