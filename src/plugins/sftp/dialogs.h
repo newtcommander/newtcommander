@@ -1,0 +1,50 @@
+// SPDX-FileCopyrightText: 2026 Open Salamander Authors
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
+
+class CSFTPServer;
+
+// ****************************************************************************
+// Dialog entry points. Implementations in dialogs.cpp.
+// ****************************************************************************
+
+// Connect / bookmarks dialog. Fills 'result' with the chosen connection.
+// Returns TRUE if the user pressed Connect, FALSE on Cancel. When
+// 'organizeMode' is TRUE, the dialog only manages bookmarks (no connect).
+BOOL ShowConnectDialog(HWND parent, BOOL organizeMode, CSFTPServer* result);
+
+// Plaintext secrets the connect dialog just captured (avoids re-prompting when
+// the user typed a password but chose not to store it). Consumed and wiped by
+// the connect flow. Empty string = not provided.
+extern char ConnectPlainPassword[512];
+extern char ConnectPlainPassphrase[512];
+
+// Host-key verification dialog (FR-006). 'changed' selects the "key changed"
+// warning variant. Returns one of: IDB_HOSTKEY_TRUST (trust and store),
+// IDB_HOSTKEY_ONCE (connect once), IDCANCEL (abort).
+int ShowHostKeyDialog(HWND parent, BOOL changed, const char* host, int port,
+                      const char* keyType, const char* fingerprint,
+                      const char* storedFingerprint);
+
+// Generic single password/passphrase prompt. Returns TRUE on OK.
+BOOL ShowPasswordPrompt(HWND parent, const char* promptText, char* out, int outSize);
+
+// chmod dialog. 'mode' is in/out (permission bits incl. special bits).
+// 'multiple' relaxes checkbox tri-state handling for multi-selection.
+// On return, *recurse / *setTime / *mtime carry the extra options.
+BOOL ShowChmodDialog(HWND parent, const char* targetLabel, BOOL multiple,
+                     unsigned long* mode, BOOL* recurse, BOOL* setTime, __int64* mtime);
+
+// Symlink creation dialog. Fills name+target (each MAX_PATH). Returns TRUE on OK.
+BOOL ShowSymlinkDialog(HWND parent, char* name, char* target);
+
+// Simple rename dialog. 'name' is in/out (MAX_PATH). Returns TRUE on OK.
+BOOL ShowRenameDialog(HWND parent, const char* prompt, char* name);
+
+// Resume/Overwrite/Skip prompt for an existing smaller target (FR-011).
+// Returns IDYES (resume), IDNO (overwrite), IDCANCEL (skip/abort).
+int ShowResumePrompt(HWND parent, const char* fileName);
+
+// Configuration page (embedded). Runs the modal config, applying to Config.
+void ShowConfigDialog(HWND parent);

@@ -1,0 +1,34 @@
+// SPDX-FileCopyrightText: 2026 Open Salamander Authors
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+// WARNING: cannot be replaced by "#pragma once" because it is included from .rc file and it seems resource compiler does not support "#pragma once"
+#ifndef __SFTP_RH2
+#define __SFTP_RH2
+
+#if defined(APSTUDIO_INVOKED) && !defined(APSTUDIO_READONLY_SYMBOLS)
+#error this file is not editable by Microsoft Visual C++
+#endif //defined(APSTUDIO_INVOKED) && !defined(APSTUDIO_READONLY_SYMBOLS)
+
+#define IDC_STATIC_1 3000
+#include "statics.rh2" // 3000 to 3039 are reserved by this !!!
+
+// ICONS/CURSORS/BITMAPS:
+#define IDC_SFTPICON 1000
+#define IDC_SFTPLOGICON 1001
+#define IDC_SFTPOPERICON 1003
+#define IDC_SFTPICONBMP 1004
+#define IDC_WARNINGICON 1005
+
+// MENUS:
+// context menu in Connect dialog listbox (connect mode)
+#define IDM_SRVCONTEXTMENU 1100
+// context menu in Connect dialog listbox (Organize Bookmarks mode)
+#define IDM_SRVCONTEXTMENU2 1101
+// context menu in Alt+F1/F2 for the active FS
+#define IDM_ACTPATHCONTEXTMENU 1102
+// context menu in Alt+F1/F2 for the "SFTP Client" change-drive item
+#define IDM_CHNGDRVCONTMENU 1103
+// menu in Logs dialog
+#define IDM_LOGSMENU 1105
+
+#endif // __SFTP_RH2

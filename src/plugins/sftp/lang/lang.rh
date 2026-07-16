@@ -1,0 +1,189 @@
+//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ generated include file.
+// Used by lang.rc
+//
+
+#ifndef IDC_STATIC
+#define IDC_STATIC (-1)
+#endif
+
+// ---------------------------------------------------------------------------
+// String table IDs (1..499)
+// ---------------------------------------------------------------------------
+#define IDS_PLUGINNAME                  1
+#define IDS_PLUGINDESCR                 2
+#define IDS_SFTPPLUGINTITLE             3
+#define IDS_ABOUTPLUGINTITLE            4
+#define IDS_SFTPCHNGDRVITEM             5
+#define IDS_SFTPERRORTITLE              6
+#define IDS_CONFIGTITLE                 7
+#define IDS_MENU_CONNECT                8
+#define IDS_MENU_ORGANIZEBOOKMARKS      9
+#define IDS_MENU_SHOWLOGS               10
+#define IDS_MENU_CREATESYMLINK          11
+#define IDS_ABOUT                       12
+
+// path / parse errors
+#define IDS_HOSTNAMEMISSING             20
+#define IDS_INVALIDPORT                 21
+#define IDS_INVALIDNUMBER               22
+#define IDS_TOOLONGPATH                 23
+#define IDS_MUSTBEPOSITIVE              24
+#define IDS_MUSTBEGRTHANZERO            25
+
+// connection / auth
+#define IDS_ERR_RESOLVE                 40
+#define IDS_ERR_CONNECT                 41
+#define IDS_ERR_HANDSHAKE               42
+#define IDS_ERR_AUTHFAILED              43
+#define IDS_ERR_AUTHPASSWORD            44
+#define IDS_ERR_AUTHKEY                 45
+#define IDS_ERR_KEYUNLOCK               46
+#define IDS_ERR_KEYFILEMISSING          47
+#define IDS_ERR_SFTPINIT                48
+#define IDS_ERR_TIMEOUT                 49
+#define IDS_ERR_CONNLOST                50
+#define IDS_ERR_HOSTKEYDECLINED         51
+#define IDS_ERR_NOAUTHMETHOD            52
+#define IDS_ENTERPASSWORD               53
+#define IDS_ENTERPASSPHRASE             54
+
+// host key (TOFU)
+#define IDS_HOSTKEY_NEWTITLE            60
+#define IDS_HOSTKEY_NEWTEXT             61
+#define IDS_HOSTKEY_CHANGEDTITLE        62
+#define IDS_HOSTKEY_CHANGEDTEXT         63
+#define IDS_HOSTKEY_TRUST               64
+#define IDS_HOSTKEY_ONCE                65
+#define IDS_HOSTKEY_ABORT               66
+#define IDS_HOSTKEY_ACCEPTNEW           67
+
+// listing / operations
+#define IDS_ERR_LISTDIR                 80
+#define IDS_ERR_PERMDENIED              81
+#define IDS_ERR_DISKFULL                82
+#define IDS_ERR_NOTCONNECTED            83
+#define IDS_ERR_MKDIR                   84
+#define IDS_ERR_RMDIR                   85
+#define IDS_ERR_DELETE                  86
+#define IDS_ERR_RENAME                  87
+#define IDS_ERR_CHMOD                   88
+#define IDS_ERR_SYMLINK                 89
+#define IDS_ERR_DOWNLOAD                90
+#define IDS_ERR_UPLOAD                  91
+#define IDS_ERR_OPENLOCAL               92
+#define IDS_ERR_READREMOTE              93
+#define IDS_ERR_WRITEREMOTE             94
+#define IDS_CANCELLED                   95
+#define IDS_ERR_GENERIC                 96
+#define IDS_ERR_NOTADIR                 97
+#define IDS_RECONNECTING                98
+#define IDS_SYMLINK_DIR_SKIPPED         99
+
+// columns
+#define IDS_COL_RIGHTS                  110
+#define IDS_COL_RIGHTS_DESC             111
+#define IDS_COL_OWNER                   112
+#define IDS_COL_OWNER_DESC              113
+#define IDS_COL_GROUP                   114
+#define IDS_COL_GROUP_DESC              115
+
+// confirmations
+#define IDS_CONFIRM_DELETE              130
+#define IDS_CONFIRM_DELETE_TITLE        131
+#define IDS_RESUME_OVERWRITE            132
+#define IDS_RESUME_TITLE                133
+
+// logs
+#define IDS_LOGS_TITLE                  140
+
+// ---------------------------------------------------------------------------
+// Dialogs (500..599) and their controls (600..1999)
+// ---------------------------------------------------------------------------
+#define IDD_CONNECT                     500
+#define IDL_BOOKMARKS                   600
+#define IDT_HOSTADDRESS                 601
+#define IDE_HOSTADDRESS                 602
+#define IDT_PORT                        603
+#define IDE_PORT                        604
+#define IDT_USERNAME                    605
+#define IDE_USERNAME                    606
+#define IDC_AUTHPASSWORD                607
+#define IDC_AUTHKEY                     608
+#define IDT_PASSWORD                    609
+#define IDE_PASSWORD                    610
+#define IDC_SAVEPASSWORD                611
+#define IDT_KEYFILE                     612
+#define IDE_KEYFILE                     613
+#define IDB_BROWSEKEY                   614
+#define IDT_PASSPHRASE                  615
+#define IDE_PASSPHRASE                  616
+#define IDC_SAVEPASSPHRASE              617
+#define IDT_INITIALPATH                 618
+#define IDE_INITIALPATH                 619
+#define IDB_NEWBOOKMARK                 620
+#define IDB_RENAMEBOOKMARK              621
+#define IDB_REMOVEBOOKMARK              622
+#define IDB_COPYBOOKMARK                623
+#define IDB_CONNECT                     624
+#define IDT_BOOKMARKS                   625
+
+#define IDD_PASSWORD                    510
+#define IDE_PROMPTPASSWORD              630
+#define IDT_PROMPTTEXT                  631
+
+#define IDD_HOSTKEY                     515
+#define IDT_HOSTKEY_TEXT                640
+#define IDE_HOSTKEY_FINGERPRINT         641
+#define IDI_HOSTKEY_WARN                642
+#define IDB_HOSTKEY_TRUST               643
+#define IDB_HOSTKEY_ONCE                644
+
+#define IDD_CHMOD                       520
+#define IDC_UR                          650
+#define IDC_UW                          651
+#define IDC_UX                          652
+#define IDC_GR                          653
+#define IDC_GW                          654
+#define IDC_GX                          655
+#define IDC_OR                          656
+#define IDC_OW                          657
+#define IDC_OX                          658
+#define IDC_SETUID                      659
+#define IDC_SETGID                      660
+#define IDC_STICKY                      661
+#define IDE_OCTAL                       662
+#define IDC_RECURSE                     663
+#define IDT_CHMODTARGET                 664
+#define IDC_SETTIME                     665
+#define IDE_MTIME                       666
+
+#define IDD_CONFIG                      530
+#define IDE_CONNECTTIMEOUT              670
+#define IDE_OPTIMEOUT                   671
+#define IDE_KEEPALIVE                   672
+#define IDE_KEEPALIVESTOP               673
+#define IDE_CONNRETRIES                 674
+#define IDE_RETRYDELAY                  675
+#define IDC_COLVIEW_RIGHTS              676
+#define IDC_COLVIEW_ATTR                677
+#define IDC_SHOWOCTAL                   678
+#define IDC_ENABLELOG                   679
+#define IDE_LOGMAXSIZE                  680
+#define IDE_RESUMEOVERLAP               681
+#define IDE_RESUMEMINSIZE               682
+
+#define IDD_SYMLINK                     540
+#define IDE_SYMLINKNAME                 690
+#define IDE_SYMLINKTARGET               691
+#define IDT_SYMLINKNAME                 692
+#define IDT_SYMLINKTARGET               693
+
+#define IDD_RENAME                      550
+#define IDE_RENAMENAME                  695
+#define IDT_RENAMEPROMPT                696
+
+#define IDD_LOGS                        560
+#define IDE_LOGTEXT                     700
+#define IDB_LOGCLEAR                    701
+#define IDL_LOGCONNECTIONS              702
