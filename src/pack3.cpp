@@ -453,10 +453,7 @@ void CPackerFormatConfig::AddDefault(int SalamVersion)
                 }
                 break;
             }
-        // and new extensions
-        if ((index = AddFormat()) == -1)
-            return;
-        SetFormat(index, "pak", TRUE, -3, -3, TRUE);
+        // (the "pak" format was removed with the PAK plugin, feature 007)
 
     case 3: // what was added after beta2
     case 4: // beta3 but with old configuration (contains $(SpawnName))
@@ -1769,7 +1766,7 @@ BOOL PackExecute(HWND parent, char* cmdLine, const char* currentDir, TPackErrorT
     CExecuteWindow tmpWindow(main, IDS_PACK_EXECUTING, ooStatic);
     tmpWindow.Create();
     HWND oldPluginMsgBoxParent = PluginMsgBoxParent;
-    // plugin timers may be invoked (happens with WinSCP open in the other panel) -> set parent for message boxes
+    // plugin timers may be invoked (happens with an FS plugin, e.g. FTP, open in the other panel) -> set parent for message boxes
     PluginMsgBoxParent = tmpWindow.HWindow;
     EnableWindow(main, FALSE);
     // activate the hourglass cursor

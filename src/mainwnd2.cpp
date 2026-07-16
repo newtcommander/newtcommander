@@ -1904,10 +1904,6 @@ void CMainWindow::SaveConfig(HWND parent)
                 SetValue(actKey, CONFIG_EDITNEWFILE_DEFAULT_REG, REG_SZ,
                          Configuration.EditNewFileDefault, -1);
 
-#ifndef _WIN64 // FIXME_X64_WINSCP
-                SetValue(actKey, "Add x86-Only Plugins", REG_DWORD,
-                         &Configuration.AddX86OnlyPlugins, sizeof(DWORD));
-#endif // _WIN64
 
                 HKEY actSubKey;
                 if (CreateKey(actKey, SALAMANDER_CONFIRMATION_REG, actSubKey))
@@ -3435,13 +3431,6 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
             GetValue(actKey, CONFIG_EDITNEWFILE_DEFAULT_REG, REG_SZ,
                      Configuration.EditNewFileDefault, MAX_PATH);
 
-#ifndef _WIN64 // FIXME_X64_WINSCP
-            if (!GetValue(actKey, "Add x86-Only Plugins", REG_DWORD,
-                          &Configuration.AddX86OnlyPlugins, sizeof(DWORD)))
-            {
-                Configuration.AddX86OnlyPlugins = TRUE;
-            }
-#endif // _WIN64
 
             HKEY actSubKey;
             if (OpenKey(actKey, SALAMANDER_CONFIRMATION_REG, actSubKey))

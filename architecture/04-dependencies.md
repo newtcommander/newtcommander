@@ -21,7 +21,6 @@ in the repository or provided as pre-built binaries in
 | WIL | src/common/dep/wil/ | MIT | Yes | salamand, plugins |
 | libexif | src/plugins/pictview/ | LGPL 2.1 | Yes | pictview plugin |
 | CHMLIB | src/plugins/unchm/ | LGPL 2.1 | Yes | unchm plugin |
-| cmark-gfm | src/plugins/ieviewer/ | BSD 2-Clause | Yes | ieviewer plugin |
 
 ### Library Details
 
@@ -54,8 +53,6 @@ scalable icon rendering.
 **PNGLite** — Minimal PNG reader. Used for loading PNG images
 without heavy dependencies.
 
-**cmark-gfm** — GitHub-flavored Markdown parser. Used by the
-ieviewer plugin to render Markdown files.
 
 ## Missing / External Dependencies
 
@@ -67,7 +64,6 @@ in the repository.
 | pvw32cnv.dll | pictview | Proprietary image engine, not open-sourced | PictView cannot convert all image formats | Replace with [WIC](https://learn.microsoft.com/en-us/windows/win32/wic/-wic-about-windows-imaging-codec) (Windows Imaging Component) |
 | unrar.dll | unrar | Not redistributable (RARLAB license) | Cannot extract RAR archives | Download from [rarlab.com](https://www.rarlab.com/rar_add.htm) — both projects are open source |
 | OpenSSL | ftp | Libraries not included | FTP plugin lacks FTPS (SSL/TLS) support | Build from [openssl.org](https://www.openssl.org/) source or use vcpkg |
-| Embarcadero RTL | winscp (not in repo) | Requires C++ Builder ($1,500+) | WinSCP/SFTP plugin cannot be built | Replace with [libssh2](https://www.libssh2.org/) for SFTP support |
 
 ### Build Impact of Missing Dependencies
 
@@ -76,7 +72,6 @@ in the repository.
 | pictview | Yes (partial) | Some image formats not supported without pvw32cnv.dll |
 | unrar | Yes (compiles) | Cannot function at runtime without unrar.dll |
 | ftp | Yes (partial) | No SSL/TLS support without OpenSSL |
-| winscp | No (not in repo) | Entire SFTP/SCP plugin unavailable |
 
 ## Windows SDK Dependencies
 

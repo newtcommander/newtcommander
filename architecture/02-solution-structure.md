@@ -2,7 +2,13 @@
 
 **Solution file**: `src\vcxproj\salamand.sln`
 **Visual Studio**: 2022 (Format Version 12.00, VS Version 17)
-**Total projects**: 90 C++ projects
+**Total projects**: 76 C++ projects
+
+> **Update (2026-07-16, feature 007 — plugin build policy):** 8 obsolete
+> plugins (pak, unarj, unlha, unfat, wmobile, ieviewer, splitcbn, winscp)
+> were removed from the repository, dropping 14 projects (7 plugin +
+> 7 language) from the solution. Which of the remaining plugins are built
+> is controlled by `plugins.cfg` in the repository root.
 
 ## Build Configurations
 
@@ -26,7 +32,7 @@
 
 salamand depends on lang (build order only, ReferenceOutputAssembly=false).
 
-### Plugins (35 projects)
+### Plugins (28 projects)
 
 Each plugin produces a `.spl` file (DLL with Salamander Plugin extension).
 
@@ -35,16 +41,11 @@ Each plugin produces a `.spl` file (DLL with Salamander Plugin extension).
 | Project | Path | Output | Description |
 |---------|------|--------|-------------|
 | 7zip | plugins/7zip/vcxproj/7zip.vcxproj | .spl | 7-Zip archive support |
-| pak | plugins/pak/vcxproj/pak.vcxproj | .spl | PAK archive format |
-| splitcbn | plugins/splitcbn/vcxproj/splitcbn.vcxproj | .spl | Split/combine files |
 | tar | plugins/tar/vcxproj/tar.vcxproj | .spl | TAR archive support |
-| unarj | plugins/unarj/vcxproj/unarj.vcxproj | .spl | ARJ archive extraction |
 | uncab | plugins/uncab/vcxproj/uncab.vcxproj | .spl | CAB archive extraction |
 | unchm | plugins/unchm/vcxproj/unchm.vcxproj | .spl | CHM file extraction |
 | undelete | plugins/undelete/vcxproj/undelete.vcxproj | .spl | File undelete from FAT/NTFS |
-| unfat | plugins/unfat/vcxproj/unfat.vcxproj | .spl | FAT filesystem image access |
 | uniso | plugins/uniso/vcxproj/uniso.vcxproj | .spl | ISO image extraction |
-| unlha | plugins/unlha/vcxproj/unlha.vcxproj | .spl | LHA/LZH archive extraction |
 | unmime | plugins/unmime/vcxproj/unmime.vcxproj | .spl | MIME message extraction |
 | unole | plugins/unole/vcxproj/unole.vcxproj | .spl | OLE compound document extraction |
 | unrar | plugins/unrar/vcxproj/unrar.vcxproj | .spl | RAR archive extraction |
@@ -54,7 +55,6 @@ Each plugin produces a `.spl` file (DLL with Salamander Plugin extension).
 
 | Project | Path | Output | Description |
 |---------|------|--------|-------------|
-| ieviewer | plugins/ieviewer/vcxproj/ieviewer.vcxproj | .spl | HTML/Markdown viewer (IE-based + cmark-gfm) |
 | mmviewer | plugins/mmviewer/vcxproj/mmviewer.vcxproj | .spl | Multimedia file viewer |
 | peviewer | plugins/peviewer/vcxproj/peviewer.vcxproj | .spl | PE (EXE/DLL) file viewer |
 | pictview | plugins/pictview/vcxproj/pictview.vcxproj | .spl | Image viewer |
@@ -85,7 +85,6 @@ Each plugin produces a `.spl` file (DLL with Salamander Plugin extension).
 | ftp | plugins/ftp/vcxproj/ftp.vcxproj | .spl | FTP/FTPS client |
 | nethood | plugins/nethood/vcxproj/nethood.vcxproj | .spl | Network neighborhood browser |
 | portables | plugins/portables/vcxproj/portables.vcxproj | .spl | Portable devices (MTP/WPD) |
-| wmobile | plugins/wmobile/vcxproj/wmobile.vcxproj | .spl | Windows Mobile device access |
 
 #### Demo Plugins
 
@@ -95,7 +94,7 @@ Each plugin produces a `.spl` file (DLL with Salamander Plugin extension).
 | demoplug | plugins/demoplug/vcxproj/demoplug.vcxproj | .spl | Demo: basic plugin |
 | demoview | plugins/demoview/vcxproj/demoview.vcxproj | .spl | Demo: viewer plugin |
 
-### Language Modules (36 projects)
+### Language Modules (29 projects)
 
 Each plugin and the main app has a corresponding language project
 producing an `english.slg` resource-only DLL. These contain no code —
@@ -116,28 +115,21 @@ only UI strings, dialogs, and menus.
 | lang_filecomp | filecomp |
 | lang_folders | folders |
 | lang_ftp | ftp |
-| lang_ieviewer | ieviewer |
 | lang_mmviewer | mmviewer |
 | lang_nethood | nethood |
-| lang_pak | pak |
 | lang_peviewer | peviewer |
 | lang_pictview | pictview |
 | lang_portables | portables |
 | lang_regedt | regedt |
 | lang_renamer | renamer |
-| lang_splitcbn | splitcbn |
 | lang_tar | tar |
-| lang_unarj | unarj |
 | lang_uncab | uncab |
 | lang_unchm | unchm |
 | lang_undelete | undelete |
-| lang_unfat | unfat |
 | lang_uniso | uniso |
-| lang_unlha | unlha |
 | lang_unmime | unmime |
 | lang_unole | unole |
 | lang_unrar | unrar |
-| lang_wmobile | wmobile |
 | lang_zip | zip |
 
 ### Shell Extensions (2 projects)
@@ -233,11 +225,11 @@ salamand → lang (build order)
 | Category | Count |
 |----------|-------|
 | Core Application | 2 |
-| Plugins | 35 |
-| Language Modules | 36 |
+| Plugins | 28 |
+| Language Modules | 29 |
 | Shell Extensions | 2 |
 | Helper Libraries | 7 |
 | Utility Executables | 5 |
 | Setup/Install | 3 |
 | Other | 1 (zip2sfx) + 1 (Solution Items) |
-| **Total** | **92** (90 C++ projects + 1 virtual + 1 converter) |
+| **Total** | **78** (76 C++ projects + 1 virtual + 1 converter) |

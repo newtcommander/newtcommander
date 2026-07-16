@@ -2524,9 +2524,8 @@ public:
     // 'parent' is the parent window for message boxes; if it is 'quiet'==TRUE no error messages are shown
     // (however, messages from inside the plugin are still displayed)
     // 'waitCursor' shows the Wait cursor while loading the DLL library
-    // if 'showUnsupOnX64' is TRUE, a message box warns about plugins unsupported on x64
     // if 'releaseDynMenuIcons' is TRUE, plugins`s dynamic menu icons are released (they are reloaded before opening the menu)
-    BOOL InitDLL(HWND parent, BOOL quiet = FALSE, BOOL waitCursor = TRUE, BOOL showUnsupOnX64 = TRUE,
+    BOOL InitDLL(HWND parent, BOOL quiet = FALSE, BOOL waitCursor = TRUE,
                  BOOL releaseDynMenuIcons = TRUE);
 
     BOOL GetLoaded() { return DLL != NULL; }
@@ -3432,8 +3431,3 @@ BOOL CreateGrayscaleDIB(HBITMAP hSource, COLORREF transparent, HBITMAP& hGraysca
 // executes the conversion of a path to the external format (calls the corresponding plugin method)
 // CPluginInterfaceForFSAbstract::ConvertPathToExternal())
 void PluginFSConvertPathToExternal(char* path);
-
-#ifdef _WIN64 // FIXME_X64_WINSCP
-// test whether this is a plugin missing in the x64 version of Salamander: currently only WinSCP
-BOOL IsPluginUnsupportedOnX64(const char* dllName, const char** pluginNameEN = NULL);
-#endif // _WIN64

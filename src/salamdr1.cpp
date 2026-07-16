@@ -4310,15 +4310,8 @@ FIND_NEW_SLG_FILE:
                     }
                     else
                     {
-                        if (Configuration.ConfigVersion < THIS_CONFIG_VERSION
-#ifndef _WIN64 // FIXME_X64_WINSCP
-                            || Configuration.AddX86OnlyPlugins
-#endif // _WIN64
-                        )
+                        if (Configuration.ConfigVersion < THIS_CONFIG_VERSION)
                         {                                            // auto-install plug-inu ze standardniho plug-in-podadresare "plugins"
-#ifndef _WIN64                                                       // FIXME_X64_WINSCP
-                            Configuration.AddX86OnlyPlugins = FALSE; // jednou staci
-#endif                                                               // _WIN64
                             Plugins.AutoInstallStdPluginsDir(MainWindow->HWindow);
                             Configuration.LastPluginVer = 0;   // pri prechodu na novou verzi bude zrusen soubor plugins.ver
                             Configuration.LastPluginVerOP = 0; // pri prechodu na novou verzi bude zrusen soubor plugins.ver i pro druhou platformu

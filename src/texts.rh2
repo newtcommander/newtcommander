@@ -2671,10 +2671,6 @@
 // deleting to Recycle Bin does not support invalid names (names ending with space or dot), displaying invalid part of name, hint: rename it or delete permanently
 #define IDS_RECYCLEBINERROR             14155
 
-// Salamander is trying to load plugin which is available only in 32-bit (x86) version,
-// inform user to use x86 version of Salamander to work with this plugin
-#define IDS_PLUGINISX86ONLY             14160
-
 // Change Drive window: text of Google Drive item
 #define IDS_GOOGLEDRIVE                 14165
 // Change Drive window: text of Dropbox item

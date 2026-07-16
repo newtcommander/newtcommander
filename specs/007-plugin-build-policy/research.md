@@ -182,3 +182,51 @@ automatically.
 **Alternatives considered**: making CI build the filtered `.slnf` —
 would silently stop compiling disabled plugins and let them rot,
 undermining the "disabled ≠ abandoned" policy intent.
+
+## R7 Addendum — T006 investigation findings (2026-07-16)
+
+**Persistence semantics verified** (`src/pack.h`, `src/pack3.cpp`,
+`src/packers.cpp`, `src/plugins1.cpp`, `src/plugins2.cpp`):
+
+1. `CPackerFormatConfig` entries store `PackerIndex`/`UnpackerIndex`
+   **by value in each entry**: negative values encode plugin
+   references (`-pluginIndex-1` into the runtime `Plugins` list),
+   non-negative values index `ArchiverConfig` (external archivers).
+   Custom packers/unpackers (`CPackerConfig`/`CUnpackerConfig`) use
+   the same encoding in their `Type` field.
+2. **Existing configs self-heal**: the startup check pass
+   (`plugins2.cpp` ~2153) deletes format entries, custom
+   packers/unpackers, and viewer masks whose plugin reference no
+   longer resolves (`IsArchiveIndexOK`); `CPluginData::Remove`
+   renumbers references when a plugin is uninstalled. Once `pak.spl`
+   disappears and the plugin auto-uninstalls, all user-side "PAK
+   (Plugin)" entries are pruned automatically — the "known limitation"
+   in plan.md Complexity Tracking is in fact handled by existing
+   machinery.
+3. **Safe removal set** (no index renumbering — PAK and IEViewer are
+   the 3rd/4th standard plugins; ZIP=0 → -1 and TAR=1 → -2 references
+   stay valid):
+   - `plugins2.cpp`: `AddPlugin("PAK", ...)` + `AddPlugin("Internet
+     Explorer Viewer", ...)` in the standard table;
+   - `packers.cpp` `CPackerConfig::AddDefault` case 2: PAK packer;
+   - `packers.cpp` `CUnpackerConfig::AddDefault` case 2: PAK unpacker
+     (~line 1033 — found during investigation, missing from original
+     task description);
+   - `pack3.cpp` `CPackerFormatConfig::AddDefault` case 2: "pak"
+     format (−3/−3);
+   - `mainwnd1.cpp` ~355: default viewer mask `*.htm;*.html;*.xml;
+     *.mht` → ViewerType −4 (IEViewer) — additional site found;
+   - `plugins2.cpp` old-config viewer conversion `case 1:` (old "IE
+     viewer" type) → change from mapping to −4 to deleting the mask
+     (IEViewer no longer exists; the check pass would otherwise
+     mis-resolve −4 against arbitrary plugin index 3).
+4. ARJ/LHA/UC2/ACE default formats reference **external archivers**
+   (non-negative indexes), not the unarj/unlha plugins — no default
+   table changes needed for the other removed plugins; their
+   associations were registered dynamically and self-heal per (2).
+
+**Conclusion**: full removal per T007 is safe; proceed with deletion
+(no index-coupled blockers). Old-type conversion switches
+(`case 3: → -3` for PAK) are left intact — they become unreachable
+for fresh configs and still correctly convert ancient configs, whose
+dead references the check pass then prunes.

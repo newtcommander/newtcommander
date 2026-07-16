@@ -408,7 +408,7 @@ struct CConfiguration
     // plug-ins
     int LastPluginVer;   // ACTUAL_VERSION from plugins.ver (detect newly installed plugins)
     int LastPluginVerOP; // ACTUAL_VERSION from plugins.ver for the other platform (x86/x64); must be saved, otherwise we won't know if the configuration was overwritten by the other version.
-                         // Example: start x64, auto-save x64 with added pictview, start x86, auto-save x86 with added winscp (x86 pictview not added because it was already in the x64 config), exit/save x86, WARNING: exit/save x64 would remove the record of winscp (x64 knows nothing about winscp and continues running)
+                         // Example: start x64, auto-save x64 with a newly added plugin, start x86, auto-save x86 with another plugin added only there, exit/save x86, WARNING: exit/save x64 would remove the record of the x86-only plugin (x64 knows nothing about it and continues running)
 
     // globals
     BOOL ConfigWasImported; // from config.reg file
@@ -417,10 +417,6 @@ struct CConfiguration
     BOOL EnableCustomIconOverlays;    // TRUE = icon overlays are used (see ShellIconOverlays)
     char* DisabledCustomIconOverlays; // allocated list of disabled icon overlay handlers (separator is ';', escape - sequence for ';' is ';;')
 
-#ifndef _WIN64
-    // FIXME_X64_WINSCP - this approach is not ideal. Find a better one (split x86 and x64 versions and share data)
-    BOOL AddX86OnlyPlugins; // TRUE = the x86 version of Salamander has not yet been started; on first run add plugins missing in the x64 build
-#endif                      // _WIN64
 
     CConfiguration();
     ~CConfiguration();

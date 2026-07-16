@@ -162,7 +162,7 @@ lang_pictview   0x30600000
 
 ## Complete Plugin Inventory
 
-The source tree contains 36 plugin directories under `src/plugins/`. Each plugin (except `shared`) has a `.vcxproj` and corresponding `lang_` project.
+The source tree contains 28 plugin directories under `src/plugins/` (8 obsolete plugins were removed in feature 007). Each plugin (except `shared`) has a `.vcxproj` and corresponding `lang_` project. Which plugins are compiled and shipped is decided by `plugins.cfg` in the repository root (18 enabled / 10 disabled by default); see `specs/007-plugin-build-policy/`.
 
 ### Archive Plugins (15)
 
@@ -171,18 +171,13 @@ The source tree contains 36 plugin directories under `src/plugins/`. Each plugin
 | **7zip** | 7-Zip archive support (uses bundled 7za library) | Buildable |
 | **zip** | ZIP archive support (pk3, jar); full read/write | Buildable |
 | **tar** | Unix archive formats: tar, tgz, gz, bz, bz2, z, rpm, cpio (read-only) | Buildable |
-| **unarj** | ARJ archive extraction | Buildable |
 | **uncab** | Windows Cabinet (.cab) archive extraction | Buildable |
 | **unchm** | Compiled HTML Help (.chm) archive browsing (uses bundled chmlib) | Buildable |
 | **undelete** | Deleted file recovery from NTFS volumes | Buildable |
 | **uniso** | ISO 9660 CD/DVD image browsing | Buildable |
-| **unlha** | LHA/LZH archive extraction | Buildable |
 | **unmime** | MIME/EML email message extraction | Buildable |
 | **unole** | OLE structured storage (compound document) browsing | Buildable |
 | **unrar** | RAR archive extraction | Buildable |
-| **unfat** | FAT filesystem image recovery/browsing | Buildable |
-| **splitcbn** | File splitting and combining | Buildable |
-| **pak** | Quake PAK archive support; full read/write | Buildable |
 
 ### Viewer Plugins (4)
 
@@ -190,7 +185,6 @@ The source tree contains 36 plugin directories under `src/plugins/`. Each plugin
 |--------|-------------|--------|
 | **pictview** | Image viewer with thumbnail generation, TWAIN scanning, and EXIF support (includes salpvenv helper) | Buildable |
 | **mmviewer** | Multimedia viewer for audio/video files (WMA parser included) | Buildable |
-| **ieviewer** | Internet Explorer-based viewer for HTML, XML, and web content | Buildable |
 | **peviewer** | PE (Portable Executable) file viewer -- displays headers, sections, imports/exports | Buildable |
 
 ### File Management Plugins (4)
@@ -218,7 +212,6 @@ The source tree contains 36 plugin directories under `src/plugins/`. Each plugin
 |--------|-------------|--------|
 | **ftp** | FTP/FTPS client with file system integration and SSL support | Buildable |
 | **nethood** | Windows network neighborhood browser (UNC paths, shares) | Buildable |
-| **wmobile** | Windows Mobile device file management via RAPI | Buildable |
 | **portables** | Portable device file management (MTP/PTP) | Buildable |
 
 ### Demo/Example Plugins (3)
@@ -233,7 +226,6 @@ The source tree contains 36 plugin directories under `src/plugins/`. Each plugin
 
 | Plugin | Description | Status |
 |--------|-------------|--------|
-| **winscp** | WinSCP-based SFTP/SCP client | Source present but no `.vcxproj`; x86-only (explicitly excluded on x64 via `IsPluginUnsupportedOnX64`) |
 
 ### Shared Infrastructure
 
@@ -269,7 +261,7 @@ Salamander discovers plugins through three mechanisms:
 
 1. **Registry persistence** -- `CPlugins::Load()` reads the plugin list from the Windows Registry on startup. Each entry stores the plugin name, DLL path (relative to the `plugins\` subdirectory), supported function flags, version, and other metadata.
 
-2. **Default configuration** -- When no registry data exists (first run), Salamander registers a minimal set of default plugins hardcoded in `CPlugins::Load()`: ZIP, TAR, PAK, and Internet Explorer Viewer.
+2. **Default configuration** -- When no registry data exists (first run), Salamander registers a minimal set of default plugins hardcoded in `CPlugins::Load()`: ZIP and TAR (PAK and Internet Explorer Viewer were part of this set until feature 007 removed those plugins).
 
 3. **plugins.ver auto-installation** -- `SearchForAddedSPLs()` reads the `plugins.ver` file from the application directory. This file contains versioned entries in the format `<version>:<relative_path_to_spl>`. When the file's version number is newer than the last processed version, Salamander auto-installs any new SPL files listed. Additionally, `SearchForSPLs()` recursively scans the `plugins\` subdirectory for any `.spl` files not yet registered.
 
@@ -279,23 +271,21 @@ The loading sequence in `CPluginData::InitDLL()` proceeds as follows:
 
 1. **Path resolution** -- If `DLLName` is a relative path, it is resolved relative to `<exe_dir>\plugins\`. UNC and absolute paths are used as-is.
 
-2. **x64 compatibility check** -- On 64-bit builds, `IsPluginUnsupportedOnX64()` checks whether the plugin is x86-only (currently only WinSCP). If so, loading is skipped with an informational message.
+2. **LoadLibrary** -- The DLL is loaded via `LoadLibrary(path)`. On failure, an error message displays the Windows error code.
 
-3. **LoadLibrary** -- The DLL is loaded via `LoadLibrary(path)`. On failure, an error message displays the Windows error code.
+3. **Entry point resolution** -- `GetProcAddress(DLL, "SalamanderPluginEntry")` retrieves the plugin's entry point. This is the `FSalamanderPluginEntry` function pointer.
 
-4. **Entry point resolution** -- `GetProcAddress(DLL, "SalamanderPluginEntry")` retrieves the plugin's entry point. This is the `FSalamanderPluginEntry` function pointer.
+4. **Version negotiation** -- `GetProcAddress(DLL, "SalamanderPluginGetReqVer")` retrieves the required version. If the plugin requires a version newer than the current Salamander (`PLUGIN_REQVER`), loading is aborted with a version mismatch error. Optionally, `SalamanderPluginGetSDKVer` can report a higher SDK version for backward-compatible plugins.
 
-5. **Version negotiation** -- `GetProcAddress(DLL, "SalamanderPluginGetReqVer")` retrieves the required version. If the plugin requires a version newer than the current Salamander (`PLUGIN_REQVER`), loading is aborted with a version mismatch error. Optionally, `SalamanderPluginGetSDKVer` can report a higher SDK version for backward-compatible plugins.
-
-6. **Entry point call** -- A `CSalamanderPluginEntry` object is constructed and passed to the entry point function:
+5. **Entry point call** -- A `CSalamanderPluginEntry` object is constructed and passed to the entry point function:
    ```cpp
    CPluginInterfaceAbstract* resIface = entry(&salamander);
    ```
    The plugin uses the `salamander` object to call `SetBasicPluginData()` (declaring its name, capabilities, version, extensions, and filesystem name), `LoadLanguageModule()` (loading its `.slg` resource DLL), and obtain interface pointers to Salamander services (`GetSalamanderGeneral()`, etc.).
 
-7. **Interface acquisition** -- After the entry point returns, Salamander queries the returned `CPluginInterfaceAbstract*` for sub-interfaces based on the declared capability flags: `GetInterfaceForArchiver()`, `GetInterfaceForViewer()`, `GetInterfaceForMenuExt()`, `GetInterfaceForFS()`, and `GetInterfaceForThumbLoader()`.
+6. **Interface acquisition** -- After the entry point returns, Salamander queries the returned `CPluginInterfaceAbstract*` for sub-interfaces based on the declared capability flags: `GetInterfaceForArchiver()`, `GetInterfaceForViewer()`, `GetInterfaceForMenuExt()`, `GetInterfaceForFS()`, and `GetInterfaceForThumbLoader()`.
 
-8. **Connection** -- The plugin's `Connect()` method is called, allowing it to register file extension associations, menu items, toolbar buttons, filesystem names, and icon overlays with Salamander.
+7. **Connection** -- The plugin's `Connect()` method is called, allowing it to register file extension associations, menu items, toolbar buttons, filesystem names, and icon overlays with Salamander.
 
 ### Language Module Loading
 

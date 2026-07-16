@@ -1993,7 +1993,7 @@ CAPTION "Security"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     GROUPBOX        " Master Password ",IDC_STATIC_1,1,4,293,77
-    LTEXT           "A Master Password is used to protect sensitive information like FTP or WinSCP passwords by strong AES cipher. If you create a Master Password you will be asked to enter it once per session when Open Salamander retrieves protected information.",IDC_STATIC_2,9,20,267,32
+    LTEXT           "A Master Password is used to protect sensitive information like FTP passwords by strong AES cipher. If you create a Master Password you will be asked to enter it once per session when Open Salamander retrieves protected information.",IDC_STATIC_2,9,20,267,32
     CONTROL         "&Use Master Password",IDC_SEC_ENABLE_MASTERPWD,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,9,60,168,12
     PUSHBUTTON      "Change &Master Password...",IDC_SEC_CHANGE_MASTERPWD,180,59,104,14
 END
@@ -2022,7 +2022,7 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LTEXT           "&Current password:",IDC_STATIC_1,20,76,64,8
     EDITTEXT        IDC_RMP_CURRENTPWD,93,74,115,12,ES_PASSWORD
-    LTEXT           "Your Master Password is used to protect sensitive information like FTP or WinSCP passwords. If you remove your Master Password your information will not be protected if your computer is compromised.",IDC_STATIC_2,11,11,208,32
+    LTEXT           "Your Master Password is used to protect sensitive information like FTP passwords. If you remove your Master Password your information will not be protected if your computer is compromised.",IDC_STATIC_2,11,11,208,32
     DEFPUSHBUTTON   "OK",IDOK,32,114,50,14,WS_GROUP
     PUSHBUTTON      "Cancel",IDCANCEL,91,114,50,14
     PUSHBUTTON      "Help",IDHELP,150,114,50,14

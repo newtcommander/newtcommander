@@ -8,6 +8,16 @@ are the user-facing strings from each plugin's English language resources
 [06-plugin-architecture.md](06-plugin-architecture.md) for what the
 `FUNCTION_xxx` flags mean and how plugins are loaded.
 
+> **Update (2026-07-16, feature 007 — plugin build policy):** this
+> catalog is the analysis that motivated the plugin policy and is kept
+> as a historical record. Since then, **8 plugins were removed from the
+> repository entirely** (pak, unarj, unlha, unfat, wmobile, ieviewer,
+> splitcbn, winscp) and **10 more are disabled in the default build**
+> via `plugins.cfg` (automation, checkver, demomenu, demoplug, demoview,
+> mmviewer, nethood, unchm, unmime, unole). A default build therefore
+> ships 18 plugins. See `specs/007-plugin-build-policy/` and
+> [10-plugin-maintenance-outlook.md](10-plugin-maintenance-outlook.md).
+
 ## Summary
 
 | Category | Count | Plugins |

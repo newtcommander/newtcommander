@@ -24,10 +24,6 @@ Libexif Library Copyright (C) 2001-2019 Curtis Galloway and Lutz Muller
 The TAR plugin utilizes bzip2 library.
 Bzip2 Library Copyright (C) 1996-2000 Julian R Seward
 
-=== ARJ Software, Inc ===
-Portions of UnARJ plugin utilizes decompression library written by ARJ Software, Inc.
-Copyright (C) 1990-97 ARJ Software, Inc.
-
 === Microsoft Corporation ===
 Portions of UnCAB plugin utilizes decompression library written by Microsoft Corporation.
 Copyright (C) Microsoft Corporation 1993-1997
@@ -36,15 +32,7 @@ Copyright (C) Microsoft Corporation 1993-1997
 Portions of UnRAR plugin utilizes decompression library written by Alexander Roshal.
 Copyright (C) 1993-2019 Alexander Roshal
 
-=== Martin Prikryl ===
-Portions of WinSCP plugin licensed from Martin Prikryl.
-Copyright (C) 2000-2023 Martin Prikryl
-
-=== Juraj Rojko ===
-The Windows Mobile plugin includes software written by Juraj Rojko.
-Copyright (C) 2003-2023 Juraj Rojko
-
-=== Jed Wing === 
+=== Jed Wing ===
 The UnCHM plugin utilizes CHMLIB library.
 CHMLIB Library Copyright (C) 2001-2010 Jed Wing
 

@@ -1823,8 +1823,8 @@ STRINGTABLE
  IDS_INSECUREPASSWORD, "Your password is too simple and may not provide enough security against dictionary or brute force attacks.\nAre you sure you want to use it?\n\nNote: good passwords have at least six characters and contain both lowercase and uppercase letters, numbers and special characters, such as delimiters, symbols, letters with accent, etc."
  
  IDS_MASTERPASSWORD_CHANGED_TITLE, "Password Change Succeeded"
- IDS_MASTERPASSWORD_REMOVED, "You have deleted your Master Password. Your stored passwords (for example FTP and WinSCP) will not be protected."
- IDS_MASTERPASSWORD_SET, "Master Password successfully changed. Your stored passwords (for example FTP and WinSCP) are secured by AES cipher now."
+ IDS_MASTERPASSWORD_REMOVED, "You have deleted your Master Password. Your stored passwords (for example FTP) will not be protected."
+ IDS_MASTERPASSWORD_SET, "Master Password successfully changed. Your stored passwords (for example FTP) are secured by AES cipher now."
  IDS_WRONG_MASTERPASSWORD, "You did not enter the correct current Master Password. Please try again."
 
  IDS_BROWSEDIRECTORY_TITLE, "Browse Directory"
@@ -1935,9 +1935,7 @@ STRINGTABLE
  IDS_SLGINCOMPLETE_TEXT, "Translation of Open Salamander into your language is not finished. Please consider visiting our discussion forum and joining the translation effort:"
  
  IDS_RECYCLEBINERROR, "Unable to send file or directory to the Recycle Bin because it has invalid name.\n\nInvalid part of name: ""%s""\n\nHint: Try to rename it before sending to the Recycle Bin or delete it permanently (try Shift+Delete key)."
- 
- IDS_PLUGINISX86ONLY, "Unable to load %s plugin. This plugin is available only in x86 (32-bit) version of Open Salamander. Please start x86 version of Open Salamander to use this plugin. Sorry for the inconvenience."
- 
+
  IDS_UNABLETORESOLVELINK, "unable to resolve link"
  IDS_VOLMOUNTPOINT, "volume mount point"
  

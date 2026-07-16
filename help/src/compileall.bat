@@ -22,8 +22,8 @@ call compile.bat %HELP_ROOT%copy_to_salbin.bat >%HELP_ROOT%result.log
 popd
 
 set PLUGIN_LIST=(zip filecomp demoplug demoview demomenu 7zip dbviewer diskmap^
- ftp checksum checkver ieviewer mmviewer pak\spl peviewer pictview regedt renamer splitcbn tar unarj^
- uncab unchm undelete unfat uniso unlha unmime unrar wmobile winscp nethood automation)
+ ftp checksum checkver mmviewer peviewer pictview regedt renamer tar^
+ uncab unchm undelete uniso unmime unrar nethood automation)
 
 for %%i in %PLUGIN_LIST% do (
   echo Compiling help for %%i...

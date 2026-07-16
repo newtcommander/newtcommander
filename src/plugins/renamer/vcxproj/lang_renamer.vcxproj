@@ -128,8 +128,6 @@
   <ItemGroup>
     <None Include="..\lang\lang.rh">
     </None>
-    <None Include="..\unfat.rh2">
-    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets">
   </Import>

@@ -25,7 +25,6 @@ rmdir /s /q src\vcxproj\.vs\salamand\FileContentIndex 2>nul
 rmdir /s /q src\plugins\demomenu\vcxproj\.vs 2>nul
 rmdir /s /q src\plugins\demoplug\vcxproj\.vs 2>nul
 rmdir /s /q src\plugins\demoview\vcxproj\.vs 2>nul
-rmdir /s /q src\plugins\unfat\vcxproj\.vs 2>nul
 
 rem ---------------------------- Call cleandir subroutine for all subdirectories
 for /D %%G in ("*") do call :clean_src_dir "%%G"

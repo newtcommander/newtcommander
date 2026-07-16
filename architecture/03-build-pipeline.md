@@ -45,6 +45,17 @@ build.cmd help         :: Show usage
 Auto-detects Visual Studio 2022 via vswhere.exe, validates
 prerequisites, and displays a build summary with timing.
 
+Every run also executes the **plugin build policy stage** (feature 007):
+`plugins.cfg` in the repository root (one `name=on|off` line per plugin)
+is validated by `src\vcxproj\gen_plugins_filter.ps1`, a solution filter
+`src\vcxproj\salamand.gen.slnf` (gitignored) is generated so MSBuild
+compiles only enabled plugins, and stale outputs of disabled or removed
+plugins are deleted from the output `plugins\` directory (`plugins.ver`
+is filtered to the enabled set). Any validation error — missing file,
+syntax error, unknown or duplicate entry, unlisted plugin — stops the
+build before compilation. See
+`specs/007-plugin-build-policy/contracts/build-cmd.md`.
+
 ### 2. Visual Studio IDE
 
 Open `src\vcxproj\salamand.sln` and build from the IDE. Select
@@ -134,7 +145,7 @@ salamand.sln
 │   │   │   └── lang\english.slg  Plugin language resources
 │   │   ├── zip\zip.spl
 │   │   ├── tar\tar.spl
-│   │   └── [35 plugin directories...]
+│   │   └── [enabled plugin directories - 18 by default...]
 │   ├── Intermediate\             Object files, PCH cache
 │   └── toolbars\                 Toolbar bitmaps
 ├── Debug_x64\                    Same structure as Debug_x86

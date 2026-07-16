@@ -77,7 +77,7 @@ protected:
 // scrambled using Petr's original FTP client method.
 //
 // Password manager methods may be called only from Salamander's main thread.
-// Planned access points are: FTP connect, WinSCP connect, the
+// Planned access points are: FTP connect, the
 // Salamander configuration and saving/loading Salamander’s configuration. Because all of them currently run in the
 // main thread, so we don’t need to handle concurrency or locking of the manager.
 

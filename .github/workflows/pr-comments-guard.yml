@@ -201,19 +201,10 @@ jobs:
               'src/plugins/shared/lukas',
               'src/plugins/ftp',
               'src/plugins/ftp/openssl',
-              'src/plugins/ieviewer/cmark-gfm/build/src',
-              'src/plugins/ieviewer/cmark-gfm/build/extensions',
-              'src/plugins/ieviewer/cmark-gfm/extensions',
-              'src/plugins/ieviewer/cmark-gfm/src',
               'src/plugins/pictview/exif',
               'src/plugins/tar',
               'src/plugins/undelete/library',
               'src/plugins/zip',
-              'src/plugins/winscp/core',
-              'src/plugins/winscp/windows',
-              'src/plugins/winscp/resource',
-              'src/plugins/winscp/forms',
-              'src/plugins/wmobile/rapi',
               'tools/comments/code_guard_stubs'
             )
             $headIncludeArgs = @()

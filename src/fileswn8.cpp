@@ -158,7 +158,7 @@ void PluginFSConvertPathToExternal(char* path)
         Plugins.IsPluginFS(fsName, index, fsNameIndex))
     {
         CPluginData* plugin = Plugins.Get(index);
-        if (plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE, FALSE)) // the plugin may not be loaded, let it load if needed
+        if (plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE)) // the plugin may not be loaded, let it load if needed
             plugin->GetPluginInterfaceForFS()->ConvertPathToExternal(fsName, fsNameIndex, fsUserPart);
     }
 }

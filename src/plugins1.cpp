@@ -2136,26 +2136,13 @@ CPluginData::~CPluginData()
         TRACE_E("CPluginData::~CPluginData(): IconOverlaysCount is not 0 or IconOverlays is not NULL, please contact Petr Solin");
 }
 
-BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL showUnsupOnX64, BOOL releaseDynMenuIcons)
+BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL releaseDynMenuIcons)
 {
-    CALL_STACK_MESSAGE8("CPluginData::InitDLL(0x%p, %d, %d, %d, %d) (%s v. %s)",
-                        parent, quiet, waitCursor, showUnsupOnX64,
+    CALL_STACK_MESSAGE7("CPluginData::InitDLL(0x%p, %d, %d, %d) (%s v. %s)",
+                        parent, quiet, waitCursor,
                         releaseDynMenuIcons, DLLName, Version);
 
     char bufText[MAX_PATH + 200];
-
-#ifdef _WIN64 // FIXME_X64_WINSCP - this probably needs a different solution... (ignoring missing WinSCP in the x64 version of Salamander)
-    const char* pluginNameEN;
-    if (IsPluginUnsupportedOnX64(DLLName, &pluginNameEN))
-    {
-        if (showUnsupOnX64) // inform the user this plugin is available only in the 32-bit version (x86)
-        {
-            sprintf(bufText, LoadStr(IDS_PLUGINISX86ONLY), Name == NULL || Name[0] == 0 ? pluginNameEN : Name);
-            SalMessageBox(parent, bufText, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
-        }
-        return FALSE;
-    }
-#endif // _WIN64
 
     if (DLL == NULL && IsGood())
     {
@@ -3391,7 +3378,7 @@ void CPluginData::InitMenuItems(HWND parent, int index, CMenuPopup* menu)
             if (GetLoaded())
                 BuildMenu(parent, FALSE); // already loaded -> rebuild the menu manually
             else
-                InitDLL(parent, FALSE, TRUE, TRUE, FALSE); // not loaded -> the menu will rebuild itself during the plugin load
+                InitDLL(parent, FALSE, TRUE, FALSE); // not loaded -> the menu will rebuild itself during the plugin load
             if (!GetLoaded() || SupportDynMenuExt && !PluginIfaceForMenuExt.NotEmpty())
                 ok = FALSE;
             else

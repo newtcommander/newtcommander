@@ -45,7 +45,6 @@ MANUAL_ENGLISH_WORDS = frozenset(
         "ubyte",
         "ulong",
         "winapi",
-        "winscp",
     }
 )
 
@@ -175,7 +174,6 @@ EXCLUDED_DIRS = _normalize_excluded(
         "src/plugins/automation/generated",
         "src/plugins/checksum/tomcrypt",
         "src/plugins/ftp/openssl",
-        "src/plugins/ieviewer/cmark-gfm",
         "src/plugins/mmviewer/ogg/vorbis",
         "src/plugins/mmviewer/wma/wmsdk",
         "src/plugins/pictview/exif/libexif",
@@ -184,12 +182,6 @@ EXCLUDED_DIRS = _normalize_excluded(
         "src/plugins/portables/wtl",
         "src/plugins/shared/sqlite",
         "src/plugins/unchm/chmlib",
-        "src/plugins/winscp/core",
-        "src/plugins/winscp/forms",
-        "src/plugins/winscp/packages",
-        "src/plugins/winscp/putty",
-        "src/plugins/winscp/resource",
-        "src/plugins/winscp/windows/",
         "tree-sitter-grammars",
         "tools",
     }

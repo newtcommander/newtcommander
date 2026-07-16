@@ -1,5 +1,14 @@
 # Hodnocení pluginů — údržba pro rok 2026+
 
+> **Aktualizace (2026-07-16, feature 007 — plugin build policy):**
+> doporučení z tohoto dokumentu byla realizována. Osm pluginů bylo
+> z repozitáře zcela odstraněno (pak, unarj, unlha, unfat, wmobile,
+> ieviewer, splitcbn, winscp) a deset dalších je ve výchozím buildu
+> vypnuto přes `plugins.cfg` v kořeni repozitáře (automation, checkver,
+> demomenu, demoplug, demoview, mmviewer, nethood, unchm, unmime,
+> unole). Výchozí build tedy obsahuje 18 pluginů. Podrobnosti viz
+> `specs/007-plugin-build-policy/`.
+
 Kompletní přehled všech 36 pluginů po kategoriích, s popisem a hodnocením
 smysluplnosti údržby pro rok 2026+. Doplňuje katalog
 [09-plugin-catalog.md](09-plugin-catalog.md).

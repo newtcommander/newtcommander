@@ -108,6 +108,32 @@ if "%PREREQ_FAIL%"=="1" (
 )
 
 :: ============================================================
+:: Plugin build policy (plugins.cfg)
+:: ============================================================
+:: Validate plugins.cfg (repo root), generate the solution filter
+:: src\vcxproj\salamand.gen.slnf that excludes disabled plugins from
+:: the MSBuild solution build, and reconcile the output plugins
+:: directory with the policy: stale outputs of disabled or removed
+:: plugins are deleted and plugins.ver is filtered down to the enabled
+:: set. Any validation error (missing file, syntax error, unknown or
+:: duplicate entry, unlisted plugin) stops the build before MSBuild
+:: runs. See specs\007-plugin-build-policy\ for the contract.
+
+set "OUT_DIR=%OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
+set "PLUGINS_STAGE_LOG=%TEMP%\opensal_plugins_stage.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0src\vcxproj\gen_plugins_filter.ps1" -Config "%~dp0plugins.cfg" -Solution "%~dp0src\vcxproj\salamand.sln" -OutSlnf "%~dp0src\vcxproj\salamand.gen.slnf" -PluginsRoot "%~dp0src\plugins" -OutputPluginsDir "%OUT_DIR%\plugins" > "%PLUGINS_STAGE_LOG%" 2>&1
+set "PLUGINS_STAGE_EXIT=%errorlevel%"
+type "%PLUGINS_STAGE_LOG%"
+set "ENABLED_COUNT="
+for /f "tokens=2" %%n in ('findstr /b /c:"Plugins:" "%PLUGINS_STAGE_LOG%"') do set "ENABLED_COUNT=%%n"
+del "%PLUGINS_STAGE_LOG%" >nul 2>&1
+if not "%PLUGINS_STAGE_EXIT%"=="0" (
+    echo.
+    echo Plugin policy check FAILED. Fix plugins.cfg and try again.
+    exit /b 1
+)
+
+:: ============================================================
 :: Display build configuration
 :: ============================================================
 
@@ -117,6 +143,7 @@ echo  Open Salamander Build
 echo ============================================================
 echo  Configuration : %BUILD_CONFIG% %BUILD_PLATFORM%
 echo  Mode          : %BUILD_TARGET%
+echo  Plugin policy : %ENABLED_COUNT% plugins enabled ^(plugins.cfg^)
 if "%BUILD_FULL%"=="1" echo  Full build    : runtime data files + plugins.ver
 echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 echo  MSBuild       : %MSBUILD_PATH%
@@ -132,7 +159,7 @@ set "START_TIME=%time%"
 
 pushd "%~dp0src\vcxproj"
 
-"%MSBUILD_PATH%" salamand.sln /t:%BUILD_TARGET% "/p:Configuration=%BUILD_CONFIG%" /p:Platform=%BUILD_PLATFORM% /m:%NUMBER_OF_PROCESSORS%
+"%MSBUILD_PATH%" salamand.gen.slnf /t:%BUILD_TARGET% "/p:Configuration=%BUILD_CONFIG%" /p:Platform=%BUILD_PLATFORM% /m:%NUMBER_OF_PROCESSORS%
 
 set "BUILD_EXIT=%errorlevel%"
 
@@ -141,6 +168,15 @@ popd
 :: Full build: copy runtime data files and generate plugins.ver
 if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
     call :populate_runtime
+    if errorlevel 1 set "BUILD_EXIT=1"
+)
+
+:: Non-full builds: if an earlier full build created plugins.ver, keep it in
+:: sync with the enabled set (a plugin re-enabled in plugins.cfg must be
+:: registered again for auto-install; disabled entries were already removed
+:: by the policy stage reconciliation)
+if %BUILD_EXIT% equ 0 if not "%BUILD_FULL%"=="1" if exist "%OUT_DIR%\plugins\plugins.ver" (
+    call :gen_plugins_ver
     if errorlevel 1 set "BUILD_EXIT=1"
 )
 
@@ -207,7 +243,7 @@ set "OUT_DIR=%OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
 echo.
 echo Populating runtime layout: %OUT_DIR%
 
-if not exist "%OUT_DIR%\plugins" (
+if not exist "%OUT_DIR%\plugins" if not "%ENABLED_COUNT%"=="0" (
     echo ERROR: Plugins output directory not found: !OUT_DIR!\plugins
     exit /b 1
 )
@@ -228,45 +264,74 @@ if errorlevel 8 (
     exit /b 1
 )
 
-:: Automation plugin: sample scripts
-robocopy "%~dp0src\plugins\automation\sample-scripts" "%OUT_DIR%\plugins\automation\scripts" >nul
-if errorlevel 8 (
-    echo ERROR: Failed to copy automation sample scripts.
-    exit /b 1
+:: Automation plugin: sample scripts (only when the plugin is built - see plugins.cfg)
+if exist "%OUT_DIR%\plugins\automation\" (
+    robocopy "%~dp0src\plugins\automation\sample-scripts" "%OUT_DIR%\plugins\automation\scripts" >nul
+    if errorlevel 8 (
+        echo ERROR: Failed to copy automation sample scripts.
+        exit /b 1
+    )
 )
 
-:: IEViewer plugin: markdown CSS
-robocopy "%~dp0src\plugins\ieviewer\cmark-gfm\css" "%OUT_DIR%\plugins\ieviewer\css" >nul
-if errorlevel 8 (
-    echo ERROR: Failed to copy ieviewer CSS.
-    exit /b 1
+:: ZIP plugin: Zip2SFX configuration samples (only when the plugin is built - see plugins.cfg)
+if exist "%OUT_DIR%\plugins\zip\" (
+    robocopy "%~dp0src\plugins\zip\zip2sfx" "%OUT_DIR%\plugins\zip\zip2sfx" readme.txt sam_cz.set sample.set >nul
+    if errorlevel 8 (
+        echo ERROR: Failed to copy zip2sfx files.
+        exit /b 1
+    )
 )
 
-:: ZIP plugin: Zip2SFX configuration samples
-robocopy "%~dp0src\plugins\zip\zip2sfx" "%OUT_DIR%\plugins\zip\zip2sfx" readme.txt sam_cz.set sample.set >nul
-if errorlevel 8 (
-    echo ERROR: Failed to copy zip2sfx files.
-    exit /b 1
+:: Generate plugins\plugins.ver (shared with the non-full sync path)
+call :gen_plugins_ver
+if errorlevel 1 exit /b 1
+
+:: Count built language modules (.slg)
+set "LANG_COUNT=0"
+for /r "%OUT_DIR%" %%f in (*.slg) do (
+    set "REL=%%f"
+    if /i "!REL!"=="!REL:Intermediate=!" set /a LANG_COUNT+=1
 )
 
-:: Generate plugins\plugins.ver. The version number MUST increase
-:: monotonically across ALL builds regardless of configuration:
-:: Salamander records the last processed version in the registry
-:: (Configuration.LastPluginVer) under a single key shared by Debug and
-:: Release of the same platform (Software\Open Salamander\5.0). A version
-:: that is <= the recorded one is silently skipped (plugins2.cpp) and the
-:: build's plugins never auto-install into Plugin Manager - the symptom
-:: being "a freshly built plugin is missing" after switching Debug<->Release.
-:: A per-directory counter restarting at 1 caused exactly that. Use a
+echo   language modules built: %LANG_COUNT% ^(english^)
+echo.
+echo   NOTE: Translations in translations\ ^(czech, german, ...^) are Translator
+echo         source data ^(.slt^) and cannot be compiled from this repository.
+echo   NOTE: unrar additionally needs unrar.dll at runtime ^(not in repo^);
+echo         pictview runs on the built-in Windows imaging ^(WIC^)
+echo         engine since feature 006.
+exit /b 0
+
+:: ============================================================
+:: plugins.ver generation / sync
+:: ============================================================
+:: Writes plugins\plugins.ver from the .spl files actually present in
+:: the output (which the policy stage has already reconciled with
+:: plugins.cfg). The version number MUST increase monotonically across
+:: ALL builds regardless of configuration: Salamander records the last
+:: processed version in the registry (Configuration.LastPluginVer)
+:: under a single key shared by Debug and Release of the same platform
+:: (Software\Open Salamander\5.0). A version that is <= the recorded
+:: one is silently skipped (plugins2.cpp) and the build's plugins never
+:: auto-install into Plugin Manager - the symptom being "a freshly
+:: built plugin is missing" after switching Debug<->Release. A
+:: per-directory counter restarting at 1 caused exactly that. Use a
 :: clock-based token (minutes since 2000-01-01, fits a 32-bit int until
-:: ~4085) so every build strictly increases and escapes any value already
-:: written to the registry by earlier builds.
+:: ~4085) so every build strictly increases and escapes any value
+:: already written to the registry by earlier builds.
+
+:gen_plugins_ver
 set "PLUG_DIR=%OUT_DIR%\plugins"
 set "PLUG_VER=%PLUG_DIR%\plugins.ver"
+set "PLUG_COUNT=0"
+set "NEW_VER=0"
+if "%ENABLED_COUNT%"=="0" (
+    echo   plugin policy disables all plugins - skipping plugins.ver generation
+    exit /b 0
+)
 set "NEW_VER="
 for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "[int][math]::Floor(((Get-Date).ToUniversalTime() - [datetime]'2000-01-01').TotalMinutes)"`) do set "NEW_VER=%%v"
 if not defined NEW_VER set "NEW_VER=1"
-set "PLUG_COUNT=0"
 > "%PLUG_VER%" echo %NEW_VER%
 for %%p in ("%PLUG_DIR%") do for /r "%PLUG_DIR%" %%f in (*.spl) do (
     set "REL=%%f"
@@ -278,25 +343,10 @@ for %%p in ("%PLUG_DIR%") do for /r "%PLUG_DIR%" %%f in (*.spl) do (
 )
 
 if %PLUG_COUNT% equ 0 (
-    echo ERROR: No plugins ^(*.spl^) found in !PLUG_DIR!
+    echo ERROR: No plugins ^(*.spl^) found in !PLUG_DIR! - plugins.cfg enables %ENABLED_COUNT%.
     exit /b 1
 )
-
-:: Count built language modules (.slg)
-set "LANG_COUNT=0"
-for /r "%OUT_DIR%" %%f in (*.slg) do (
-    set "REL=%%f"
-    if /i "!REL!"=="!REL:Intermediate=!" set /a LANG_COUNT+=1
-)
-
 echo   plugins.ver version %NEW_VER%: %PLUG_COUNT% plugins registered for auto-install
-echo   language modules built: %LANG_COUNT% ^(english^)
-echo.
-echo   NOTE: Translations in translations\ ^(czech, german, ...^) are Translator
-echo         source data ^(.slt^) and cannot be compiled from this repository.
-echo   NOTE: unrar additionally needs unrar.dll at runtime ^(not in repo^);
-echo         winscp is not part of salamand.sln. pictview runs on the
-echo         built-in Windows imaging ^(WIC^) engine since feature 006.
 exit /b 0
 
 :: ============================================================

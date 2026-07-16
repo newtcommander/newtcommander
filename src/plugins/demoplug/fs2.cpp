@@ -998,7 +998,7 @@ CPluginFSInterface::AcceptChangeOnPathNotification(const char* fsName, const cha
 
     // WARNING: a regular plugin should work with FS paths here
     // for DFS we simplify the logic to operate on disk paths because DFS
-    // only exposes a disk path; see the WMobile implementation below
+    // only exposes a disk path; see the FS-plugin example implementation below
 
     // test whether the paths match or at least share a prefix (only disk paths matter;
     // FS paths in 'path' are excluded automatically because they can never match Path)
@@ -1024,7 +1024,7 @@ CPluginFSInterface::AcceptChangeOnPathNotification(const char* fsName, const cha
         SalamanderGeneral->PostRefreshPanelFS(this); // refresh the panel if this FS is displayed there
     }
 
-    // example of an implementation from the WMobile plugin:
+    // example of an implementation from a real FS plugin:
     /*
   // test whether the paths match or at least share a prefix (only paths on our FS qualify;
   // disk paths and paths on other FSs in 'path' are excluded automatically,

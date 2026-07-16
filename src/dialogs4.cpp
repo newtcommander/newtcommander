@@ -549,9 +549,6 @@ CConfiguration::CConfiguration()
     EnableCustomIconOverlays = TRUE;
     DisabledCustomIconOverlays = NULL;
 
-#ifndef _WIN64
-    AddX86OnlyPlugins = FALSE; // FIXME_X64_WINSCP
-#endif                         // _WIN64
 }
 
 CConfiguration::~CConfiguration()

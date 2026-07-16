@@ -646,13 +646,6 @@ void CPlugins::InitMenuItems(HWND parent, CMenuPopup* root)
                           MENU_MASK_IMAGEINDEX | MENU_MASK_ID;
                 mi.Type = MENU_TYPE_STRING;
 
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-                if (IsPluginUnsupportedOnX64(p->DLLName))
-                {
-                    mi.Mask |= MENU_MASK_STATE;
-                    mi.State = MENU_STATE_GRAYED;
-                }
-#endif // _WIN64
 
                 char pluginName[300];
                 lstrcpyn(pluginName, p->Name, 299);
@@ -1550,17 +1543,7 @@ void CPlugins::Load(HWND parent, HKEY regKey)
                        TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, "3.3",
                        "Copyright © 1999-2023 Open Salamander Authors",
                        "Unix archives readonly support for Open Salamander.",
-                       "TAR", "tar;tgz;taz;tbz;gz;bz;bz2;z;rpm;cpio", NULL, FALSE, NULL, NULL) ||
-            !AddPlugin("PAK", "pak\\pak.spl",
-                       TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, "1.68",
-                       "Copyright © 1999-2023 Open Salamander Authors",
-                       "This plug-ing adds support for Quake PAK archives.",
-                       "PAK", "pak", NULL, FALSE, NULL, NULL) ||
-            !AddPlugin("Internet Explorer Viewer", "ieviewer\\ieviewer.spl",
-                       FALSE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE,
-                       "1.1", "Copyright © 1999-2023 Open Salamander Authors",
-                       "Internet Explorer Viewer for Open Salamander.",
-                       "IEVIEWER", "", NULL, FALSE, NULL, NULL))
+                       "TAR", "tar;tgz;taz;tbz;gz;bz;bz2;z;rpm;cpio", NULL, FALSE, NULL, NULL))
         {
             HANDLES(EnterCriticalSection(&DataCS));
             Data.DestroyMembers();
@@ -2134,9 +2117,9 @@ void CPlugins::CheckData()
                     case 0:
                         viewerMasks->At(i)->ViewerType = VIEWER_INTERNAL;
                         break; // internal viewer
-                    case 1:
-                        viewerMasks->At(i)->ViewerType = -4;
-                        break; // IE viewer
+                    case 1: // IE viewer: the IEViewer plugin was removed from the product, drop its masks
+                        viewerMasks->Delete(i--);
+                        break;
                     case 2:
                         viewerMasks->At(i)->ViewerType = VIEWER_EXTERNAL;
                         break; // external
@@ -2871,17 +2854,6 @@ BOOL SearchForAddedSPLs(char* buf, char* s, TIndirectArray<char>& foundFiles)
     }
 }
 
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-BOOL IsPluginUnsupportedOnX64(const char* dllName, const char** pluginNameEN)
-{
-    const char* nameEN = "";
-    if (_stricmp(dllName, "winscp\\winscp.spl") == 0)
-        nameEN = "WinSCP (SFTP/SCP Client)";
-    if (pluginNameEN != NULL)
-        *pluginNameEN = nameEN;
-    return nameEN[0] != 0;
-}
-#endif // _WIN64
 
 BOOL CPlugins::ReadPluginsVer(HWND parent, BOOL importFromOldConfig)
 {
@@ -2957,11 +2929,7 @@ BOOL CPlugins::ReadPluginsVer(HWND parent, BOOL importFromOldConfig)
         // load all plugins so they can restore their data in Salamander...
         for (int i = 0; i < Data.Count; i++)
         {
-            if (!Data[i]->GetLoaded()
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-                && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-            )
+            if (!Data[i]->GetLoaded())
             {
                 _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_AUTOINSTALLPLUGINS), Data[i]->DLLName);
                 analysing.SetText(textProgress);
@@ -3017,10 +2985,6 @@ BOOL CPlugins::TestAll(HWND parent)
     for (int i = 0; i < Data.Count; i++)
     {
         BOOL wasLoaded = Data[i]->GetLoaded();
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-        if (IsPluginUnsupportedOnX64(Data[i]->DLLName))
-            continue;
-#endif // _WIN64
         if (!wasLoaded)
         {
             _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_LOADINGPLUGINS), Data[i]->DLLName);
@@ -3068,11 +3032,7 @@ void CPlugins::LoadAll(HWND parent)
         int progress = 0;
         for (int i = 0; i < Data.Count; i++)
         {
-            if (!Data[i]->GetLoaded()
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-                && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-            )
+            if (!Data[i]->GetLoaded())
             {
                 _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_LOADINGPLUGINS), Data[i]->DLLName);
                 analysing.SetText(textProgress);
@@ -3220,11 +3180,7 @@ void CPlugins::RemoveNoLongerExistingPlugins(BOOL canDelPluginRegKey, BOOL loadA
     int i;
     for (i = 0; i < Data.Count; i++)
     {
-        if (!Data[i]->GetLoaded() // applies only to unloaded plugins
-#ifdef _WIN64                     // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-            && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-        )
+        if (!Data[i]->GetLoaded()) // applies only to unloaded plugins
         {
             char* fullName = Data[i]->DLLName;
             if ((*fullName != '\\' || *(fullName + 1) != '\\') && // not UNC
@@ -3242,10 +3198,19 @@ void CPlugins::RemoveNoLongerExistingPlugins(BOOL canDelPluginRegKey, BOOL loadA
                 char pluginName[MAX_PATH];
                 pluginName[0] = 0;
                 if (notLoadedPluginNames != NULL && Data[i]->RegKeyName != NULL && Data[i]->RegKeyName[0] != 0 &&
-                    _stricmp(Data[i]->DLLName, "fsearch\\fsearch.spl") != 0 && // we want to suppress FSearch (no need to alert that it’s missing)
-                    _stricmp(Data[i]->DLLName, "eroiica\\eroiica.spl") != 0 && // we want to suppress Eroiica (no need to alert that it’s missing)
-                    _stricmp(Data[i]->DLLName, "unace\\unace.spl") != 0 &&     // we want to suppress UnACE (no need to alert that it’s missing)
-                    _stricmp(Data[i]->DLLName, "diskcopy\\diskcopy.spl") != 0) // we want to suppress DiskCopy (no need to alert that it’s missing)
+                    _stricmp(Data[i]->DLLName, "fsearch\\fsearch.spl") != 0 &&   // we want to suppress FSearch (no need to alert that it’s missing)
+                    _stricmp(Data[i]->DLLName, "eroiica\\eroiica.spl") != 0 &&   // we want to suppress Eroiica (no need to alert that it’s missing)
+                    _stricmp(Data[i]->DLLName, "unace\\unace.spl") != 0 &&       // we want to suppress UnACE (no need to alert that it’s missing)
+                    _stricmp(Data[i]->DLLName, "diskcopy\\diskcopy.spl") != 0 && // we want to suppress DiskCopy (no need to alert that it’s missing)
+                    // plugins removed from the product in feature 007 (plugin build policy) — uninstall silently on upgrade:
+                    _stricmp(Data[i]->DLLName, "pak\\pak.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "unarj\\unarj.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "unlha\\unlha.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "unfat\\unfat.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "wmobile\\wmobile.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "ieviewer\\ieviewer.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "splitcbn\\splitcbn.spl") != 0 &&
+                    _stricmp(Data[i]->DLLName, "winscp\\winscp.spl") != 0)
                 {
                     lstrcpyn(pluginName, Data[i]->Name, MAX_PATH); // if it has a registry key, store its name
                 }
@@ -3284,11 +3249,7 @@ void CPlugins::RemoveNoLongerExistingPlugins(BOOL canDelPluginRegKey, BOOL loadA
         int progress = 0;
         for (i = 0; i < Data.Count; i++)
         {
-            if (!Data[i]->GetLoaded()
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-                && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-            )
+            if (!Data[i]->GetLoaded())
             {
                 _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_AUTOINSTALLPLUGINS), Data[i]->DLLName);
                 analysing.SetText(textProgress);
@@ -3380,11 +3341,7 @@ void CPlugins::AutoInstallStdPluginsDir(HWND parent)
             else
                 strcpy(pluginName, file);
             int index;
-            if (!Plugins.FindDLL(pluginName, index)
-#ifdef _WIN64                                            // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-                && !IsPluginUnsupportedOnX64(pluginName) // only a problem in internal debug version (an incomplete plugin compiles even though it's not released to the public)
-#endif                                                   // _WIN64
-            )
+            if (!Plugins.FindDLL(pluginName, index))
             {
                 _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_AUTOINSTALLPLUGINS), pluginName);
                 analysing.SetText(textProgress);
@@ -3408,11 +3365,7 @@ void CPlugins::AutoInstallStdPluginsDir(HWND parent)
     // load all plugins so they can restore their data in Salamander...
     for (int i = 0; i < Data.Count; i++)
     {
-        if (!Data[i]->GetLoaded()
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-            && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-        )
+        if (!Data[i]->GetLoaded())
         {
             _snprintf_s(textProgress, _TRUNCATE, "%s\n%s", LoadStr(IDS_AUTOINSTALLPLUGINS), Data[i]->DLLName);
             analysing.SetText(textProgress);
@@ -3669,7 +3622,7 @@ void CPlugins::PasswordManagerEvent(HWND parent, int event)
     {
         CPluginData* p = Data[i];
         if (p->PluginUsesPasswordManager &&
-            p->InitDLL(parent, FALSE, TRUE, FALSE))
+            p->InitDLL(parent, FALSE, TRUE))
         {
             p->PasswordManagerEvent(parent, event);
         }
@@ -3681,11 +3634,7 @@ int CPlugins::GetNumOfPluginsToLoad()
     int toLoadCount = 0;
     for (int i = 0; i < Data.Count; i++)
     {
-        if (!Data[i]->GetLoaded()
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will likely need a different approach... (ignoring missing WinSCP in the 64-bit Salamander)
-            && !IsPluginUnsupportedOnX64(Data[i]->DLLName)
-#endif // _WIN64
-        )
+        if (!Data[i]->GetLoaded())
         {
             toLoadCount++;
         }

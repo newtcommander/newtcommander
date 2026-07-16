@@ -867,18 +867,6 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDB_PLUGINFOCUS:
         {
             CPluginData* p = GetSelectedPlugin();
-#ifdef _WIN64 // FIXME_X64_WINSCP - this will probably need to be solved differently... (ignoring the missing WinSCP in the x64 version of Salamander)
-            char bufText[MAX_PATH + 200];
-            if (p != NULL && IsPluginUnsupportedOnX64(p->DLLName))
-            {
-                // inform the user that this plugin is available only in the 32-bit version (x86)
-                // IDS_PLUGINISX86ONLY is not an ideal text but I don't care, it will do,
-                // and we won't bother translators unnecessarily
-                sprintf(bufText, LoadStr(IDS_PLUGINISX86ONLY), p->Name);
-                SalMessageBox(HWindow, bufText, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
-                return 0;
-            }
-#endif // _WIN64
             if (p != NULL)
             {
                 char buf[MAX_PATH];

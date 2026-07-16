@@ -736,7 +736,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                                 PostMessage(HWindow, WM_USER_UPDATEPANEL, 0, 0);
 
                                 BOOL cont = FALSE;
-                                if (p->InitDLL(HWindow, FALSE, TRUE, FALSE) &&  // plugin loaded successfully
+                                if (p->InitDLL(HWindow, FALSE, TRUE) &&         // plugin loaded successfully
                                     p->ThumbnailMasks.GetMasksString()[0] != 0) // plugin is still "thumbnail loader"
                                 {
                                     if (!p->ThumbnailMasks.AgreeMasks(file.Name, file.Ext) || // it can no longer generate thumbnails for this file
@@ -2036,7 +2036,7 @@ CHANGE_AGAIN:
                 if (convertFSPathToInternal) // convert path to internal format
                 {
                     CPluginData* plugin = Plugins.Get(index);
-                    if (plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE, TRUE)) // plugin does not have to be loaded, in which case we let it load
+                    if (plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE)) // plugin does not have to be loaded, in which case we let it load
                         plugin->GetPluginInterfaceForFS()->ConvertPathToInternal(fsName, fsNameIndex, fsUserPart);
                     else
                     {
@@ -2094,7 +2094,7 @@ CHANGE_AGAIN:
                 { // path error (can be caused by the path itself or by the plugin - it cannot be loaded - this is very unlikely)
                     // convert path to external format
                     CPluginData* plugin = Plugins.Get(index);
-                    if (!pluginFailure && plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE, FALSE)) // plugin does not have to be loaded, in which case we let it load
+                    if (!pluginFailure && plugin != NULL && plugin->InitDLL(MainWindow->HWindow, FALSE, TRUE)) // plugin does not have to be loaded, in which case we let it load
                         plugin->GetPluginInterfaceForFS()->ConvertPathToExternal(fsName, fsNameIndex, fsUserPart);
                     // else TRACE_E("Unexpected situation (2) in CFilesWindow::ChangeDir()");  // if the plugin is blocked by the user (if the registration key is missing)
 

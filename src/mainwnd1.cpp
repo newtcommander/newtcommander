@@ -353,14 +353,6 @@ CMainWindow::CMainWindow() : ChangeNotifArray(3, 5)
     if (ViewerMasks != NULL && item != NULL)
     {
         ViewerMasks->Add(item); // no critical section needed, we're in the constructor
-        item->Set("*.htm;*.html;*.xml;*.mht", "", "", "");
-        item->ViewerType = -4; // IE viewer (4th plugin in the default configuration)
-    }
-
-    item = new CViewerMasksItem();
-    if (ViewerMasks != NULL && item != NULL)
-    {
-        ViewerMasks->Add(item); // no critical section needed, we're in the constructor
         item->Set("*.rpm", "", "", "");
         item->ViewerType = -2; // TAR (2nd plugin in the default configuration)
     }

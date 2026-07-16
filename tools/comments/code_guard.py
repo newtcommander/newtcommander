@@ -52,8 +52,6 @@ EXCLUDE_PATTERNS = [
     'src/plugins/automation/generated',
     'src/plugins/checksum/tomcrypt',
     'src/plugins/ftp/openssl',
-    'src/plugins/ieviewer/cmark-gfm/build/src',
-    'src/plugins/ieviewer/cmark-gfm/src',
     'src/plugins/mmviewer/ogg/vorbis',
     'src/plugins/mmviewer/wma/wmsdk',
     'src/plugins/pictview/exif/libexif',
@@ -61,12 +59,6 @@ EXCLUDE_PATTERNS = [
     'src/plugins/pictview/twain',
     'src/plugins/portables/wtl',
     'src/plugins/unchm/chmlib',
-    'src/plugins/winscp/core',
-    'src/plugins/winscp/forms',
-    'src/plugins/winscp/packages',
-    'src/plugins/winscp/putty',
-    'src/plugins/winscp/resource',
-    'src/plugins/winscp/windows',
     'src/tools'
 ]
 
@@ -110,19 +102,10 @@ def get_clang_args(repo_path: Path) -> list:
         'src/plugins/shared/lukas',
         'src/plugins/ftp',
         'src/plugins/ftp/openssl',
-        'src/plugins/ieviewer/cmark-gfm/build/src',
-        'src/plugins/ieviewer/cmark-gfm/build/extensions',
-        'src/plugins/ieviewer/cmark-gfm/extensions',
-        'src/plugins/ieviewer/cmark-gfm/src',
         'src/plugins/pictview/exif',
         'src/plugins/tar',
         'src/plugins/undelete/library',
         'src/plugins/zip',
-        'src/plugins/winscp/core',
-        'src/plugins/winscp/windows',
-        'src/plugins/winscp/resource',
-        'src/plugins/winscp/forms',
-        'src/plugins/wmobile/rapi',
         'tools/comments/code_guard_stubs'
     ]
 

@@ -247,7 +247,7 @@ CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstract* sa
       char *res = SalamanderGeneral->NumberToStr(buffer, 1234567);
 */
         // test IsPluginInstalled
-        //      BOOL installed = SalamanderGeneral->IsPluginInstalled("ieviewer\\ieviewer.spl");
+        //      BOOL installed = SalamanderGeneral->IsPluginInstalled("pictview\\pictview.spl");
         /*
       // test ViewFileInPluginViewer
 //      CSalamanderPluginViewerData viewerData;
@@ -268,9 +268,9 @@ CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperationsAbstract* sa
           HANDLES(CloseHandle(file));
 
           int err;
-//          BOOL ok = SalamanderGeneral->ViewFileInPluginViewer("ieviewer\\ieviewer.spl",
+//          BOOL ok = SalamanderGeneral->ViewFileInPluginViewer("pictview\\pictview.spl",
 //                                                              &viewerData, FALSE, NULL, NULL, err);
-//          BOOL ok = SalamanderGeneral->ViewFileInPluginViewer("ieviewer\\ieviewer.spl",
+//          BOOL ok = SalamanderGeneral->ViewFileInPluginViewer("pictview\\pictview.spl",
 //                                                              &viewerData, TRUE, NULL, "test.txt", err);
 //          BOOL ok = SalamanderGeneral->ViewFileInPluginViewer(NULL, &viewerData, FALSE, NULL, NULL, err);
           viewerData.Mode = 1;  // hex mode

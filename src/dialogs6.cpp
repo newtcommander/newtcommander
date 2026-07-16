@@ -1149,7 +1149,7 @@ void CDisconnectDialog::EnumConnections()
                     free(pluginPath);
             }
 
-            // ensure addition for "unary" FS (RegEdit, WMobile, etc.) - they have no entries for open FS
+            // ensure addition for "unary" FS (RegEdit, etc.) - they have no entries for open FS
             // and allow only one opened FS
             if (addFSItemForActivePanelFS || addFSItemForNonactivePanelFS)
             {

@@ -983,15 +983,6 @@
 		</UL>
 
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Internet Explorer Viewer">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="ieviewer.chm::\ieviewer.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="Multimedia Viewer">
 			</OBJECT>
 		<UL>
@@ -1006,15 +997,6 @@
 		<UL>
 			<OBJECT type="text/sitemap">
 				<param name="Merge" value="nethood.chm::\nethood.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Quake PAK">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="pak.chm::\pak.hhc">
 			</OBJECT>
 		</UL>
 
@@ -1064,29 +1046,11 @@
 		</UL>
 
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Split & Combine">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="splitcbn.chm::\splitcbn.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="TAR">
 			</OBJECT>
 		<UL>
 			<OBJECT type="text/sitemap">
 				<param name="Merge" value="tar.chm::\tar.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="UnARJ">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="unarj.chm::\unarj.hhc">
 			</OBJECT>
 		</UL>
 
@@ -1118,29 +1082,11 @@
 		</UL>
 
 		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="UnFAT">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="unfat.chm::\unfat.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
 			<param name="Name" value="UnISO">
 			</OBJECT>
 		<UL>
 			<OBJECT type="text/sitemap">
 				<param name="Merge" value="uniso.chm::\uniso.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="UnLHA">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="unlha.chm::\unlha.hhc">
 			</OBJECT>
 		</UL>
 
@@ -1159,24 +1105,6 @@
 		<UL>
 			<OBJECT type="text/sitemap">
 				<param name="Merge" value="unrar.chm::\unrar.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="Windows Mobile">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="wmobile.chm::\wmobile.hhc">
-			</OBJECT>
-		</UL>
-
-		<LI> <OBJECT type="text/sitemap">
-			<param name="Name" value="WinSCP">
-			</OBJECT>
-		<UL>
-			<OBJECT type="text/sitemap">
-				<param name="Merge" value="winscp.chm::\winscp.hhc">
 			</OBJECT>
 		</UL>
 

@@ -27,7 +27,7 @@ Future phases: fix existing features, add new ones.
 src/                   All source code (~2,224 files)
   common/              Shared libraries and headers
     dep/               Third-party libs (zlib, bzip2, sqlite, fmt, wil...)
-  plugins/             35 plugins (archive, viewer, utility, network)
+  plugins/             28 plugins (archive, viewer, utility, network)
     shared/            Shared plugin build infrastructure
   vcxproj/             VS solution (salamand.sln) and project files
   lang/                English resources for main app
@@ -50,12 +50,20 @@ build.cmd                       :: Debug x64 incremental build (from repo root)
 build.cmd rebuild               :: Full clean + rebuild Debug x64
 build.cmd full                  :: Complete build: also copies runtime data
                                 ::   (convert tables, toolbars, scripts) and
-                                ::   generates plugins\plugins.ver so all 35
-                                ::   plugins auto-register in Plugin Manager
+                                ::   generates plugins\plugins.ver so all
+                                ::   enabled plugins auto-register in
+                                ::   Plugin Manager
 build.cmd full release          :: Complete Release x64 build
 ```
 
-Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (interactive menu).
+**Plugin build policy**: `plugins.cfg` in the repository root decides
+which plugins are compiled and shipped (`name=on|off`, one line per
+plugin; currently 18 on / 10 off). Every `build.cmd` run validates the
+file, builds only enabled plugins (via a generated solution filter
+`src\vcxproj\salamand.gen.slnf`, gitignored), and removes outputs of
+disabled plugins. See `specs/007-plugin-build-policy/`.
+
+Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (interactive menu) — these build the full solution and ignore `plugins.cfg`.
 
 **Prerequisites**:
 - Windows 11 or newer
@@ -66,12 +74,16 @@ Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (inte
 
 ## Key Facts
 
-- **90 projects** in salamand.sln (1 main app, 35 plugins, 36 lang
+- **76 projects** in salamand.sln (1 main app, 28 plugins, 29 lang
   modules, 7 helper libs, 5 utilities, 2 shell exts, 3 setup, 1 other)
+- **Plugin set is policy-driven**: 8 obsolete plugins were removed in
+  feature 007 (pak, unarj, unlha, unfat, wmobile, ieviewer, splitcbn,
+  winscp); `plugins.cfg` disables 10 more by default (demos and
+  marginal plugins), so a default build ships 18 plugins
 - **All dependencies are embedded** — zero NuGet packages
-- **Missing deps**: unrar.dll (unrar), OpenSSL (ftp), Embarcadero RTL
-  (winscp — not in repo); pictview runs on the built-in Windows WIC
-  engine since feature 006 (no pvw32cnv.dll needed)
+- **Missing deps**: unrar.dll (unrar), OpenSSL (ftp); pictview runs on
+  the built-in Windows WIC engine since feature 006 (no pvw32cnv.dll
+  needed)
 - **Encoding**: UTF-8-BOM, formatted with clang-format
 - **Comments**: Legacy Czech OK, new comments in English
 - **Debug builds** use fixed base addresses (no ASLR) for leak detection
