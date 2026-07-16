@@ -82,3 +82,16 @@ Copyright (c) 2013 Karl Dubost
 Copyright (c) 2014 Dave Liepmann
 Copyright (c) Sindre Sorhus
 Copyright (c) 2016 Osmo Salomaa
+
+=== libssh2 ===
+The SFTP plugin uses the libssh2 client-side SSH2/SFTP library
+(https://libssh2.org), version 1.11.1, built against the Windows CNG
+cryptography backend. libssh2 is distributed under the BSD-3-Clause license
+(see doc\license\license_bsd3.txt).
+Copyright (c) 2004-2007 Sara Golemon
+Copyright (c) 2005,2006 Mikhail Gusarov
+Copyright (c) 2006-2007 The Written Word, Inc.
+Copyright (c) 2007 Eli Fant
+Copyright (c) 2009-2019 Daniel Stenberg
+Copyright (c) 2010 Simon Josefsson
+Copyright (c) The libssh2 project and its contributors.

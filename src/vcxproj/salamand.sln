@@ -93,6 +93,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "folders", "..\plugins\folde
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ftp", "..\plugins\ftp\vcxproj\ftp.vcxproj", "{CA69FD90-742C-49BE-8FD1-B6F487F6578B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sftp", "..\plugins\sftp\vcxproj\sftp.vcxproj", "{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lang_sftp", "..\plugins\sftp\vcxproj\lang_sftp.vcxproj", "{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mmviewer", "..\plugins\mmviewer\vcxproj\mmviewer.vcxproj", "{67386A47-6522-4F4B-8C7D-58D3DCD23813}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nethood", "..\plugins\nethood\vcxproj\nethood.vcxproj", "{DAD533CA-ED6E-4F22-AEFB-AA4E57661A39}"
@@ -170,6 +174,26 @@ Global
 		Utils (Release)|x64 = Utils (Release)|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Debug|Win32.Build.0 = Debug|Win32
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Debug|x64.ActiveCfg = Debug|x64
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Debug|x64.Build.0 = Debug|x64
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Release|Win32.ActiveCfg = Release|Win32
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Release|Win32.Build.0 = Release|Win32
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Release|x64.ActiveCfg = Release|x64
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Release|x64.Build.0 = Release|x64
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Utils (Release)|Win32.ActiveCfg = Release|Win32
+		{B7A3F1C0-5E42-4A18-9C6D-1F2E3A4B5C60}.Utils (Release)|x64.ActiveCfg = Release|x64
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Debug|Win32.Build.0 = Debug|Win32
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Debug|x64.ActiveCfg = Debug|x64
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Debug|x64.Build.0 = Debug|x64
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Release|Win32.ActiveCfg = Release|Win32
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Release|Win32.Build.0 = Release|Win32
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Release|x64.ActiveCfg = Release|x64
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Release|x64.Build.0 = Release|x64
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Utils (Release)|Win32.ActiveCfg = Release|Win32
+		{C8B4A2D1-6F53-4B29-8D7E-2A3F4B5C6D71}.Utils (Release)|x64.ActiveCfg = Release|x64
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Debug|Win32.ActiveCfg = Debug|Win32
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Debug|Win32.Build.0 = Debug|Win32
 		{FA82995C-2137-4A0B-96ED-404B08EFC0DD}.Debug|x64.ActiveCfg = Debug|x64
