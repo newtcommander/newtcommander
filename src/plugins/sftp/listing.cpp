@@ -145,6 +145,9 @@ BOOL CSFTPListingData::FillFileData(CFileData& file, const CSFTPDirEntry* entry,
     d->Gid = entry->Gid;
     d->Owner = entry->Owner != NULL ? _strdup(entry->Owner) : NULL;
     d->Group = entry->Group != NULL ? _strdup(entry->Group) : NULL;
+    // keep the original (unsanitized) name for all remote-path operations; the
+    // panel's file.Name may have had invalid UTF-8 bytes replaced with '?'
+    d->RealName = _strdup(entry->Name);
     file.PluginData = (DWORD_PTR)d;
 
     if (outIsDir != NULL)
@@ -163,9 +166,21 @@ void CSFTPListingData::FreeItemData(CFileData& file)
             free(d->Group);
         if (d->LinkTarget != NULL)
             free(d->LinkTarget);
+        if (d->RealName != NULL)
+            free(d->RealName);
         free(d);
         file.PluginData = 0;
     }
+}
+
+const char* SFTPRealName(const CFileData* file)
+{
+    if (file == NULL)
+        return "";
+    const CSFTPItemData* d = (const CSFTPItemData*)file->PluginData;
+    if (d != NULL && d->RealName != NULL)
+        return d->RealName;
+    return file->Name;
 }
 
 void WINAPI CSFTPListingData::ReleasePluginData(CFileData& file, BOOL isDir)

@@ -497,9 +497,11 @@ static void ConnectLoadServerToFields(HWND hwnd, const CSFTPServer* s)
     ConnectSetAuthMode(hwnd, s->AuthMethod);
 }
 
-// reads dialog fields into 's'; encrypts typed secrets and also copies the
-// plaintext into ConnectPlainPassword/Passphrase for the immediate connect
-static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* selectedBookmark)
+// reads dialog fields into 's'; encrypts typed secrets. When 'forConnect', also
+// copies the plaintext into ConnectPlainPassword/Passphrase for the immediate
+// connect (so a New/Rename-bookmark action never leaves a stale password that a
+// later connect to a different server could pick up).
+static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* selectedBookmark, BOOL forConnect)
 {
     char host[256], user[256], keyfile[MAX_PATH], initpath[1024];
     GetDlgItemTextA(hwnd, IDE_HOSTADDRESS, host, sizeof(host));
@@ -528,8 +530,11 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     s->SavePassword = IsDlgButtonChecked(hwnd, IDC_SAVEPASSWORD);
     s->SavePassphrase = IsDlgButtonChecked(hwnd, IDC_SAVEPASSPHRASE);
 
-    ConnectPlainPassword[0] = 0;
-    ConnectPlainPassphrase[0] = 0;
+    if (forConnect)
+    {
+        ConnectPlainPassword[0] = 0;
+        ConnectPlainPassphrase[0] = 0;
+    }
 
     CSalamanderPasswordManagerAbstract* pm = SalamanderGeneral->GetSalamanderPasswordManager();
 
@@ -539,7 +544,8 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
         GetDlgItemTextA(hwnd, IDE_PASSWORD, pwd, sizeof(pwd));
         if (pwd[0] != 0)
         {
-            lstrcpynA(ConnectPlainPassword, pwd, sizeof(ConnectPlainPassword));
+            if (forConnect)
+                lstrcpynA(ConnectPlainPassword, pwd, sizeof(ConnectPlainPassword));
             if (s->SavePassword && pm != NULL)
             {
                 BOOL enc = pm->IsUsingMasterPassword() && pm->IsMasterPasswordSet();
@@ -569,7 +575,8 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
         GetDlgItemTextA(hwnd, IDE_PASSPHRASE, pass, sizeof(pass));
         if (pass[0] != 0)
         {
-            lstrcpynA(ConnectPlainPassphrase, pass, sizeof(ConnectPlainPassphrase));
+            if (forConnect)
+                lstrcpynA(ConnectPlainPassphrase, pass, sizeof(ConnectPlainPassphrase));
             if (s->SavePassphrase && pm != NULL)
             {
                 BOOL enc = pm->IsUsingMasterPassword() && pm->IsMasterPasswordSet();
@@ -683,7 +690,7 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             if (ShowRenameDialog(hwnd, "Bookmark name:", name) && name[0] != 0)
             {
                 CSFTPServer* s = new CSFTPServer;
-                if (s != NULL && ConnectReadFields(hwnd, s, NULL))
+                if (s != NULL && ConnectReadFields(hwnd, s, NULL, FALSE)) // new bookmark: don't touch connect globals
                 {
                     s->SetString(&s->ItemName, name);
                     Config.Bookmarks.Add(s);
@@ -747,7 +754,7 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             }
             else
                 Config.LastBookmark = 0;
-            if (d->Result != NULL && ConnectReadFields(hwnd, d->Result, bookmark))
+            if (d->Result != NULL && ConnectReadFields(hwnd, d->Result, bookmark, TRUE))
             {
                 // remember quick-connect field values
                 if (bookmark == NULL)

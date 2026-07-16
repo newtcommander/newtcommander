@@ -239,7 +239,10 @@ void CPluginFSInterface::SetConnectParams(const CSFTPConnectParams* params)
 
 void CPluginFSInterface::MakeUserPart(const char* path, char* buf, int bufSize)
 {
-    _snprintf_s(buf, bufSize, _TRUNCATE, "%s@%s:%d%s", User, Host, Port,
+    // bracket IPv6 literal hosts so the "host:port" split round-trips
+    BOOL ipv6 = strchr(Host, ':') != NULL;
+    _snprintf_s(buf, bufSize, _TRUNCATE, "%s@%s%s%s:%d%s", User,
+                ipv6 ? "[" : "", Host, ipv6 ? "]" : "", Port,
                 (path != NULL && path[0]) ? path : "/");
 }
 
@@ -260,25 +263,48 @@ BOOL CPluginFSInterface::ParseUserPart(const char* userPart, char* host, int* po
         user[n] = 0;
         p = at + 1;
     }
-    // host[:port]
-    slash = strchr(p, '/');
-    const char* hostEnd = slash != NULL ? slash : p + strlen(p);
-    const char* colon = NULL;
-    for (const char* q = p; q < hostEnd; q++)
-        if (*q == ':')
-            colon = q;
-    const char* he = colon != NULL ? colon : hostEnd;
-    int hn = (int)(he - p);
-    if (hn <= 0 || hn > 255)
-        return FALSE;
-    memcpy(host, p, hn);
-    host[hn] = 0;
     *port = SFTP_DEFAULT_PORT;
-    if (colon != NULL)
+    if (*p == '[')
     {
-        *port = atoi(colon + 1);
-        if (*port <= 0 || *port > 65535)
+        // IPv6 literal: [::1] or [::1]:port ; store the address without brackets
+        const char* close = strchr(p, ']');
+        if (close == NULL)
             return FALSE;
+        int hn = (int)(close - (p + 1));
+        if (hn <= 0 || hn > 255)
+            return FALSE;
+        memcpy(host, p + 1, hn);
+        host[hn] = 0;
+        p = close + 1;
+        slash = strchr(p, '/');
+        if (*p == ':')
+        {
+            *port = atoi(p + 1);
+            if (*port <= 0 || *port > 65535)
+                return FALSE;
+        }
+    }
+    else
+    {
+        // host[:port] - a bare colon is a port only when it precedes the path
+        slash = strchr(p, '/');
+        const char* hostEnd = slash != NULL ? slash : p + strlen(p);
+        const char* colon = NULL;
+        for (const char* q = p; q < hostEnd; q++)
+            if (*q == ':')
+                colon = q;
+        const char* he = colon != NULL ? colon : hostEnd;
+        int hn = (int)(he - p);
+        if (hn <= 0 || hn > 255)
+            return FALSE;
+        memcpy(host, p, hn);
+        host[hn] = 0;
+        if (colon != NULL && colon + 1 < hostEnd)
+        {
+            *port = atoi(colon + 1);
+            if (*port <= 0 || *port > 65535)
+                return FALSE;
+        }
     }
     if (slash != NULL)
         lstrcpynA(path, slash, pathSize);
@@ -317,6 +343,11 @@ BOOL CPluginFSInterface::EnsureConnected(HWND parent)
         return FALSE;
     }
     FatalError = FALSE;
+
+    // arm the keepalive timer (FSE_TIMER re-arms it); one tick per keepalive
+    // interval keeps idle sessions alive behind NAT/firewalls (FR-022)
+    int ka = Config.KeepAliveSendEvery > 0 ? Config.KeepAliveSendEvery : 60;
+    SalamanderGeneral->AddPluginFSTimer(ka * 1000, this, 0);
     return TRUE;
 }
 
@@ -575,13 +606,20 @@ void WINAPI CPluginFSInterface::Event(int event, DWORD param)
 {
     if (event == FSE_TIMER)
     {
-        int next = 0;
-        Session.Keepalive(&next);
+        if (Session.IsConnected())
+        {
+            int next = 0;
+            Session.Keepalive(&next);
+            // re-arm for the next interval
+            int ka = Config.KeepAliveSendEvery > 0 ? Config.KeepAliveSendEvery : 60;
+            SalamanderGeneral->AddPluginFSTimer(ka * 1000, this, 0);
+        }
     }
 }
 
 void WINAPI CPluginFSInterface::ReleaseObject(HWND parent)
 {
+    SalamanderGeneral->KillPluginFSTimer(this, TRUE, 0); // no timer must fire on a dead FS
     Session.Disconnect();
 }
 
@@ -662,25 +700,41 @@ void WINAPI CPluginFSInterface::ShowInfoDialog(const char* fsName, HWND parent)
     SalamanderGeneral->SalMessageBox(parent, msg, LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
 }
 
+// deferred "cd" target, filled by ExecuteCommandLine and consumed by
+// ExecuteDeferredCd (via PostMenuExtCommand) so the path change happens OUTSIDE
+// any FS-interface method (calling ChangePanelPathToPluginFS from within one is
+// forbidden - it can free 'this')
+static char g_DeferredCdUserPart[3072] = "";
+
+void ExecuteDeferredCd()
+{
+    if (g_DeferredCdUserPart[0] == 0)
+        return;
+    char up[3072];
+    lstrcpynA(up, g_DeferredCdUserPart, sizeof(up));
+    g_DeferredCdUserPart[0] = 0;
+    SalamanderGeneral->ChangePanelPathToPluginFS(PANEL_SOURCE, AssignedFSName, up);
+}
+
 BOOL WINAPI CPluginFSInterface::ExecuteCommandLine(HWND parent, char* command, int& selFrom, int& selTo)
 {
-    // support a simple "cd <path>" from the command line
+    // support a simple "cd <path>" - the actual path change is DEFERRED (posted)
+    // because ChangePanelPathToPluginFS must not run inside an FS-interface method
     while (*command == ' ')
         command++;
     if (_strnicmp(command, "cd ", 3) == 0)
     {
         char target[3072];
         lstrcpynA(target, command + 3, sizeof(target));
-        char userPart[3072];
         if (target[0] == '/')
-            MakeUserPart(target, userPart, sizeof(userPart));
+            MakeUserPart(target, g_DeferredCdUserPart, sizeof(g_DeferredCdUserPart));
         else
         {
             char abs[3072];
             PosixPathAppend(Path, target, abs, sizeof(abs));
-            MakeUserPart(abs, userPart, sizeof(userPart));
+            MakeUserPart(abs, g_DeferredCdUserPart, sizeof(g_DeferredCdUserPart));
         }
-        SalamanderGeneral->ChangePanelPathToPluginFS(PANEL_SOURCE, AssignedFSName, userPart);
+        SalamanderGeneral->PostMenuExtCommand(SFTPCMD_DEFERREDCD, TRUE);
     }
     command[0] = 0;
     selFrom = selTo = 0;
@@ -698,7 +752,7 @@ BOOL WINAPI CPluginFSInterface::QuickRename(const char* fsName, int mode, HWND p
     if (!EnsureConnected(parent))
         return FALSE;
     char from[3072], to[3072];
-    PosixPathAppend(Path, file.Name, from, sizeof(from));
+    PosixPathAppend(Path, SFTPRealName(&file), from, sizeof(from)); // real (unsanitized) remote name
     PosixPathAppend(Path, newName, to, sizeof(to));
     if (!Session.Rename(from, to))
     {
@@ -747,7 +801,7 @@ void WINAPI CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
         return;
 
     char remote[3072];
-    PosixPathAppend(Path, file.Name, remote, sizeof(remote));
+    PosixPathAppend(Path, SFTPRealName(&file), remote, sizeof(remote)); // real remote name
 
     char uniqueName[3200];
     _snprintf_s(uniqueName, _TRUNCATE, "%s:%s@%s:%d%s", fsName, User, Host, Port, remote);
@@ -779,7 +833,11 @@ void WINAPI CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
                     if (n < 0) { ok = FALSE; break; }
                     if (n == 0) break;
                     DWORD w = 0;
-                    WriteFile(lf, buf, (DWORD)n, &w, NULL);
+                    if (!WriteFile(lf, buf, (DWORD)n, &w, NULL) || w != (DWORD)n)
+                    {
+                        ok = FALSE; // disk full - do not register a truncated cache copy as valid
+                        break;
+                    }
                     total += n;
                 }
                 Session.CloseHandle(h);
@@ -862,8 +920,12 @@ BOOL WINAPI CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, cons
 
     if (mode == 1)
     {
-        // provide the current FS path as the suggested target
-        MakeUserPart(Path, targetPath, 2 * MAX_PATH);
+        // provide the current FS path (WITH the fs-name prefix) as the suggested
+        // target for the standard Copy dialog - "user@host:.." alone is not a
+        // valid FS path and the default target would be rejected
+        char up[3072];
+        MakeUserPart(Path, up, sizeof(up));
+        _snprintf_s(targetPath, 2 * MAX_PATH, _TRUNCATE, "%s:%s", fsName, up);
         return TRUE;
     }
 

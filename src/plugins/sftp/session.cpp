@@ -502,15 +502,17 @@ BOOL CSFTPSession::RealPath(const char* path, char* absPath, int absPathSize)
 {
     if (Sftp == NULL)
         return FALSE;
-    int rc = libssh2_sftp_realpath(Sftp, path, absPath, absPathSize);
+    // libssh2 does not NUL-terminate; reserve a byte and always terminate
+    int rc = libssh2_sftp_realpath(Sftp, path, absPath, absPathSize - 1);
     if (rc <= 0)
     {
         // fall back to the requested path
         lstrcpynA(absPath, (path != NULL && path[0]) ? path : "/", absPathSize);
         return path != NULL && path[0] != 0;
     }
-    if (rc < absPathSize)
-        absPath[rc] = 0;
+    if (rc >= absPathSize)
+        rc = absPathSize - 1;
+    absPath[rc] = 0;
     return TRUE;
 }
 
@@ -533,7 +535,16 @@ BOOL CSFTPSession::ListDir(const char* path, TIndirectArray<CSFTPDirEntry>* entr
     {
         if (cancel != NULL && *cancel)
             break;
+        // also honor the safe-wait-window Close button so huge listings can be
+        // aborted (GetSafeWaitWindowClosePressed is FALSE when no window is up)
+        if (SalamanderGeneral->GetSafeWaitWindowClosePressed())
+        {
+            if (cancel != NULL)
+                *cancel = TRUE;
+            break;
+        }
         memset(&attrs, 0, sizeof(attrs));
+        longEntry[0] = 0; // clear so a missing longname does not reuse the previous entry's owner/group
         int rc = libssh2_sftp_readdir_ex(dir, nameBuf, sizeof(nameBuf) - 1, longEntry, sizeof(longEntry) - 1, &attrs);
         if (rc <= 0)
             break;

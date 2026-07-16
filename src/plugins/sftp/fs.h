@@ -137,3 +137,7 @@ extern CPluginInterfaceForFS InterfaceForFS;
 
 // launches the Connect dialog and opens the chosen server in 'panel'
 void ConnectSFTPServer(HWND parent, int panel);
+
+// performs a path change queued by ExecuteCommandLine (runs from ExecuteMenuItem,
+// outside any FS-interface method, where ChangePanelPathToPluginFS is legal)
+void ExecuteDeferredCd();

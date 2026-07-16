@@ -32,11 +32,41 @@ static void MakeLocalWidePath(const char* utf8Path, wchar_t* wide, int wideCount
     Utf8ToWide(utf8Path, wide, wideCount);
 }
 
+// Makes a single remote name component safe to use as a local file name:
+// replaces path separators and Windows-invalid characters with '_'. Prevents a
+// malicious/compromised server from escaping the target directory via a name
+// containing '\' or ':' (POSIX only reserves '/').
+static void SanitizeLocalName(const char* name, char* out, int outSize)
+{
+    int i = 0;
+    for (; name[i] != 0 && i < outSize - 1; i++)
+    {
+        unsigned char c = (unsigned char)name[i];
+        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' ||
+            c == '"' || c == '<' || c == '>' || c == '|' || c < 0x20)
+            out[i] = '_';
+        else
+            out[i] = name[i];
+    }
+    out[i] = 0;
+    // reject "." / ".." which would still traverse
+    if (strcmp(out, ".") == 0 || strcmp(out, "..") == 0)
+        lstrcpynA(out, "_", outSize);
+}
+
+enum COverwriteMode
+{
+    ovAsk = 0,
+    ovAll = 1,
+    ovSkipAll = 2,
+};
+
 struct COperationCtx
 {
     HWND Parent;
     CSFTPSession* Session;
     volatile BOOL Cancelled;
+    int OverwriteMode; // COverwriteMode
     char Buffer[XFER_BUFSIZE];
 
     COperationCtx(HWND parent, CSFTPSession* session)
@@ -44,6 +74,7 @@ struct COperationCtx
         Parent = parent;
         Session = session;
         Cancelled = FALSE;
+        OverwriteMode = ovAsk;
     }
     BOOL CheckCancel()
     {
@@ -66,29 +97,62 @@ static void WaitText(const char* fmt, const char* arg)
 // download
 // ---------------------------------------------------------------------------
 
-static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const char* localPath,
-                            unsigned __int64 remoteSize)
+// tri-state so a "move" only deletes the source that was actually transferred
+enum CXferResult
+{
+    xrOk = 0,      // fully transferred (safe to delete source on move)
+    xrSkipped = 1, // deliberately skipped (dir-symlink, user "skip") - keep source
+    xrFailed = 2,  // error - keep source, mark operation failed
+};
+
+// Confirms overwrite of an existing local target unless the user chose all/none.
+// Returns TRUE to proceed with the write, FALSE to skip this file.
+static BOOL ConfirmOverwrite(COperationCtx* ctx, const char* localPath)
+{
+    if (ctx->OverwriteMode == ovAll)
+        return TRUE;
+    if (ctx->OverwriteMode == ovSkipAll)
+        return FALSE;
+    char msg[1400];
+    _snprintf_s(msg, _TRUNCATE, "The local file already exists:\n%s\n\nOverwrite it?\n"
+                "(Yes = this file, No = skip; hold nothing - use Cancel to skip the rest)", localPath);
+    // Yes = overwrite this; No = skip this; Cancel = skip all remaining
+    int r = SalamanderGeneral->SalMessageBox(ctx->Parent, msg, LoadStr(IDS_SFTPERRORTITLE),
+                                             MB_YESNOCANCEL | MB_ICONQUESTION);
+    if (r == IDCANCEL)
+    {
+        ctx->OverwriteMode = ovSkipAll;
+        return FALSE;
+    }
+    return r == IDYES;
+}
+
+static CXferResult DownloadOneFile(COperationCtx* ctx, const char* remotePath, const char* localPath,
+                                   unsigned __int64 remoteSize)
 {
     wchar_t wlocal[4096];
     MakeLocalWidePath(localPath, wlocal, 4096);
 
-    // resume check (FR-011): existing smaller local file
     unsigned __int64 startOffset = 0;
     BOOL append = FALSE;
     WIN32_FILE_ATTRIBUTE_DATA fad;
-    if (GetFileAttributesExW(wlocal, GetFileExInfoStandard, &fad))
+    if (GetFileAttributesExW(wlocal, GetFileExInfoStandard, &fad) &&
+        !(fad.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
     {
         unsigned __int64 localSize = ((unsigned __int64)fad.nFileSizeHigh << 32) | fad.nFileSizeLow;
-        if (localSize > 0 && localSize < remoteSize && (int)localSize >= Config.ResumeMinFileSize)
+        if (localSize > 0 && localSize < remoteSize && localSize >= (unsigned __int64)Config.ResumeMinFileSize)
         {
-            int r = ShowResumePrompt(ctx->Parent, PosixBaseName(remotePath));
-            if (r == IDYES)
-            {
-                startOffset = localSize;
-                append = TRUE;
-            }
-            else if (r == IDCANCEL)
-                return TRUE; // skip this file
+            // partial file: offer resume (FR-011)
+            int r = ShowResumePrompt(ctx->Parent, PosixBaseName(remotePath)); // Yes=resume No=overwrite Cancel=skip
+            if (r == IDYES) { startOffset = localSize; append = TRUE; }
+            else if (r == IDCANCEL) return xrSkipped;
+            // IDNO falls through to overwrite
+        }
+        else
+        {
+            // full/existing file: confirm overwrite so we never silently destroy it
+            if (!ConfirmOverwrite(ctx, localPath))
+                return xrSkipped;
         }
     }
 
@@ -99,7 +163,7 @@ static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const ch
         _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_DOWNLOAD), remotePath, ctx->Session->GetLastErrorText());
         SalamanderGeneral->SalMessageBox(ctx->Parent, msg, LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
         Logs.Append(ctx->Session->GetLogUID(), msg);
-        return FALSE;
+        return xrFailed;
     }
 
     HANDLE lf = CreateFileW(wlocal, GENERIC_WRITE, 0, NULL,
@@ -110,7 +174,7 @@ static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const ch
         char msg[1200];
         _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_OPENLOCAL), localPath);
         SalamanderGeneral->SalMessageBox(ctx->Parent, msg, LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
-        return FALSE;
+        return xrFailed;
     }
     if (append)
     {
@@ -120,18 +184,18 @@ static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const ch
         ctx->Session->SeekWrite(h, startOffset);
     }
 
-    BOOL ok = TRUE;
+    CXferResult res = xrOk;
     for (;;)
     {
         if (ctx->CheckCancel())
         {
-            ok = FALSE;
+            res = xrFailed;
             break;
         }
         __int64 n = ctx->Session->Read(h, ctx->Buffer, XFER_BUFSIZE);
         if (n < 0)
         {
-            ok = FALSE;
+            res = xrFailed;
             SalamanderGeneral->SalMessageBox(ctx->Parent, LoadStr(IDS_ERR_READREMOTE),
                                              LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             break;
@@ -141,7 +205,7 @@ static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const ch
         DWORD written = 0;
         if (!WriteFile(lf, ctx->Buffer, (DWORD)n, &written, NULL) || written != (DWORD)n)
         {
-            ok = FALSE;
+            res = xrFailed;
             SalamanderGeneral->SalMessageBox(ctx->Parent, LoadStr(IDS_ERR_DISKFULL),
                                              LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             break;
@@ -149,13 +213,13 @@ static BOOL DownloadOneFile(COperationCtx* ctx, const char* remotePath, const ch
     }
     CloseHandle(lf);
     ctx->Session->CloseHandle(h);
-    return ok;
+    return res;
 }
 
-static BOOL DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
-                              unsigned long mode, BOOL isLink, unsigned __int64 size);
+static CXferResult DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
+                                     unsigned long mode, BOOL isLink, unsigned __int64 size);
 
-static BOOL DownloadDir(COperationCtx* ctx, const char* remoteDir, const char* localDir)
+static CXferResult DownloadDir(COperationCtx* ctx, const char* remoteDir, const char* localDir)
 {
     wchar_t wdir[4096];
     MakeLocalWidePath(localDir, wdir, 4096);
@@ -167,41 +231,40 @@ static BOOL DownloadDir(COperationCtx* ctx, const char* remoteDir, const char* l
         char msg[1200];
         _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_LISTDIR), remoteDir, ctx->Session->GetLastErrorText());
         SalamanderGeneral->SalMessageBox(ctx->Parent, msg, LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
-        return FALSE;
+        return xrFailed;
     }
 
-    BOOL ok = TRUE;
+    CXferResult agg = xrOk; // xrOk only if every child fully transferred
     for (int i = 0; i < entries.Count && !ctx->CheckCancel(); i++)
     {
         CSFTPDirEntry* e = entries[i];
-        char rpath[4096], lpath[4096];
-        PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
-        _snprintf_s(lpath, _TRUNCATE, "%s\\%s", localDir, e->Name);
+        char rpath[4096], lpath[4096], safe[512];
+        PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath)); // real remote name
+        SanitizeLocalName(e->Name, safe, sizeof(safe));            // safe local name
+        _snprintf_s(lpath, _TRUNCATE, "%s\\%s", localDir, safe);
         BOOL isLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-        if (!DownloadRecursive(ctx, rpath, lpath, e->Mode, isLink, e->Size))
-            ok = FALSE;
+        CXferResult r = DownloadRecursive(ctx, rpath, lpath, e->Mode, isLink, e->Size);
+        if (r == xrFailed) agg = xrFailed;
+        else if (r == xrSkipped && agg == xrOk) agg = xrSkipped;
     }
-    return ok;
+    return agg;
 }
 
-static BOOL DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
-                              unsigned long mode, BOOL isLink, unsigned __int64 size)
+static CXferResult DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
+                                     unsigned long mode, BOOL isLink, unsigned __int64 size)
 {
     if (ctx->CheckCancel())
-        return FALSE;
+        return xrFailed;
 
     if (isLink)
     {
-        // resolve the target type: file links are followed (content), directory
-        // links are skipped and reported (clarification #4)
         LIBSSH2_SFTP_ATTRIBUTES attrs;
         if (ctx->Session->Stat(remotePath, TRUE, &attrs) && (attrs.flags & LIBSSH2_SFTP_ATTR_PERMISSIONS) &&
             SFTP_S_ISDIR(attrs.permissions))
         {
             Logs.AppendFmt(ctx->Session->GetLogUID(), LoadStr(IDS_SYMLINK_DIR_SKIPPED), remotePath);
-            return TRUE;
+            return xrSkipped; // directory symlink not followed (clarification #4)
         }
-        // treat as a regular file (open follows the link)
         WaitText("Downloading %s ...", PosixBaseName(remotePath));
         return DownloadOneFile(ctx, remotePath, localPath, size);
     }
@@ -213,6 +276,46 @@ static BOOL DownloadRecursive(COperationCtx* ctx, const char* remotePath, const 
     return DownloadOneFile(ctx, remotePath, localPath, size);
 }
 
+// collects the panel's selection (or focus) into 'items', storing the true
+// remote name (SFTPRealName) so operations target the correct server file
+static void CollectPanelItems(int panel, TIndirectArray<CSFTPDirEntry>* items)
+{
+    int index = 0;
+    BOOL isDir = FALSE;
+    for (;;)
+    {
+        const CFileData* it = SalamanderGeneral->GetPanelSelectedItem(panel, &index, &isDir);
+        if (it == NULL)
+            break;
+        CSFTPDirEntry* e = new CSFTPDirEntry;
+        if (e == NULL)
+            break;
+        e->Name = _strdup(SFTPRealName(it));
+        CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
+        if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
+        e->Size = it->Size.Value;
+        items->Add(e);
+        if (!items->IsGood()) { items->ResetState(); delete e; break; }
+    }
+    if (items->Count == 0)
+    {
+        const CFileData* it = SalamanderGeneral->GetPanelFocusedItem(panel, &isDir);
+        if (it != NULL && strcmp(it->Name, "..") != 0)
+        {
+            CSFTPDirEntry* e = new CSFTPDirEntry;
+            if (e != NULL)
+            {
+                e->Name = _strdup(SFTPRealName(it));
+                CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
+                if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
+                e->Size = it->Size.Value;
+                items->Add(e);
+                if (!items->IsGood()) { items->ResetState(); delete e; }
+            }
+        }
+    }
+}
+
 BOOL SFTPDownloadFromPanel(HWND parent, CSFTPSession* session, int panel,
                            const char* remoteDir, const char* targetLocalPath, BOOL move)
 {
@@ -221,60 +324,25 @@ BOOL SFTPDownloadFromPanel(HWND parent, CSFTPSession* session, int panel,
                                             SalamanderGeneral->GetMainWindowHWND());
 
     BOOL ok = TRUE;
-    int index = 0;
-    BOOL isDir = FALSE;
-    const CFileData* fd = SalamanderGeneral->GetPanelSelectedItem(panel, &index, &isDir);
-    if (fd == NULL)
-        fd = SalamanderGeneral->GetPanelFocusedItem(panel, &isDir);
-
-    // collect names first (selection pointers stay valid within the main thread,
-    // but we avoid holding them across the transfer)
     TIndirectArray<CSFTPDirEntry> items(16, 16);
-    index = 0;
-    for (;;)
-    {
-        const CFileData* it = SalamanderGeneral->GetPanelSelectedItem(panel, &index, &isDir);
-        if (it == NULL)
-            break;
-        CSFTPDirEntry* e = new CSFTPDirEntry;
-        e->Name = _strdup(it->Name);
-        CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
-        if (d != NULL)
-        {
-            e->Mode = d->Mode;
-            e->HasMode = d->HasMode;
-        }
-        e->Size = it->Size.Value;
-        items.Add(e);
-    }
-    if (items.Count == 0)
-    {
-        const CFileData* it = SalamanderGeneral->GetPanelFocusedItem(panel, &isDir);
-        if (it != NULL && strcmp(it->Name, "..") != 0)
-        {
-            CSFTPDirEntry* e = new CSFTPDirEntry;
-            e->Name = _strdup(it->Name);
-            CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
-            if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
-            e->Size = it->Size.Value;
-            items.Add(e);
-        }
-    }
+    CollectPanelItems(panel, &items);
 
     for (int i = 0; i < items.Count && !ctx.CheckCancel(); i++)
     {
         CSFTPDirEntry* e = items[i];
-        char rpath[4096], lpath[4096];
+        char rpath[4096], lpath[4096], safe[512];
         PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
-        _snprintf_s(lpath, _TRUNCATE, "%s\\%s", targetLocalPath, e->Name);
+        SanitizeLocalName(e->Name, safe, sizeof(safe));
+        _snprintf_s(lpath, _TRUNCATE, "%s\\%s", targetLocalPath, safe);
         BOOL isLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-        if (!DownloadRecursive(&ctx, rpath, lpath, e->Mode, isLink, e->Size))
+        CXferResult r = DownloadRecursive(&ctx, rpath, lpath, e->Mode, isLink, e->Size);
+        if (r == xrFailed)
             ok = FALSE;
-        else if (move && ok)
+        else if (r == xrOk && move)
         {
-            // delete source after a successful move of a top-level item
+            // delete the source ONLY when the item was fully transferred
             if (e->HasMode && SFTP_S_ISDIR(e->Mode))
-                session->Rmdir(rpath);
+                session->Rmdir(rpath); // best-effort; fails (kept) if not fully emptied
             else
                 session->Unlink(rpath);
         }
@@ -395,6 +463,38 @@ static BOOL UploadDirRecursive(COperationCtx* ctx, const char* localDir, const c
     return ok;
 }
 
+// recursively deletes a local directory tree (for move disk->FS)
+static void DeleteLocalTree(const char* localDir)
+{
+    wchar_t wpattern[4096];
+    char pattern[4096];
+    _snprintf_s(pattern, _TRUNCATE, "%s\\*", localDir);
+    MakeLocalWidePath(pattern, wpattern, 4096);
+    WIN32_FIND_DATAW fd;
+    HANDLE hFind = FindFirstFileW(wpattern, &fd);
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
+                continue;
+            char name[1024], child[4096];
+            WideToUtf8(fd.cFileName, name, sizeof(name));
+            _snprintf_s(child, _TRUNCATE, "%s\\%s", localDir, name);
+            wchar_t wchild[4096];
+            MakeLocalWidePath(child, wchild, 4096);
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                DeleteLocalTree(child);
+            else
+                DeleteFileW(wchild);
+        } while (FindNextFileW(hFind, &fd));
+        FindClose(hFind);
+    }
+    wchar_t wdir[4096];
+    MakeLocalWidePath(localDir, wdir, 4096);
+    RemoveDirectoryW(wdir);
+}
+
 BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
                     SalEnumSelection2 next, void* nextParam, const char* targetRemoteDir, BOOL move)
 {
@@ -402,6 +502,11 @@ BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
     SalamanderGeneral->CreateSafeWaitWindow(LoadStr(IDS_PLUGINNAME), LoadStr(IDS_PLUGINNAME), 500, TRUE,
                                             SalamanderGeneral->GetMainWindowHWND());
     BOOL ok = TRUE;
+
+    // the enumerator returns names relative to 'sourcePath'; ensure a separator
+    char srcBase[3072];
+    lstrcpynA(srcBase, sourcePath, sizeof(srcBase));
+    SalamanderGeneral->SalPathAddBackslash(srcBase, sizeof(srcBase));
 
     next(NULL, -1, NULL, NULL, NULL, NULL, NULL, nextParam, NULL); // reset enumeration
     BOOL isDir = FALSE;
@@ -415,18 +520,26 @@ BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
             break;
         }
         char lpath[4096], rpath[4096];
-        _snprintf_s(lpath, _TRUNCATE, "%s%s", sourcePath, name);
+        _snprintf_s(lpath, _TRUNCATE, "%s%s", srcBase, name);
         PosixPathAppend(targetRemoteDir, PosixBaseName(name), rpath, sizeof(rpath));
+        BOOL itemOk;
         if (isDir)
-        {
-            if (!UploadDirRecursive(&ctx, lpath, rpath))
-                ok = FALSE;
-        }
+            itemOk = UploadDirRecursive(&ctx, lpath, rpath);
         else
         {
             WaitText("Uploading %s ...", name);
-            if (!UploadOneFile(&ctx, lpath, rpath))
-                ok = FALSE;
+            itemOk = UploadOneFile(&ctx, lpath, rpath);
+        }
+        if (!itemOk)
+            ok = FALSE;
+        else if (move) // delete the local source only after a fully successful upload
+        {
+            wchar_t wl[4096];
+            MakeLocalWidePath(lpath, wl, 4096);
+            if (isDir)
+                DeleteLocalTree(lpath);
+            else
+                DeleteFileW(wl);
         }
     }
     if (err == SALENUM_CANCEL)
@@ -488,31 +601,7 @@ BOOL SFTPDeleteFromPanel(HWND parent, CSFTPSession* session, int panel, const ch
     BOOL ok = TRUE;
 
     TIndirectArray<CSFTPDirEntry> items(16, 16);
-    int index = 0;
-    BOOL isDir = FALSE;
-    for (;;)
-    {
-        const CFileData* it = SalamanderGeneral->GetPanelSelectedItem(panel, &index, &isDir);
-        if (it == NULL)
-            break;
-        CSFTPDirEntry* e = new CSFTPDirEntry;
-        e->Name = _strdup(it->Name);
-        CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
-        if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
-        items.Add(e);
-    }
-    if (items.Count == 0)
-    {
-        const CFileData* it = SalamanderGeneral->GetPanelFocusedItem(panel, &isDir);
-        if (it != NULL && strcmp(it->Name, "..") != 0)
-        {
-            CSFTPDirEntry* e = new CSFTPDirEntry;
-            e->Name = _strdup(it->Name);
-            CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
-            if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
-            items.Add(e);
-        }
-    }
+    CollectPanelItems(panel, &items);
 
     for (int i = 0; i < items.Count && !ctx.CheckCancel(); i++)
     {
@@ -564,25 +653,23 @@ static void ChmodRecursive(COperationCtx* ctx, const char* remotePath, unsigned 
 
 BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, const char* remoteDir)
 {
-    // seed from the focused item
-    BOOL isDir = FALSE;
-    const CFileData* focus = SalamanderGeneral->GetPanelFocusedItem(panel, &isDir);
+    // Collect the working set FIRST (real remote names) - the panel CFileData
+    // pointers are invalidated once the modal chmod dialog pumps messages, so we
+    // must not dereference them afterwards.
+    TIndirectArray<CSFTPDirEntry> items(16, 16);
+    CollectPanelItems(panel, &items);
+    if (items.Count == 0)
+        return FALSE;
+
+    // seed the dialog mode/label from the collected copy (not a live pointer)
     unsigned long mode = 0644;
     char label[256];
-    label[0] = 0;
-    if (focus != NULL)
-    {
-        CSFTPItemData* d = (CSFTPItemData*)focus->PluginData;
-        if (d != NULL && d->HasMode)
-            mode = d->Mode & 07777;
-        lstrcpynA(label, focus->Name, sizeof(label));
-    }
-
-    int selFiles = 0, selDirs = 0;
-    SalamanderGeneral->GetPanelSelection(panel, &selFiles, &selDirs);
-    BOOL multiple = (selFiles + selDirs) > 1;
+    if (items[0]->HasMode)
+        mode = items[0]->Mode & 07777;
+    lstrcpynA(label, items[0]->Name, sizeof(label));
+    BOOL multiple = items.Count > 1;
     if (multiple)
-        _snprintf_s(label, _TRUNCATE, "%d file(s), %d dir(s)", selFiles, selDirs);
+        _snprintf_s(label, _TRUNCATE, "%d item(s)", items.Count);
 
     BOOL recurse = FALSE, setTime = FALSE;
     __int64 mtime = 0;
@@ -592,30 +679,6 @@ BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, con
     COperationCtx ctx(parent, session);
     SalamanderGeneral->CreateSafeWaitWindow(LoadStr(IDS_PLUGINNAME), LoadStr(IDS_PLUGINNAME), 500, TRUE,
                                             SalamanderGeneral->GetMainWindowHWND());
-
-    // build the working set
-    TIndirectArray<CSFTPDirEntry> items(16, 16);
-    int index = 0;
-    BOOL d2 = FALSE;
-    for (;;)
-    {
-        const CFileData* it = SalamanderGeneral->GetPanelSelectedItem(panel, &index, &d2);
-        if (it == NULL)
-            break;
-        CSFTPDirEntry* e = new CSFTPDirEntry;
-        e->Name = _strdup(it->Name);
-        CSFTPItemData* dd = (CSFTPItemData*)it->PluginData;
-        if (dd != NULL) { e->Mode = dd->Mode; e->HasMode = dd->HasMode; }
-        items.Add(e);
-    }
-    if (items.Count == 0 && focus != NULL && strcmp(focus->Name, "..") != 0)
-    {
-        CSFTPDirEntry* e = new CSFTPDirEntry;
-        e->Name = _strdup(focus->Name);
-        CSFTPItemData* dd = (CSFTPItemData*)focus->PluginData;
-        if (dd != NULL) { e->Mode = dd->Mode; e->HasMode = dd->HasMode; }
-        items.Add(e);
-    }
 
     for (int i = 0; i < items.Count && !ctx.CheckCancel(); i++)
     {

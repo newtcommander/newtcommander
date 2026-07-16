@@ -14,10 +14,15 @@ struct CSFTPItemData
     char* Owner;        // heap owner name or NULL (numeric fallback used)
     char* Group;        // heap group name or NULL
     char* LinkTarget;   // heap symlink target or NULL
+    char* RealName;     // original (unsanitized) remote name for path building
     BOOL LinkIsDir;
     BOOL LinkBroken;
     BOOL HasMode;
 };
+
+// Returns the true remote name for building server paths: the unsanitized
+// RealName from PluginData when present, else the panel name.
+const char* SFTPRealName(const CFileData* file);
 
 // custom column discriminators (stored in CColumn::CustomData)
 #define SFTPCOL_RIGHTS 1

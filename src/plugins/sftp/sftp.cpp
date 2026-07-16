@@ -273,6 +273,8 @@ static void ReEncryptBlob(HWND parent, BYTE** blob, int* blobSize, BOOL encrypt)
             memcpy(*blob, newBlob, newSize);
             *blobSize = newSize;
         }
+        else
+            *blobSize = 0; // keep size consistent with the now-NULL blob on OOM
         SalamanderGeneral->Free(newBlob);
     }
     SecureZeroMemory(plain, strlen(plain));
@@ -681,6 +683,9 @@ BOOL WINAPI CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperations
             LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
         return FALSE;
     }
+    case SFTPCMD_DEFERREDCD:
+        ExecuteDeferredCd(); // deferred path change from ExecuteCommandLine (safe here)
+        return FALSE;
     }
     return FALSE;
 }

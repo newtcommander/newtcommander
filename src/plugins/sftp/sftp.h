@@ -175,6 +175,7 @@ public:
 #define SFTPCMD_ORGANIZEBOOKMARKS 2
 #define SFTPCMD_SHOWLOGS 3
 #define SFTPCMD_CREATESYMLINK 4
+#define SFTPCMD_DEFERREDCD 5 // internal: deferred path change from the command line
 
 class CPluginInterfaceForMenuExt : public CPluginInterfaceForMenuExtAbstract
 {
