@@ -91,6 +91,7 @@ Detailed analysis is in the `architecture/` directory:
 | [06-plugin-architecture.md](architecture/06-plugin-architecture.md) | Plugin API, .spl/.slg format |
 | [07-preprocessor-defs.md](architecture/07-preprocessor-defs.md) | All #defines by configuration |
 | [08-code-standards.md](architecture/08-code-standards.md) | Encoding, formatting, conventions |
+| [09-plugin-catalog.md](architecture/09-plugin-catalog.md) | All 36 plugins categorized by purpose |
 
 ## Compiler Recommendation
 
