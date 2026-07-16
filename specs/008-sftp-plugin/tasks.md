@@ -42,6 +42,16 @@ a plugin-side OpenSSH-container/ed25519 parser + bcrypt-KDF is required for the 
 `ssh-keygen` makes by default. Current build supports password auth (verified) and
 classic PEM RSA key auth (verified); OpenSSH-container/ed25519 keys are not yet accepted.
 
+**Adversarial code review done** (whole plugin, cross-checked against the SDK + FTP
+reference): **19 bugs found and fixed** — data-loss cases (move deleting skipped/partial
+sources, silent overwrite, upload path-separator, path traversal), correctness (remote
+ops using the sanitized name, mode-1 target prefix, 64-bit resume), crash-risks (focus
+CFileData used after a modal dialog, `ChangePanelPathToPluginFS` inside an FS method,
+unterminated `realpath` buffer), and robustness (keepalive never armed, listing cancel
+dead, stale owner/group, overwrite/OOM handling, IPv6 literals). All fixes build in every
+config and the runtime smoke test still passes. See commit "fix 19 bugs from adversarial
+code review".
+
 **Remaining — minor**: T070 (clang-format sweep), T073 (docs polish).
 
 ## Format: `[ID] [P?] [Story] Description`
