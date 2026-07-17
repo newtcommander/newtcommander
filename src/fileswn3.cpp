@@ -92,7 +92,9 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
     DeleteColumnsWithoutData();                      // removing columns for which we don't have data (empty values would be shown in them)
     GetPluginIconIndex = InternalGetPluginIconIndex; // setting standard callback (just returns zero)
 
-    char fileName[MAX_PATH + 4];
+    // feature 010: the search mask carries the (possibly long) current path +
+    // "\*"; the previous MAX_PATH buffer overflowed for long paths (feature 004)
+    char fileName[SAL_MAX_PATH_UTF8 + 4];
 
     if (Is(ptDisk))
     {
@@ -280,7 +282,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 
         // after 2000 ms we will show a window with a cancel prompt
         char buf[2 * MAX_PATH + 100];
-        sprintf(buf, LoadStr(IDS_READINGPATHESC), GetPath());
+        _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_READINGPATHESC), GetPath()); // path may exceed the buffer (long paths, feature 010)
         CreateSafeWaitWindow(buf, NULL, 2000, TRUE, MainWindow->HWindow);
 
         DWORD lastEscCheckTime;
@@ -951,7 +953,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             }
 
             isWin64RedirectedDir = TRUE;
-            search = NULL; // the second/third pass...
+            search = NULL;                                        // the second/third pass...
             lstrcpyn(nameU8, fileData.cFileName, sizeof(nameU8)); // synthetic dir name (ASCII)
             lstrcpyn(dosNameU8, fileData.cAlternateFileName, sizeof(dosNameU8));
             st = nameU8;
@@ -1000,8 +1002,8 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 }
             }
             if (equivName != NULL)
-            { // the notice must not be shown from here - a modal box would block the
-              // rest of the listing; post it and show it once the panel is refreshed
+            {   // the notice must not be shown from here - a modal box would block the
+                // rest of the listing; post it and show it once the panel is refreshed
                 SetEquivalentPairNoticeShown(TRUE);
                 SetEquivalentPairNoticeName(equivName);
                 PostMessage(HWindow, WM_USER_EQUIVPAIRNOTICE, 0, 0);
@@ -1959,8 +1961,8 @@ BOOL CFilesWindow::ChangeDir(const char* newDir, int suggestedTopIndex, const ch
         suggestedFocusName = backup;
     }
 
-    MainWindow->CancelPanelsUI(); // cancel QuickSearch and QuickEdit
-    char absFSPath[MAX_PATH];       // plugin FS paths keep the legacy convention
+    MainWindow->CancelPanelsUI();                  // cancel QuickSearch and QuickEdit
+    char absFSPath[MAX_PATH];                      // plugin FS paths keep the legacy convention
     char* path = (char*)malloc(SAL_MAX_PATH_UTF8); // long-path capable (feature 004)
     if (path == NULL)
     {
@@ -2138,7 +2140,7 @@ CHANGE_AGAIN:
             int errTextID;
             const char* text = NULL;                 // caution: textFailReason must be set
             int textFailReason = CHPPFR_INVALIDPATH; // if text != NULL, textFailReason contains the error code
-            char curPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
+            char curPath[SAL_MAX_PATH_UTF8];         // long-path capable (feature 004)
             curPath[0] = 0;
             if (sendDirectlyToPluginLocal)
                 errTextID = IDS_INCOMLETEFILENAME;
@@ -2231,7 +2233,7 @@ CHANGE_AGAIN:
             {
                 if (*path != 0 && path[1] == ':')
                     path[0] = UpperCase[path[0]]; // "c:" path will be "C:"
-                char copy[SAL_MAX_PATH_UTF8]; // long-path capable (feature 004)
+                char copy[SAL_MAX_PATH_UTF8];     // long-path capable (feature 004)
                 int len = GetRootPath(copy, path);
 
                 if (!CheckAndRestorePath(copy))
@@ -2379,7 +2381,7 @@ CHANGE_AGAIN:
                             {
                                 HANDLES(FindClose(h));
                                 int len2 = (int)strlen(findNameU8); // must fit (only the size of letters is changed - result of the enumeration)
-                                if ((int)strlen(st + 1) != len2)        // for example, for "aaa  " it returns "aaa"; reproduce: Paste (text without outer quotes): "   "   %TEMP%\aaa   "   "
+                                if ((int)strlen(st + 1) != len2)    // for example, for "aaa  " it returns "aaa"; reproduce: Paste (text without outer quotes): "   "   %TEMP%\aaa   "   "
                                 {
                                     TRACE_E("CFilesWindow::ChangeDir(): unexpected situation: enumeration returned name with "
                                             "different length: \""

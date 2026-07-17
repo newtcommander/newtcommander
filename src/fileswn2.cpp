@@ -58,9 +58,44 @@ void CFilesWindow::Execute(int index)
     if (index < 0 || index >= Dirs->Count + Files->Count)
         return;
 
-    char path[MAX_PATH];
-    char fullName[MAX_PATH + 10];
-    char doublePath[2 * MAX_PATH];
+    // feature 010: navigation composes paths beyond MAX_PATH (long paths,
+    // feature 004); the buffers are heap-backed - SAL_MAX_PATH_UTF8 arrays are
+    // too large for this potentially reentrant frame (ExecuteAssociation pumps
+    // messages) - and are released on every return by the holder's destructor
+    struct CPathBufs
+    {
+        char* Path;       // SAL_MAX_PATH_UTF8
+        char* FullName;   // SAL_MAX_PATH_UTF8 + 10
+        char* FullPath;   // SAL_MAX_PATH_UTF8
+        char* DoublePath; // 2 * SAL_MAX_PATH_UTF8
+        CPathBufs()
+        {
+            Path = (char*)malloc(SAL_MAX_PATH_UTF8);
+            FullName = (char*)malloc(SAL_MAX_PATH_UTF8 + 10);
+            FullPath = (char*)malloc(SAL_MAX_PATH_UTF8);
+            DoublePath = (char*)malloc(2 * SAL_MAX_PATH_UTF8);
+        }
+        ~CPathBufs()
+        {
+            if (Path != NULL)
+                free(Path);
+            if (FullName != NULL)
+                free(FullName);
+            if (FullPath != NULL)
+                free(FullPath);
+            if (DoublePath != NULL)
+                free(DoublePath);
+        }
+        BOOL IsGood() { return Path != NULL && FullName != NULL && FullPath != NULL && DoublePath != NULL; }
+    } bufs;
+    if (!bufs.IsGood())
+    {
+        TRACE_E(LOW_MEMORY);
+        return;
+    }
+    char* path = bufs.Path;
+    char* fullName = bufs.FullName;
+    char* doublePath = bufs.DoublePath;
     WIN32_FIND_DATA data;
 
     BeginStopRefresh();
@@ -78,18 +113,18 @@ void CFilesWindow::Execute(int index)
 
             CFileData* file = &Files->At(index - Dirs->Count);
             char* fileName = file->Name;
-            char fullPath[MAX_PATH];
+            char* fullPath = bufs.FullPath; // long-path capable (feature 010)
             char netFSName[MAX_PATH];
             netFSName[0] = 0;
             if (file->DosName != NULL)
             {
                 lstrcpy(fullPath, GetPath());
-                if (SalPathAppend(fullPath, file->Name, MAX_PATH) &&
+                if (SalPathAppend(fullPath, file->Name, SAL_MAX_PATH_UTF8) &&
                     SalGetFileAttributes(fullPath) == INVALID_FILE_ATTRIBUTES &&
                     GetLastError() == ERROR_FILE_NOT_FOUND)
                 {
                     lstrcpy(fullPath, GetPath());
-                    if (SalPathAppend(fullPath, file->DosName, MAX_PATH) &&
+                    if (SalPathAppend(fullPath, file->DosName, SAL_MAX_PATH_UTF8) &&
                         SalGetFileAttributes(fullPath) != INVALID_FILE_ATTRIBUTES)
                     { // when full name is not available (problem converting from multibyte to UNICODE), we'll use DOS name
                         fileName = file->DosName;
@@ -226,7 +261,7 @@ void CFilesWindow::Execute(int index)
                 {
                     // construction of full archive name for ChangePathToArchive
                     strcpy(fullName, GetPath());
-                    if (!SalPathAppend(fullName, fileName, MAX_PATH))
+                    if (!SalPathAppend(fullName, fileName, SAL_MAX_PATH_UTF8)) // long-path capable (feature 010)
                     {
                         SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORCHANGINGDIR),
                                       MB_OK | MB_ICONEXCLAMATION);
@@ -258,7 +293,7 @@ void CFilesWindow::Execute(int index)
             // the ExecuteAssociation below can change the panel path during recursive
             // calls (it contains a message loop), so we store the full file name here
             lstrcpy(fullPath, GetPath());
-            if (!SalPathAppend(fullPath, fileName, MAX_PATH))
+            if (!SalPathAppend(fullPath, fileName, SAL_MAX_PATH_UTF8)) // long-path capable (feature 010)
                 fullPath[0] = 0;
 
             // launch of the default context menu item (association)
@@ -326,7 +361,7 @@ void CFilesWindow::Execute(int index)
 
                 // new path
                 strcpy(fullName, path);
-                if (!SalPathAppend(fullName, dir->Name, MAX_PATH))
+                if (!SalPathAppend(fullName, dir->Name, SAL_MAX_PATH_UTF8)) // long-path capable (feature 010)
                 {
                     SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORCHANGINGDIR),
                                   MB_OK | MB_ICONEXCLAMATION);
@@ -340,7 +375,7 @@ void CFilesWindow::Execute(int index)
                 if (GetPathDriveType() == DRIVE_FIXED && (dir->Attr & FILE_ATTRIBUTE_REPARSE_POINT) &&
                     GetReparsePointDestination(fullName, junctTgtPath, MAX_PATH, &repPointType, TRUE) &&
                     repPointType == 2 /* JUNCTION POINT */ &&
-                    SalPathAppend(fullName, "*", MAX_PATH + 10))
+                    SalPathAppend(fullName, "*", SAL_MAX_PATH_UTF8 + 10))
                 {
                     WIN32_FIND_DATAW fileDataW;
                     HANDLE search = SalFindFirstFile(fullName, &fileDataW);
@@ -450,8 +485,8 @@ void CFilesWindow::Execute(int index)
 
                         // we build shortened path to archive and obtain top index accordingly
                         strcpy(doublePath, GetZIPArchive());
-                        SalPathAppend(doublePath, path, 2 * MAX_PATH);
-                        int topIndex; // next top index, -1 -> invalid
+                        SalPathAppend(doublePath, path, 2 * SAL_MAX_PATH_UTF8); // long-path capable (feature 010)
+                        int topIndex;                                           // next top index, -1 -> invalid
                         if (!TopIndexMem.FindAndPop(doublePath, topIndex))
                             topIndex = -1;
 
@@ -466,12 +501,12 @@ void CFilesWindow::Execute(int index)
                 {
                     // backup data for TopIndexMem (doublePath + topIndex)
                     strcpy(doublePath, GetZIPArchive());
-                    SalPathAppend(doublePath, GetZIPPath(), 2 * MAX_PATH);
+                    SalPathAppend(doublePath, GetZIPPath(), 2 * SAL_MAX_PATH_UTF8); // long-path capable (feature 010)
                     int topIndex = ListBox->GetTopIndex();
 
                     // new path
                     strcpy(fullName, GetZIPPath());
-                    if (!SalPathAppend(fullName, dir->Name, MAX_PATH))
+                    if (!SalPathAppend(fullName, dir->Name, SAL_MAX_PATH_UTF8))
                     {
                         SalMessageBox(HWindow, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORCHANGINGDIR),
                                       MB_OK | MB_ICONEXCLAMATION);
@@ -1913,9 +1948,9 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
                     }
                     // we report the error that caused the path to be shortened
                     char errBuf[2 * MAX_PATH + 100];
-                    sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT),
-                            openIfPathIsInaccessibleGoToCfg ? ifPathIsInaccessibleGoTo : path,
-                            GetErrorText(lastErr));
+                    _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), // path may exceed the buffer (long paths, feature 010)
+                                openIfPathIsInaccessibleGoToCfg ? ifPathIsInaccessibleGoTo : path,
+                                GetErrorText(lastErr));
                     SalMessageBox(parent, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                   MB_OK | MB_ICONEXCLAMATION);
                     if (openIfPathIsInaccessibleGoToCfg)

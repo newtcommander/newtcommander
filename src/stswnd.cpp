@@ -1833,7 +1833,7 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (str == NULL)
                 text[0] = 0;
             else
-                lstrcpy(text, str);
+                lstrcpyn(text, str, TOOLTIP_TEXT_MAX); // a long path may exceed the tooltip buffer (feature 010)
             break;
         }
 
@@ -1933,13 +1933,18 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 int index;
                 if (FindHotTrackItem(LButtonDownPoint.x - TextRect.left, index))
                 {
-                    char buffer[MAX_PATH];
-                    GetItemText(&HotTrackItems[index], buffer, MAX_PATH); // UTF-8 (true path, feature 010)
+                    char* buffer = (char*)malloc(SAL_MAX_PATH_UTF8); // long-path capable (feature 010); freed at block end
+                    if (buffer == NULL)
+                    {
+                        TRACE_E(LOW_MEMORY);
+                        break;
+                    }
+                    GetItemText(&HotTrackItems[index], buffer, SAL_MAX_PATH_UTF8); // UTF-8 (true path, feature 010)
                     int hotChars = (int)strlen(buffer);
                     // For a Directory Line with a plugin FS, the plugin still needs to be allowed to finalize adjustments to the path (adding ']' for VMS paths over FTP)
                     if ((Border & blTop) && FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
                     {
-                        FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(buffer, MAX_PATH);
+                        FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(buffer, SAL_MAX_PATH_UTF8);
                         FilesWindow->GetPluginFS()->GetPluginInterfaceForFS()->ConvertPathToExternal(FilesWindow->GetPluginFS()->GetPluginFSName(),
                                                                                                      FilesWindow->GetPluginFS()->GetPluginFSNameIndex(),
                                                                                                      strchr(buffer, ':') + 1);
@@ -1997,6 +2002,7 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         if (dropSource != NULL)
                             dropSource->Release();
                     }
+                    free(buffer);
                 }
             }
         }
@@ -2214,13 +2220,19 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         if (HotItem != lastItem)
                         {
                             // Path shortening
-                            char path[MAX_PATH];
-                            GetItemText(HotItem, path, MAX_PATH); // UTF-8 (true path, feature 010)
+                            char* path = (char*)malloc(SAL_MAX_PATH_UTF8); // long-path capable (feature 010)
+                            if (path != NULL)
+                            {
+                                GetItemText(HotItem, path, SAL_MAX_PATH_UTF8); // UTF-8 (true path, feature 010)
 
-                            if (FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
-                                FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(path, MAX_PATH);
+                                if (FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
+                                    FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(path, SAL_MAX_PATH_UTF8);
 
-                            FilesWindow->ChangeDir(path, -1, NULL, 2 /* jako back/forward in history*/, NULL, FALSE);
+                                FilesWindow->ChangeDir(path, -1, NULL, 2 /* jako back/forward in history*/, NULL, FALSE);
+                                free(path);
+                            }
+                            else
+                                TRACE_E(LOW_MEMORY);
                         }
                         else
                         {
