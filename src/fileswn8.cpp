@@ -76,7 +76,16 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
     CALL_STACK_MESSAGE2("CFilesWindow::DeleteThroughRecycleBin(, %d,)", selCount);
 
     int i = 0;
+    // feature 011: the shell recycle bin (SHFileOperation) is MAX_PATH-bound;
+    // a longer current path cannot be deleted this way - report the standard
+    // too-long-name error instead of overflowing the buffer (safe degradation)
     char path[MAX_PATH];
+    if (strlen(GetPath()) + 1 >= MAX_PATH) // +1 for the trailing backslash
+    {
+        SalMessageBox(MainWindow->HWindow, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORTITLE),
+                      MB_OK | MB_ICONEXCLAMATION);
+        return FALSE;
+    }
     strcpy(path, GetPath());
     SalPathAddBackslash(path, MAX_PATH);
     int pathLen = (int)strlen(path);
@@ -86,7 +95,7 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
     if (!PathContainsValidComponents(path, TRUE))
     {
         char textBuf[2 * MAX_PATH + 200];
-        sprintf(textBuf, LoadStr(IDS_RECYCLEBINERROR), path);
+        _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_RECYCLEBINERROR), path); // hardening (feature 011)
         SalMessageBox(MainWindow->HWindow, textBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
         return FALSE; // quick dirty bloody hack - Recycle Bin simply cannot handle names ending with a space or dot (it deletes a different name created by trimming those characters, which we definitely don't want)
     }

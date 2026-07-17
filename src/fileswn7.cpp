@@ -1682,13 +1682,16 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
         pathAlt[0] = 0;
         if (target->Is(ptDisk))
         {
+            // feature 011: the unpack dialog uses MAX_PATH target buffers; a
+            // longer panel path is bounded here (the downstream "< MAX_PATH"
+            // checks then degrade gracefully) - never overflow
             if (Configuration.UseAnotherPanelForUnpack)
             {
                 target->UserWorkedOnThisPath = TRUE; // default action = work with the path in the target panel
-                strcpy(path, target->GetPath());
+                lstrcpyn(path, target->GetPath(), MAX_PATH);
             }
             else
-                strcpy(pathAlt, target->GetPath());
+                lstrcpyn(pathAlt, target->GetPath(), MAX_PATH);
         }
         char fileName[MAX_PATH];
         AlterFileName(fileName, file->Name, -1, Configuration.FileNameFormat, 0, FALSE);
@@ -1782,7 +1785,7 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
             if (!SalGetFullName(path, &errTextID, Is(ptDisk) ? GetPath() : NULL, nextFocus))
             {
                 if (errTextID == IDS_EMPTYNAMENOTALLOWED)
-                    strcpy(path, GetPath());
+                    lstrcpyn(path, GetPath(), MAX_PATH); // bounded (feature 011); MAX_PATH dialog buffer
                 else
                     text = LoadStr(errTextID);
             }

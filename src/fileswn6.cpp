@@ -1237,7 +1237,7 @@ BOOL CFilesWindow::BuildScriptMain(COperations* script, CActionType type,
 
     GetAsyncKeyState(VK_ESCAPE); // initialize GetAsyncKeyState - see help
 
-    char sourcePath[2 * MAX_PATH + 10]; // +extra space for mask ("\\*"), + MAX_PATH is a reserve (Windows create paths longer than MAX_PATH)
+    char sourcePath[SAL_MAX_PATH_UTF8 + 10]; // long-path capable (feature 011); +extra space for mask ("\\*")
     strcpy(sourcePath, GetPath());
 
     BOOL sourceSupADS = FALSE;

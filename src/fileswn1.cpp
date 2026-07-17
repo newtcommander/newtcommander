@@ -1662,8 +1662,8 @@ void CFilesWindow::RedrawFocusedIndex()
 void CFilesWindow::DirectoryLineSetText()
 {
     CALL_STACK_MESSAGE1("CFilesWindow::DirectoryLineSetText()");
-    char ZIPbuf[2 * MAX_PATH];  // plugin-FS branch only (legacy MAX_PATH convention)
-    CSalPathBuf archivePath;    // archive + in-archive path may both be long (feature 004)
+    char ZIPbuf[2 * MAX_PATH]; // plugin-FS branch only (legacy MAX_PATH convention)
+    CSalPathBuf archivePath;   // archive + in-archive path may both be long (feature 004)
     const char* path = NULL;
     if (Is(ptZIPArchive))
     {
@@ -1709,7 +1709,9 @@ void CFilesWindow::DirectoryLineSetText()
 
     if (FilterEnabled)
     {
-        char buf[3 * MAX_PATH]; // zip path (2x) + filter (1x) = 3x MAX_PATH
+        // feature 011: a disk/archive path may be long (feature 004), the
+        // filter mask is bounded by MAX_PATH - size for both, never overflow
+        char buf[SAL_MAX_PATH_UTF8 + MAX_PATH + 4];
         int pathLen = (int)strlen(path);
         if (Is(ptDisk) || Is(ptZIPArchive))
         {

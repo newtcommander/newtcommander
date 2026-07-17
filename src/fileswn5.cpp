@@ -247,9 +247,9 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                             BOOL timeObtained = FALSE;
 
                             // retrieve the file times
-                            char fileName[MAX_PATH];
+                            char fileName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 011)
                             strcpy(fileName, GetPath());
-                            SalPathAppend(fileName, f->Name, MAX_PATH);
+                            SalPathAppend(fileName, f->Name, sizeof(fileName));
 
                             WIN32_FIND_DATAW findW;
                             HANDLE hFind = SalFindFirstFile(fileName, &findW);
@@ -2124,20 +2124,20 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
         MakeValidFileName(finalName);
 
         int l = (int)strlen(GetPath());
-        char tgtPath[MAX_PATH];
+        char tgtPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 011)
         memmove(tgtPath, GetPath(), l);
         if (GetPath()[l - 1] != '\\')
             tgtPath[l++] = '\\';
-        if (strlen(finalName) + l < MAX_PATH && (f->NameLen + l < MAX_PATH ||
-                                                 f->DosName != NULL && strlen(f->DosName) + l < MAX_PATH))
+        if (strlen(finalName) + l < sizeof(tgtPath) && (f->NameLen + l < sizeof(tgtPath) ||
+                                                        f->DosName != NULL && strlen(f->DosName) + l < sizeof(tgtPath)))
         {
             strcpy(tgtPath + l, finalName);
-            char path[MAX_PATH];
+            char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 011)
             strcpy(path, GetPath());
             char* end = path + l;
             if (*(end - 1) != '\\')
                 *--end = '\\';
-            if (f->NameLen + l < MAX_PATH)
+            if (f->NameLen + l < sizeof(path))
                 strcpy(path + l, f->Name);
             else
                 strcpy(path + l, f->DosName);
@@ -2205,13 +2205,13 @@ void CFilesWindow::RenameFileInternal(CFileData* f, const char* formatedFileName
                             StrICmp(tgtName, nameU8) != 0)      // (full name differs)
                         {
                             // rename ("clean up") the file/directory with the conflicting DOS name to a temporary 8.3 name (no extra DOS name needed)
-                            char tmpName[MAX_PATH + 20];
-                            lstrcpyn(tmpName, tgtPath, MAX_PATH);
+                            char tmpName[SAL_MAX_PATH_UTF8 + 20]; // long-path capable (feature 011)
+                            lstrcpyn(tmpName, tgtPath, SAL_MAX_PATH_UTF8);
                             CutDirectory(tmpName);
-                            SalPathAddBackslash(tmpName, MAX_PATH + 20);
+                            SalPathAddBackslash(tmpName, sizeof(tmpName));
                             char* tmpNamePart = tmpName + strlen(tmpName);
-                            char origFullName[MAX_PATH];
-                            if (SalPathAppend(tmpName, nameU8, MAX_PATH))
+                            char origFullName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 011)
+                            if (SalPathAppend(tmpName, nameU8, SAL_MAX_PATH_UTF8))
                             {
                                 strcpy(origFullName, tmpName);
                                 DWORD num = (GetTickCount() / 10) % 0xFFF;

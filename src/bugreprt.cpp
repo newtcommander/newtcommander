@@ -1425,7 +1425,7 @@ void CCallStack::PrintBugReport(EXCEPTION_POINTERS* Exception, DWORD ThreadID, D
                 {
                 case ptDisk:
                 {
-                    sprintf(buf, "Path = %s", panel->GetPath());
+                    _snprintf_s(buf, _TRUNCATE, "Path = %s", panel->GetPath()); // path may exceed the buffer (long paths, feature 011)
                     PrintLine(param, buf, TRUE);
                     sprintf(buf, "PanelType = %d", panel->GetPanelType());
                     PrintLine(param, buf, TRUE);

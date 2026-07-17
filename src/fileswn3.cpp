@@ -868,7 +868,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 SetCurrentDirectoryToSystem();
                 RefreshListBox(0, -1, -1, FALSE, FALSE);
 
-                sprintf(buf, LoadStr(IDS_CANNOTREADDIR), GetPath(), GetErrorText(err));
+                _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), GetPath(), GetErrorText(err)); // path may exceed the buffer (long paths, feature 011)
                 SalMessageBox(parent, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             }
         }
@@ -1002,7 +1002,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 }
             }
             if (equivName != NULL)
-            {   // the notice must not be shown from here - a modal box would block the
+            { // the notice must not be shown from here - a modal box would block the
                 // rest of the listing; post it and show it once the panel is refreshed
                 SetEquivalentPairNoticeShown(TRUE);
                 SetEquivalentPairNoticeName(equivName);

@@ -477,15 +477,26 @@ void CMainWindow::UpdateDefaultDir(BOOL activePrefered)
         active = GetActivePanel();
         nonactive = GetNonActivePanel();
     }
+    // feature 011: DefaultDir rows stay MAX_PATH (plugin consumers copy them
+    // into MAX_PATH buffers); a long panel path must not overflow the row -
+    // fall back to the drive root ("where to go on drive change" stays sane)
     const char* pathActive = active->GetPath();
     if (!active->Is(ptPluginFS) && pathActive[0] != '\\')
     {
-        strcpy(DefaultDir[LowerCase[pathActive[0]] - 'a'], pathActive);
+        char* row = DefaultDir[LowerCase[pathActive[0]] - 'a'];
+        if (strlen(pathActive) < MAX_PATH)
+            strcpy(row, pathActive);
+        else
+            GetRootPath(row, pathActive);
     }
     const char* pathPasive = nonactive->GetPath();
     if (!nonactive->Is(ptPluginFS) && pathPasive[0] != '\\')
     {
-        strcpy(DefaultDir[LowerCase[pathPasive[0]] - 'a'], pathPasive);
+        char* row = DefaultDir[LowerCase[pathPasive[0]] - 'a'];
+        if (strlen(pathPasive) < MAX_PATH)
+            strcpy(row, pathPasive);
+        else
+            GetRootPath(row, pathPasive);
     }
 }
 
@@ -1169,8 +1180,8 @@ void CMainWindow::EditWindowSetDirectory()
          panel->Is(ptPluginFS) && panel->GetPluginFS()->NotEmpty() &&
              panel->GetPluginFS()->IsServiceSupported(FS_SERVICE_COMMANDLINE)))
     {
-        char dir[2 * MAX_PATH];
-        panel->GetGeneralPath(dir, 2 * MAX_PATH);
+        char dir[SAL_MAX_PATH_UTF8]; // long-path capable (feature 011); CInnerText stores dynamically and compacts for display
+        panel->GetGeneralPath(dir, sizeof(dir));
         EditWindow->Enable(TRUE); // cached in EditWindow
         EditWindow->SetDirectory(dir);
     }
