@@ -98,7 +98,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
         DLLInstance = hinstDLL;
         INITCOMMONCONTROLSEX initCtrls;
         initCtrls.dwSize = sizeof(INITCOMMONCONTROLSEX);
-        initCtrls.dwICC = ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_STANDARD_CLASSES;
+        initCtrls.dwICC = ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES;
         InitCommonControlsEx(&initCtrls);
     }
     return TRUE;

@@ -1,13 +1,10 @@
 <!--
 Sync Impact Report
 ===================
-Version change: 0.0.0 → 1.0.0 (initial adoption)
-Modified principles: N/A (first version)
+Version change: 1.0.0 → 1.1.0 (added principle VI. UI Consistency)
+Modified principles: N/A
 Added sections:
-  - Core Principles (5 principles)
-  - Technical Constraints
-  - Development Workflow
-  - Governance
+  - Core Principle VI. UI Consistency
 Removed sections: N/A
 Templates requiring updates:
   - .specify/templates/plan-template.md — ✅ no update needed (generic Constitution Check gate)
@@ -15,6 +12,10 @@ Templates requiring updates:
   - .specify/templates/tasks-template.md — ✅ no update needed (generic structure)
   - .specify/templates/commands/*.md — ✅ no command files exist
 Follow-up TODOs: none
+
+Prior history:
+  - 0.0.0 → 1.0.0 (initial adoption): Core Principles (5), Technical
+    Constraints, Development Workflow, Governance
 -->
 
 # Open Salamander Constitution
@@ -86,6 +87,29 @@ MUST be documented before modification.
 core application lean. Resolving missing dependencies unblocks
 features users expect from a file manager.
 
+### VI. UI Consistency
+
+New dialogs and controls MUST match the application's established
+house style so the whole product looks like one program. Dialog
+templates MUST be `DIALOGEX` declared with `DS_SHELLFONT`
+(`DS_SETFONT | DS_FIXEDSYS`) and `FONT 8, "MS Shell Dlg"`, and MUST
+use the standard themed WinAPI controls. A module (plugin or the
+core) MUST NOT locally alter process-wide visual behavior — in
+particular it MUST NOT pass `ICC_STANDARD_CLASSES` to
+`InitCommonControlsEx`, embed its own manifest, or subclass/owner-draw
+standard edit controls purely to restyle them. Application-wide visual
+changes (fonts, control decoration, dark mode, DPI-awareness model)
+MUST be a deliberate, versioned decision applied across the whole
+application — never a side effect of one plugin.
+
+**Rationale**: Visual uniformity across all dialogs builds user trust
+and readability. Because comctl32 v6 registers its forked standard
+window classes (Edit, Button, …) process-wide the moment any module
+requests `ICC_STANDARD_CLASSES`, a single plugin's local choice
+silently changes control rendering everywhere else — the exact defect
+that made the SFTP plugin's edit boxes render in the modern Windows 11
+style while the rest of the app stayed classic.
+
 ## Technical Constraints
 
 - **Language**: C++ (MSVC compiler from VS2022)
@@ -130,4 +154,4 @@ versioning rules below.
 changes align with this constitution's principles. Violations
 MUST be flagged and resolved before merge.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-03-20
+**Version**: 1.1.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-07-17
