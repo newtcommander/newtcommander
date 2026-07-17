@@ -57,8 +57,8 @@ BOOL CreateKeyAux(HWND parent, HKEY hKey, const char* name, HKEY& createdKey, BO
         {
             if (HLanguage == NULL)
             {
-                MessageBox(parent, GetErrorText(res), "Error Saving Configuration",
-                           MB_OK | MB_ICONEXCLAMATION);
+                MessageBoxW(parent, GetErrorTextW(res), L"Error Saving Configuration", // feature 010: GetErrorText is UTF-8 now, raw ANSI MessageBox would garble it
+                            MB_OK | MB_ICONEXCLAMATION);
             }
             else
             {
@@ -83,8 +83,8 @@ BOOL OpenKeyAux(HWND parent, HKEY hKey, const char* name, HKEY& openedKey, BOOL 
         {
             if (HLanguage == NULL)
             {
-                MessageBox(parent, GetErrorText(res),
-                           "Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
+                MessageBoxW(parent, GetErrorTextW(res), // feature 010: see CreateKeyAux
+                            L"Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
             }
             else
             {
@@ -144,8 +144,8 @@ BOOL GetValueAux(HWND parent, HKEY hKey, const char* name, DWORD type, void* buf
             {
                 if (HLanguage == NULL)
                 {
-                    MessageBox(parent, GetErrorText(res),
-                               "Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
+                    MessageBoxW(parent, GetErrorTextW(res), // feature 010: see CreateKeyAux
+                                L"Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
                 }
                 else
                 {
@@ -188,8 +188,8 @@ BOOL GetValue2Aux(HWND parent, HKEY hKey, const char* name, DWORD type1, DWORD t
         {
             if (HLanguage == NULL)
             {
-                MessageBox(parent, GetErrorText(res),
-                           "Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
+                MessageBoxW(parent, GetErrorTextW(res), // feature 010: see CreateKeyAux
+                            L"Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
             }
             else
             {
@@ -222,8 +222,8 @@ BOOL SetValueAux(HWND parent, HKEY hKey, const char* name, DWORD type,
         {
             if (HLanguage == NULL)
             {
-                MessageBox(parent, GetErrorText(res),
-                           "Error Saving Configuration", MB_OK | MB_ICONEXCLAMATION);
+                MessageBoxW(parent, GetErrorTextW(res), // feature 010: see CreateKeyAux
+                            L"Error Saving Configuration", MB_OK | MB_ICONEXCLAMATION);
             }
             else
             {
@@ -271,8 +271,8 @@ BOOL GetSizeAux(HWND parent, HKEY hKey, const char* name, DWORD type, DWORD& buf
         {
             if (HLanguage == NULL)
             {
-                MessageBox(parent, GetErrorText(res),
-                           "Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
+                MessageBoxW(parent, GetErrorTextW(res), // feature 010: see CreateKeyAux
+                            L"Error Loading Configuration", MB_OK | MB_ICONEXCLAMATION);
             }
             else
             {

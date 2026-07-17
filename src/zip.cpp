@@ -1574,14 +1574,45 @@ char* CSalamanderGeneral::GetErrorText(int err, char* buf, int bufSize)
     int l = 0;
     if (bufSize > 20)
         l = sprintf(buf, "(%d) ", err);
-    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-                      NULL,
-                      err,
-                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                      buf + l,
-                      bufSize - l,
-                      NULL) == 0 ||
-        bufSize > l && *(buf + l) == 0)
+    // feature 010: emit UTF-8 like the core ::GetErrorText - plugin dialogs
+    // render through the UTF-8-aware CMessageBox; ACP bytes would drop the
+    // whole composed message to the ANSI fallback (mojibake paths)
+    BOOL haveU8 = FALSE;
+    WCHAR wmsg[MAX_PATH + 20];
+    if (FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM,
+                       NULL,
+                       err,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       wmsg,
+                       _countof(wmsg),
+                       NULL) != 0 &&
+        wmsg[0] != 0)
+    {
+        char u8msg[3 * (MAX_PATH + 20)];
+        if (SalWToU8(wmsg, -1, u8msg, sizeof(u8msg)) != 0)
+        {
+            int cap = bufSize - l - 1;
+            int n = (int)strlen(u8msg);
+            if (n > cap)
+            {
+                n = cap > 0 ? cap : 0;
+                while (n > 0 && (u8msg[n] & 0xC0) == 0x80) // cut only at a UTF-8 character boundary
+                    n--;
+            }
+            memcpy(buf + l, u8msg, n);
+            buf[l + n] = 0;
+            haveU8 = TRUE;
+        }
+    }
+    if (!haveU8 && // legacy path: ANSI system text (or the ASCII fallback below)
+        (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                       NULL,
+                       err,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       buf + l,
+                       bufSize - l,
+                       NULL) == 0 ||
+         bufSize > l && *(buf + l) == 0))
     {
         char txt[100];
         sprintf(txt, "System error %d, text description is not available.", err);

@@ -1269,7 +1269,7 @@ MENU_TEMPLATE_ITEM ProgressDialogMenu2[] =
         if (RunningInOwnThread && !Configuration.AlwaysOnTop && GetForegroundWindow() == HWindow)
         {
             // Prior to Windows Vista we only called GetNextWindow(), which was enough to reach the next window in the Z-order.
-            // Vista introduced new hidden helper windows such as "MSCTFIME UI" and "Default IME" that sit between us and 
+            // Vista introduced new hidden helper windows such as "MSCTFIME UI" and "Default IME" that sit between us and
             // our window (main, viver, ect.). So we skip hidden windows here.
             BOOL valid;
             HWND hNext = HWindow;
@@ -1353,8 +1353,8 @@ MENU_TEMPLATE_ITEM ProgressDialogMenu2[] =
                 int ret = SalMessageBox(HWindow, LoadStr(IDS_CANCELOPERATION),
                                         LoadStr(IDS_QUESTION),
                                         MB_YESNO | MB_ICONQUESTION /*| MSGBOXEX_ESCAPEENABLED*/); // Escape key is not a good
-                // idea -- Zarevak accidentally started deleting a large batch of files, then began hitting Escape (the machine was 
-                // heavily loaded so it did not respond immediately) canceling the confirmation, therefore the confirmation can 
+                // idea -- Zarevak accidentally started deleting a large batch of files, then began hitting Escape (the machine was
+                // heavily loaded so it did not respond immediately) canceling the confirmation, therefore the confirmation can
                 // no longer be closed with Escape.
 
                 //            BeginSuspendMode();  // we are doing something again ...
@@ -1565,7 +1565,7 @@ CFileErrorDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (ResID == IDD_CANNOTOPENADS)
             new CButton(HWindow, IDB_IGNORE, BTF_DROPDOWN);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR), Error);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), Error); // error text is UTF-8 since feature 010 (GetErrorText)
         break;
     }
 
@@ -1732,7 +1732,7 @@ CHiddenOrSystemDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR), Error);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), Error); // error text is UTF-8 since feature 010 (GetErrorText)
         break;
     }
 
@@ -1785,7 +1785,7 @@ CCannotMoveDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR), Error);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), Error); // error text is UTF-8 since feature 010 (GetErrorText)
         break;
     }
 

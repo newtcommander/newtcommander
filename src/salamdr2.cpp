@@ -154,23 +154,61 @@ char* GetErrorText(DWORD error)
     // NOTE: sprintf_s fills the entire buffer in the debug build, so we cannot pass it the whole buffer (it contains
     // other strings as well); either handle it via _CrtSetDebugFillThreshold or provide a smaller size)
     int l = sprintf(act, ((int)error < 0 ? "(%08X) " : "(%d) "), error);
-    int fl;
-    if ((fl = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-                            NULL,
-                            error,
-                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                            act + l,
-                            MAX_PATH + 20 - l,
-                            NULL)) == 0 ||
-        *(act + l) == 0)
+
+    // feature 010: emit UTF-8 - FormatMessageA yields ACP bytes, and a single
+    // ACP byte in a composed message ("Path: %s Error: %s") makes the whole
+    // string invalid UTF-8, dropping CMessageBox to its ANSI fallback where
+    // the UTF-8 path renders as mojibake; the documented result size stays
+    // <= MAX_PATH+20 incl. null (spl_gen.h contract), truncation happens only
+    // at a UTF-8 character boundary
+    BOOL haveU8 = FALSE;
+    WCHAR wmsg[MAX_PATH + 20];
+    if (FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM,
+                       NULL,
+                       error,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       wmsg,
+                       _countof(wmsg),
+                       NULL) != 0 &&
+        wmsg[0] != 0)
     {
-        if ((int)error < 0)
-            act += sprintf(act, "System error %08X, text description is not available.", error) + 1;
-        else
-            act += sprintf(act, "System error %u, text description is not available.", error) + 1;
+        char u8msg[3 * (MAX_PATH + 20)];
+        if (SalWToU8(wmsg, -1, u8msg, sizeof(u8msg)) != 0)
+        {
+            int cap = MAX_PATH + 20 - l - 1;
+            int n = (int)strlen(u8msg);
+            if (n > cap)
+            {
+                n = cap;
+                while (n > 0 && (u8msg[n] & 0xC0) == 0x80) // cut only at a UTF-8 character boundary
+                    n--;
+            }
+            memcpy(act + l, u8msg, n);
+            act[l + n] = 0;
+            act += l + n + 1;
+            haveU8 = TRUE;
+        }
     }
-    else
-        act += l + fl + 1;
+    if (!haveU8) // legacy path: ANSI system text (or the ASCII fallback below)
+    {
+        int fl;
+        if ((fl = FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+                                NULL,
+                                error,
+                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                act + l,
+                                MAX_PATH + 20 - l,
+                                NULL)) == 0 ||
+            *(act + l) == 0)
+        {
+            if ((int)error < 0)
+                act += sprintf(act, "System error %08X, text description is not available.", error) + 1;
+            else
+                act += sprintf(act, "System error %u, text description is not available.", error) + 1;
+        }
+        else
+            act += l + fl + 1;
+    }
 
     HANDLES(LeaveCriticalSection(&__StrCriticalSection2.cs));
 

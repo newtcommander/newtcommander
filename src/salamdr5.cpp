@@ -20,7 +20,7 @@ const int ctsCanTerminate = 0x02; // can be terminated - already initialized fro
 
 HANDLE ThreadCheckPath[NUM_OF_CHECKTHREADS];
 int ThreadCheckState[NUM_OF_CHECKTHREADS]; // state of individual threads
-char ThreadPath[MAX_PATH];                 // input of the active thread
+char ThreadPath[SAL_MAX_PATH_UTF8];        // input of the active thread; long-path capable (feature 010) — single writer serialized by CheckPathCS
 BOOL ThreadValid;                          // result of the active thread
 DWORD ThreadLastError;                     // result of the active thread
 
@@ -127,7 +127,7 @@ unsigned ThreadCheckPathFBody(void* param) // directory accessibility test
 {
     CALL_STACK_MESSAGE1("ThreadCheckPathFBody()");
     int i = (int)(INT_PTR)param;
-    char threadPath[MAX_PATH + 5];
+    char threadPath[SAL_MAX_PATH_UTF8 + 8]; // long-path capable (feature 010); default 1MB thread stack
 
     SetThreadNameInVCAndTrace("CheckPath");
     //  if (i == 0) TRACE_I("First check-path thread: Begin");
@@ -170,9 +170,9 @@ CPF_AGAIN:
         strcpy(root + 1, ":\\");
         if (GetDriveType(root) == DRIVE_FIXED)
         {
-            SalPathAppend(threadPath, "*", MAX_PATH + 5);
-            WIN32_FIND_DATA data;
-            HANDLE find = HANDLES_Q(FindFirstFile(threadPath, &data));
+            SalPathAppend(threadPath, "*", sizeof(threadPath));
+            WIN32_FIND_DATAW dataW; // long-path + Unicode capable find (feature 010)
+            HANDLE find = SalFindFirstFile(threadPath, &dataW);
             if (find != INVALID_HANDLE_VALUE)
             {
                 // the path is probably OK after all (cannot be used without the fixed-disk test, unfortunately FindFirstFile
@@ -275,7 +275,7 @@ RETRY:
 
     if (err == ERROR_SUCCESS)
     {
-        lstrcpyn(ThreadPath, path, MAX_PATH);
+        lstrcpyn(ThreadPath, path, SAL_MAX_PATH_UTF8); // long-path capable (feature 010)
 
     TEST_AGAIN:
 
@@ -393,7 +393,7 @@ RETRY:
                 {
                     // after 3 seconds display the "ESC to cancel" window
                     char buf[MAX_PATH + 100];
-                    sprintf(buf, LoadStr(IDS_CHECKINGPATHESC), path);
+                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CHECKINGPATHESC), path); // path may exceed the buffer (long paths, feature 010)
                     CreateSafeWaitWindow(buf, NULL, 4800 + 200, TRUE, NULL);
 
                     while (1)
@@ -454,7 +454,7 @@ RETRY:
                         ;
 
                     char buf[MAX_PATH + 200];
-                    sprintf(buf, LoadStr(IDS_TERMINATEDBYUSER), path);
+                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_TERMINATEDBYUSER), path); // path may exceed the buffer (long paths, feature 010)
                     SalMessageBox(parent, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
                 }
             }
@@ -502,7 +502,7 @@ RETRY:
             }
             else
                 GetRootPath(CheckPathRootWithRetryMsgBox, path);
-            sprintf(text, LoadStr(IDS_NODISKINDRIVE), drive);
+            _snprintf_s(text, _TRUNCATE, LoadStr(IDS_NODISKINDRIVE), drive);
             int msgboxRes = (int)CDriveSelectErrDlg(parent, text, path).Execute();
             CheckPathRootWithRetryMsgBox[0] = 0;
             UpdateWindow(MainWindow->HWindow);
@@ -517,7 +517,7 @@ RETRY:
         case ERROR_BAD_PATHNAME:
         {
             char text[MAX_PATH + 100];
-            sprintf(text, LoadStr(IDS_DIRNAMEINVALID), path);
+            _snprintf_s(text, _TRUNCATE, LoadStr(IDS_DIRNAMEINVALID), path); // path may exceed the buffer (long paths, feature 010)
             SalMessageBox(parent, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             break;
         }
@@ -903,7 +903,7 @@ PARSE_AGAIN:
             }
         }
 
-        sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), path, text);
+        _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, text); // path may exceed the buffer (long paths, feature 010)
         SalMessageBox(parent, errBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
         if (backslashAtEnd || mustBePath)
             SalPathAddBackslash(path, pathBufSize);

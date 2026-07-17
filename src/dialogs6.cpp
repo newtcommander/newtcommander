@@ -2160,7 +2160,7 @@ CErrorReadingADSDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR), Error);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), Error); // error text is UTF-8 since feature 010 (GetErrorText)
 
         break;
     }
@@ -2291,8 +2291,8 @@ CErrorCopyingPermissionsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR),
-                      Error != NO_ERROR ? GetErrorText(Error) : LoadStr(IDS_VIEWER_UNKNOWNERR));
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), // error text is UTF-8 since feature 010 (GetErrorText)
+                           Error != NO_ERROR ? GetErrorText(Error) : LoadStr(IDS_VIEWER_UNKNOWNERR));
         break;
     }
 
@@ -2338,8 +2338,8 @@ CErrorCopyingDirTimeDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_ERROR),
-                      Error != NO_ERROR ? GetErrorText(Error) : LoadStr(IDS_VIEWER_UNKNOWNERR));
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDS_ERROR), // error text is UTF-8 since feature 010 (GetErrorText)
+                           Error != NO_ERROR ? GetErrorText(Error) : LoadStr(IDS_VIEWER_UNKNOWNERR));
         break;
     }
 

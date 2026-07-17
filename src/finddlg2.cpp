@@ -1857,8 +1857,8 @@ void CFindLogDialog::Transfer(CTransferInfo& ti)
                 if (buff[j] == '\r' || buff[j] == '\n')
                     buff[j] = ' ';
 
-            ListView_SetItemText(HListView, i, 1, buff);
-            WCHAR* pathW = SalU8ToWAlloc(item->Path); // paths are UTF-8: set the column wide (feature 004)
+            SalListViewSetItemTextU8(HListView, i, 1, buff); // texts carry names/error text - UTF-8 (feature 010)
+            WCHAR* pathW = SalU8ToWAlloc(item->Path);        // paths are UTF-8: set the column wide (feature 004)
             if (pathW != NULL)
             {
                 LVITEMW lviW;
