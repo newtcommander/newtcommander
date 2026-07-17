@@ -53,6 +53,8 @@ protected:
     int Port;
     char User[256];
     char Path[3072];  // current remote absolute path (POSIX, UTF-8)
+    char LastFailedListPath[3072]; // last path ListCurrentPath could not list
+                                   // (loop-breaker: ChangePath shortens it)
 
     CSFTPSession Session;
     CSFTPConnectParams Params;

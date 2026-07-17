@@ -158,7 +158,6 @@ void WINAPI CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbst
     CPluginFSInterface* fs = (CPluginFSInterface*)pluginFS;
     if (isDir) // directory or up-dir: change path
     {
-        char newPath[3072];
         if (isDir == 2) // up-dir: cut the last path component
         {
             char cur[3072];
@@ -219,6 +218,7 @@ CPluginFSInterface::CPluginFSInterface()
     Port = SFTP_DEFAULT_PORT;
     User[0] = 0;
     lstrcpynA(Path, "/", sizeof(Path));
+    LastFailedListPath[0] = 0;
     HasParams = FALSE;
     FatalError = FALSE;
     LogUID = -1;
@@ -481,6 +481,23 @@ BOOL WINAPI CPluginFSInterface::ChangePath(int currentFSNameIndex, char* fsName,
     // try to list to confirm the path; on failure, cut the last component
     for (;;)
     {
+        // loop-breaker: if this is exactly the path ListCurrentPath just failed
+        // to list (e.g. permission denied), do not re-offer it - shorten it, so
+        // Salamander does not call ListCurrentPath on it again and again
+        if (LastFailedListPath[0] != 0 && strcmp(abs, LastFailedListPath) == 0)
+        {
+            char* slash = strrchr(abs, '/');
+            if (slash == NULL || (slash == abs && abs[1] == 0))
+                return FALSE; // even the root failed - fall back to a fixed drive
+            if (slash == abs)
+                abs[1] = 0; // cut "/x" -> "/"
+            else
+                *slash = 0;
+            if (pathWasCut != NULL)
+                *pathWasCut = TRUE;
+            continue;
+        }
+
         LIBSSH2_SFTP_ATTRIBUTES attrs;
         if (Session.Stat(abs, TRUE, &attrs))
         {
@@ -540,15 +557,43 @@ BOOL WINAPI CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* di
 
     if (!listed)
     {
-        char msg[1200];
-        _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_LISTDIR), Path, Session.GetLastErrorText());
-        SalamanderGeneral->SalMessageBox(SalamanderGeneral->GetMsgBoxParent(), msg,
-                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        // remember which path failed so the follow-up ChangePath shortens it
+        // (SDK: after ListCurrentPath returns FALSE, ChangePath must change the
+        // path) - this is what stops the error dialog from repeating forever
+        lstrcpynA(LastFailedListPath, Path, sizeof(LastFailedListPath));
+        if (!cancel) // a user-cancelled listing is not an error worth a dialog
+        {
+            char msg[1200];
+            _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_LISTDIR), Path, Session.GetLastErrorText());
+            SalamanderGeneral->SalMessageBox(SalamanderGeneral->GetMsgBoxParent(), msg,
+                                             LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        }
         delete listing;
         return FALSE;
     }
+    LastFailedListPath[0] = 0; // this path listed fine
 
-    dir->SetApproximateCount(entries.Count, 4);
+    dir->SetApproximateCount(entries.Count + 1, 4);
+
+    // add the up-dir ".." (unless at the root) so the user can go up a level;
+    // Salamander recognizes a directory named ".." as the up-dir and enables
+    // Backspace / the up-dir symbol at the top of the panel
+    if (strcmp(Path, "/") != 0)
+    {
+        CFileData up;
+        memset(&up, 0, sizeof(up));
+        up.Name = (char*)SalamanderGeneral->Alloc(3);
+        if (up.Name != NULL)
+        {
+            strcpy(up.Name, "..");
+            up.NameLen = 2;
+            up.Ext = up.Name + 2;
+            up.Attr = FILE_ATTRIBUTE_DIRECTORY;
+            up.PluginData = 0; // no per-row data for the up-dir
+            if (!dir->AddDir(NULL, up, NULL))
+                SalamanderGeneral->Free(up.Name);
+        }
+    }
 
     for (int i = 0; i < entries.Count; i++)
     {
@@ -577,11 +622,14 @@ BOOL WINAPI CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* di
                 }
             }
         }
+        // per-entry pluginData is NULL for FS (the panel's data interface is the
+        // one returned via 'pluginData' below); passing 'listing' here would make
+        // Salamander release each row's PluginData twice -> double free
         BOOL added;
         if (isDir)
-            added = dir->AddDir(NULL, fd, listing);
+            added = dir->AddDir(NULL, fd, NULL);
         else
-            added = dir->AddFile(NULL, fd, listing);
+            added = dir->AddFile(NULL, fd, NULL);
         if (!added)
         {
             CSFTPListingData::FreeItemData(fd);
