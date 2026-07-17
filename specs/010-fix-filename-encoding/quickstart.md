@@ -61,6 +61,27 @@ surfaces (ftp bookmarks + log, sftp log/connect, regedt path fields;
 spot-check the remaining enabled plugins). Record a verdict per row;
 every `defective` row gets a fix + re-verification.
 
+## Long-path walkthrough (feature 004 guarantee, edge case of FR-001/FR-002)
+
+Test tree: `%LOCALAPPDATA%\Temp\salamander-test\010\long-paths\`
+
+| Item | Exercises |
+|------|-----------|
+| `L1-dlouhý…\L2-dlouhý…\L3-dlouhý…\soubor-s-velmi-dlouhým-názvem…txt` (full path **540** chars, Unicode) | deep path far beyond MAX_PATH |
+| `maximální-komponenta-xxx…` (**255**-char single component) + `uvnitř.txt` | NTFS component-length limit |
+| `edge-260\éaaa…txt` (full path **265** chars) | just over the legacy 260 limit |
+| `ascii-level-zzz…\ascii-level2-zzz…\plain-ascii-long-path-test-file.txt` (**327** chars, ASCII) | long-path regression without Unicode |
+
+1. Navigate into each directory — panel lists the names correctly; the
+   **Directory Line** shows the (ellipsized) path with correct glyphs and
+   an unbroken trailing component even at these lengths.
+2. Hover the Directory Line — tooltip shows the full path correctly.
+3. Open the deep file (F3 view), check the viewer title; F2 rename it
+   (append a char, revert) — no errors, name preserved.
+4. Copy the deep file to the second panel and back (F5) — content intact
+   (125 bytes), names exact.
+5. Focus each file — bottom Info Line renders the long name correctly.
+
 ## Regression pass (SC-005)
 
 Repeat browsing, Alt+F5 pack, copy/move, rename in `plain-ascii\` —
