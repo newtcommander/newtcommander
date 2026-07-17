@@ -495,7 +495,7 @@ void CEditListBox::OnBeginEdit(int start, int end)
         DispInfo.Buffer[0] = 0;
         NotifyParent(&DispInfo, EDTLBN_GETDISPINFO);
         DispInfo.Buffer[MAX_PATH - 1] = 0;
-        SetWindowText(EditLine->HWindow, Buffer);
+        SalSetWindowTextU8(EditLine->HWindow, Buffer); // owner data is UTF-8 (feature 010)
     }
     SendMessage(EditLine->HWindow, EM_SETLIMITTEXT, MAX_PATH, 0);
     SendMessage(EditLine->HWindow, EM_SETSEL, start, end);
@@ -536,7 +536,7 @@ BOOL CEditListBox::OnSaveEdit()
             DispInfo.Index = index;
             DispInfo.Buffer = Buffer;
             DispInfo.BufferLen = MAX_PATH - 1;
-            GetWindowText(EditLine->HWindow, DispInfo.Buffer, MAX_PATH);
+            SalGetWindowTextU8(EditLine->HWindow, DispInfo.Buffer, MAX_PATH); // hand UTF-8 back to the owner (feature 010)
             BOOL ret = !NotifyParent(&DispInfo, EDTLBN_GETDISPINFO);
             SaveDisabled = oldSD;
             return ret;
@@ -657,10 +657,24 @@ void CEditListBox::OnDrawItem(LPARAM lParam)
                     hOldFont = (HFONT)SelectObject(lpdis->hDC, HBoldFont);
                 else
                     hOldFont = (HFONT)SelectObject(lpdis->hDC, HNormalFont);
-                DrawTextEx(lpdis->hDC, Buffer,
-                           -1, &itemRect,
-                           DT_NOPREFIX | DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS,
-                           &dtp);
+                // owner data is UTF-8 (feature 010): draw wide, legacy ANSI
+                // route stays as the invalid-UTF-8 fallback
+                WCHAR* bufferW = SalU8ToWAlloc(Buffer);
+                if (bufferW != NULL)
+                {
+                    DrawTextExW(lpdis->hDC, bufferW,
+                                -1, &itemRect,
+                                DT_NOPREFIX | DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS,
+                                &dtp);
+                    free(bufferW);
+                }
+                else
+                {
+                    DrawTextEx(lpdis->hDC, Buffer,
+                               -1, &itemRect,
+                               DT_NOPREFIX | DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS,
+                               &dtp);
+                }
                 SelectObject(lpdis->hDC, hOldFont);
                 SetTextColor(lpdis->hDC, oldColor);
                 SetBkMode(lpdis->hDC, oldBkMode);

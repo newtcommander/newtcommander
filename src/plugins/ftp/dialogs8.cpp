@@ -18,14 +18,39 @@ void HistoryComboBox(HWND hWindow, CTransferInfo& ti, int ctrlID, char* Text,
         {
             SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
             SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
+            WCHAR* textW = SplU8ToWAlloc(Text); // feature 010: values may contain UTF-8 paths
+            if (textW != NULL)
+            {
+                SendMessageW(hwnd, WM_SETTEXT, 0, (LPARAM)textW);
+                free(textW);
+            }
+            else
+                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
         }
         else
         {
-            SendMessage(hwnd, WM_GETTEXT, textLen, (LPARAM)Text);
-            SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
-            SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
-            SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
+            // feature 010: read wide and store UTF-8; fall back to the A path on failure
+            BOOL done = FALSE;
+            WCHAR* textW = (WCHAR*)malloc(textLen * sizeof(WCHAR));
+            if (textW != NULL)
+            {
+                SendMessageW(hwnd, WM_GETTEXT, textLen, (LPARAM)textW);
+                if (SplWToU8(textW, Text, textLen) > 0)
+                {
+                    SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
+                    SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
+                    SendMessageW(hwnd, WM_SETTEXT, 0, (LPARAM)textW);
+                    done = TRUE;
+                }
+                free(textW);
+            }
+            if (!done)
+            {
+                SendMessage(hwnd, WM_GETTEXT, textLen, (LPARAM)Text);
+                SendMessage(hwnd, CB_RESETCONTENT, 0, 0);
+                SendMessage(hwnd, CB_LIMITTEXT, textLen - 1, 0);
+                SendMessage(hwnd, WM_SETTEXT, 0, (LPARAM)Text);
+            }
 
             // everything is ok, store it in the history
             if (ti.IsGood())
@@ -76,7 +101,16 @@ void HistoryComboBox(HWND hWindow, CTransferInfo& ti, int ctrlID, char* Text,
         int i;
         for (i = 0; i < historySize; i++) // fill the combo-box list
             if (history[i] != NULL)
-                SendMessage(hwnd, CB_ADDSTRING, 0, (LPARAM)history[i]);
+            {
+                WCHAR* itemW = SplU8ToWAlloc(history[i]); // feature 010: history entries carry UTF-8
+                if (itemW != NULL)
+                {
+                    SendMessageW(hwnd, CB_ADDSTRING, 0, (LPARAM)itemW);
+                    free(itemW);
+                }
+                else
+                    SendMessage(hwnd, CB_ADDSTRING, 0, (LPARAM)history[i]);
+            }
             else
                 break;
     }
@@ -199,9 +233,10 @@ CSendFTPCommandDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             HWND passwdEdit = GetDlgItem(HWindow, IDE_FTPCOMMAND_PASSWD);
 
             // we must swap the current texts between the edit and the combo
-            char buf[FTPCOMMAND_MAX_SIZE];
-            GetWindowText(secret ? edit : passwdEdit, buf, FTPCOMMAND_MAX_SIZE);
-            SetWindowText(!secret ? edit : passwdEdit, buf);
+            // feature 010: move as UTF-16, the command may contain UTF-8 paths
+            WCHAR bufW[FTPCOMMAND_MAX_SIZE];
+            GetWindowTextW(secret ? edit : passwdEdit, bufW, FTPCOMMAND_MAX_SIZE);
+            SetWindowTextW(!secret ? edit : passwdEdit, bufW);
 
             EnableControls();
         }
@@ -846,14 +881,27 @@ CConnectAdvancedDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (LOWORD(wParam) == IDB_BROWSE)
         {
             char initDir[MAX_PATH];
-            GetDlgItemText(HWindow, IDE_TARGETPATH, initDir, MAX_PATH);
+            // feature 010: the path is UTF-8 - read wide (A fallback)
+            WCHAR initDirW[MAX_PATH];
+            if (GetDlgItemTextW(HWindow, IDE_TARGETPATH, initDirW, MAX_PATH) == 0 ||
+                SplWToU8(initDirW, initDir, MAX_PATH) == 0)
+            {
+                GetDlgItemText(HWindow, IDE_TARGETPATH, initDir, MAX_PATH);
+            }
             char path[MAX_PATH];
             GetWindowText(HWindow, path, MAX_PATH); // will have the same caption
             if (SalamanderGeneral->GetTargetDirectory(HWindow, HWindow, path,
                                                       LoadStr(IDS_SELECTTARGETDIR), path,
                                                       FALSE, initDir))
             {
-                SetDlgItemText(HWindow, IDE_TARGETPATH, path);
+                WCHAR* pathW = SplU8ToWAlloc(path); // feature 010: show the UTF-8 path as UTF-16
+                if (pathW != NULL)
+                {
+                    SetDlgItemTextW(HWindow, IDE_TARGETPATH, pathW);
+                    free(pathW);
+                }
+                else
+                    SetDlgItemText(HWindow, IDE_TARGETPATH, path);
             }
             return TRUE;
         }
@@ -963,7 +1011,14 @@ CRenameDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (!NewServer) // rename
             {
                 sprintf(buf, LoadStr(IDS_RENAMESRVTO), Name);
-                SetDlgItemText(HWindow, IDT_SUBJECT, buf);
+                WCHAR* bufW = SplU8ToWAlloc(buf); // feature 010: bookmark/server-type names are UTF-8
+                if (bufW != NULL)
+                {
+                    SetDlgItemTextW(HWindow, IDT_SUBJECT, bufW);
+                    free(bufW);
+                }
+                else
+                    SetDlgItemText(HWindow, IDT_SUBJECT, buf);
             }
             else // new
             {
@@ -975,7 +1030,14 @@ CRenameDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     SalamanderGeneral->DuplicateAmpersands(checkboxName, ServerTypes ? SERVERTYPE_MAX_SIZE - 1 : BOOKMARKNAME_MAX_SIZE);
                     sprintf(buf, LoadStr(ServerTypes ? IDS_SRVTYPECOPYFROM : IDS_COPYDATAFROM),
                             checkboxName[0] != 0 ? checkboxName : LoadStr(IDS_QUICKCONNECT));
-                    SetDlgItemText(HWindow, IDC_COPYFOCUSEDSRV, buf);
+                    WCHAR* bufW = SplU8ToWAlloc(buf); // feature 010: bookmark/server-type names are UTF-8
+                    if (bufW != NULL)
+                    {
+                        SetDlgItemTextW(HWindow, IDC_COPYFOCUSEDSRV, bufW);
+                        free(bufW);
+                    }
+                    else
+                        SetDlgItemText(HWindow, IDC_COPYFOCUSEDSRV, buf);
                 }
                 else // new server type + empty list = need to hide/disable the "copy from" checkbox
                 {

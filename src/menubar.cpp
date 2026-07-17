@@ -192,7 +192,15 @@ void CMenuBar::DrawItem(HDC hDC, int index, int x)
     DWORD dtFlags = DT_LEFT | DT_SINGLELINE | DT_NOCLIP;
     if ((UIState & UISF_HIDEACCEL) && !ForceAccelVisible)
         dtFlags |= DT_HIDEPREFIX;
-    DrawText(hDC, string, stringLen, &r, dtFlags);
+    // feature 010: captions are UTF-8; draw wide, ANSI is the invalid-UTF-8 fallback
+    WCHAR* stringW = SalU8ToWAlloc(string, stringLen);
+    if (stringW != NULL)
+    {
+        DrawTextW(hDC, stringW, (int)wcslen(stringW), &r, dtFlags);
+        free(stringW);
+    }
+    else
+        DrawText(hDC, string, stringLen, &r, dtFlags);
 
     //  TRACE_I("DrawText "<<string<<" selected:"<< (HotIndex == index && !Closing));
 }
@@ -255,8 +263,17 @@ void CMenuBar::RefreshMinWidths()
         r.top = 0;
         r.right = 0;
         r.bottom = 0;
-        DrawText(hDC, item->String, item->ColumnL1Len,
-                 &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+        // feature 010: measure the wide form that DrawItem draws; ANSI fallback
+        WCHAR* stringW = SalU8ToWAlloc(item->String, item->ColumnL1Len);
+        if (stringW != NULL)
+        {
+            DrawTextW(hDC, stringW, (int)wcslen(stringW),
+                      &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+            free(stringW);
+        }
+        else
+            DrawText(hDC, item->String, item->ColumnL1Len,
+                     &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
         item->MinWidth = r.right;
     }
     SelectObject(hDC, hOldFont);

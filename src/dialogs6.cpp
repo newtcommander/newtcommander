@@ -504,7 +504,7 @@ void CSharesDialog::Refresh()
             lvi.iImage = 0;
             lvi.state = INDEXTOOVERLAYMASK(1);
             lvi.pszText = (char*)""; // feature 005: set name/path/comment wide below
-            lvi.lParam = i; // for later sorting
+            lvi.lParam = i;          // for later sorting
             int index = ListView_InsertItem(HListView, &lvi);
             SalListViewSetItemTextU8(HListView, index, 0, (const char*)remoteName); // share name is UTF-8 (feature 005)
             SalListViewSetItemTextU8(HListView, index, 1, (const char*)localPath);  // path is UTF-8
@@ -1293,7 +1293,7 @@ void CDisconnectDialog::Refresh()
         lvi.iSubItem = 0;
         lvi.iImage = Connections[i].IconIndex;
         lvi.pszText = (char*)""; // feature 005: set name/path wide below
-        lvi.lParam = i; // for later sorting
+        lvi.lParam = i;          // for later sorting
         lvi.iIndent = (Connections[i].Type == citGroup) ? 0 : 1;
         int index = ListView_InsertItem(HListView, &lvi);
         SalListViewSetItemTextU8(HListView, index, 0, Connections[i].Name); // name is UTF-8 (feature 005)
@@ -2523,13 +2523,14 @@ void CCfgPageIconOvrls::Transfer(CTransferInfo& ti)
         {
             CShellIconOverlayItem2* item = ListOfShellIconOverlays[i];
             LVITEM lvi;
-            lvi.mask = LVIF_TEXT;
+            lvi.mask = 0;
             lvi.iItem = i;
             lvi.iSubItem = 0;
-            lvi.pszText = item->IconOverlayName;
             ListView_InsertItem(HListView, &lvi);
 
-            ListView_SetItemText(HListView, i, 1, item->IconOverlayDescr);
+            // names/descriptions are UTF-8 (feature 010)
+            SalListViewSetItemTextU8(HListView, i, 0, item->IconOverlayName);
+            SalListViewSetItemTextU8(HListView, i, 1, item->IconOverlayDescr);
 
             UINT state = INDEXTOSTATEIMAGEMASK((!IsNameInListOfDisabledCustomIconOverlays(item->IconOverlayName) ? 2 : 1));
             ListView_SetItemState(HListView, i, state, LVIS_STATEIMAGEMASK);

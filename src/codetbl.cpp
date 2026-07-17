@@ -665,8 +665,9 @@ void CCodeTables::InitMenu(HMENU menu, int& codeType)
                     TRACE_E("mi.wID > CM_CODING_MAX");
                     break;
                 }
-                mi.dwTypeData = Table->Data[i]->Name;
-                InsertMenuItem(menu, count++, TRUE, &mi);
+                // table names are UTF-8 when valid; legacy-encoded names take
+                // the ANSI fallback inside the helper (feature 010)
+                SalInsertMenuItemU8(menu, count++, TRUE, &mi, Table->Data[i]->Name);
             }
         }
     }

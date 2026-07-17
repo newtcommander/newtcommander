@@ -1181,7 +1181,23 @@ COperDlgListView::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     ti.lpszText = emptyBuff;
                     LastItem = -1;
                 }
-                ::SendMessage(HToolTip, TTM_SETTOOLINFO, 0, (LPARAM)(LPTOOLINFO)&ti);
+                // feature 010: item texts carry UTF-8 names - hand the tooltip UTF-16 (A fallback)
+                WCHAR* textW = SplU8ToWAlloc(ti.lpszText);
+                if (textW != NULL)
+                {
+                    TOOLINFOW tiW;
+                    tiW.cbSize = sizeof(tiW);
+                    tiW.hwnd = HWindow;
+                    tiW.hinst = 0;
+                    tiW.uId = 0;
+                    tiW.uFlags = TTF_TRANSPARENT;
+                    tiW.rect = ti.rect;
+                    tiW.lpszText = textW;
+                    ::SendMessage(HToolTip, TTM_SETTOOLINFOW, 0, (LPARAM)&tiW);
+                    free(textW);
+                }
+                else
+                    ::SendMessage(HToolTip, TTM_SETTOOLINFO, 0, (LPARAM)(LPTOOLINFO)&ti);
 
                 // proportionally set the display duration of the tooltip (longer text = longer display)
                 int len = (int)strlen(buff);

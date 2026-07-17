@@ -495,7 +495,16 @@ CTBCustomizeDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         int normalColor = index == -1 ? COLOR_GRAYTEXT : COLOR_WINDOWTEXT;
         SetTextColor(hDC, GetSysColor(selected && focused ? COLOR_HIGHLIGHTTEXT : normalColor));
         SetBkMode(hDC, TRANSPARENT);
-        DrawText(hDC, text, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+        // feature 010: button names (LoadStr/WM_USER_TBENUMBUTTON2) are UTF-8;
+        // draw wide, legacy ANSI route is the invalid-UTF-8 fallback
+        WCHAR* textW = SalU8ToWAlloc(text);
+        if (textW != NULL)
+        {
+            DrawTextW(hDC, textW, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
+            free(textW);
+        }
+        else
+            DrawText(hDC, text, -1, &r, DT_SINGLELINE | DT_LEFT | DT_VCENTER);
         r.left -= imageWidth;
         if (selected && !focused)
         {

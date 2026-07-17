@@ -9,6 +9,13 @@ class CSFTPServer;
 // Dialog entry points. Implementations in dialogs.cpp.
 // ****************************************************************************
 
+// UTF-8 control text helpers (feature 010): names/paths are UTF-8 (interface
+// 104) and must cross to the Unicode controls via the W API; each falls back
+// to the A call on conversion failure so text is never dropped.
+void SetDlgItemTextU8(HWND hwnd, int id, const char* text);
+int GetDlgItemTextU8(HWND hwnd, int id, char* buf, int bufSize);
+int ListBoxAddStringU8(HWND lb, const char* text);
+
 // Connect / bookmarks dialog. Fills 'result' with the chosen connection.
 // Returns TRUE if the user pressed Connect, FALSE on Cancel. When
 // 'organizeMode' is TRUE, the dialog only manages bookmarks (no connect).

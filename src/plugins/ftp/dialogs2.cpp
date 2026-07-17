@@ -84,7 +84,14 @@ CWelcomeMsgDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 TRACE_E("Unexpected situation in CWelcomeMsgDlg::DialogProc().");
             char buf[300];
             _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_SERVERREPLYTITLE), (SentCommand == NULL ? "" : SentCommand));
-            SetWindowText(HWindow, buf);
+            WCHAR* bufW = SplU8ToWAlloc(buf); // feature 010: the command may contain UTF-8 paths
+            if (bufW != NULL)
+            {
+                SetWindowTextW(HWindow, bufW);
+                free(bufW);
+            }
+            else
+                SetWindowText(HWindow, buf);
         }
         if (RawListing)
             SetWindowText(HWindow, LoadStr(IDS_RAWLISTINGTITLE));
@@ -94,7 +101,17 @@ CWelcomeMsgDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (FixedFont != NULL)
             SendDlgItemMessage(HWindow, IDE_WELCOMEMSG, WM_SETFONT, (WPARAM)FixedFont, TRUE);
         if (TextSize == -1)
-            SetDlgItemText(HWindow, IDE_WELCOMEMSG, Text);
+        {
+            // feature 010: raw listings/replies may contain UTF-8 names - show as UTF-16 (A fallback)
+            WCHAR* textW = SplU8ToWAlloc(Text);
+            if (textW != NULL)
+            {
+                SetDlgItemTextW(HWindow, IDE_WELCOMEMSG, textW);
+                free(textW);
+            }
+            else
+                SetDlgItemText(HWindow, IDE_WELCOMEMSG, Text);
+        }
         else
         {
             char* t = (char*)malloc(TextSize + 1); // nothing we can do, we have to allocate it including the trailing null
@@ -102,7 +119,14 @@ CWelcomeMsgDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 memcpy(t, Text, TextSize);
                 t[TextSize] = 0;
-                SetDlgItemText(HWindow, IDE_WELCOMEMSG, t);
+                WCHAR* textW = SplU8ToWAlloc(t); // feature 010: see above
+                if (textW != NULL)
+                {
+                    SetDlgItemTextW(HWindow, IDE_WELCOMEMSG, textW);
+                    free(textW);
+                }
+                else
+                    SetDlgItemText(HWindow, IDE_WELCOMEMSG, t);
                 free(t);
             }
         }
@@ -972,14 +996,24 @@ HWND CWaitWindow::Create(DWORD showTime)
         tR.top = 0;
         tR.right = 1;
         tR.bottom = 1;
-        DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
+        // feature 010: the text may contain UTF-8 paths/names - measure as UTF-16 (A fallback)
+        WCHAR* textW = SplU8ToWAlloc(Text);
+        if (textW != NULL)
+            DrawTextW(dc, textW, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
+        else
+            DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
         if (tR.right + 2 * WAITWINDOW_HMARGIN > parW)
         {
             tR.right = parW - 2 * WAITWINDOW_HMARGIN;
             tR.bottom = 1;
-            DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
+            if (textW != NULL)
+                DrawTextW(dc, textW, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
+            else
+                DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
             NeedWrap = TRUE;
         }
+        if (textW != NULL)
+            free(textW);
         TextSize.cx = tR.right;
         TextSize.cy = tR.bottom;
         if (old != NULL)
@@ -1112,7 +1146,7 @@ CWaitWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (!Visible && wParam == FALSE && HasTimer)
             Show(TRUE); // the window must be shown so Salamander can be reached via Alt+Tab
         break;          // WM_ACTIVATEAPP arrives even when neither the wait window nor its parent is active
-    } // for example, for a modeless dialog without a parent; the wait window cannot be activated
+    }                   // for example, for a modeless dialog without a parent; the wait window cannot be activated
 
     case WM_ACTIVATE:
     {
@@ -1151,7 +1185,14 @@ CWaitWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetTextColor(dc, GetSysColor(COLOR_BTNTEXT));
             // do not clip so we survive a slight text extension that
             // may occur while calling SetText
-            DrawText(dc, Text, (int)strlen(Text), &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
+            WCHAR* textW = SplU8ToWAlloc(Text); // feature 010: draw UTF-8 texts as UTF-16 (A fallback)
+            if (textW != NULL)
+            {
+                DrawTextW(dc, textW, -1, &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
+                free(textW);
+            }
+            else
+                DrawText(dc, Text, (int)strlen(Text), &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
             SetBkMode(dc, prevBkMode);
             if (hOldFont != NULL)
                 SelectObject(dc, hOldFont);
@@ -1245,7 +1286,16 @@ void CListWaitWindow::SetText(const char* text)
         SalamanderGeneral->Free(Text);
     Text = SalamanderGeneral->DupStr(text);
     if (HWindow != NULL && Text != NULL)
-        SendDlgItemMessage(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)Text);
+    {
+        WCHAR* textW = SplU8ToWAlloc(Text); // feature 010: may contain a UTF-8 file name
+        if (textW != NULL)
+        {
+            SendDlgItemMessageW(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)textW);
+            free(textW);
+        }
+        else
+            SendDlgItemMessage(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)Text);
+    }
 }
 
 void CListWaitWindow::SetPath(const char* path, CFTPServerPathType pathType)
@@ -1379,7 +1429,16 @@ HWND CListWaitWindow::Create(DWORD showTime)
         }
 
         if (Text != NULL)
-            SendDlgItemMessage(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)Text);
+        {
+            WCHAR* textW = SplU8ToWAlloc(Text); // feature 010: may contain a UTF-8 file name
+            if (textW != NULL)
+            {
+                SendDlgItemMessageW(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)textW);
+                free(textW);
+            }
+            else
+                SendDlgItemMessage(HWindow, IDT_ACTION, WM_SETTEXT, 0, (LPARAM)Text);
+        }
         if (PathOnFTPText != NULL && Path != NULL)
         {
             PathOnFTPText->SetPathSeparator(FTPGetPathDelimiter(PathType));

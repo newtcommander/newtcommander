@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
+#include <cderr.h> // FNERR_INVALIDFILENAME (feature 010)
 
 BOOL PathAppend(WCHAR* path, WCHAR* more, int pathSize)
 {
@@ -530,6 +531,67 @@ char* Replace(char* string, char s, char d)
 BOOL GetOpenFileName(HWND parent, const char* title, const char* filter, char* buffer, BOOL save)
 {
     CALL_STACK_MESSAGE4("GetOpenFileName(, %s, %s, , %d)", title, filter, save);
+
+    // feature 010: 'buffer' carries a UTF-8 path (plugin interface 104), so
+    // drive the Unicode common dialog (SG->SafeGet*FileName is ANSI and loses
+    // names outside the ANSI code page); the A branch below stays as the
+    // fallback for paths that are not valid UTF-8
+    WCHAR bufferW[MAX_PATH];
+    WCHAR filterW[200];
+    if (SplU8ToW(buffer, bufferW, MAX_PATH) > 0 &&
+        MultiByteToWideChar(CP_ACP, 0, filter, -1, filterW, 200) > 0) // filter is ANSI resource text
+    {
+        WCHAR* s;
+        for (s = filterW; *s != 0; s++) // build the double-null-separated list
+            if (*s == L'\t')
+                *s = 0;
+
+        OPENFILENAMEW ofnW;
+        WCHAR fileNameW[MAX_PATH];
+        WCHAR titleW[200];
+        memset(&ofnW, 0, sizeof(OPENFILENAMEW));
+        ofnW.lStructSize = sizeof(OPENFILENAMEW);
+        ofnW.hwndOwner = parent;
+        ofnW.lpstrFilter = filterW;
+        DWORD attrW = SG->SalGetFileAttributes(buffer);
+        if (attrW != 0xFFFFFFFF && (attrW & FILE_ATTRIBUTE_DIRECTORY))
+        {
+            fileNameW[0] = 0;
+            ofnW.lpstrInitialDir = bufferW;
+        }
+        else
+            wcscpy(fileNameW, bufferW);
+        ofnW.lpstrFile = fileNameW;
+        ofnW.nMaxFile = MAX_PATH;
+        if (title != NULL && MultiByteToWideChar(CP_ACP, 0, title, -1, titleW, 200) > 0)
+            ofnW.lpstrTitle = titleW;
+        ofnW.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+
+        BOOL ret;
+        if (save)
+            ret = GetSaveFileNameW(&ofnW);
+        else
+        {
+            ofnW.Flags |= OFN_FILEMUSTEXIST;
+            ret = GetOpenFileNameW(&ofnW);
+        }
+        if (!ret && CommDlgExtendedError() == FNERR_INVALIDFILENAME)
+        { // like SG->SafeGet*FileName: retry when Windows refuses the initial name
+            fileNameW[0] = 0;
+            ofnW.lpstrInitialDir = NULL;
+            ret = save ? GetSaveFileNameW(&ofnW) : GetOpenFileNameW(&ofnW);
+        }
+        if (ret && SplWToU8(fileNameW, buffer, MAX_PATH) == 0)
+        { // UTF-8 form does not fit the caller's buffer: degrade like the A dialog did
+            if (WideCharToMultiByte(CP_ACP, 0, fileNameW, -1, buffer, MAX_PATH, NULL, NULL) == 0)
+            {
+                buffer[0] = 0;
+                ret = FALSE;
+            }
+        }
+        return ret;
+    }
+
     OPENFILENAME ofn;
     char buf[200];
     char fileName[MAX_PATH];

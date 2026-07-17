@@ -51,8 +51,8 @@ enum
 
 struct CHotTrackItem
 {
-    WORD Offset;       // Offset of the first character in characters
-    WORD Chars;        // Number of characters
+    WORD Offset;       // Offset of the first character; WCHAR units of TextW when the wide mirror is valid, bytes of Text otherwise (feature 010)
+    WORD Chars;        // Number of characters (same units as Offset)
     WORD PixelsOffset; // Offset of the first character in points
     WORD Pixels;       // Their length in points
 };
@@ -69,8 +69,11 @@ protected:
 
     int Border; // Separator line on the top/bottom
     char* Text;
-    int TextLen; // Number of characters in 'Text' pointer without the terminator
+    int TextLen;  // Number of bytes in 'Text' pointer without the terminator (UTF-8 since feature 004)
+    WCHAR* TextW; // UTF-16 mirror of Text (feature 010); NULL = Text is not valid UTF-8 -> legacy ANSI paths
+    int TextLenW; // Number of WCHARs in TextW without the terminator (0 when TextW == NULL)
     char* Size;
+    WCHAR* SizeW;         // UTF-16 mirror of Size (feature 010); NULL -> legacy ANSI draw
     int PathLen;          // -1 (the path occupies the entire Text); otherwise the path length in Text (the remainder is the filter)
     BOOL History;         // Show the arrow between the text and the size?
     BOOL Hidden;          // Show the filter symbol?
@@ -90,7 +93,7 @@ protected:
     char* SecurityTooltip; // Tooltip; if NULL, nothing is displayed
 
     int Allocated;
-    int* AlpDX; // Array of lengths (from the first up to the X-th character in the string)
+    int* AlpDX; // Array of lengths (from the first up to the X-th character); WCHAR-indexed over TextW when the wide mirror is valid, byte-indexed over Text otherwise
     BOOL Left;
 
     int ToolBarWidth; // Current toolbar width
@@ -204,4 +207,13 @@ protected:
     //    void RepaintThrobber();
 
     void PaintSecurity(HDC hDC);
+
+    // Copies the item's text into 'buffer' as UTF-8 (from TextW when the wide
+    // mirror is valid, from Text otherwise); always null-terminates
+    void GetItemText(const CHotTrackItem* item, char* buffer, int bufSize);
+    // Draws 'count' characters of the text starting at 'offset' (units follow
+    // the TextW/Text mode, see CHotTrackItem) via ExtTextOutW/ExtTextOutA
+    void DrawTextSeg(HDC dc, int x, int y, int offset, int count);
+    // Draws the "..." ellipsis in the mode-matching API
+    void DrawEllipsis(HDC dc, int x, int y);
 };

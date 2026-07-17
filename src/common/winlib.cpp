@@ -1157,6 +1157,39 @@ LRESULT SalComboAddStringU8(HWND combo, const char* u8Text)
     return SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)u8Text); // not valid UTF-8: legacy path
 }
 
+BOOL SalInsertMenuItemU8(HMENU menu, UINT item, BOOL byPosition, const MENUITEMINFOA* mi, const char* u8Text)
+{
+    if (u8Text == NULL)
+        u8Text = "";
+    WCHAR* w = SalU8ToWAlloc(u8Text);
+    if (w != NULL)
+    {
+        MENUITEMINFOW miW;
+        memcpy(&miW, mi, sizeof(MENUITEMINFOW)); // A/W structs share the layout; only the text pointer differs
+        miW.dwTypeData = w;
+        BOOL ret = InsertMenuItemW(menu, item, byPosition, &miW);
+        free(w);
+        return ret;
+    }
+    MENUITEMINFOA miA = *mi; // not valid UTF-8: legacy path
+    miA.dwTypeData = (char*)u8Text;
+    return InsertMenuItemA(menu, item, byPosition, &miA);
+}
+
+LRESULT SalListBoxAddStringU8(HWND listbox, const char* u8Text)
+{
+    if (u8Text == NULL)
+        u8Text = "";
+    WCHAR* w = SalU8ToWAlloc(u8Text);
+    if (w != NULL)
+    {
+        LRESULT ret = SendMessageW(listbox, LB_ADDSTRING, 0, (LPARAM)w);
+        free(w);
+        return ret;
+    }
+    return SendMessage(listbox, LB_ADDSTRING, 0, (LPARAM)u8Text); // not valid UTF-8: legacy path
+}
+
 void SalListViewSetItemTextU8(HWND lv, int item, int subItem, const char* u8Text)
 {
     if (u8Text == NULL)

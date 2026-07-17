@@ -1228,7 +1228,14 @@ void CConnectDlg::MoveItem(HWND list, int fromIndex, int toIndex, int topIndex)
                 if (topIndex == -1)
                     topIndex = (int)SendMessage(list, LB_GETTOPINDEX, 0, 0);
                 SendMessage(list, LB_DELETESTRING, fromIndex + 1, 0);
-                SendMessage(list, LB_INSERTSTRING, toIndex + 1, (LPARAM)HandleNULLStr(s->ItemName));
+                WCHAR* nameW = SplU8ToWAlloc(HandleNULLStr(s->ItemName)); // feature 010: bookmark names are UTF-8
+                if (nameW != NULL)
+                {
+                    SendMessageW(list, LB_INSERTSTRING, toIndex + 1, (LPARAM)nameW);
+                    free(nameW);
+                }
+                else
+                    SendMessage(list, LB_INSERTSTRING, toIndex + 1, (LPARAM)HandleNULLStr(s->ItemName));
                 SendMessage(list, LB_SETTOPINDEX, topIndex, 0);
                 SendMessage(list, LB_SETCURSEL, toIndex + 1, 0);
                 SendMessage(list, WM_SETREDRAW, TRUE, 0);

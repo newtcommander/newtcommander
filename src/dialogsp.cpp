@@ -59,8 +59,7 @@ void CCfgPagePackers::Transfer(CTransferInfo& ti)
     CALL_STACK_MESSAGE1("CCfgPagePackers::Transfer()");
     if (ti.Type == ttDataToWindow)
     {
-        SendDlgItemMessage(HWindow, IDC_P1_TYPE, CB_ADDSTRING, 0,
-                           (LPARAM)LoadStr(IDS_PUT_EXTERNAL));
+        SalComboAddStringU8(GetDlgItem(HWindow, IDC_P1_TYPE), LoadStr(IDS_PUT_EXTERNAL)); // UTF-8 (feature 010)
         int count = 0;
         int index;
         while ((index = Plugins.GetCustomPackerIndex(count++)) != -1) // while "custom pack" plug-ins exist
@@ -70,7 +69,7 @@ void CCfgPagePackers::Transfer(CTransferInfo& ti)
             {
                 char buf[MAX_PATH];
                 p->GetDisplayName(buf, MAX_PATH);
-                SendDlgItemMessage(HWindow, IDC_P1_TYPE, CB_ADDSTRING, 0, (LPARAM)buf);
+                SalComboAddStringU8(GetDlgItem(HWindow, IDC_P1_TYPE), buf);
             }
             else
                 TRACE_E("Unexpected situation in CCfgPagePackers::Transfer().");
@@ -483,8 +482,7 @@ void CCfgPageUnpackers::Transfer(CTransferInfo& ti)
     CALL_STACK_MESSAGE1("CCfgPageUnpackers::Transfer()");
     if (ti.Type == ttDataToWindow)
     {
-        SendDlgItemMessage(HWindow, IDC_P2_TYPE, CB_ADDSTRING, 0,
-                           (LPARAM)LoadStr(IDS_PUT_EXTERNAL));
+        SalComboAddStringU8(GetDlgItem(HWindow, IDC_P2_TYPE), LoadStr(IDS_PUT_EXTERNAL)); // UTF-8 (feature 010)
         int count = 0;
         int index;
         while ((index = Plugins.GetCustomUnpackerIndex(count++)) != -1) // while "custom unpack" plug-ins exist
@@ -494,7 +492,7 @@ void CCfgPageUnpackers::Transfer(CTransferInfo& ti)
             {
                 char buf[MAX_PATH];
                 p->GetDisplayName(buf, MAX_PATH);
-                SendDlgItemMessage(HWindow, IDC_P2_TYPE, CB_ADDSTRING, 0, (LPARAM)buf);
+                SalComboAddStringU8(GetDlgItem(HWindow, IDC_P2_TYPE), buf);
             }
             else
                 TRACE_E("Unexpected situation in CCfgPageUnpackers::Transfer().");
@@ -888,7 +886,7 @@ void CCfgPageExternalArchivers::Transfer(CTransferInfo& ti)
     {
         int i;
         for (i = 0; i < Config->GetArchiversCount(); i++)
-            SendMessage(HListbox, LB_ADDSTRING, 0, (LPARAM)Config->GetArchiverTitle(i));
+            SalListBoxAddStringU8(HListbox, Config->GetArchiverTitle(i)); // titles are UTF-8 (feature 010)
         SendMessage(HListbox, LB_SETCURSEL, 0, 0);
         LoadControls();
         EnableControls();
@@ -1113,9 +1111,9 @@ void CCfgPageArchivesAssoc::Transfer(CTransferInfo& ti)
         int i;
         for (i = 0; i < ArchiverConfig.GetArchiversCount(); i++)
         {
-            s = ArchiverConfig.GetArchiverTitle(i);
-            SendDlgItemMessage(HWindow, IDC_P4_VIEW, CB_ADDSTRING, 0, (LPARAM)s);
-            SendDlgItemMessage(HWindow, IDC_P4_EDIT, CB_ADDSTRING, 0, (LPARAM)s);
+            s = ArchiverConfig.GetArchiverTitle(i); // titles are UTF-8 (feature 010)
+            SalComboAddStringU8(GetDlgItem(HWindow, IDC_P4_VIEW), s);
+            SalComboAddStringU8(GetDlgItem(HWindow, IDC_P4_EDIT), s);
         }
 
         int count = 0;
@@ -1127,7 +1125,7 @@ void CCfgPageArchivesAssoc::Transfer(CTransferInfo& ti)
             if (p != NULL)
             {
                 p->GetDisplayName(buf, MAX_PATH);
-                SendDlgItemMessage(HWindow, IDC_P4_VIEW, CB_ADDSTRING, 0, (LPARAM)buf);
+                SalComboAddStringU8(GetDlgItem(HWindow, IDC_P4_VIEW), buf);
             }
             else
                 TRACE_E("Unexpected situation in CCfgPageArchivesAssoc::Transfer().");
@@ -1140,14 +1138,14 @@ void CCfgPageArchivesAssoc::Transfer(CTransferInfo& ti)
             if (p != NULL)
             {
                 p->GetDisplayName(buf, MAX_PATH);
-                SendDlgItemMessage(HWindow, IDC_P4_EDIT, CB_ADDSTRING, 0, (LPARAM)buf);
+                SalComboAddStringU8(GetDlgItem(HWindow, IDC_P4_EDIT), buf);
             }
             else
                 TRACE_E("Unexpected situation in CCfgPageArchivesAssoc::Transfer().");
         }
 
         s = LoadStr(IDS_PUT_NONE);
-        SendDlgItemMessage(HWindow, IDC_P4_EDIT, CB_ADDSTRING, 0, (LPARAM)s);
+        SalComboAddStringU8(GetDlgItem(HWindow, IDC_P4_EDIT), s);
 
         for (i = 0; i < Config->GetFormatsCount(); i++)
             EditLB->AddItem();

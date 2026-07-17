@@ -305,7 +305,15 @@ void CFTPServerList::AddNamesToListbox(HWND list)
     for (i = 0; i < Count; i++)
     {
         CFTPServer* s = At(i);
-        SendMessage(list, LB_ADDSTRING, 0, (LPARAM)(s->ItemName == NULL ? "" : s->ItemName));
+        const char* name = s->ItemName == NULL ? "" : s->ItemName;
+        WCHAR* nameW = SplU8ToWAlloc(name); // feature 010: bookmark names are UTF-8
+        if (nameW != NULL)
+        {
+            SendMessageW(list, LB_ADDSTRING, 0, (LPARAM)nameW);
+            free(nameW);
+        }
+        else
+            SendMessage(list, LB_ADDSTRING, 0, (LPARAM)name);
     }
 }
 

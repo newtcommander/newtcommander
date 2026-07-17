@@ -133,6 +133,10 @@
 // 102 = 4.00b1 (DB177) only to transfer plug-in configuration from version 4.00b1 (DB171)
 // 103 = 4.00           only to transfer plug-in configuration from version 4.00b1 (DB177)
 // 104 = 5.00           only to transfer plug-in configuration from version 4.00, first Open Salamander release
+// 105 = 5.00 (feature 010) UTF-8 configuration baseline: the packer/unpacker/archiver/
+//                      association sections stored by older versions may carry
+//                      legacy-encoded display strings and are rebuilt from the
+//                      current defaults at load (spec clarification 2026-07-17)
 //
 // When increasing configuration version, add one to THIS_CONFIG_VERSION
 //
@@ -140,7 +144,7 @@
 // so that new plug-ins are auto-installed and the plugins.ver counter resets.
 //
 
-const DWORD THIS_CONFIG_VERSION = 104;
+const DWORD THIS_CONFIG_VERSION = 105;
 
 // Configuration roots for individual Open Salamander versions.
 // The root of the current (youngest) configuration is at index 0.
@@ -1904,7 +1908,6 @@ void CMainWindow::SaveConfig(HWND parent)
                 SetValue(actKey, CONFIG_EDITNEWFILE_DEFAULT_REG, REG_SZ,
                          Configuration.EditNewFileDefault, -1);
 
-
                 HKEY actSubKey;
                 if (CreateKey(actKey, SALAMANDER_CONFIRMATION_REG, actSubKey))
                 {
@@ -2882,58 +2885,75 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
         {
             GetValue(actKey, SALAMANDER_SIMPLEICONSINARCHIVES, REG_DWORD,
                      &(Configuration.UseSimpleIconsInArchives), sizeof(DWORD));
+            // feature 010 (UTF-8 config baseline, version 105): sections stored
+            // by older versions may carry legacy-encoded display strings; per
+            // the 2026-07-17 spec clarification they are rebuilt from the
+            // current defaults instead of converted (no garbled entry may
+            // survive the upgrade; users re-create custom entries)
+            BOOL packersResetToDefaults = Configuration.ConfigVersion < 105;
+
             //---  Custom Packers
             HKEY actSubKey;
             if (OpenKey(actKey, SALAMANDER_CUSTOMPACKERS, actSubKey))
             {
                 PackerConfig.DeleteAllPackers();
-                HKEY itemKey;
-                char buf[30];
-                int i = 1;
-                strcpy(buf, "1");
-                while (OpenKey(actSubKey, buf, itemKey))
+                if (!packersResetToDefaults)
                 {
-                    PackerConfig.Load(itemKey);
-                    CloseKey(itemKey);
-                    itoa(++i, buf, 10);
+                    HKEY itemKey;
+                    char buf[30];
+                    int i = 1;
+                    strcpy(buf, "1");
+                    while (OpenKey(actSubKey, buf, itemKey))
+                    {
+                        PackerConfig.Load(itemKey);
+                        CloseKey(itemKey);
+                        itoa(++i, buf, 10);
+                    }
                 }
                 GetValue(actSubKey, SALAMANDER_ANOTHERPANEL, REG_DWORD,
                          &(Configuration.UseAnotherPanelForPack), sizeof(DWORD));
                 int pp;
-                if (GetValue(actSubKey, SALAMANDER_PREFFERED, REG_DWORD, &pp, sizeof(DWORD)))
+                if (!packersResetToDefaults &&
+                    GetValue(actSubKey, SALAMANDER_PREFFERED, REG_DWORD, &pp, sizeof(DWORD)))
                 {
                     PackerConfig.SetPreferedPacker(pp);
                 }
                 CloseKey(actSubKey);
                 // add new items introduced since the previous version :-)
-                PackerConfig.AddDefault(Configuration.ConfigVersion);
+                // (a reset section gets the complete default set, like a fresh install)
+                PackerConfig.AddDefault(packersResetToDefaults ? 0 : Configuration.ConfigVersion);
             }
             //---  Custom Unpackers
             if (OpenKey(actKey, SALAMANDER_CUSTOMUNPACKERS, actSubKey))
             {
                 UnpackerConfig.DeleteAllUnpackers();
-                HKEY itemKey;
-                char buf[30];
-                int i = 1;
-                strcpy(buf, "1");
-                while (OpenKey(actSubKey, buf, itemKey))
+                if (!packersResetToDefaults)
                 {
-                    UnpackerConfig.Load(itemKey);
-                    CloseKey(itemKey);
-                    itoa(++i, buf, 10);
+                    HKEY itemKey;
+                    char buf[30];
+                    int i = 1;
+                    strcpy(buf, "1");
+                    while (OpenKey(actSubKey, buf, itemKey))
+                    {
+                        UnpackerConfig.Load(itemKey);
+                        CloseKey(itemKey);
+                        itoa(++i, buf, 10);
+                    }
                 }
                 GetValue(actSubKey, SALAMANDER_ANOTHERPANEL, REG_DWORD,
                          &(Configuration.UseAnotherPanelForUnpack), sizeof(DWORD));
                 GetValue(actSubKey, SALAMANDER_NAMEBYARCHIVE, REG_DWORD,
                          &(Configuration.UseSubdirNameByArchiveForUnpack), sizeof(DWORD));
                 int pp;
-                if (GetValue(actSubKey, SALAMANDER_PREFFERED, REG_DWORD, &pp, sizeof(DWORD)))
+                if (!packersResetToDefaults &&
+                    GetValue(actSubKey, SALAMANDER_PREFFERED, REG_DWORD, &pp, sizeof(DWORD)))
                 {
                     UnpackerConfig.SetPreferedUnpacker(pp);
                 }
                 CloseKey(actSubKey);
                 // add new items introduced since the previous version
-                UnpackerConfig.AddDefault(Configuration.ConfigVersion);
+                // (a reset section gets the complete default set, like a fresh install)
+                UnpackerConfig.AddDefault(packersResetToDefaults ? 0 : Configuration.ConfigVersion);
             }
             //---  Predefined Packers
             if (OpenKey(actKey, SALAMANDER_PREDPACKERS, actSubKey))
@@ -2943,15 +2963,18 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
                 // they are only updated. If the registry contains an incomplete or unknown entry,
                 // it is ignored. Only when the Title matches one of the default values are its paths used.
                 // ArchiverConfig.DeleteAllArchivers();
-                HKEY itemKey;
-                char buf[30];
-                int i = 1;
-                strcpy(buf, "1");
-                while (OpenKey(actSubKey, buf, itemKey))
+                if (!packersResetToDefaults) // feature 010: reset keeps the untouched defaults
                 {
-                    ArchiverConfig.Load(itemKey);
-                    CloseKey(itemKey);
-                    itoa(++i, buf, 10);
+                    HKEY itemKey;
+                    char buf[30];
+                    int i = 1;
+                    strcpy(buf, "1");
+                    while (OpenKey(actSubKey, buf, itemKey))
+                    {
+                        ArchiverConfig.Load(itemKey);
+                        CloseKey(itemKey);
+                        itoa(++i, buf, 10);
+                    }
                 }
                 CloseKey(actSubKey);
                 // add new items introduced since the previous version
@@ -2961,19 +2984,23 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
             if (OpenKey(actKey, SALAMANDER_ARCHIVEASSOC, actSubKey))
             {
                 PackerFormatConfig.DeleteAllFormats();
-                HKEY itemKey;
-                char buf[30];
-                int i = 1;
-                strcpy(buf, "1");
-                while (OpenKey(actSubKey, buf, itemKey))
+                if (!packersResetToDefaults) // feature 010: associations are index-coupled to the reset packer tables
                 {
-                    PackerFormatConfig.Load(itemKey);
-                    CloseKey(itemKey);
-                    itoa(++i, buf, 10);
+                    HKEY itemKey;
+                    char buf[30];
+                    int i = 1;
+                    strcpy(buf, "1");
+                    while (OpenKey(actSubKey, buf, itemKey))
+                    {
+                        PackerFormatConfig.Load(itemKey);
+                        CloseKey(itemKey);
+                        itoa(++i, buf, 10);
+                    }
                 }
                 CloseKey(actSubKey);
                 // add new items introduced since the previous version
-                PackerFormatConfig.AddDefault(Configuration.ConfigVersion);
+                // (a reset section gets the complete default set, like a fresh install)
+                PackerFormatConfig.AddDefault(packersResetToDefaults ? 0 : Configuration.ConfigVersion);
                 PackerFormatConfig.BuildArray();
             }
             CloseKey(actKey);
@@ -3430,7 +3457,6 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
                      &Configuration.UseEditNewFileDefault, sizeof(DWORD));
             GetValue(actKey, CONFIG_EDITNEWFILE_DEFAULT_REG, REG_SZ,
                      Configuration.EditNewFileDefault, MAX_PATH);
-
 
             HKEY actSubKey;
             if (OpenKey(actKey, SALAMANDER_CONFIRMATION_REG, actSubKey))

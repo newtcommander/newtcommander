@@ -922,6 +922,11 @@ void CMenuPopup::DrawItem(HDC hDC, CMenuItem* item, int yOffset, BOOL selected)
                 if (SharedRes->HideAccel)
                     dtFlags |= DT_HIDEPREFIX;
 
+                // feature 010: column text is UTF-8 (LoadStr captions, paths); draw wide,
+                // the ANSI call stays as the invalid-UTF-8 fallback
+                WCHAR* columnW = SalU8ToWAlloc(item->ColumnL1, item->ColumnL1Len);
+                int columnWLen = columnW != NULL ? (int)wcslen(columnW) : 0;
+
                 if (item->State & MENU_STATE_GRAYED)
                 {
                     if (!selected)
@@ -932,22 +937,38 @@ void CMenuPopup::DrawItem(HDC hDC, CMenuItem* item, int yOffset, BOOL selected)
                         textR2.top++;
                         textR2.right++;
                         textR2.bottom++;
-                        DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR2, dtFlags);
+                        if (columnW != NULL)
+                            DrawTextW(hDC, columnW, columnWLen, &textR2, dtFlags);
+                        else
+                            DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR2, dtFlags);
                         SetBkMode(hDC, TRANSPARENT);
                         SetTextColor(hDC, SharedRes->GrayTextColor);
                     }
                     else
                         SetTextColor(hDC, SharedRes->NormalBkColor);
-                    DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR, dtFlags);
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen, &textR, dtFlags);
+                    else
+                        DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR, dtFlags);
                     SetBkMode(hDC, OPAQUE);
                 }
                 else
-                    DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR, dtFlags);
+                {
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen, &textR, dtFlags);
+                    else
+                        DrawText(hDC, item->ColumnL1, item->ColumnL1Len, &textR, dtFlags);
+                }
+                if (columnW != NULL)
+                    free(columnW);
             }
 
             if (item->ColumnL2 != NULL)
             {
                 textR.left = SharedRes->TextItemHeight + 1 + item->ColumnL2X;
+                // feature 010: wide draw with ANSI fallback, see ColumnL1 above
+                WCHAR* columnW = SalU8ToWAlloc(item->ColumnL2, item->ColumnL2Len);
+                int columnWLen = columnW != NULL ? (int)wcslen(columnW) : 0;
                 if (item->State & MENU_STATE_GRAYED)
                 {
                     if (!selected)
@@ -958,25 +979,44 @@ void CMenuPopup::DrawItem(HDC hDC, CMenuItem* item, int yOffset, BOOL selected)
                         textR2.top++;
                         textR2.right++;
                         textR2.bottom++;
-                        DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
-                                 &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                        if (columnW != NULL)
+                            DrawTextW(hDC, columnW, columnWLen,
+                                      &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                        else
+                            DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
+                                     &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
                         SetBkMode(hDC, TRANSPARENT);
                         SetTextColor(hDC, SharedRes->GrayTextColor);
                     }
                     else
                         SetTextColor(hDC, SharedRes->NormalBkColor);
-                    DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
-                             &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen,
+                                  &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    else
+                        DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
+                                 &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
                     SetBkMode(hDC, OPAQUE);
                 }
                 else
-                    DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
-                             &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                {
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen,
+                                  &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    else
+                        DrawText(hDC, item->ColumnL2, item->ColumnL2Len,
+                                 &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                }
+                if (columnW != NULL)
+                    free(columnW);
             }
 
             if (item->ColumnR != NULL)
             {
                 textR.left = SharedRes->TextItemHeight + 1 + item->ColumnRX;
+                // feature 010: wide draw with ANSI fallback, see ColumnL1 above
+                WCHAR* columnW = SalU8ToWAlloc(item->ColumnR, item->ColumnRLen);
+                int columnWLen = columnW != NULL ? (int)wcslen(columnW) : 0;
                 if (item->State & MENU_STATE_GRAYED)
                 {
                     if (!selected)
@@ -987,19 +1027,35 @@ void CMenuPopup::DrawItem(HDC hDC, CMenuItem* item, int yOffset, BOOL selected)
                         textR2.top++;
                         textR2.right++;
                         textR2.bottom++;
-                        DrawText(hDC, item->ColumnR, item->ColumnRLen,
-                                 &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                        if (columnW != NULL)
+                            DrawTextW(hDC, columnW, columnWLen,
+                                      &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                        else
+                            DrawText(hDC, item->ColumnR, item->ColumnRLen,
+                                     &textR2, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
                         SetBkMode(hDC, TRANSPARENT);
                         SetTextColor(hDC, SharedRes->GrayTextColor);
                     }
                     else
                         SetTextColor(hDC, SharedRes->NormalBkColor);
-                    DrawText(hDC, item->ColumnR, item->ColumnRLen,
-                             &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen,
+                                  &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    else
+                        DrawText(hDC, item->ColumnR, item->ColumnRLen,
+                                 &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
                 }
                 else
-                    DrawText(hDC, item->ColumnR, item->ColumnRLen,
-                             &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                {
+                    if (columnW != NULL)
+                        DrawTextW(hDC, columnW, columnWLen,
+                                  &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    else
+                        DrawText(hDC, item->ColumnR, item->ColumnRLen,
+                                 &textR, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                }
+                if (columnW != NULL)
+                    free(columnW);
             }
             // restore the original values
             if (item->State & MENU_STATE_DEFAULT)

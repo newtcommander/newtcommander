@@ -187,7 +187,7 @@ void CLoadSaveToRegistryMutex::Init()
     // 2.52b1: adding support for FastUserSwitching/Terminal Services
     // Up to this version the mutex was created in the local namespace under the name SalamanderLoadSaveToRegistryMutex.
     // Now we want to provide interoperability across all sessions, so we place it in the Global namespace.
-    // We also append the SID (from W2K on) so that mutexes of Salamander instances running under different users 
+    // We also append the SID (from W2K on) so that mutexes of Salamander instances running under different users
     // do not collide -- they work with their own Registry trees, no synchronization needed there.
     // We could add the Salamander version into the mutex name as well (every version has its own Registry tree).
     // But new versions can remove obsolete configurations, so we won't do it.
@@ -548,7 +548,6 @@ CConfiguration::CConfiguration()
 
     EnableCustomIconOverlays = TRUE;
     DisabledCustomIconOverlays = NULL;
-
 }
 
 CConfiguration::~CConfiguration()
@@ -740,7 +739,7 @@ void CConfigurationDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        // ColorsChanged() calls a plug-in method (when colors change PLUGINEVENT_COLORSCHANGED 
+        // ColorsChanged() calls a plug-in method (when colors change PLUGINEVENT_COLORSCHANGED
         // is called) -> we must set the parent for their message boxes
         HOldPluginMsgBoxParent = PluginMsgBoxParent;
         PluginMsgBoxParent = Dialog.HWindow;
@@ -1273,8 +1272,8 @@ void CCfgPageView::OnMove(BOOL up)
         index2 = index1 + 1;
     if (index2 != index1)
     {
-        ListView_SetItemText(HListView, index1, 0, Config.Items[index2].Name);
-        ListView_SetItemText(HListView, index2, 0, Config.Items[index1].Name);
+        SalListViewSetItemTextU8(HListView, index1, 0, Config.Items[index2].Name); // names are UTF-8 (feature 010)
+        SalListViewSetItemTextU8(HListView, index2, 0, Config.Items[index1].Name);
         DWORD state1 = ListView_GetItemState(HListView, index1, LVIS_STATEIMAGEMASK);
         DWORD state2 = ListView_GetItemState(HListView, index2, LVIS_STATEIMAGEMASK);
         ListView_SetItemState(HListView, index1, state2, LVIS_STATEIMAGEMASK);
@@ -1505,14 +1504,20 @@ CCfgPageView::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (nmhd->item.pszText != NULL)
                 {
                     char name[VIEW_NAME_MAX];
-                    lstrcpyn(name, nmhd->item.pszText, VIEW_NAME_MAX);
+                    // feature 010: the A notification delivers ACP-mangled text;
+                    // read the label-edit control wide and convert to UTF-8
+                    HWND hEdit = ListView_GetEditControl(HListView);
+                    if (hEdit != NULL)
+                        SalGetWindowTextU8(hEdit, name, VIEW_NAME_MAX);
+                    else
+                        lstrcpyn(name, nmhd->item.pszText, VIEW_NAME_MAX);
                     Config.CleanName(name);
                     int index = nmhd->item.iItem;
                     if (lstrlen(Config.Items[index].Name) == 0)
                         Config.Items[index].Flags = 0;
                     lstrcpy(Config.Items[index].Name, name);
                     LoadControls();
-                    ListView_SetItemText(HListView, index, 0, name);
+                    SalListViewSetItemTextU8(HListView, index, 0, name);
                     Dirty = TRUE;
                     break;
                 }
@@ -2898,8 +2903,8 @@ void CCfgPageHotPath::OnMove(BOOL up)
         char name2[MAX_PATH];
         Config->GetName(index1, name1, MAX_PATH);
         Config->GetName(index2, name2, MAX_PATH);
-        ListView_SetItemText(HListView, index1, 0, name2);
-        ListView_SetItemText(HListView, index2, 0, name1);
+        SalListViewSetItemTextU8(HListView, index1, 0, name2); // names are UTF-8 (feature 010)
+        SalListViewSetItemTextU8(HListView, index2, 0, name1);
         DWORD state1 = ListView_GetItemState(HListView, index1, LVIS_STATEIMAGEMASK);
         DWORD state2 = ListView_GetItemState(HListView, index2, LVIS_STATEIMAGEMASK);
         ListView_SetItemState(HListView, index1, state2, LVIS_STATEIMAGEMASK);
@@ -3053,7 +3058,13 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (nmhd->item.pszText != NULL)
                 {
                     char name[MAX_PATH];
-                    lstrcpyn(name, nmhd->item.pszText, MAX_PATH);
+                    // feature 010: the A notification delivers ACP-mangled text;
+                    // read the label-edit control wide and convert to UTF-8
+                    HWND hEdit = ListView_GetEditControl(HListView);
+                    if (hEdit != NULL)
+                        SalGetWindowTextU8(hEdit, name, MAX_PATH);
+                    else
+                        lstrcpyn(name, nmhd->item.pszText, MAX_PATH);
                     Config->CleanName(name);
                     int index = nmhd->item.iItem;
                     char path[HOTPATHITEM_MAXPATH];
@@ -3062,7 +3073,7 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         Config->GetPath(index, path, HOTPATHITEM_MAXPATH);
                     Config->Set(index, name, path);
                     LoadControls();
-                    ListView_SetItemText(HListView, index, 0, name);
+                    SalListViewSetItemTextU8(HListView, index, 0, name);
                     Dirty = TRUE;
                     break;
                 }

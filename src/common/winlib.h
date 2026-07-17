@@ -330,7 +330,12 @@ BOOL SalSetWindowTextU8(HWND hWnd, const char* u8Text);
 int SalGetWindowTextU8(HWND hWnd, char* u8Buf, int u8BufSize);
 BOOL SalSetDlgItemTextU8(HWND hDlg, int ctrlID, const char* u8Text);
 int SalGetDlgItemTextU8(HWND hDlg, int ctrlID, char* u8Buf, int u8BufSize);
-LRESULT SalComboAddStringU8(HWND combo, const char* u8Text); // CB_ADDSTRING result
+LRESULT SalComboAddStringU8(HWND combo, const char* u8Text);     // CB_ADDSTRING result
+LRESULT SalListBoxAddStringU8(HWND listbox, const char* u8Text); // LB_ADDSTRING result
+// inserts an MFT_STRING menu item whose text is UTF-8 via InsertMenuItemW
+// ('mi' fields are taken over, only the text pointer is replaced by 'u8Text');
+// invalid UTF-8 falls back to the legacy ANSI insert
+BOOL SalInsertMenuItemU8(HMENU menu, UINT item, BOOL byPosition, const MENUITEMINFOA* mi, const char* u8Text);
 // set a listview item/subitem text (UTF-8) via LVM_SETITEMTEXTW so a Unicode
 // name/path is not mangled by the ANSI listview text path
 void SalListViewSetItemTextU8(HWND lv, int item, int subItem, const char* u8Text);

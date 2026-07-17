@@ -219,10 +219,12 @@ WCHAR* GetErrorTextW(DWORD error)
 void ClearComboboxListbox(HWND hCombo)
 {
     // keep the current text; clear the listbox
+    // feature 010: round-trip through the U8 helpers so a Unicode path in the
+    // edit part survives the reset (ANSI read would mangle it)
     char buff[3000];
-    GetWindowText(hCombo, buff, 3000);
+    SalGetWindowTextU8(hCombo, buff, 3000);
     SendMessage(hCombo, CB_RESETCONTENT, 0, 0);
-    SetWindowText(hCombo, buff);
+    SalSetWindowTextU8(hCombo, buff);
 }
 
 // ****************************************************************************

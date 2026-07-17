@@ -177,7 +177,7 @@ static void LogsFillConnections(HWND hwnd, int selectUID)
     for (int i = 0; i < Logs.GetCount(); i++)
     {
         CLogData* d = Logs.GetAt(i);
-        int idx = (int)SendMessageA(lb, LB_ADDSTRING, 0, (LPARAM)(d->Name != NULL ? d->Name : "(log)"));
+        int idx = ListBoxAddStringU8(lb, d->Name != NULL ? d->Name : "(log)"); // name is user@host (UTF-8)
         SendMessage(lb, LB_SETITEMDATA, idx, d->UID);
         if (d->UID == selectUID)
             selectIndex = idx;
@@ -200,11 +200,11 @@ static void LogsShowSelected(HWND hwnd)
     Logs.Enter();
     CLogData* d = Logs.FindByUID(uid);
     const char* text = (d != NULL && d->Text != NULL) ? d->Text : "";
-    SetDlgItemTextA(hwnd, IDE_LOGTEXT, text);
+    SetDlgItemTextU8(hwnd, IDE_LOGTEXT, text); // log lines carry remote paths (UTF-8)
     Logs.Leave();
     // scroll to bottom
     HWND edit = GetDlgItem(hwnd, IDE_LOGTEXT);
-    int len = GetWindowTextLengthA(edit);
+    int len = GetWindowTextLengthW(edit); // EM_SETSEL indexes UTF-16 units (feature 010)
     SendMessage(edit, EM_SETSEL, len, len);
     SendMessage(edit, EM_SCROLLCARET, 0, 0);
 }

@@ -47,6 +47,8 @@ class CToolTip : public CWindow
 protected:
     char Text[TOOLTIP_TEXT_MAX];
     int TextLen;
+    WCHAR TextW[TOOLTIP_TEXT_MAX]; // UTF-16 mirror of Text (feature 010); TextLenW == 0 -> invalid UTF-8, legacy ANSI draw
+    int TextLenW;
     HWND HNotifyWindow;
     DWORD LastID;
     TipTimerModeEnum WaitingMode;

@@ -325,25 +325,51 @@ void CMenuItem::DecodeSubTextLenghtsAndWidths(CMenuSharedResources* sharedRes, B
     else
         hOldFont = (HFONT)SelectObject(sharedRes->HTempMemDC, sharedRes->HNormalFont);
     RECT size;
+    // feature 010: columns hold UTF-8; measure the wide form that DrawItem draws,
+    // the ANSI measurement stays as the invalid-UTF-8 fallback
     if (ColumnL1 != NULL)
     {
         ZeroMemory(&size, sizeof(size));
-        DrawText(sharedRes->HTempMemDC, ColumnL1, ColumnL1Len,
-                 &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+        WCHAR* columnW = SalU8ToWAlloc(ColumnL1, ColumnL1Len);
+        if (columnW != NULL)
+        {
+            DrawTextW(sharedRes->HTempMemDC, columnW, (int)wcslen(columnW),
+                      &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+            free(columnW);
+        }
+        else
+            DrawText(sharedRes->HTempMemDC, ColumnL1, ColumnL1Len,
+                     &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
         ColumnL1Width = size.right;
     }
     if (ColumnL2 != NULL)
     {
         ZeroMemory(&size, sizeof(size));
-        DrawText(sharedRes->HTempMemDC, ColumnL2, ColumnL2Len,
-                 &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+        WCHAR* columnW = SalU8ToWAlloc(ColumnL2, ColumnL2Len);
+        if (columnW != NULL)
+        {
+            DrawTextW(sharedRes->HTempMemDC, columnW, (int)wcslen(columnW),
+                      &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+            free(columnW);
+        }
+        else
+            DrawText(sharedRes->HTempMemDC, ColumnL2, ColumnL2Len,
+                     &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
         ColumnL2Width = size.right;
     }
     if (ColumnR != NULL)
     {
         ZeroMemory(&size, sizeof(size));
-        DrawText(sharedRes->HTempMemDC, ColumnR, ColumnRLen,
-                 &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+        WCHAR* columnW = SalU8ToWAlloc(ColumnR, ColumnRLen);
+        if (columnW != NULL)
+        {
+            DrawTextW(sharedRes->HTempMemDC, columnW, (int)wcslen(columnW),
+                      &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
+            free(columnW);
+        }
+        else
+            DrawText(sharedRes->HTempMemDC, ColumnR, ColumnRLen,
+                     &size, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_CALCRECT);
         ColumnRWidth = size.right;
     }
     SelectObject(sharedRes->HTempMemDC, hOldFont);

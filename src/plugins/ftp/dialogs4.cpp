@@ -713,7 +713,16 @@ void CSrvTypeTestParserDlg::ParseListingToListView()
             lvi.iSubItem = 0;
             lvi.state = (file.Hidden ? LVIS_CUT : 0) | (file.IsLink ? INDEXTOOVERLAYMASK(1) : 0);
             lvi.pszText = file.Name;
-            ListView_InsertItem(HListView, &lvi);
+            WCHAR* nameW = SplU8ToWAlloc(file.Name); // feature 010: parsed names are UTF-8
+            if (nameW != NULL)
+            {
+                lvi.pszText = (LPSTR)nameW; // LVITEMA/LVITEMW share the same layout
+                SendMessage(HListView, LVM_INSERTITEMW, 0, (LPARAM)&lvi);
+                lvi.pszText = file.Name;
+                free(nameW);
+            }
+            else
+                ListView_InsertItem(HListView, &lvi);
 
             // insert data for other columns
             int j;
@@ -810,7 +819,17 @@ void CSrvTypeTestParserDlg::ParseListingToListView()
                     break;
                 }
                 }
-                ListView_SetItemText(HListView, i, j, value);
+                WCHAR* valueW = SplU8ToWAlloc(value); // feature 010: general-text values may be UTF-8
+                if (valueW != NULL)
+                {
+                    LVITEMW lviW;
+                    lviW.iSubItem = j;
+                    lviW.pszText = valueW;
+                    SendMessage(HListView, LVM_SETITEMTEXTW, i, (LPARAM)&lviW);
+                    free(valueW);
+                }
+                else
+                    ListView_SetItemText(HListView, i, j, value);
             }
             i++;
             // release data of the file or directory
@@ -1285,11 +1304,28 @@ void CCopyMoveDlg::Transfer(CTransferInfo& ti)
             {
                 SalamanderGeneral->LoadComboFromStdHistoryValues(hWnd, History, HistoryCount);
                 SendMessage(hWnd, CB_LIMITTEXT, PathBufSize - 1, 0);
-                SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Path);
+                WCHAR* pathW = SplU8ToWAlloc(Path); // feature 010: the target path is UTF-8
+                if (pathW != NULL)
+                {
+                    SendMessageW(hWnd, WM_SETTEXT, 0, (LPARAM)pathW);
+                    free(pathW);
+                }
+                else
+                    SendMessage(hWnd, WM_SETTEXT, 0, (LPARAM)Path);
             }
             else
             {
-                SendMessage(hWnd, WM_GETTEXT, PathBufSize, (LPARAM)Path);
+                // feature 010: read wide and store UTF-8; fall back to the A read on failure
+                BOOL done = FALSE;
+                WCHAR* pathW = (WCHAR*)malloc(PathBufSize * sizeof(WCHAR));
+                if (pathW != NULL)
+                {
+                    SendMessageW(hWnd, WM_GETTEXT, PathBufSize, (LPARAM)pathW);
+                    done = SplWToU8(pathW, Path, PathBufSize) > 0;
+                    free(pathW);
+                }
+                if (!done)
+                    SendMessage(hWnd, WM_GETTEXT, PathBufSize, (LPARAM)Path);
                 SalamanderGeneral->AddValueToStdHistoryValues(History, HistoryCount, Path, FALSE);
             }
         }
@@ -1307,7 +1343,14 @@ CCopyMoveDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         SalamanderGeneral->InstallWordBreakProc(GetDlgItem(HWindow, IDC_TGTPATH)); // install WordBreakProc into the combo box
         SetWindowText(HWindow, Title);
-        SetDlgItemText(HWindow, IDT_TGTPATHSUBJECT, Subject);
+        WCHAR* subjectW = SplU8ToWAlloc(Subject); // feature 010: the subject contains a UTF-8 file name
+        if (subjectW != NULL)
+        {
+            SetDlgItemTextW(HWindow, IDT_TGTPATHSUBJECT, subjectW);
+            free(subjectW);
+        }
+        else
+            SetDlgItemText(HWindow, IDT_TGTPATHSUBJECT, Subject);
         break;
     }
     }
@@ -1339,7 +1382,14 @@ CConfirmDeleteDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        SetDlgItemText(HWindow, IDT_DELSUBJECT, Subject);
+        WCHAR* subjectW = SplU8ToWAlloc(Subject); // feature 010: the subject contains a UTF-8 file name
+        if (subjectW != NULL)
+        {
+            SetDlgItemTextW(HWindow, IDT_DELSUBJECT, subjectW);
+            free(subjectW);
+        }
+        else
+            SetDlgItemText(HWindow, IDT_DELSUBJECT, Subject);
         SendDlgItemMessage(HWindow, IDC_DELICON, STM_SETICON,
                            (WPARAM)(Icon == NULL ? HANDLES(LoadIcon(NULL, IDI_QUESTION)) : Icon), 0);
         break;
@@ -1528,7 +1578,14 @@ CChangeAttrsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        SetDlgItemText(HWindow, IDT_CHATTRSUBJECT, Subject);
+        WCHAR* subjectW = SplU8ToWAlloc(Subject); // feature 010: the subject contains a UTF-8 file name
+        if (subjectW != NULL)
+        {
+            SetDlgItemTextW(HWindow, IDT_CHATTRSUBJECT, subjectW);
+            free(subjectW);
+        }
+        else
+            SetDlgItemText(HWindow, IDT_CHATTRSUBJECT, Subject);
         EnableWindow(GetDlgItem(HWindow, IDC_INCLUDESUBDIRS), SelDirs);
         EnableWindow(GetDlgItem(HWindow, IDC_CHATTRSETFILES), SelDirs);
         EnableWindow(GetDlgItem(HWindow, IDC_CHATTRSETDIRS), SelDirs);

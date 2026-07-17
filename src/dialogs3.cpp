@@ -1842,7 +1842,7 @@ void CPackDialog::Transfer(CTransferInfo& ti)
             int i;
             for (i = 0; i < PackerConfig->GetPackersCount(); i++)
             {
-                SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)PackerConfig->GetPackerTitle(i));
+                SalComboAddStringU8(combo, PackerConfig->GetPackerTitle(i)); // titles are UTF-8 (feature 010)
             }
             // sets the position in the combo, preferedPacker == -1 -> no selection
             SendMessage(combo, CB_SETCURSEL, (WPARAM)PackerConfig->GetPreferedPacker(), 0);
@@ -1872,10 +1872,10 @@ void CPackDialog::Transfer(CTransferInfo& ti)
     {
         // WARNING: code must stay consistent with CPackDialog::DialogProc/WM_COMMAND
         ti.GetControl(combo, IDE_PATH);
-        SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)Path);
+        SalComboAddStringU8(combo, Path); // paths are UTF-8 (feature 010)
         // if the alternative path matches the first one, don't add it (target isn't ptDisk)
         if (StrICmp(Path, PathAlt) != 0)
-            SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)PathAlt);
+            SalComboAddStringU8(combo, PathAlt);
         SendMessage(combo, CB_SETCURSEL, 0, 0);
     }
     else
@@ -2088,7 +2088,7 @@ void CUnpackDialog::Transfer(CTransferInfo& ti)
             int i;
             for (i = 0; i < UnpackerConfig->GetUnpackersCount(); i++)
             {
-                SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)UnpackerConfig->GetUnpackerTitle(i));
+                SalComboAddStringU8(combo, UnpackerConfig->GetUnpackerTitle(i)); // titles are UTF-8 (feature 010)
             }
             // set the position in the combo, preferredUnpacker == -1 -> no selection
             SendMessage(combo, CB_SETCURSEL, (WPARAM)UnpackerConfig->GetPreferedUnpacker(), 0);
@@ -2106,10 +2106,10 @@ void CUnpackDialog::Transfer(CTransferInfo& ti)
     if (ti.Type == ttDataToWindow)
     {
         ti.GetControl(combo, IDE_PATH);
-        SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)Path);
+        SalComboAddStringU8(combo, Path); // paths are UTF-8 (feature 010)
         // if the alternative path matches the first one, don't add it (target isn't ptDisk)
         if (StrICmp(Path, PathAlt) != 0)
-            SendMessage(combo, CB_ADDSTRING, 0, (LPARAM)PathAlt);
+            SalComboAddStringU8(combo, PathAlt);
         SendMessage(combo, CB_SETCURSEL, 0, 0);
         ti.CheckBox(IDC_DELETEARCHIVEFILES, *DelArchiveWhenDone);
     }
@@ -2546,14 +2546,25 @@ HWND CWaitWindow::Create(HWND hForegroundWnd)
         tR.top = 0;
         tR.right = 1;
         tR.bottom = 1;
-        DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
+        // the text may carry UTF-8 names/paths: measure the same form that
+        // PaintText draws (feature 010), legacy ANSI as invalid-UTF-8 fallback
+        WCHAR* textW = SalU8ToWAlloc(Text);
+        if (textW != NULL)
+            DrawTextW(dc, textW, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
+        else
+            DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX);
         if (tR.right + 2 * WAITWINDOW_HMARGIN >= scrW)
         {
             tR.right = (int)(scrW / 1.8);
             tR.bottom = 1;
-            DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
+            if (textW != NULL)
+                DrawTextW(dc, textW, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
+            else
+                DrawText(dc, Text, -1, &tR, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
             NeedWrap = TRUE;
         }
+        if (textW != NULL)
+            free(textW);
         TextSize.cx = tR.right;
         TextSize.cy = tR.bottom;
         SelectObject(dc, old);
@@ -2700,7 +2711,15 @@ void CWaitWindow::PaintText(HDC hDC)
         SetTextColor(hDestDC, GetSysColor(COLOR_BTNTEXT));
         // we won't clip so that we survive minor text extension
         // that may occur during a SetText call
-        DrawText(hDestDC, Text, (int)strlen(Text), &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
+        // the text may carry UTF-8 names/paths: draw wide (feature 010)
+        WCHAR* textW = SalU8ToWAlloc(Text);
+        if (textW != NULL)
+        {
+            DrawTextW(hDestDC, textW, -1, &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
+            free(textW);
+        }
+        else
+            DrawText(hDestDC, Text, (int)strlen(Text), &r, DT_LEFT | DT_NOPREFIX | DT_NOCLIP | (NeedWrap ? DT_WORDBREAK : 0));
         SetBkMode(hDestDC, prevBkMode);
         SelectObject(hDestDC, hOldFont);
 
@@ -2863,7 +2882,9 @@ void CConversionTablesDialog::Transfer(CTransferInfo& ti)
             lvi.iSubItem = 0;
             ListView_InsertItem(HListView, &lvi);
 
-            ListView_SetItemText(HListView, index - 1, 0, (char*)winCodePageDescription);
+            // descriptions come from convert.cfg files: UTF-8 when valid,
+            // legacy-encoded ones take the ANSI fallback (feature 010)
+            SalListViewSetItemTextU8(HListView, index - 1, 0, winCodePageDescription);
             sprintf(buff, "%u", winCodePageIdentifier);
             ListView_SetItemText(HListView, index - 1, 1, buff);
             sprintf(buff, "convert\\%s\\convert.cfg", dirName);

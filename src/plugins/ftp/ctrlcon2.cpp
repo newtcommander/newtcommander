@@ -1258,8 +1258,8 @@ void CControlConnectionSocket::SocketWasClosed(DWORD error)
     AddEvent(ccsevClosed, error, 0);
 
     // Inform the user about the control connection closing if it does not happen
-        // during a socket operation (which would report a timeout or a "kick"
-        // leading to disconnection from the FTP server)
+    // during a socket operation (which would report a timeout or a "kick"
+    // leading to disconnection from the FTP server)
     ClosedCtrlConChecker.Add(this);
 
     HANDLES(EnterCriticalSection(&SocketCritSect));
@@ -1561,7 +1561,16 @@ void CLogs::SetLogToEdit(HWND edit, int logUID, BOOL update)
         {
             if (lockUpdate)
                 LockWindowUpdate(edit);
-            SetWindowText(edit, d->Text.GetString());
+            // feature 010: the log may contain UTF-8 paths - set as UTF-16 (A fallback
+            // keeps raw non-UTF-8 server data readable as before)
+            WCHAR* logW = SplU8ToWAlloc(d->Text.GetString());
+            if (logW != NULL)
+            {
+                SetWindowTextW(edit, logW);
+                free(logW);
+            }
+            else
+                SetWindowText(edit, d->Text.GetString());
             SendMessage(edit, EM_SETSEL, d->Text.Length, d->Text.Length);
             SendMessage(edit, EM_SCROLLCARET, 0, 0);
             if (lockUpdate)
@@ -1596,7 +1605,15 @@ void CLogs::SetLogToEdit(HWND edit, int logUID, BOOL update)
             if (scrollCaret && GetScrollInfo(edit, SB_VERT, &si) != 0)
                 scrollCaret = (si.nMax == (int)si.nPage + si.nPos - 1);
 
-            SetWindowText(edit, d->Text.GetString());
+            // feature 010: see above
+            WCHAR* logW = SplU8ToWAlloc(d->Text.GetString());
+            if (logW != NULL)
+            {
+                SetWindowTextW(edit, logW);
+                free(logW);
+            }
+            else
+                SetWindowText(edit, d->Text.GetString());
             SendMessage(edit, EM_SETSEL, pos, pos);
             if (scrollCaret)
                 SendMessage(edit, EM_SCROLLCARET, 0, 0);

@@ -75,7 +75,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             break;
         }
         // the Stop/Restart button becomes the Start button
-        SetDlgItemText(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_RESCAN));
+        SalSetDlgItemTextU8(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_RESCAN)); // localized text is UTF-8 (feature 010)
         // disable OK and enable Drives
         EnableWindow(GetDlgItem(HWindow, IDB_ACDRIVES), TRUE);
         EnableWindow(GetDlgItem(HWindow, IDOK), FALSE);
@@ -109,7 +109,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 // Restart button
                 // the Stop/Restart button becomes the Stop button again
-                SetDlgItemText(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_STOP));
+                SalSetDlgItemTextU8(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_STOP)); // localized text is UTF-8 (feature 010)
                 // disable OK and Drives
                 EnableWindow(GetDlgItem(HWindow, IDB_ACDRIVES), FALSE);
                 EnableWindow(GetDlgItem(HWindow, IDOK), FALSE);
@@ -178,6 +178,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             case LVN_GETDISPINFO:
             {
                 // show the item and its state (we hold the data, not the listview)
+                // (legacy ANSI route, active only if the Unicode format was refused)
                 LV_DISPINFO* info = (LV_DISPINFO*)lParam;
                 int index;
                 CPackACPacker* packer = ListView->GetPacker(info->item.iItem, &index);
@@ -185,6 +186,32 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (info->item.mask & LVIF_TEXT)
                     info->item.pszText = (char*)packer->GetText(index, info->item.iSubItem);
                 // if the checkbox icon was requested, provide it too
+                if ((info->item.mask & LVIF_STATE) &&
+                    (info->item.stateMask & LVIS_STATEIMAGEMASK))
+                {
+                    info->item.state &= ~LVIS_STATEIMAGEMASK;
+                    info->item.state |= packer->GetSelectState(index) << 12;
+                }
+                break;
+            }
+
+            case LVN_GETDISPINFOW:
+            {
+                // feature 010: the listview runs with the Unicode notification
+                // format, so the UTF-8 texts (archiver names, found paths)
+                // convert losslessly for display
+                NMLVDISPINFOW* info = (NMLVDISPINFOW*)lParam;
+                int index;
+                CPackACPacker* packer = ListView->GetPacker((int)info->item.iItem, &index);
+                if ((info->item.mask & LVIF_TEXT) && info->item.cchTextMax > 0)
+                {
+                    const char* s = packer->GetText(index, info->item.iSubItem);
+                    if (SalU8ToW(s, -1, info->item.pszText, info->item.cchTextMax) == 0)
+                    { // not valid UTF-8 (transitional): legacy code-page text
+                        MultiByteToWideChar(CP_ACP, 0, s, -1, info->item.pszText, info->item.cchTextMax);
+                        info->item.pszText[info->item.cchTextMax - 1] = 0;
+                    }
+                }
                 if ((info->item.mask & LVIF_STATE) &&
                     (info->item.stateMask & LVIS_STATEIMAGEMASK))
                 {
@@ -232,7 +259,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (((char*)wParam)[lstrlen((char*)wParam) - 1] == '\\')
             ((char*)wParam)[lstrlen((char*)wParam) - 1] = '\0';
         // display it
-        SetDlgItemText(HWindow, IDC_ACSTATUS, (char*)wParam);
+        SalSetDlgItemTextU8(HWindow, IDC_ACSTATUS, (char*)wParam); // scanned path is UTF-8 (feature 010)
         // and free the memory
         HANDLES(GlobalFree((HGLOBAL)wParam));
         return TRUE;
@@ -258,8 +285,8 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
         {
             // restore everything back to normal
-            SetDlgItemText(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_RESCAN));
-            SetDlgItemText(HWindow, IDC_ACSTATUS, LoadStr(IDS_ACSTATUSDONE));
+            SalSetDlgItemTextU8(HWindow, IDB_ACSTOP, LoadStr(IDS_ACBUTTON_RESCAN)); // localized text is UTF-8 (feature 010)
+            SalSetDlgItemTextU8(HWindow, IDC_ACSTATUS, LoadStr(IDS_ACSTATUSDONE));
             EnableWindow(GetDlgItem(HWindow, IDB_ACDRIVES), TRUE);
             EnableWindow(GetDlgItem(HWindow, IDOK), TRUE);
             // fix the default push button
@@ -1453,6 +1480,11 @@ BOOL CPackACListView::InitColumns()
     // header table
     int header[4] = {IDS_ACCOLUMN1, IDS_ACCOLUMN2, IDS_ACCOLUMN3, IDS_ACCOLUMN4};
 
+    // feature 010: switch the listview to the Unicode notification format so
+    // item texts are requested via LVN_GETDISPINFOW (UTF-8 sources convert
+    // losslessly there)
+    ListView_SetUnicodeFormat(HWindow, TRUE);
+
     lvc.mask = LVCF_FMT | LVCF_TEXT | LVCF_SUBITEM;
     // create all columns
     int i;
@@ -1467,8 +1499,20 @@ BOOL CPackACListView::InitColumns()
         lvc.pszText = LoadStr(header[i]);
         // column number
         lvc.iSubItem = i;
-        // and create the column
-        if (ListView_InsertColumn(HWindow, i, &lvc) == -1)
+        // and create the column (localized header is UTF-8 -> wide insert, feature 010)
+        BOOL inserted;
+        WCHAR* headerW = SalU8ToWAlloc(lvc.pszText);
+        if (headerW != NULL)
+        {
+            LVCOLUMNW lvcW;
+            memcpy(&lvcW, &lvc, sizeof(lvcW)); // A/W structs share the layout; only the text pointer differs
+            lvcW.pszText = headerW;
+            inserted = (int)SendMessageW(HWindow, LVM_INSERTCOLUMNW, i, (LPARAM)&lvcW) != -1;
+            free(headerW);
+        }
+        else
+            inserted = ListView_InsertColumn(HWindow, i, &lvc) != -1;
+        if (!inserted)
             return FALSE;
     }
 

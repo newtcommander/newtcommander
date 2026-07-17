@@ -296,8 +296,20 @@ BOOL CToolBar::Refresh()
                 r.right = 0;
                 r.bottom = 0;
                 DWORD noPrefix = item->Style & TLBI_STYLE_NOPREFIX ? DT_NOPREFIX : 0;
-                DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
-                         &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | noPrefix | DT_CALCRECT);
+                // feature 010: item text is UTF-8; measure wide to match the wide
+                // draw in DrawItem(), legacy ANSI route is the invalid-UTF-8 fallback
+                WCHAR* textW = SalU8ToWAlloc(item->Text, item->TextLen);
+                if (textW != NULL)
+                {
+                    DrawTextW(CacheBitmap->HMemDC, textW, (int)wcslen(textW),
+                              &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | noPrefix | DT_CALCRECT);
+                    free(textW);
+                }
+                else
+                {
+                    DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
+                             &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | noPrefix | DT_CALCRECT);
+                }
                 textWidth = r.right;
                 textPresent = TRUE;
             }
@@ -622,6 +634,10 @@ void CToolBar::DrawItem(HDC hDC, int index)
             r.bottom = r.top + item->Height;
             DWORD noPrefix = item->Style & TLBI_STYLE_NOPREFIX ? DT_NOPREFIX : 0;
             HFONT hOldFont = (HFONT)SelectObject(CacheBitmap->HMemDC, HFont);
+            // feature 010: item text is UTF-8; draw wide (measured wide in
+            // Refresh()), legacy ANSI route is the invalid-UTF-8 fallback
+            WCHAR* textW = SalU8ToWAlloc(item->Text, item->TextLen);
+            int textLenW = textW != NULL ? (int)wcslen(textW) : 0;
             if (grayed)
             {
                 RECT textR2 = r;
@@ -630,14 +646,31 @@ void CToolBar::DrawItem(HDC hDC, int index)
                 textR2.right++;
                 textR2.bottom++;
                 SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNHILIGHT));
-                DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
-                         &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                if (textW != NULL)
+                {
+                    DrawTextW(CacheBitmap->HMemDC, textW, textLenW,
+                              &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                }
+                else
+                {
+                    DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
+                             &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                }
                 SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNSHADOW));
             }
             else
                 SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNTEXT));
-            DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen, &r,
-                     noPrefix | DT_NOCLIP | DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+            if (textW != NULL)
+            {
+                DrawTextW(CacheBitmap->HMemDC, textW, textLenW, &r,
+                          noPrefix | DT_NOCLIP | DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+                free(textW);
+            }
+            else
+            {
+                DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen, &r,
+                         noPrefix | DT_NOCLIP | DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+            }
             if (hOldFont != NULL)
                 SelectObject(CacheBitmap->HMemDC, hOldFont);
         }

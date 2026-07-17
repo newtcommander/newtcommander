@@ -117,6 +117,10 @@ COperationDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         ListView_SetExtendedListViewStyle(ItemsListView, ListView_GetExtendedListViewStyle(ItemsListView) |
                                                              LVS_EX_FULLROWSELECT); // 4.70
         ItemsListViewObj.Attach(ItemsListView, this, FALSE);
+        // feature 010: Unicode notification format so item texts (UTF-8 remote
+        // names/paths) are requested via LVN_GETDISPINFOW and render losslessly
+        ListView_SetUnicodeFormat(ConsListView, TRUE);
+        ListView_SetUnicodeFormat(ItemsListView, TRUE);
 
         RECT r1, r2;
         GetWindowRect(HWindow, &r1);
@@ -779,6 +783,35 @@ COperationDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 return FALSE; // continue processing
             }
 
+            case LVN_GETDISPINFOW:
+            { // feature 010: the listview runs with the Unicode format; ask the
+                // data layer through an A-shaped request and convert the UTF-8 text
+                NMLVDISPINFOW* lvdiW = (NMLVDISPINFOW*)lParam;
+                NMLVDISPINFO lvdi;
+                memcpy(&lvdi, lvdiW, sizeof(NMLVDISPINFO)); // A/W structs share the layout; only the text pointer differs
+                lvdi.item.pszText = NULL;
+                int index = lvdiW->item.iItem;
+                if (ShowOnlyErrors && index >= 0 && index < ErrorsIndexes.Count)
+                    index = ErrorsIndexes[index];
+                Queue->GetListViewDataFor(index, &lvdi, ItemsTextBuf[ItemsActTextBuf], OPERDLG_ITEMSTEXTBUFSIZE);
+                if (++ItemsActTextBuf > 2)
+                    ItemsActTextBuf = 0;
+                if (lvdiW->item.mask & LVIF_IMAGE)
+                    lvdiW->item.iImage = lvdi.item.iImage;
+                if (lvdiW->item.mask & LVIF_STATE)
+                    lvdiW->item.state = lvdi.item.state;
+                if ((lvdiW->item.mask & LVIF_TEXT) && lvdiW->item.cchTextMax > 0)
+                {
+                    if (SplU8ToW(lvdi.item.pszText, lvdiW->item.pszText, lvdiW->item.cchTextMax) == 0)
+                    { // not valid UTF-8 (transitional): legacy code-page text
+                        MultiByteToWideChar(CP_ACP, 0, lvdi.item.pszText != NULL ? lvdi.item.pszText : "", -1,
+                                            lvdiW->item.pszText, lvdiW->item.cchTextMax);
+                        lvdiW->item.pszText[lvdiW->item.cchTextMax - 1] = 0;
+                    }
+                }
+                return FALSE; // continue processing
+            }
+
             case LVN_ITEMCHANGED:
             {
                 if (EnableChangeFocusedItemUID)
@@ -826,6 +859,32 @@ COperationDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                                                     ConsTextBuf[ConsActTextBuf], OPERDLG_CONSTEXTBUFSIZE);
                     if (++ConsActTextBuf > 2)
                         ConsActTextBuf = 0;
+                    return FALSE; // continue processing
+                }
+
+                case LVN_GETDISPINFOW:
+                { // feature 010: see the IDL_OPERATIONS LVN_GETDISPINFOW comment
+                    NMLVDISPINFOW* lvdiW = (NMLVDISPINFOW*)lParam;
+                    NMLVDISPINFO lvdi;
+                    memcpy(&lvdi, lvdiW, sizeof(NMLVDISPINFO)); // A/W structs share the layout; only the text pointer differs
+                    lvdi.item.pszText = NULL;
+                    WorkersList->GetListViewDataFor(lvdiW->item.iItem, &lvdi,
+                                                    ConsTextBuf[ConsActTextBuf], OPERDLG_CONSTEXTBUFSIZE);
+                    if (++ConsActTextBuf > 2)
+                        ConsActTextBuf = 0;
+                    if (lvdiW->item.mask & LVIF_IMAGE)
+                        lvdiW->item.iImage = lvdi.item.iImage;
+                    if (lvdiW->item.mask & LVIF_STATE)
+                        lvdiW->item.state = lvdi.item.state;
+                    if ((lvdiW->item.mask & LVIF_TEXT) && lvdiW->item.cchTextMax > 0)
+                    {
+                        if (SplU8ToW(lvdi.item.pszText, lvdiW->item.pszText, lvdiW->item.cchTextMax) == 0)
+                        { // not valid UTF-8 (transitional): legacy code-page text
+                            MultiByteToWideChar(CP_ACP, 0, lvdi.item.pszText != NULL ? lvdi.item.pszText : "", -1,
+                                                lvdiW->item.pszText, lvdiW->item.cchTextMax);
+                            lvdiW->item.pszText[lvdiW->item.cchTextMax - 1] = 0;
+                        }
+                    }
                     return FALSE; // continue processing
                 }
 

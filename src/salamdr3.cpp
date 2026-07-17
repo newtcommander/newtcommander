@@ -1089,9 +1089,9 @@ AGAIN:
         return FALSE;
     }
     DWORD attrs = SalGetFileAttributes(dir);
-    char buf[MAX_PATH + 200];         // error texts (paths truncated into messages)
-    char name[SAL_MAX_PATH_UTF8];     // working path - long-path capable (feature 004)
-    if (attrs == 0xFFFFFFFF) // probably does not exist, we allow it to be created
+    char buf[MAX_PATH + 200];     // error texts (paths truncated into messages)
+    char name[SAL_MAX_PATH_UTF8]; // working path - long-path capable (feature 004)
+    if (attrs == 0xFFFFFFFF)      // probably does not exist, we allow it to be created
     {
         char root[MAX_PATH];
         GetRootPath(root, dir);
@@ -2552,7 +2552,7 @@ CUserMenuItem::CUserMenuItem(CUserMenuItem& item, CUserMenuIconDataArr* bkgndRea
     {
         if (bkgndReaderData == NULL) // this is a copy for the config dialog; do not propagate newly loaded icons (wait until the dialog ends)
         {
-            UMIcon = DuplicateIcon(NULL, item.UMIcon); // GetIconHandle() unnecessarily slowed things down. 
+            UMIcon = DuplicateIcon(NULL, item.UMIcon); // GetIconHandle() unnecessarily slowed things down.
             if (UMIcon != NULL)                        // add the 'UMIcon' handle to HANDLES
                 HANDLES_ADD(__htIcon, __hoLoadImage, UMIcon);
         }
@@ -3147,7 +3147,7 @@ void CFileTimeStamps::AddFilesToListBox(HWND list)
         char buf[MAX_PATH];
         strcpy(buf, List[i]->ZIPRoot);
         SalPathAppend(buf, List[i]->FileName, MAX_PATH);
-        SendMessage(list, LB_ADDSTRING, 0, (LPARAM)buf);
+        SalListBoxAddStringU8(list, buf); // names are UTF-8 (feature 010)
     }
 }
 
@@ -3486,7 +3486,7 @@ BOOL CFileHistory::AddFile(CFileHistoryItemTypeEnum type, DWORD handlerID, const
             if (i > 0)
             {
                 Files.Detach(i);
-                    if (!Files.IsGood())
+                if (!Files.IsGood())
                     Files.ResetState(); // cannot fail; it only reports an out-of-memory condition when shrinking the array
                 Files.Insert(0, item);
                 if (!Files.IsGood())
@@ -3632,8 +3632,8 @@ BOOL SetEditOrComboText(HWND hWnd, const char* text)
     else
         hEdit = hWnd;
 
-    SendMessage(hEdit, WM_SETTEXT, 0, (LPARAM)text);
-    SendMessage(hEdit, EM_SETSEL, 0, lstrlen(text));
+    SalSetWindowTextU8(hEdit, text); // paths are UTF-8 (feature 010)
+    SendMessage(hEdit, EM_SETSEL, 0, -1);
     return TRUE;
 }
 
@@ -3799,9 +3799,9 @@ void InvokeDirectoryMenuCommand(DWORD cmd, HWND hDialog, int editID, int editBuf
     case DIRECTORY_COMMAND_BROWSE:
     {
         // browse
-        GetDlgItemText(hDialog, editID, path, MAX_PATH);
+        SalGetDlgItemTextU8(hDialog, editID, path, MAX_PATH); // paths are UTF-8 (feature 010)
         char caption[100];
-        GetWindowText(hDialog, caption, 100); // use the same caption as the dialog
+        SalGetWindowTextU8(hDialog, caption, 100); // use the same caption as the dialog
         if (GetTargetDirectory(hDialog, hDialog, caption, LoadStr(IDS_BROWSETARGETDIRECTORY), path, FALSE, path))
             setPathToEdit = TRUE;
         break;

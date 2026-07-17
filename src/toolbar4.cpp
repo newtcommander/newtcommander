@@ -1418,8 +1418,21 @@ BOOL CBottomToolBar::SetMaxItemWidths()
             r.top = 0;
             r.right = 0;
             r.bottom = 0;
-            DrawText(CacheBitmap->HMemDC, text, textLen,
-                     &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_CALCRECT);
+            // feature 010: texts come from LoadStr as UTF-8 (buffer has no
+            // terminator, pass the length); measure wide to match the wide
+            // draw in CToolBar::DrawItem, ANSI is the invalid-UTF-8 fallback
+            WCHAR* textW = textLen > 0 ? SalU8ToWAlloc(text, textLen) : NULL;
+            if (textW != NULL)
+            {
+                DrawTextW(CacheBitmap->HMemDC, textW, (int)wcslen(textW),
+                          &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_CALCRECT);
+                free(textW);
+            }
+            else
+            {
+                DrawText(CacheBitmap->HMemDC, text, textLen,
+                         &r, DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_CALCRECT);
+            }
             if (r.right > maxWidth)
                 maxWidth = (WORD)r.right;
         }

@@ -291,9 +291,25 @@ void COperationDlg::SetDlgTitle(int progressValue, const char* state)
             else
                 text = TitleText; // progress unknown, status also unknown (shows plain title)
         }
-        if (!GetWindowText(HWindow, txt2, 500) || strcmp(text, txt2) != 0)
+        // feature 010: the title contains UTF-8 names - compare and set as UTF-16 (A fallback)
+        BOOL changed;
+        WCHAR* textW = SplU8ToWAlloc(text);
+        if (textW != NULL)
         {
-            SetWindowText(HWindow, text);
+            WCHAR txt2W[500];
+            changed = !GetWindowTextW(HWindow, txt2W, 500) || wcscmp(textW, txt2W) != 0;
+            if (changed)
+                SetWindowTextW(HWindow, textW);
+            free(textW);
+        }
+        else
+        {
+            changed = !GetWindowText(HWindow, txt2, 500) || strcmp(text, txt2) != 0;
+            if (changed)
+                SetWindowText(HWindow, text);
+        }
+        if (changed)
+        {
             HWND foreground = GetForegroundWindow();
             while (foreground != HWindow && (foreground = ::GetParent(foreground)) != NULL)
                 ;

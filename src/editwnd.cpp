@@ -1562,12 +1562,28 @@ CInnerText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             r.right -= TXEL_SPACE - 1; // bold fonts make the text overflow - hence this correction
 
             // PathCompactPath() works better than combining DT_PATH_ELLIPSIS with DT_END_ELLIPSIS (because the last character misbehaves)
-            char buff[2 * MAX_PATH];
-            strncpy_s(buff, _countof(buff), Message, _TRUNCATE);
-            PathCompactPath(dc, buff, r.right - r.left);
-
-            DrawText(dc, buff, -1, &r,
-                     /*DT_END_ELLIPSIS | DT_PATH_ELLIPSIS | */ DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+            // the path is UTF-8: compact and render via the W APIs (feature 010);
+            // MAX_PATH headroom covers in-place edits done by PathCompactPathW()
+            WCHAR* msgW = NULL;
+            int msgWLen = SalU8ToW(Message, -1, NULL, 0);
+            if (msgWLen > 0)
+                msgW = (WCHAR*)malloc((msgWLen + MAX_PATH) * sizeof(WCHAR));
+            if (msgW != NULL && SalU8ToW(Message, -1, msgW, msgWLen + MAX_PATH) > 0)
+            {
+                PathCompactPathW(dc, msgW, r.right - r.left);
+                DrawTextW(dc, msgW, -1, &r,
+                          DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+            }
+            else // not valid UTF-8 (transitional): keep the legacy path
+            {
+                char buff[2 * MAX_PATH];
+                strncpy_s(buff, _countof(buff), Message, _TRUNCATE);
+                PathCompactPath(dc, buff, r.right - r.left);
+                DrawText(dc, buff, -1, &r,
+                         /*DT_END_ELLIPSIS | DT_PATH_ELLIPSIS | */ DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+            }
+            if (msgW != NULL)
+                free(msgW);
             SetBkMode(dc, oldBkMode);
             SetTextColor(dc, oldColor);
             SelectObject(dc, oldFont);

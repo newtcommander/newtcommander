@@ -1995,11 +1995,11 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
                     }
                 }
 
-                BOOL clipCopy = FALSE;     // is it "our copy"?
-                BOOL clipCut = FALSE;      // is it "our cut"?
-                BOOL cmdDelete = FALSE;    // is it "our delete"?
-                BOOL cmdMapNetDrv = FALSE; // is this our "Map Network Drive"? (only for a UNC root, let us not complicate life)
-                DWORD cmd = 0;             // command number for the context menu (10000 = "our paste")
+                BOOL clipCopy = FALSE;             // is it "our copy"?
+                BOOL clipCut = FALSE;              // is it "our cut"?
+                BOOL cmdDelete = FALSE;            // is it "our delete"?
+                BOOL cmdMapNetDrv = FALSE;         // is this our "Map Network Drive"? (only for a UNC root, let us not complicate life)
+                DWORD cmd = 0;                     // command number for the context menu (10000 = "our paste")
                 char pastePath[SAL_MAX_PATH_UTF8]; // buffer for the path where "our paste" is executed (if it happens); long-path capable
                 if (panel->ContextMenu != NULL && h != NULL)
                 {
@@ -2088,18 +2088,16 @@ MENU_TEMPLATE_ITEM PanelBkgndMenu[] =
                             mi.fMask = MIIM_STATE | MIIM_ID | MIIM_TYPE;
                             mi.fType = MFT_STRING;
                             mi.fState = EnablerPastePath || EnablerPasteFiles ? MFS_ENABLED : MFS_DISABLED;
-                            mi.dwTypeData = itemName;
                             mi.wID = 10000;
-                            InsertMenuItem(bckgndMenu, bckgndMenuInsert++, TRUE, &mi);
+                            SalInsertMenuItemU8(bckgndMenu, bckgndMenuInsert++, TRUE, &mi, itemName); // localized text is UTF-8 (feature 010)
 
                             // add the Paste Shortcuts command
                             mi.cbSize = sizeof(mi);
                             mi.fMask = MIIM_STATE | MIIM_ID | MIIM_TYPE;
                             mi.fType = MFT_STRING;
                             mi.fState = EnablerPasteLinksOnDisk ? MFS_ENABLED : MFS_DISABLED;
-                            mi.dwTypeData = LoadStr(IDS_MENU_EDIT_PASTELINKS);
                             mi.wID = 10001;
-                            InsertMenuItem(bckgndMenu, bckgndMenuInsert++, TRUE, &mi);
+                            SalInsertMenuItemU8(bckgndMenu, bckgndMenuInsert++, TRUE, &mi, LoadStr(IDS_MENU_EDIT_PASTELINKS));
 
                             // insert a separator if it is not there yet
                             MENUITEMINFO mi2;
@@ -2142,8 +2140,7 @@ MENU_TEMPLATE_ITEM PanelBkgndMenu[] =
                             mi.fType = MFT_STRING;
                             mi.fState = MFS_ENABLED;
                             mi.hSubMenu = panel->ContextSubmenuNew->GetMenu();
-                            mi.dwTypeData = LoadStr(IDS_MENUNEWTITLE);
-                            InsertMenuItem(h, -1, TRUE, &mi);
+                            SalInsertMenuItemU8(h, -1, TRUE, &mi, LoadStr(IDS_MENUNEWTITLE)); // localized text is UTF-8 (feature 010)
                         }
                     }
 

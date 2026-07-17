@@ -106,7 +106,7 @@ void CPluginsDlg::RefreshListView(BOOL setOnly, int selIndex, const CPluginData*
         char buf[300];
         sprintf(buf, InstalledPluginsText, Plugins.GetCount(), numOfLoaded);
         SendMessage(Header->HWindow, WM_SETREDRAW, FALSE, 0);
-        SetWindowText(Header->HWindow, buf);
+        SalSetWindowTextU8(Header->HWindow, buf); // localized text is UTF-8 (feature 010)
         SendMessage(Header->HWindow, WM_SETREDRAW, TRUE, 0);
         InvalidateRect(Header->HWindow, NULL, TRUE);
     }
@@ -221,16 +221,16 @@ void CPluginsDlg::OnSelChanged()
             ShowWindow(showInChDrv, SW_SHOW);
 
         // description
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINDESCRIPTION), p->Description);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINDESCRIPTION), p->Description); // plugin texts are UTF-8 (feature 010)
         // copyright
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINCOPYRIGHT), p->Copyright);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINCOPYRIGHT), p->Copyright);
         // www
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINWWW),
-                      p->PluginHomePageURL != NULL ? p->PluginHomePageURL : LoadStr(IDS_PLUGINURLNONE));
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINWWW),
+                           p->PluginHomePageURL != NULL ? p->PluginHomePageURL : LoadStr(IDS_PLUGINURLNONE));
         Url->SetActionOpen(p->PluginHomePageURL != NULL ? p->PluginHomePageURL : "");
         // extension
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINEXTENSIONS),
-                      p->Extensions[0] == 0 ? LoadStr(IDS_PLUGINEXTNONE) : p->Extensions);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINEXTENSIONS),
+                           p->Extensions[0] == 0 ? LoadStr(IDS_PLUGINEXTNONE) : p->Extensions);
         // FS Name
         char buf[500];
         buf[0] = 0;
@@ -242,8 +242,8 @@ void CPluginsDlg::OnSelChanged()
                         (i + 1 != p->FSNames.Count) ? "%s;" : "%s", p->FSNames[i]);
             remainingSize = (int)sizeof(buf) - (int)strlen(buf);
         }
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINFSNAME),
-                      buf[0] == 0 ? LoadStr(IDS_PLUGINFSNONE) : buf);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINFSNAME),
+                           buf[0] == 0 ? LoadStr(IDS_PLUGINFSNONE) : buf);
         // Functions
         buf[0] = 0;
         if (p->SupportPanelView)
@@ -313,19 +313,19 @@ void CPluginsDlg::OnSelChanged()
                     strcat(buf, ",\n");
             }
             strcat(buf, LoadStr(IDS_PLUGINFUNCTHUMBLOADER));
-            SetWindowText(GetDlgItem(HWindow, IDC_PLUGINTHUMBNAILS), p->ThumbnailMasks.GetMasksString());
+            SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINTHUMBNAILS), p->ThumbnailMasks.GetMasksString());
         }
         else
-            SetWindowText(GetDlgItem(HWindow, IDC_PLUGINTHUMBNAILS), LoadStr(IDS_PLUGINTHUMBNONE));
+            SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINTHUMBNAILS), LoadStr(IDS_PLUGINTHUMBNONE));
 
-        SetWindowText(GetDlgItem(HWindow, IDC_PLUGINFUNCTIONS), buf);
+        SalSetWindowTextU8(GetDlgItem(HWindow, IDC_PLUGINFUNCTIONS), buf);
 
         char buff[MAX_PATH + 200];
         char pluginName[300];
         lstrcpyn(pluginName, p->Name, 299);
         DuplicateAmpersands(pluginName, 299); // plugin name may contain the '&' character
         sprintf(buff, ShowInBarText, pluginName);
-        SetWindowText(showInBar, buff);
+        SalSetWindowTextU8(showInBar, buff);
 
         char fsItemText[200];
         const char* itemText;
@@ -351,7 +351,7 @@ void CPluginsDlg::OnSelChanged()
             itemText = "FS";
 
         sprintf(buff, ShowInChDrvText, itemText);
-        SetWindowText(showInChDrv, buff);
+        SalSetWindowTextU8(showInChDrv, buff);
 
         int orderIndex = ListView_GetNextItem(HListView, -1, LVIS_FOCUSED);
         if (orderIndex != -1)
@@ -1211,7 +1211,7 @@ void CPluginKeys::HandleConflictWarning()
             }
         }
     }
-    SetDlgItemText(HWindow, IDC_CONFLICT_WARNING, buff);
+    SalSetDlgItemTextU8(HWindow, IDC_CONFLICT_WARNING, buff); // composed with UTF-8 plugin name (feature 010)
 }
 
 INT_PTR
@@ -1225,9 +1225,9 @@ CPluginKeys::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         // dialog box title
         char buff[500];
         char buff2[500];
-        GetWindowText(HWindow, buff, 500);
+        SalGetWindowTextU8(HWindow, buff, 500); // feature 010: keep the whole title in UTF-8
         sprintf(buff2, buff, Plugin->Name);
-        SetWindowText(HWindow, buff2);
+        SalSetWindowTextU8(HWindow, buff2);
 
         // listview setup
         HListView = GetDlgItem(HWindow, IDL_COMMANDS);
@@ -1407,7 +1407,7 @@ CArchiveUpdateDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
     {
-        SetDlgItemText(HWindow, IDT_ARCHIVENAME, FileStamps->GetZIPFile());
+        SalSetDlgItemTextU8(HWindow, IDT_ARCHIVENAME, FileStamps->GetZIPFile()); // archive path is UTF-8 (feature 010)
         HWND list = GetDlgItem(HWindow, IDL_UPDATEDFILES);
         FileStamps->AddFilesToListBox(list);
         SendMessage(list, LB_SETSEL, TRUE, -1);
@@ -1721,7 +1721,7 @@ CCfgPageConfirmations::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
     {
-        // according to MSDN, TreeView does not destroy the image list, but the W2K checked build complains 
+        // according to MSDN, TreeView does not destroy the image list, but the W2K checked build complains
         // during the following ImageList_Destroy call, so remove the image list just to be safe
         if (HTreeView != NULL)
             TreeView_SetImageList(HTreeView, NULL, TVSIL_NORMAL);
@@ -1862,11 +1862,11 @@ CCfgPageDrives::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (LOWORD(wParam) == IDB_BROWSECOMMAND)
         {
             char path[MAX_PATH];
-            GetDlgItemText(HWindow, IDE_DRVSPEC_ONERRGOTO, path, MAX_PATH);
+            SalGetDlgItemTextU8(HWindow, IDE_DRVSPEC_ONERRGOTO, path, MAX_PATH); // path is UTF-8 (feature 010)
             if (GetTargetDirectory(HWindow, HWindow, LoadStr(IDS_BROWSEONERRGOTOTITLE),
                                    LoadStr(IDS_BROWSEONERRGOTOTEXT), path, FALSE, path))
             {
-                SetDlgItemText(HWindow, IDE_DRVSPEC_ONERRGOTO, path);
+                SalSetDlgItemTextU8(HWindow, IDE_DRVSPEC_ONERRGOTO, path);
             }
         }
         if (HIWORD(wParam) == EN_CHANGE && LOWORD(wParam) == IDE_DRVSPEC_ONERRGOTO)
@@ -1912,8 +1912,8 @@ void CCfgPageViewers::Transfer(CTransferInfo& ti)
         Dirty = FALSE;
         // populate the combo box with viewers
         HWND hCombo = GetDlgItem(HWindow, IDC_VIEW_TYPE);
-        SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)LoadStr(IDS_VIEWER_EXTERNAL));
-        SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)LoadStr(IDS_VIEWER_INTERNAL));
+        SalComboAddStringU8(hCombo, LoadStr(IDS_VIEWER_EXTERNAL)); // localized text is UTF-8 (feature 010)
+        SalComboAddStringU8(hCombo, LoadStr(IDS_VIEWER_INTERNAL));
         int count = 0;
         int index;
         while ((index = Plugins.GetViewerIndex(count++)) != -1) // while "file viewer" plug-ins exist
@@ -1923,7 +1923,7 @@ void CCfgPageViewers::Transfer(CTransferInfo& ti)
             {
                 char buf[MAX_PATH];
                 p->GetDisplayName(buf, MAX_PATH);
-                SendMessage(hCombo, CB_ADDSTRING, 0, (LPARAM)buf);
+                SalComboAddStringU8(hCombo, buf);
             }
             else
                 TRACE_E("Unexpected situation in CCfgPageViewers::Transfer().");
@@ -2721,7 +2721,7 @@ void CCfgPageMainWindow::Transfer(CTransferInfo& ti)
         int resIDs[3] = {IDS_TITLEBAR_DIRECTORY, IDS_TITLEBAR_COMPOSITE, IDS_TITLEBAR_FULLPATH}; // must correspond with TITLE_BAR_MODE_xxx
         int i;
         for (i = 0; i < 3; i++)
-            SendDlgItemMessage(HWindow, IDC_TITLEBAR_MODE, CB_ADDSTRING, 0, (LPARAM)LoadStr(resIDs[i]));
+            SalComboAddStringU8(GetDlgItem(HWindow, IDC_TITLEBAR_MODE), LoadStr(resIDs[i])); // localized text is UTF-8 (feature 010)
     }
 
     ti.CheckBox(IDC_STATUSAREA, Configuration.StatusArea);
@@ -2793,7 +2793,7 @@ BOOL CCfgPageMainWindow::InitIconCombobox()
                                     NULL);
     SetWindowLongPtr(hNewCombo, GWLP_ID, IDC_TITLEBAR_ICON_INDEX);
 
-    // since Vista, if font aliasing is set to Standard, the combobox had aliased font while the rest of the dialog 
+    // since Vista, if font aliasing is set to Standard, the combobox had aliased font while the rest of the dialog
     // had the classic non-aliased one; set the correct font
     HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
     SendMessage(hNewCombo, WM_SETFONT, (WPARAM)hFont, MAKELPARAM(TRUE, 0));
@@ -2894,7 +2894,7 @@ void CCfgPageAppearance::LoadControls()
                 MulDiv(-origHeight, 72, GetDeviceCaps(hDC, LOGPIXELSY)),
                 logFont.lfFaceName,
                 LoadStr(LocalUseCustomPanelFont ? IDS_FONTDESCRIPTION_CST : IDS_FONTDESCRIPTION_DEF));
-    SetWindowText(hEdit, buf);
+    SalSetWindowTextU8(hEdit, buf); // composed with localized UTF-8 text (feature 010)
 
     HANDLES(ReleaseDC(HWindow, hDC));
 }
@@ -3340,7 +3340,7 @@ void CCfgPagePanels::Transfer(CTransferInfo& ti)
         int i;
         for (i = 0; i < MANGLE_ITEMS; i++)
         {
-            SendDlgItemMessage(HWindow, IDC_NAMEMANGLE, CB_ADDSTRING, 0, (LPARAM)LoadStr(resIDs[i]));
+            SalComboAddStringU8(GetDlgItem(HWindow, IDC_NAMEMANGLE), LoadStr(resIDs[i])); // localized text is UTF-8 (feature 010)
             if (!selected && Configuration.FileNameFormat == mangles[i])
             {
                 SendDlgItemMessage(HWindow, IDC_NAMEMANGLE, CB_SETCURSEL, i, 0);
@@ -3354,7 +3354,7 @@ void CCfgPagePanels::Transfer(CTransferInfo& ti)
         selected = FALSE;
         for (i = 0; i < SIZE_ITEMS; i++)
         {
-            SendDlgItemMessage(HWindow, IDC_SIZEFORMAT, CB_ADDSTRING, 0, (LPARAM)LoadStr(resID2s[i]));
+            SalComboAddStringU8(GetDlgItem(HWindow, IDC_SIZEFORMAT), LoadStr(resID2s[i]));
             if (!selected && Configuration.SizeFormat == sizes[i])
             {
                 SendDlgItemMessage(HWindow, IDC_SIZEFORMAT, CB_SETCURSEL, i, 0);
@@ -3440,8 +3440,14 @@ void CTaskListDialog::Refresh()
     // save the text of the previously selected item
     char oldSelected[250];
     int oldIndex = (int)SendMessage(list, LB_GETCURSEL, 0, 0);
-    if (oldIndex == LB_ERR || SendMessage(list, LB_GETTEXT, oldIndex, (LPARAM)oldSelected) == LB_ERR)
-        oldSelected[0] = 0;
+    oldSelected[0] = 0; // feature 010: wide read so the UTF-8 compare below keeps matching
+    if (oldIndex != LB_ERR)
+    {
+        WCHAR oldSelectedW[250];
+        if (SendMessageW(list, LB_GETTEXT, oldIndex, (LPARAM)oldSelectedW) != LB_ERR &&
+            SalWToU8(oldSelectedW, -1, oldSelected, 250) == 0)
+            oldSelected[0] = 0;
+    }
 
     SendMessage(list, LB_RESETCONTENT, 0, 0);
 
@@ -3466,7 +3472,7 @@ void CTaskListDialog::Refresh()
         char buf[100];
         sprintf(buf, LoadStr(IDS_TASKLISTLINE), items[i].PID, date, time,
                 (items[i].PID == PID ? LoadStr(IDS_TASKLISTCURLINE) : ""));
-        SendMessage(list, LB_ADDSTRING, 0, (LPARAM)buf);
+        SalListBoxAddStringU8(list, buf); // composed with localized UTF-8 text (feature 010)
 
         if (strcmp(buf, oldSelected) == 0)
             SendMessage(list, LB_SETCURSEL, i, 0);

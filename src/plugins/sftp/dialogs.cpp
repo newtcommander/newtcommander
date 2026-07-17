@@ -11,6 +11,65 @@ char ConnectPlainPassword[512] = "";
 char ConnectPlainPassphrase[512] = "";
 
 // ---------------------------------------------------------------------------
+// UTF-8 dialog text helpers (feature 010)
+// ---------------------------------------------------------------------------
+
+// Sets a dialog control's text from a UTF-8 string (interface 104) via the W
+// API so names outside the ACP display correctly; falls back to the A call on
+// conversion failure (invalid UTF-8 is still shown, never dropped).
+void SetDlgItemTextU8(HWND hwnd, int id, const char* text)
+{
+    WCHAR* w = SplU8ToWAlloc(text);
+    if (w != NULL)
+        SetDlgItemTextW(hwnd, id, w);
+    else
+        SetDlgItemTextA(hwnd, id, text != NULL ? text : "");
+    free(w);
+}
+
+// Reads a dialog control's text as UTF-8 via the W API (the A call would
+// convert through the ACP and mangle names). Returns the length in bytes
+// without the terminator; falls back to the A call on conversion failure.
+int GetDlgItemTextU8(HWND hwnd, int id, char* buf, int bufSize)
+{
+    if (buf == NULL || bufSize <= 0)
+        return 0;
+    buf[0] = 0;
+    HWND ctrl = GetDlgItem(hwnd, id);
+    if (ctrl == NULL)
+        return 0;
+    int wchars = GetWindowTextLengthW(ctrl);
+    if (wchars <= 0)
+        return 0;
+    int len = 0;
+    WCHAR* w = (WCHAR*)malloc((wchars + 1) * sizeof(WCHAR));
+    if (w != NULL)
+    {
+        if (GetWindowTextW(ctrl, w, wchars + 1) > 0)
+        {
+            len = SplWToU8(w, buf, bufSize);
+            if (len > 0)
+                len--; // exclude the terminator
+        }
+        free(w);
+    }
+    if (len == 0) // OOM or conversion failure: A fallback (never drop text)
+        len = GetDlgItemTextA(hwnd, id, buf, bufSize);
+    return len;
+}
+
+// Adds a UTF-8 string to a list box via the W API; A fallback on invalid UTF-8.
+int ListBoxAddStringU8(HWND lb, const char* text)
+{
+    WCHAR* w = SplU8ToWAlloc(text);
+    if (w == NULL)
+        return (int)SendMessageA(lb, LB_ADDSTRING, 0, (LPARAM)text);
+    int idx = (int)SendMessageW(lb, LB_ADDSTRING, 0, (LPARAM)w);
+    free(w);
+    return idx;
+}
+
+// ---------------------------------------------------------------------------
 // password / passphrase prompt
 // ---------------------------------------------------------------------------
 
@@ -29,7 +88,7 @@ static INT_PTR CALLBACK PasswordPromptProc(HWND hwnd, UINT msg, WPARAM wParam, L
     case WM_INITDIALOG:
         d = (CPasswordPromptData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
-        SetDlgItemTextA(hwnd, IDT_PROMPTTEXT, d->Prompt);
+        SetDlgItemTextU8(hwnd, IDT_PROMPTTEXT, d->Prompt); // contains the user name
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         SetFocus(GetDlgItem(hwnd, IDE_PROMPTPASSWORD));
         return FALSE;
@@ -100,7 +159,7 @@ static INT_PTR CALLBACK HostKeyProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             SetWindowTextA(hwnd, LoadStr(IDS_HOSTKEY_NEWTITLE));
             _snprintf_s(text, _TRUNCATE, LoadStr(IDS_HOSTKEY_NEWTEXT), hostPort, d->KeyType, d->Fingerprint);
         }
-        SetDlgItemTextA(hwnd, IDT_HOSTKEY_TEXT, text);
+        SetDlgItemTextU8(hwnd, IDT_HOSTKEY_TEXT, text); // contains the host name
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         return TRUE;
     }
@@ -168,15 +227,15 @@ static INT_PTR CALLBACK RenameProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
     case WM_INITDIALOG:
         d = (CRenameData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
-        SetDlgItemTextA(hwnd, IDT_RENAMEPROMPT, d->Prompt);
-        SetDlgItemTextA(hwnd, IDE_RENAMENAME, d->Name);
+        SetDlgItemTextU8(hwnd, IDT_RENAMEPROMPT, d->Prompt);
+        SetDlgItemTextU8(hwnd, IDE_RENAMENAME, d->Name);
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         SetFocus(GetDlgItem(hwnd, IDE_RENAMENAME));
         return FALSE;
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK)
         {
-            GetDlgItemTextA(hwnd, IDE_RENAMENAME, d->Name, MAX_PATH);
+            GetDlgItemTextU8(hwnd, IDE_RENAMENAME, d->Name, MAX_PATH);
             EndDialog(hwnd, IDOK);
             return TRUE;
         }
@@ -216,15 +275,15 @@ static INT_PTR CALLBACK SymlinkProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     case WM_INITDIALOG:
         d = (CSymlinkData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
-        SetDlgItemTextA(hwnd, IDE_SYMLINKNAME, d->Name);
-        SetDlgItemTextA(hwnd, IDE_SYMLINKTARGET, d->Target);
+        SetDlgItemTextU8(hwnd, IDE_SYMLINKNAME, d->Name);
+        SetDlgItemTextU8(hwnd, IDE_SYMLINKTARGET, d->Target);
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         return TRUE;
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK)
         {
-            GetDlgItemTextA(hwnd, IDE_SYMLINKNAME, d->Name, MAX_PATH);
-            GetDlgItemTextA(hwnd, IDE_SYMLINKTARGET, d->Target, MAX_PATH);
+            GetDlgItemTextU8(hwnd, IDE_SYMLINKNAME, d->Name, MAX_PATH);
+            GetDlgItemTextU8(hwnd, IDE_SYMLINKTARGET, d->Target, MAX_PATH);
             if (d->Name[0] == 0 || d->Target[0] == 0)
                 return TRUE;
             EndDialog(hwnd, IDOK);
@@ -281,18 +340,30 @@ static void ChmodModeToControls(HWND hwnd, unsigned long mode)
 static unsigned long ChmodControlsToMode(HWND hwnd)
 {
     unsigned long m = 0;
-    if (IsDlgButtonChecked(hwnd, IDC_UR)) m |= 0400;
-    if (IsDlgButtonChecked(hwnd, IDC_UW)) m |= 0200;
-    if (IsDlgButtonChecked(hwnd, IDC_UX)) m |= 0100;
-    if (IsDlgButtonChecked(hwnd, IDC_GR)) m |= 0040;
-    if (IsDlgButtonChecked(hwnd, IDC_GW)) m |= 0020;
-    if (IsDlgButtonChecked(hwnd, IDC_GX)) m |= 0010;
-    if (IsDlgButtonChecked(hwnd, IDC_OR)) m |= 0004;
-    if (IsDlgButtonChecked(hwnd, IDC_OW)) m |= 0002;
-    if (IsDlgButtonChecked(hwnd, IDC_OX)) m |= 0001;
-    if (IsDlgButtonChecked(hwnd, IDC_SETUID)) m |= 04000;
-    if (IsDlgButtonChecked(hwnd, IDC_SETGID)) m |= 02000;
-    if (IsDlgButtonChecked(hwnd, IDC_STICKY)) m |= 01000;
+    if (IsDlgButtonChecked(hwnd, IDC_UR))
+        m |= 0400;
+    if (IsDlgButtonChecked(hwnd, IDC_UW))
+        m |= 0200;
+    if (IsDlgButtonChecked(hwnd, IDC_UX))
+        m |= 0100;
+    if (IsDlgButtonChecked(hwnd, IDC_GR))
+        m |= 0040;
+    if (IsDlgButtonChecked(hwnd, IDC_GW))
+        m |= 0020;
+    if (IsDlgButtonChecked(hwnd, IDC_GX))
+        m |= 0010;
+    if (IsDlgButtonChecked(hwnd, IDC_OR))
+        m |= 0004;
+    if (IsDlgButtonChecked(hwnd, IDC_OW))
+        m |= 0002;
+    if (IsDlgButtonChecked(hwnd, IDC_OX))
+        m |= 0001;
+    if (IsDlgButtonChecked(hwnd, IDC_SETUID))
+        m |= 04000;
+    if (IsDlgButtonChecked(hwnd, IDC_SETGID))
+        m |= 02000;
+    if (IsDlgButtonChecked(hwnd, IDC_STICKY))
+        m |= 01000;
     return m;
 }
 
@@ -305,7 +376,7 @@ static INT_PTR CALLBACK ChmodProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
     {
         d = (CChmodData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
-        SetDlgItemTextA(hwnd, IDT_CHMODTARGET, d->Label);
+        SetDlgItemTextU8(hwnd, IDT_CHMODTARGET, d->Label); // remote file name
         ChmodModeToControls(hwnd, d->Mode);
         char octal[8];
         FormatOctalMode(d->Mode, octal);
@@ -317,10 +388,18 @@ static INT_PTR CALLBACK ChmodProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
-        case IDC_UR: case IDC_UW: case IDC_UX:
-        case IDC_GR: case IDC_GW: case IDC_GX:
-        case IDC_OR: case IDC_OW: case IDC_OX:
-        case IDC_SETUID: case IDC_SETGID: case IDC_STICKY:
+        case IDC_UR:
+        case IDC_UW:
+        case IDC_UX:
+        case IDC_GR:
+        case IDC_GW:
+        case IDC_GX:
+        case IDC_OR:
+        case IDC_OW:
+        case IDC_OX:
+        case IDC_SETUID:
+        case IDC_SETGID:
+        case IDC_STICKY:
         {
             unsigned long m = ChmodControlsToMode(hwnd);
             char octal[8];
@@ -483,17 +562,17 @@ static void ConnectSetAuthMode(HWND hwnd, int authMethod)
 
 static void ConnectLoadServerToFields(HWND hwnd, const CSFTPServer* s)
 {
-    SetDlgItemTextA(hwnd, IDE_HOSTADDRESS, s->Address != NULL ? s->Address : "");
+    SetDlgItemTextU8(hwnd, IDE_HOSTADDRESS, s->Address != NULL ? s->Address : "");
     SetDlgItemInt(hwnd, IDE_PORT, s->Port > 0 ? s->Port : SFTP_DEFAULT_PORT, FALSE);
-    SetDlgItemTextA(hwnd, IDE_USERNAME, s->UserName != NULL ? s->UserName : "");
+    SetDlgItemTextU8(hwnd, IDE_USERNAME, s->UserName != NULL ? s->UserName : "");
     CheckRadioButton(hwnd, IDC_AUTHPASSWORD, IDC_AUTHKEY,
                      s->AuthMethod == saPrivateKey ? IDC_AUTHKEY : IDC_AUTHPASSWORD);
     SetDlgItemTextA(hwnd, IDE_PASSWORD, "");
     CheckDlgButton(hwnd, IDC_SAVEPASSWORD, s->SavePassword ? BST_CHECKED : BST_UNCHECKED);
-    SetDlgItemTextA(hwnd, IDE_KEYFILE, s->KeyFile != NULL ? s->KeyFile : "");
+    SetDlgItemTextU8(hwnd, IDE_KEYFILE, s->KeyFile != NULL ? s->KeyFile : "");
     SetDlgItemTextA(hwnd, IDE_PASSPHRASE, "");
     CheckDlgButton(hwnd, IDC_SAVEPASSPHRASE, s->SavePassphrase ? BST_CHECKED : BST_UNCHECKED);
-    SetDlgItemTextA(hwnd, IDE_INITIALPATH, s->InitialPath != NULL ? s->InitialPath : "");
+    SetDlgItemTextU8(hwnd, IDE_INITIALPATH, s->InitialPath != NULL ? s->InitialPath : "");
     ConnectSetAuthMode(hwnd, s->AuthMethod);
 }
 
@@ -504,10 +583,10 @@ static void ConnectLoadServerToFields(HWND hwnd, const CSFTPServer* s)
 static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* selectedBookmark, BOOL forConnect)
 {
     char host[256], user[256], keyfile[MAX_PATH], initpath[1024];
-    GetDlgItemTextA(hwnd, IDE_HOSTADDRESS, host, sizeof(host));
-    GetDlgItemTextA(hwnd, IDE_USERNAME, user, sizeof(user));
-    GetDlgItemTextA(hwnd, IDE_KEYFILE, keyfile, sizeof(keyfile));
-    GetDlgItemTextA(hwnd, IDE_INITIALPATH, initpath, sizeof(initpath));
+    GetDlgItemTextU8(hwnd, IDE_HOSTADDRESS, host, sizeof(host));
+    GetDlgItemTextU8(hwnd, IDE_USERNAME, user, sizeof(user));
+    GetDlgItemTextU8(hwnd, IDE_KEYFILE, keyfile, sizeof(keyfile));
+    GetDlgItemTextU8(hwnd, IDE_INITIALPATH, initpath, sizeof(initpath));
     int port = GetDlgItemInt(hwnd, IDE_PORT, NULL, FALSE);
     if (host[0] == 0)
     {
@@ -609,27 +688,30 @@ static void ConnectFillBookmarkList(HWND hwnd)
     for (int i = 0; i < Config.Bookmarks.Count; i++)
     {
         CSFTPServer* s = Config.Bookmarks[i];
-        const char* name = (s->ItemName != NULL && s->ItemName[0]) ? s->ItemName :
-                           (s->Address != NULL ? s->Address : "(unnamed)");
-        int idx = (int)SendMessageA(lb, LB_ADDSTRING, 0, (LPARAM)name);
+        const char* name = (s->ItemName != NULL && s->ItemName[0]) ? s->ItemName : (s->Address != NULL ? s->Address : "(unnamed)");
+        int idx = ListBoxAddStringU8(lb, name);
         SendMessage(lb, LB_SETITEMDATA, idx, i);
     }
 }
 
 static void BrowseForKey(HWND hwnd)
 {
-    char file[MAX_PATH];
-    GetDlgItemTextA(hwnd, IDE_KEYFILE, file, sizeof(file));
-    OPENFILENAMEA ofn;
+    // the key-file path is UTF-8 (interface 104) -> use the W common dialog (feature 010)
+    char u8file[MAX_PATH];
+    WCHAR file[MAX_PATH];
+    GetDlgItemTextU8(hwnd, IDE_KEYFILE, u8file, sizeof(u8file));
+    if (SplU8ToW(u8file, file, MAX_PATH) == 0)
+        file[0] = 0;
+    OPENFILENAMEW ofn;
     memset(&ofn, 0, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = hwnd;
-    ofn.lpstrFilter = "All files\0*.*\0Private keys\0*.pem;*.ppk;*.key;id_*\0";
+    ofn.lpstrFilter = L"All files\0*.*\0Private keys\0*.pem;*.ppk;*.key;id_*\0";
     ofn.lpstrFile = file;
-    ofn.nMaxFile = sizeof(file);
+    ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
-    if (GetOpenFileNameA(&ofn))
-        SetDlgItemTextA(hwnd, IDE_KEYFILE, file);
+    if (GetOpenFileNameW(&ofn))
+        SetDlgItemTextW(hwnd, IDE_KEYFILE, file);
 }
 
 static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)

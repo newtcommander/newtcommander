@@ -22,12 +22,15 @@ CStatusWindow::CStatusWindow(CFilesWindow* filesWindow, int border, CObjectOrigi
 {
     CALL_STACK_MESSAGE_NONE
     Text = NULL;
+    TextW = NULL;
+    TextLenW = 0;
     AlpDX = NULL;
     Allocated = 0;
     PathLen = -1;
     TextLen = 0;
     Border = border;
     Size = NULL;
+    SizeW = NULL;
     Hidden = FALSE;
     History = FALSE;
     ShowThrobber = FALSE;
@@ -71,10 +74,14 @@ CStatusWindow::~CStatusWindow()
         free(SubTexts);
     if (Text != NULL)
         free(Text);
+    if (TextW != NULL)
+        free(TextW);
     if (AlpDX != NULL)
         free(AlpDX);
     if (Size != NULL)
         free(Size);
+    if (SizeW != NULL)
+        free(SizeW);
     if (ThrobberTooltip != NULL)
         free(ThrobberTooltip);
     if (SecurityTooltip != NULL)
@@ -146,6 +153,13 @@ BOOL CStatusWindow::SetText(const char* txt, int pathLen)
     PathLen = pathLen;
     TextLen = l - 1;
 
+    // feature 010: keep a UTF-16 mirror so measurement/drawing runs on the W
+    // APIs; NULL (invalid UTF-8) switches all consumers to the legacy ANSI path
+    if (TextW != NULL)
+        free(TextW);
+    TextW = SalU8ToWAlloc(Text);
+    TextLenW = TextW != NULL ? (int)wcslen(TextW) : 0;
+
     if (SubTexts != NULL)
     {
         SubTextsCount = 0;
@@ -162,6 +176,41 @@ BOOL CStatusWindow::SetText(const char* txt, int pathLen)
     if (HWindow != NULL)
         InvalidateRect(HWindow, NULL, FALSE);
     return TRUE;
+}
+
+// feature 010: maps a prefix byte length of a VALID UTF-8 string to the number
+// of UTF-16 code units of the same prefix (a 4-byte sequence yields a surrogate
+// pair); callers guarantee validity by checking the TextW mirror first
+static int U8BytesToWChars(const char* u8, int byteLen)
+{
+    int wchars = 0;
+    const unsigned char* s = (const unsigned char*)u8;
+    const unsigned char* end = s + byteLen;
+    while (s < end)
+    {
+        unsigned char c = *s;
+        if (c < 0x80)
+        {
+            s += 1;
+            wchars += 1;
+        }
+        else if ((c & 0xE0) == 0xC0)
+        {
+            s += 2;
+            wchars += 1;
+        }
+        else if ((c & 0xF0) == 0xE0)
+        {
+            s += 3;
+            wchars += 1;
+        }
+        else
+        {
+            s += 4;
+            wchars += 2;
+        }
+    }
+    return wchars;
 }
 
 void CStatusWindow::BuildHotTrackItems()
@@ -183,9 +232,16 @@ void CStatusWindow::BuildHotTrackItems()
             // This crashed for us in SS2.0: execution address = 0x7800D9B0
             // strlen was called while Text was still NULL
             int pathLen = (PathLen != -1) ? PathLen : (int)strlen(Text);
-            // Obtain the positions of all characters
+            // Obtain the positions of all characters; measured on the UTF-16
+            // mirror when valid, so AlpDX is WCHAR-indexed (feature 010).
+            // The scans below still run on the UTF-8 bytes (GetRootPath and the
+            // plugin callback take char*); Offset/Chars are remapped to WCHAR
+            // units and the pixel metrics filled at the end of this function.
             SIZE s;
-            GetTextExtentExPoint(dc, Text, TextLen, 0, NULL, AlpDX, &s);
+            if (TextW != NULL)
+                GetTextExtentExPointW(dc, TextW, TextLenW, 0, NULL, AlpDX, &s);
+            else
+                GetTextExtentExPoint(dc, Text, TextLen, 0, NULL, AlpDX, &s);
 
             if (FilesWindow->Is(ptDisk) || FilesWindow->Is(ptZIPArchive))
             {
@@ -214,8 +270,8 @@ void CStatusWindow::BuildHotTrackItems()
                 {
                     item.Offset = 0;
                     item.PixelsOffset = 0;
-                    item.Chars = chars;
-                    item.Pixels = chars != 0 ? (WORD)AlpDX[chars - 1] : 0;
+                    item.Chars = chars; // byte units here; remapped below
+                    item.Pixels = 0;    // filled below from AlpDX
                     HotTrackItems.Add(item);
 
                     if (Text[chars] == '\\')
@@ -250,8 +306,8 @@ void CStatusWindow::BuildHotTrackItems()
 
                         item.Offset = 0;
                         item.PixelsOffset = 0;
-                        item.Chars = chars;
-                        item.Pixels = chars != 0 ? (WORD)AlpDX[chars - 1] : 0;
+                        item.Chars = chars; // byte units here; remapped below
+                        item.Pixels = 0;    // filled below from AlpDX
                         HotTrackItems.Add(item);
 
                         if (chars == pathLen)
@@ -269,32 +325,54 @@ void CStatusWindow::BuildHotTrackItems()
         HotTrackItems.DestroyMembers();
         if (Text != NULL)
         {
-            // Obtain the positions of all characters
+            // Obtain the positions of all characters (see the blTop comment;
+            // feature 010: single measurement, pixel metrics filled below)
             SIZE s;
-            GetTextExtentExPoint(dc, Text, TextLen, 0, NULL, AlpDX, &s);
+            if (TextW != NULL)
+                GetTextExtentExPointW(dc, TextW, TextLenW, 0, NULL, AlpDX, &s);
+            else
+                GetTextExtentExPoint(dc, Text, TextLen, 0, NULL, AlpDX, &s);
 
             DWORD len = TextLen;
-            SIZE sOffset;
-            SIZE sSub;
             DWORD i;
             for (i = 0; i < (DWORD)SubTextsCount; i++)
             {
-                WORD charOffset = LOWORD(SubTexts[i]);
+                WORD charOffset = LOWORD(SubTexts[i]); // byte units (producers pass UTF-8 offsets)
                 WORD charLen = HIWORD(SubTexts[i]);
                 if (charOffset + charLen > (WORD)len)
                 {
                     TRACE_E("charOffset + charLen >= len");
                     continue;
                 }
-                GetTextExtentPoint32(dc, Text, charOffset, &sOffset);
-                GetTextExtentPoint32(dc, Text + charOffset, charLen, &sSub);
-                item.PixelsOffset = (WORD)sOffset.cx;
-                item.Pixels = (WORD)sSub.cx;
+                item.PixelsOffset = 0; // filled below from AlpDX
+                item.Pixels = 0;       // filled below from AlpDX
                 item.Offset = charOffset;
                 item.Chars = charLen;
                 HotTrackItems.Add(item);
                 HotTrackItemsMeasured = TRUE;
             }
+        }
+    }
+    // feature 010: the scans above produced BYTE offsets into Text; when the
+    // wide mirror is valid, remap them to WCHAR units so they index TextW and
+    // the WCHAR-indexed AlpDX (contract C3), then fill the pixel metrics from
+    // the single AlpDX measurement
+    if (Text != NULL)
+    {
+        int i;
+        for (i = 0; i < HotTrackItems.Count; i++)
+        {
+            CHotTrackItem* it = &HotTrackItems[i];
+            if (TextW != NULL)
+            {
+                int wOffset = U8BytesToWChars(Text, it->Offset);
+                int wChars = U8BytesToWChars(Text + it->Offset, it->Chars);
+                it->Offset = (WORD)wOffset;
+                it->Chars = (WORD)wChars;
+            }
+            int pixelsOffset = it->Offset > 0 ? AlpDX[it->Offset - 1] : 0;
+            it->PixelsOffset = (WORD)pixelsOffset;
+            it->Pixels = it->Chars > 0 ? (WORD)(AlpDX[it->Offset + it->Chars - 1] - pixelsOffset) : 0;
         }
     }
     SelectObject(dc, oldFont);
@@ -532,6 +610,11 @@ void CStatusWindow::SetSize(const CQuadWord& size)
             else
                 strcpy(Size, buf);
         }
+        // feature 010: keep the UTF-16 mirror in sync (localized units may be
+        // non-ASCII UTF-8); NULL falls back to the legacy ANSI draw
+        if (SizeW != NULL)
+            free(SizeW);
+        SizeW = SalU8ToWAlloc(Size);
     }
     if (HWindow != NULL)
         InvalidateRect(HWindow, NULL, FALSE);
@@ -602,12 +685,57 @@ void CStatusWindow::LayoutWindow()
     UpdateWindow(HWindow);
 }
 
+void CStatusWindow::GetItemText(const CHotTrackItem* item, char* buffer, int bufSize)
+{
+    CALL_STACK_MESSAGE_NONE
+    if (buffer == NULL || bufSize <= 0)
+        return;
+    buffer[0] = 0;
+    if (item == NULL || Text == NULL)
+        return;
+    if (TextW != NULL)
+    {
+        // wide mode: offsets index TextW; extract wide and convert back to
+        // UTF-8 so consumers (ChangeDir, clipboard, plugins) get the true path
+        if (SalWToU8(TextW + item->Offset, item->Chars, buffer, bufSize) != 0)
+            return;
+        char* u8 = SalWToU8Alloc(TextW + item->Offset, item->Chars); // buffer too small: truncate (legacy semantics)
+        if (u8 != NULL)
+        {
+            lstrcpyn(buffer, u8, bufSize);
+            free(u8);
+        }
+    }
+    else
+        lstrcpyn(buffer, Text + item->Offset, min(item->Chars + 1, bufSize));
+}
+
+void CStatusWindow::DrawTextSeg(HDC dc, int x, int y, int offset, int count)
+{
+    CALL_STACK_MESSAGE_NONE
+    if (count <= 0)
+        return;
+    if (TextW != NULL)
+        ExtTextOutW(dc, x, y, 0, NULL, TextW + offset, count, NULL);
+    else
+        ExtTextOut(dc, x, y, 0, NULL, Text + offset, count, NULL);
+}
+
+void CStatusWindow::DrawEllipsis(HDC dc, int x, int y)
+{
+    CALL_STACK_MESSAGE_NONE
+    if (TextW != NULL)
+        ExtTextOutW(dc, x, y, 0, NULL, L"...", 3, NULL);
+    else
+        ExtTextOut(dc, x, y, 0, NULL, "...", 3, NULL);
+}
+
 void CStatusWindow::GetHotText(char* buffer, int bufSize)
 {
     CALL_STACK_MESSAGE_NONE
     if (HotItem != NULL && Text != NULL)
     {
-        lstrcpyn(buffer, Text + HotItem->Offset, min(HotItem->Chars + 1, bufSize));
+        GetItemText(HotItem, buffer, bufSize);
         // For a Directory Line with a plugin FS, the plugin still needs to be allowed to finalize adjustments to the path (adding ']' for VMS paths over FTP)
         if ((Border & blTop) && FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
             FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(buffer, bufSize);
@@ -782,6 +910,10 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
     {
         BOOL truncateEnd = TRUE; // Truncate at the end (TRUE) or after the root directory (FALSE)
         int visibleChars = 0;
+        // feature 010: all indices below are WCHAR units over TextW when the
+        // wide mirror is valid, byte units over Text otherwise; AlpDX and
+        // HotTrackItems were built in the same units (BuildHotTrackItems)
+        int textLen = (TextW != NULL) ? TextLenW : TextLen;
 
         SetBkMode(dc, TRANSPARENT);
         HFONT oldFont = (HFONT)SelectObject(dc, EnvFont);
@@ -831,7 +963,10 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
 
             if (Size != NULL)
             {
-                GetTextExtentPoint32(dc, Size, (int)strlen(Size), &s);
+                if (SizeW != NULL)
+                    GetTextExtentPoint32W(dc, SizeW, (int)wcslen(SizeW), &s);
+                else
+                    GetTextExtentPoint32(dc, Size, (int)strlen(Size), &s);
                 if (tmpR.right - tmpR.left < s.cx)
                     goto SKIP_MEASURING; // Size text does not fit either - abort measuring
 
@@ -880,9 +1015,9 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
 
         if (tmpR.right > tmpR.left + TextEllipsisWidthEnv)
         {
-            visibleChars = TextLen;
+            visibleChars = textLen;
             int textWidth = tmpR.right - tmpR.left;
-            if (textWidth < AlpDX[TextLen - 1])
+            if (textWidth < AlpDX[textLen - 1])
             {
                 // The full text does not fit within textWidth -> we must reduce
                 if (isDirectoryLine && HotTrackItems.Count > 1 &&
@@ -892,9 +1027,9 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                     EllipsedChars = 0;
                     EllipsedWidth = 0;
 
-                    int len = AlpDX[TextLen - 1];
+                    int len = AlpDX[textLen - 1];
                     int iter = HotTrackItems[0].Chars;
-                    while (len > textWidth - TextEllipsisWidthEnv && iter < TextLen)
+                    while (len > textWidth - TextEllipsisWidthEnv && iter < textLen)
                     {
                         int charWidth = AlpDX[iter] - AlpDX[iter - 1];
                         len -= charWidth;
@@ -903,7 +1038,7 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                         EllipsedChars++;
                         EllipsedWidth += charWidth;
                     }
-                    visibleChars = TextLen - iter;
+                    visibleChars = textLen - iter;
                     truncateEnd = FALSE; // we trim from the inside
                 }
                 else
@@ -919,9 +1054,9 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                 WholeTextVisible = TRUE;
 
             int realWidth = 0;
-            if (TextLen > 1)
+            if (textLen > 1)
             {
-                realWidth = AlpDX[TextLen - 1];
+                realWidth = AlpDX[textLen - 1];
                 if (EllipsedWidth != -1)
                     realWidth = realWidth - EllipsedWidth + TextEllipsisWidthEnv;
             }
@@ -988,8 +1123,8 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                     SetTextColor(dc, GetSysColor(COLOR_HIGHLIGHTTEXT));
             }
 
-            int firstClipChar = 2 * TextLen;
-            int lastClipChar = 2 * TextLen;
+            int firstClipChar = 2 * textLen;
+            int lastClipChar = 2 * textLen;
             if (hotItem != NULL)
             {
                 firstClipChar = hotItem->Offset;
@@ -1001,23 +1136,23 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
             {
                 if (truncateEnd)
                 { // Without truncation, or with the end trimmed
-                    ExtTextOut(dc, TextRect.left, textY, 0, NULL, Text, min(visibleChars, firstClipChar), NULL);
-                    if (visibleChars < min(TextLen, firstClipChar)) // If the end was trimmed -> append "..."
+                    DrawTextSeg(dc, TextRect.left, textY, 0, min(visibleChars, firstClipChar));
+                    if (visibleChars < min(textLen, firstClipChar)) // If the end was trimmed -> append "..."
                     {
                         int offset = (visibleChars > 0) ? AlpDX[visibleChars - 1] : 0;
-                        ExtTextOut(dc, TextRect.left + offset, textY, 0, NULL, "...", 3, NULL);
+                        DrawEllipsis(dc, TextRect.left + offset, textY);
                     }
                 }
                 else
                 { // Part truncated after the root directory
                     // root part
                     int rootChars = HotTrackItems[0].Chars;
-                    ExtTextOut(dc, TextRect.left, textY, 0, NULL, Text, rootChars, NULL);
+                    DrawTextSeg(dc, TextRect.left, textY, 0, rootChars);
                     // "..."
-                    ExtTextOut(dc, TextRect.left + AlpDX[rootChars - 1], textY, 0, NULL, "...", 3, NULL);
+                    DrawEllipsis(dc, TextRect.left + AlpDX[rootChars - 1], textY);
                     // The remainder
-                    ExtTextOut(dc, TextRect.left + AlpDX[rootChars - 1] + TextEllipsisWidthEnv,
-                               textY, 0, NULL, Text + TextLen - visibleChars, visibleChars, NULL);
+                    DrawTextSeg(dc, TextRect.left + AlpDX[rootChars - 1] + TextEllipsisWidthEnv,
+                                textY, textLen - visibleChars, visibleChars);
                 }
             }
 
@@ -1026,32 +1161,32 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
             {
                 // Without truncation or the trimmed end
                 int visibleChars2 = visibleChars - lastClipChar;
-                ExtTextOut(dc, TextRect.left + AlpDX[lastClipChar - 1], textY, 0, NULL, Text + lastClipChar, visibleChars2, NULL);
-                if (visibleChars < TextLen) // If the end was trimmed -> append "..."
+                DrawTextSeg(dc, TextRect.left + AlpDX[lastClipChar - 1], textY, lastClipChar, visibleChars2);
+                if (visibleChars < textLen) // If the end was trimmed -> append "..."
                 {
                     int offset = (visibleChars > 0) ? AlpDX[visibleChars - 1] : 0;
-                    ExtTextOut(dc, TextRect.left + offset, textY, 0, NULL, "...", 3, NULL);
+                    DrawEllipsis(dc, TextRect.left + offset, textY);
                 }
             }
             // Draw the second part of the text (after hotItem) -- truncating in the middle
             // Only directory line paths are shortened this way (the condition !truncateEnd applies)
-            if (hotItem != NULL && !truncateEnd && lastClipChar <= TextLen)
+            if (hotItem != NULL && !truncateEnd && lastClipChar <= textLen)
             { // Truncated part after the root directory
                 int rootChars = HotTrackItems[0].Chars;
                 int firstChar = hotItem->Chars;
 
                 if (lastClipChar <= rootChars)
                 {
-                    ExtTextOut(dc, TextRect.left + AlpDX[rootChars - 1], textY, 0, NULL, "...", 3, NULL); // "..."
-                    firstChar += EllipsedChars;                                                           // Move past the omitted characters
+                    DrawEllipsis(dc, TextRect.left + AlpDX[rootChars - 1], textY); // "..."
+                    firstChar += EllipsedChars;                                    // Move past the omitted characters
                 }
                 else
                 {
                     if (firstChar < rootChars + EllipsedChars) // Skip a possible backslash that would fall inside the ellipsis
                         firstChar = rootChars + EllipsedChars;
                 }
-                ExtTextOut(dc, TextRect.left + AlpDX[firstChar - 1] - EllipsedWidth + TextEllipsisWidthEnv,
-                           textY, 0, NULL, Text + firstChar, TextLen - firstChar, NULL);
+                DrawTextSeg(dc, TextRect.left + AlpDX[firstChar - 1] - EllipsedWidth + TextEllipsisWidthEnv,
+                            textY, firstChar, textLen - firstChar);
             }
 
             // Display the hot track item
@@ -1079,12 +1214,12 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                     {
                         showChars = visibleChars - hotItem->Offset;
                         int offset = (visibleChars > 0) ? AlpDX[visibleChars - 1] : 0;
-                        ExtTextOut(dc, TextRect.left + offset, textY, 0, NULL, "...", 3, NULL);
+                        DrawEllipsis(dc, TextRect.left + offset, textY);
                     }
                     if (showChars > 0)
                     {
-                        ExtTextOut(dc, TextRect.left + hotItem->PixelsOffset, textY, 0, NULL,
-                                   Text + hotItem->Offset, showChars, NULL);
+                        DrawTextSeg(dc, TextRect.left + hotItem->PixelsOffset, textY,
+                                    hotItem->Offset, showChars);
                     }
                 }
                 else
@@ -1092,16 +1227,16 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                     int showChars = hotItem->Chars;
 
                     int rootChars = HotTrackItems[0].Chars;
-                    ExtTextOut(dc, TextRect.left, textY, 0, NULL, Text, rootChars, NULL);
+                    DrawTextSeg(dc, TextRect.left, textY, 0, rootChars);
                     if (showChars > rootChars)
                     {
                         // "..."
-                        ExtTextOut(dc, TextRect.left + AlpDX[rootChars - 1], textY, 0, NULL, "...", 3, NULL);
+                        DrawEllipsis(dc, TextRect.left + AlpDX[rootChars - 1], textY);
                         if (showChars - rootChars - EllipsedChars > 0)
                         {
                             // The remainder
-                            ExtTextOut(dc, TextRect.left + AlpDX[rootChars - 1] + TextEllipsisWidthEnv,
-                                       textY, 0, NULL, Text + rootChars + EllipsedChars, showChars - rootChars - EllipsedChars, NULL);
+                            DrawTextSeg(dc, TextRect.left + AlpDX[rootChars - 1] + TextEllipsisWidthEnv,
+                                        textY, rootChars + EllipsedChars, showChars - rootChars - EllipsedChars);
                         }
                     }
                 }
@@ -1146,7 +1281,10 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
             HFONT hOldFont = NULL;
             if (Configuration.SingleClick && HotSize)
                 hOldFont = (HFONT)SelectObject(dc, EnvFontUL);
-            ExtTextOut(dc, SizeRect.left, textY, 0, NULL, Size, (UINT)strlen(Size), NULL);
+            if (SizeW != NULL)
+                ExtTextOutW(dc, SizeRect.left, textY, 0, NULL, SizeW, (UINT)wcslen(SizeW), NULL);
+            else
+                ExtTextOut(dc, SizeRect.left, textY, 0, NULL, Size, (UINT)strlen(Size), NULL);
             if (hOldFont != NULL)
                 SelectObject(dc, hOldFont);
         }
@@ -1796,10 +1934,8 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (FindHotTrackItem(LButtonDownPoint.x - TextRect.left, index))
                 {
                     char buffer[MAX_PATH];
-                    int hotChars = HotTrackItems[index].Chars;
-                    if (hotChars + 1 > MAX_PATH)
-                        hotChars = MAX_PATH - 1;
-                    lstrcpyn(buffer, Text + HotTrackItems[index].Offset, hotChars + 1);
+                    GetItemText(&HotTrackItems[index], buffer, MAX_PATH); // UTF-8 (true path, feature 010)
+                    int hotChars = (int)strlen(buffer);
                     // For a Directory Line with a plugin FS, the plugin still needs to be allowed to finalize adjustments to the path (adding ']' for VMS paths over FTP)
                     if ((Border & blTop) && FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
                     {
@@ -2079,8 +2215,7 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         {
                             // Path shortening
                             char path[MAX_PATH];
-                            strncpy(path, Text, HotItem->Chars);
-                            path[HotItem->Chars] = 0;
+                            GetItemText(HotItem, path, MAX_PATH); // UTF-8 (true path, feature 010)
 
                             if (FilesWindow->Is(ptPluginFS) && FilesWindow->GetPluginFS()->NotEmpty())
                                 FilesWindow->GetPluginFS()->CompleteDirectoryLineHotPath(path, MAX_PATH);
@@ -2095,7 +2230,11 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     if (Border & blBottom)
                     {
-                        if (CopyTextToClipboard(Text + HotItem->Offset, HotItem->Chars))
+                        // feature 010: wide mode puts CF_UNICODETEXT on the
+                        // clipboard so the true text survives (contract C5)
+                        BOOL copied = TextW != NULL ? CopyTextToClipboardW(TextW + HotItem->Offset, HotItem->Chars)
+                                                    : CopyTextToClipboard(Text + HotItem->Offset, HotItem->Chars);
+                        if (copied)
                             FlashText(TRUE);
                     }
                 }
@@ -2210,8 +2349,15 @@ CStatusWindow::CreateDragImage(const char* text, int& dxHotspot, int& dyHotspot,
     int textLen = lstrlen(text);
     HDC hDC = ItemBitmap.HMemDC;
     HFONT hOldFont = (HFONT)SelectObject(hDC, Font);
+    // feature 010: 'text' carries UTF-8 (see GetItemText); render the drag
+    // image wide, with the legacy ANSI route as the invalid-UTF-8 fallback
+    WCHAR* textW = SalU8ToWAlloc(text);
+    int textLenW = textW != NULL ? (int)wcslen(textW) : 0;
     SIZE sz;
-    GetTextExtentPoint32(hDC, text, textLen, &sz);
+    if (textW != NULL)
+        GetTextExtentPoint32W(hDC, textW, textLenW, &sz);
+    else
+        GetTextExtentPoint32(hDC, text, textLen, &sz);
     ItemBitmap.Enlarge(sz.cx, sz.cy); // Bitmap allocation in ItemBitmap.HMemDC
     // Paint the background
     RECT r;
@@ -2222,7 +2368,12 @@ CStatusWindow::CreateDragImage(const char* text, int& dxHotspot, int& dyHotspot,
     FillRect(hDC, &r, HNormalBkBrush);
     int oldBkMode = SetBkMode(hDC, TRANSPARENT);
     int oldTextColor = SetTextColor(hDC, GetCOLORREF(CurrentColors[ITEM_FG_NORMAL]));
-    DrawText(hDC, text, textLen, &r, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+    if (textW != NULL)
+        DrawTextW(hDC, textW, textLenW, &r, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+    else
+        DrawText(hDC, text, textLen, &r, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+    if (textW != NULL)
+        free(textW);
     SetTextColor(hDC, oldTextColor);
     SetBkMode(hDC, oldBkMode);
     SelectObject(hDC, hOldFont);

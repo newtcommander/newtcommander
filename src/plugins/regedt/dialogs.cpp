@@ -781,8 +781,7 @@ BOOL CRawEditValDialog::ExportToTempFile()
 
     // create/open the temp file (local disk: W file API)
     WCHAR* tempFileW = SplU8ToWExtAlloc(TempFile);
-    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                                                                         CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     free(tempFileW);
     if (file == INVALID_HANDLE_VALUE)
     {
@@ -811,8 +810,7 @@ BOOL CRawEditValDialog::ImportFromTempFile()
     CALL_STACK_MESSAGE1("CRawEditValDialog::ImportFromTempFile()");
     // create/open the temp file (local disk: W file API)
     WCHAR* tempFileW = SplU8ToWExtAlloc(TempFile);
-    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_READ, FILE_SHARE_READ, NULL,
-                                                                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = tempFileW == NULL ? INVALID_HANDLE_VALUE : CreateFileW(tempFileW, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     free(tempFileW);
     if (file == INVALID_HANDLE_VALUE)
         return Error(IDS_OPENTEMP);
@@ -1040,11 +1038,23 @@ CConfigDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 if (cmd == 1)
                 {
+                    // feature 010: the field holds a UTF-8 path; move it through
+                    // the W control-text APIs, keep the A calls as the
+                    // invalid-UTF-8 fallback
                     char path[MAX_PATH];
                     path[0] = 0;
-                    GetDlgItemText(HWindow, IDE_COMMAND, path, MAX_PATH);
+                    WCHAR pathW[MAX_PATH];
+                    pathW[0] = 0;
+                    GetDlgItemTextW(HWindow, IDE_COMMAND, pathW, MAX_PATH);
+                    if (SplWToU8(pathW, path, MAX_PATH) == 0)
+                        GetDlgItemText(HWindow, IDE_COMMAND, path, MAX_PATH);
                     if (GetOpenFileName(HWindow, NULL, LoadStr(IDS_EXEFILES), path))
-                        SetDlgItemText(HWindow, IDE_COMMAND, path);
+                    {
+                        if (SplU8ToW(path, pathW, MAX_PATH) > 0)
+                            SetDlgItemTextW(HWindow, IDE_COMMAND, pathW);
+                        else
+                            SetDlgItemText(HWindow, IDE_COMMAND, path);
+                    }
                 }
                 else if (cmd == 30)
                 {
@@ -1247,14 +1257,23 @@ CExportDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case IDB_BROWSE:
         {
+            // feature 010: the field holds a UTF-8 path; move it through the
+            // W control-text APIs, keep the A calls as the invalid-UTF-8 fallback
             char path[MAX_PATH];
             path[0] = 0;
-            GetDlgItemText(HWindow, IDE_FILE, path, MAX_PATH);
+            WCHAR pathW[MAX_PATH];
+            pathW[0] = 0;
+            GetDlgItemTextW(HWindow, IDE_FILE, pathW, MAX_PATH);
+            if (SplWToU8(pathW, path, MAX_PATH) == 0)
+                GetDlgItemText(HWindow, IDE_FILE, path, MAX_PATH);
             SG->SalPathRemoveBackslash(path);
             if (GetOpenFileName(HWindow, NULL, LoadStr(IDS_REGFILES), path, TRUE))
             {
                 SG->SalPathAddExtension(path, ".reg", MAX_PATH);
-                SetDlgItemText(HWindow, IDE_FILE, path);
+                if (SplU8ToW(path, pathW, MAX_PATH) > 0)
+                    SetDlgItemTextW(HWindow, IDE_FILE, pathW);
+                else
+                    SetDlgItemText(HWindow, IDE_FILE, path);
             }
             return TRUE;
         }
