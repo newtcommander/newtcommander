@@ -58,6 +58,7 @@ static const char* CFG_LOGMAX = "Log Max Size";
 static const char* CFG_LASTBOOKMARK = "Last Bookmark";
 
 static const char* CFG_BOOKMARKS = "Bookmarks";
+static const char* CFG_QUICKCONNECT = "QuickConnect"; // feature 017: persist the quick-connect entry (incl. its saved password)
 static const char* CFG_KNOWNHOSTS = "Known Hosts";
 
 static const char* SRV_NAME = "Name";
@@ -513,6 +514,15 @@ void WINAPI CPluginInterface::LoadConfiguration(HWND parent, HKEY regKey, CSalam
         registry->CloseKey(bmKey);
     }
 
+    // feature 017 (P1): the quick-connect entry (its fields and saved
+    // password/passphrase blobs) - lost across restarts before this
+    HKEY qcKey;
+    if (registry->OpenKey(regKey, CFG_QUICKCONNECT, qcKey))
+    {
+        LoadServer(registry, qcKey, &Config.QuickConnect);
+        registry->CloseKey(qcKey);
+    }
+
     // known hosts
     HKEY hkKey;
     if (registry->OpenKey(regKey, CFG_KNOWNHOSTS, hkKey))
@@ -578,6 +588,16 @@ void WINAPI CPluginInterface::SaveConfiguration(HWND parent, HKEY regKey, CSalam
             }
         }
         registry->CloseKey(bmKey);
+    }
+
+    // feature 017 (P1): persist the quick-connect entry (mirrors the bookmark
+    // round-trip) so a saved quick-connect password survives a restart
+    HKEY qcKey;
+    registry->DeleteKey(regKey, CFG_QUICKCONNECT);
+    if (registry->CreateKey(regKey, CFG_QUICKCONNECT, qcKey))
+    {
+        SaveServer(registry, qcKey, &Config.QuickConnect);
+        registry->CloseKey(qcKey);
     }
 
     HKEY hkKey;

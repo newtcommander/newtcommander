@@ -7,6 +7,7 @@
 #include "logs.h"
 #include "hostkeys.h"
 #include "dialogs.h"
+#include "keyload.h"
 #include "session.h"
 
 // ---------------------------------------------------------------------------
@@ -336,6 +337,18 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
             _snprintf_s(LastErrorText, _TRUNCATE, LoadStr(IDS_ERR_KEYFILEMISSING), Params.KeyFile);
             if (result != NULL)
                 *result = crKeyFileMissing;
+            return FALSE;
+        }
+        // feature 017 (K1): reject an unrecognized/unsupported key file up front
+        // with a clear message, instead of handing it to libssh2 and surfacing a
+        // cryptic low-level error. (Wires DetectKeyFormat/KeyFormatSupported,
+        // which were previously dead code.)
+        int keyReason = 0;
+        if (!KeyFormatSupported(DetectKeyFormat(Params.KeyFile), &keyReason))
+        {
+            lstrcpynA(LastErrorText, LoadStr(keyReason != 0 ? keyReason : IDS_ERR_AUTHKEY), sizeof(LastErrorText));
+            if (result != NULL)
+                *result = crAuthKey;
             return FALSE;
         }
         // Public key auth from file: libssh2 derives the public key from the

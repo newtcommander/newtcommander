@@ -640,10 +640,13 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
             }
             SecureZeroMemory(pwd, sizeof(pwd));
         }
-        else if (selectedBookmark != NULL && selectedBookmark->SavePassword &&
+        else if (s->SavePassword && selectedBookmark != NULL && selectedBookmark->SavePassword &&
                  selectedBookmark->EncryptedPassword != NULL)
         {
-            // reuse the stored blob
+            // feature 017: reuse the stored blob when the password field is left
+            // blank AND "Save password" is still on. Gating on s->SavePassword
+            // (the current checkbox) means unchecking it clears the saved secret
+            // (FR-007) instead of silently keeping it.
             s->SetBlob(&s->EncryptedPassword, &s->EncryptedPasswordSize,
                        selectedBookmark->EncryptedPassword, selectedBookmark->EncryptedPasswordSize);
         }
@@ -671,9 +674,10 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
             }
             SecureZeroMemory(pass, sizeof(pass));
         }
-        else if (selectedBookmark != NULL && selectedBookmark->SavePassphrase &&
+        else if (s->SavePassphrase && selectedBookmark != NULL && selectedBookmark->SavePassphrase &&
                  selectedBookmark->EncryptedPassphrase != NULL)
         {
+            // feature 017: mirror the password reuse/clear rule for the passphrase
             s->SetBlob(&s->EncryptedPassphrase, &s->EncryptedPassphraseSize,
                        selectedBookmark->EncryptedPassphrase, selectedBookmark->EncryptedPassphraseSize);
         }
@@ -681,10 +685,18 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     return TRUE;
 }
 
+// feature 017: item-data convention for the bookmark list.
+//   QC_ITEM (-1) = the "Quick Connect" pseudo-row; >= 0 = index into Config.Bookmarks.
+#define QC_ITEM (-1)
+
 static void ConnectFillBookmarkList(HWND hwnd)
 {
     HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
     SendMessage(lb, LB_RESETCONTENT, 0, 0);
+    // feature 017 (U3): a visible "Quick Connect" row makes the scratch entry an
+    // explicit, selectable target instead of an invisible "no selection" mode
+    int qc = ListBoxAddStringU8(lb, LoadStr(IDS_QUICKCONNECT));
+    SendMessage(lb, LB_SETITEMDATA, qc, (LPARAM)QC_ITEM);
     for (int i = 0; i < Config.Bookmarks.Count; i++)
     {
         CSFTPServer* s = Config.Bookmarks[i];
@@ -692,6 +704,70 @@ static void ConnectFillBookmarkList(HWND hwnd)
         int idx = ListBoxAddStringU8(lb, name);
         SendMessage(lb, LB_SETITEMDATA, idx, i);
     }
+}
+
+// feature 017: the entry currently selected in the list. Returns the
+// Config.Bookmarks index (>= 0), QC_ITEM for Quick Connect, or LB_ERR for none.
+static int ConnectSelectedItemData(HWND hwnd)
+{
+    HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
+    int sel = (int)SendMessage(lb, LB_GETCURSEL, 0, 0);
+    if (sel == LB_ERR)
+        return LB_ERR;
+    return (int)SendMessage(lb, LB_GETITEMDATA, sel, 0);
+}
+
+// feature 017: resolve the item data to the persistent entry it edits.
+static CSFTPServer* ConnectEntryForItemData(int itemData)
+{
+    if (itemData == QC_ITEM)
+        return &Config.QuickConnect;
+    if (itemData >= 0 && itemData < Config.Bookmarks.Count)
+        return Config.Bookmarks[itemData];
+    return NULL;
+}
+
+// feature 017 (P3/U1): commit the current dialog fields into a persistent entry,
+// preserving its bookmark name (ConnectReadFields nulls ItemName via Set). The
+// entry's own stored blob is offered as the reuse fallback so an unchanged
+// password field keeps the saved secret. Returns FALSE on validation error.
+static BOOL ConnectCommitToEntry(HWND hwnd, CSFTPServer* entry, BOOL forConnect)
+{
+    CSFTPServer tmp; // separate object: avoids self-aliasing in SetBlob reuse
+    if (!ConnectReadFields(hwnd, &tmp, entry, forConnect))
+        return FALSE;
+    char* savedName = (entry->ItemName != NULL) ? _strdup(entry->ItemName) : NULL;
+    BOOL ok = entry->CopyFrom(&tmp);
+    entry->SetString(&entry->ItemName, savedName); // restore name (CopyFrom took tmp's NULL)
+    if (savedName != NULL)
+        free(savedName);
+    return ok;
+}
+
+// feature 017: select the list row whose item data matches (falls back to the
+// Quick Connect row at index 0).
+static void ConnectSelectItemData(HWND hwnd, int itemData)
+{
+    HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
+    int n = (int)SendMessage(lb, LB_GETCOUNT, 0, 0);
+    for (int i = 0; i < n; i++)
+        if ((int)SendMessage(lb, LB_GETITEMDATA, i, 0) == itemData)
+        {
+            SendMessage(lb, LB_SETCURSEL, i, 0);
+            return;
+        }
+    SendMessage(lb, LB_SETCURSEL, 0, 0);
+}
+
+// feature 017 (U4): Rename/Delete apply to real bookmarks only; Quick Connect
+// cannot be renamed or removed. Duplicate works on either.
+static void ConnectUpdateButtons(HWND hwnd)
+{
+    int data = ConnectSelectedItemData(hwnd);
+    BOOL isBookmark = (data >= 0);
+    EnableWindow(GetDlgItem(hwnd, IDB_RENAMEBOOKMARK), isBookmark);
+    EnableWindow(GetDlgItem(hwnd, IDB_REMOVEBOOKMARK), isBookmark);
+    EnableWindow(GetDlgItem(hwnd, IDB_COPYBOOKMARK), data != LB_ERR);
 }
 
 static void BrowseForKey(HWND hwnd)
@@ -730,15 +806,20 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             SetWindowTextA(hwnd, LoadStr(IDS_MENU_ORGANIZEBOOKMARKS));
             SetDlgItemTextA(hwnd, IDB_CONNECT, "Close");
         }
-        // seed fields from quick-connect or the last bookmark
+        // feature 017 (U3): seed from the last-used entry and select its row.
+        // Quick Connect is item 0; a saved bookmark selects its own row.
         if (Config.LastBookmark > 0 && Config.LastBookmark <= Config.Bookmarks.Count)
         {
             int bi = Config.LastBookmark - 1;
             ConnectLoadServerToFields(hwnd, Config.Bookmarks[bi]);
-            SendMessage(GetDlgItem(hwnd, IDL_BOOKMARKS), LB_SETCURSEL, bi, 0);
+            ConnectSelectItemData(hwnd, bi);
         }
         else
+        {
             ConnectLoadServerToFields(hwnd, &Config.QuickConnect);
+            ConnectSelectItemData(hwnd, QC_ITEM);
+        }
+        ConnectUpdateButtons(hwnd);
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         return TRUE;
     }
@@ -757,19 +838,27 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         case IDL_BOOKMARKS:
             if (HIWORD(wParam) == LBN_SELCHANGE)
             {
-                int sel = (int)SendMessage((HWND)lParam, LB_GETCURSEL, 0, 0);
-                if (sel != LB_ERR)
-                {
-                    int bi = (int)SendMessage((HWND)lParam, LB_GETITEMDATA, sel, 0);
-                    if (bi >= 0 && bi < Config.Bookmarks.Count)
-                        ConnectLoadServerToFields(hwnd, Config.Bookmarks[bi]);
-                }
+                // feature 017: load the selected entry (Quick Connect or a
+                // bookmark) into the fields and update which buttons apply
+                int data = ConnectSelectedItemData(hwnd);
+                CSFTPServer* entry = ConnectEntryForItemData(data);
+                if (entry != NULL)
+                    ConnectLoadServerToFields(hwnd, entry);
+                ConnectUpdateButtons(hwnd);
+            }
+            else if (HIWORD(wParam) == LBN_DBLCLK)
+            {
+                // feature 017 (U5): double-click a row = Connect
+                if (!d->OrganizeMode)
+                    SendMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDB_CONNECT, 0), 0);
             }
             return TRUE;
         case IDB_NEWBOOKMARK:
         {
+            // feature 017: "Save as new bookmark" - snapshot the current fields
+            // (incl. a just-typed+encrypted password) under a new name
             char name[MAX_PATH] = "";
-            if (ShowRenameDialog(hwnd, "Bookmark name:", name) && name[0] != 0)
+            if (ShowRenameDialog(hwnd, LoadStr(IDS_BOOKMARKNAME), name) && name[0] != 0)
             {
                 CSFTPServer* s = new CSFTPServer;
                 if (s != NULL && ConnectReadFields(hwnd, s, NULL, FALSE)) // new bookmark: don't touch connect globals
@@ -777,42 +866,95 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                     s->SetString(&s->ItemName, name);
                     Config.Bookmarks.Add(s);
                     ConnectFillBookmarkList(hwnd);
-                    SendMessage(GetDlgItem(hwnd, IDL_BOOKMARKS), LB_SETCURSEL, Config.Bookmarks.Count - 1, 0);
+                    ConnectSelectItemData(hwnd, Config.Bookmarks.Count - 1);
+                    ConnectUpdateButtons(hwnd);
                 }
                 else
                     delete s;
             }
             return TRUE;
         }
-        case IDB_RENAMEBOOKMARK:
+        case IDB_COPYBOOKMARK:
         {
-            HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
-            int sel = (int)SendMessage(lb, LB_GETCURSEL, 0, 0);
-            if (sel != LB_ERR)
+            // feature 017 (U2): Duplicate - copy the selected entry's STORED data
+            // (not the possibly-edited fields) into a new named bookmark. Wires
+            // the previously dead IDB_COPYBOOKMARK control.
+            int data = ConnectSelectedItemData(hwnd);
+            CSFTPServer* src = ConnectEntryForItemData(data);
+            if (src == NULL)
+                return TRUE;
+            char name[MAX_PATH];
+            lstrcpynA(name, src->ItemName != NULL ? src->ItemName : (src->Address != NULL ? src->Address : ""), sizeof(name));
+            if (ShowRenameDialog(hwnd, LoadStr(IDS_BOOKMARKNAME), name) && name[0] != 0)
             {
-                int bi = (int)SendMessage(lb, LB_GETITEMDATA, sel, 0);
-                CSFTPServer* s = Config.Bookmarks[bi];
-                char name[MAX_PATH];
-                lstrcpynA(name, s->ItemName != NULL ? s->ItemName : "", sizeof(name));
-                if (ShowRenameDialog(hwnd, "Bookmark name:", name) && name[0] != 0)
+                CSFTPServer* s = new CSFTPServer;
+                if (s != NULL && s->CopyFrom(src))
                 {
                     s->SetString(&s->ItemName, name);
+                    Config.Bookmarks.Add(s);
                     ConnectFillBookmarkList(hwnd);
-                    SendMessage(lb, LB_SETCURSEL, sel, 0);
+                    ConnectSelectItemData(hwnd, Config.Bookmarks.Count - 1);
+                    ConnectLoadServerToFields(hwnd, s);
+                    ConnectUpdateButtons(hwnd);
                 }
+                else
+                    delete s;
+            }
+            return TRUE;
+        }
+        case IDB_SAVEBOOKMARK:
+        {
+            // feature 017 (U1/P3): commit the current fields (incl. a typed and
+            // encrypted password) into the selected entry - the explicit "save
+            // edits back to this bookmark/quick-connect" action that was missing
+            int data = ConnectSelectedItemData(hwnd);
+            CSFTPServer* entry = ConnectEntryForItemData(data);
+            if (entry != NULL && ConnectCommitToEntry(hwnd, entry, FALSE))
+            {
+                ConnectFillBookmarkList(hwnd);
+                ConnectSelectItemData(hwnd, data);
+                ConnectUpdateButtons(hwnd);
+                SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_BOOKMARKSAVED),
+                                                 LoadStr(IDS_SFTPPLUGINTITLE), MB_OK | MB_ICONINFORMATION);
+            }
+            return TRUE;
+        }
+        case IDB_RENAMEBOOKMARK:
+        {
+            int data = ConnectSelectedItemData(hwnd);
+            if (data < 0)
+                return TRUE; // Quick Connect cannot be renamed
+            CSFTPServer* s = Config.Bookmarks[data];
+            char name[MAX_PATH];
+            lstrcpynA(name, s->ItemName != NULL ? s->ItemName : "", sizeof(name));
+            if (ShowRenameDialog(hwnd, LoadStr(IDS_BOOKMARKNAME), name) && name[0] != 0)
+            {
+                s->SetString(&s->ItemName, name);
+                ConnectFillBookmarkList(hwnd);
+                ConnectSelectItemData(hwnd, data);
+                ConnectUpdateButtons(hwnd);
             }
             return TRUE;
         }
         case IDB_REMOVEBOOKMARK:
         {
-            HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
-            int sel = (int)SendMessage(lb, LB_GETCURSEL, 0, 0);
-            if (sel != LB_ERR)
-            {
-                int bi = (int)SendMessage(lb, LB_GETITEMDATA, sel, 0);
-                Config.Bookmarks.Delete(bi);
-                ConnectFillBookmarkList(hwnd);
-            }
+            // feature 017 (U4): confirm before deleting; Quick Connect is not removable
+            int data = ConnectSelectedItemData(hwnd);
+            if (data < 0)
+                return TRUE;
+            if (SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_CONFIRM_DELETEBOOKMARK),
+                                                 LoadStr(IDS_CONFIRM_DELETE_TITLE),
+                                                 MB_YESNO | MB_ICONQUESTION) != IDYES)
+                return TRUE;
+            Config.Bookmarks.Delete(data);
+            if (Config.LastBookmark == data + 1)
+                Config.LastBookmark = 0;
+            else if (Config.LastBookmark > data + 1)
+                Config.LastBookmark--;
+            ConnectFillBookmarkList(hwnd);
+            ConnectSelectItemData(hwnd, QC_ITEM);
+            ConnectLoadServerToFields(hwnd, &Config.QuickConnect);
+            ConnectUpdateButtons(hwnd);
             return TRUE;
         }
         case IDB_CONNECT: // also "Close" in organize mode
@@ -822,25 +964,16 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 EndDialog(hwnd, IDCANCEL);
                 return TRUE;
             }
-            HWND lb = GetDlgItem(hwnd, IDL_BOOKMARKS);
-            int sel = (int)SendMessage(lb, LB_GETCURSEL, 0, 0);
-            const CSFTPServer* bookmark = NULL;
-            if (sel != LB_ERR)
+            // feature 017 (P2/P3): connect using the current fields AND persist
+            // them onto the selected entry, so a save-password-on-connect sticks.
+            int data = ConnectSelectedItemData(hwnd);
+            CSFTPServer* entry = ConnectEntryForItemData(data);
+            if (entry == NULL)
+                entry = &Config.QuickConnect; // no selection -> quick connect
+            Config.LastBookmark = (data >= 0) ? data + 1 : 0;
+            if (ConnectCommitToEntry(hwnd, entry, TRUE) &&
+                d->Result != NULL && d->Result->CopyFrom(entry))
             {
-                int bi = (int)SendMessage(lb, LB_GETITEMDATA, sel, 0);
-                if (bi >= 0 && bi < Config.Bookmarks.Count)
-                {
-                    bookmark = Config.Bookmarks[bi];
-                    Config.LastBookmark = bi + 1;
-                }
-            }
-            else
-                Config.LastBookmark = 0;
-            if (d->Result != NULL && ConnectReadFields(hwnd, d->Result, bookmark, TRUE))
-            {
-                // remember quick-connect field values
-                if (bookmark == NULL)
-                    Config.QuickConnect.CopyFrom(d->Result);
                 EndDialog(hwnd, IDOK);
             }
             return TRUE;

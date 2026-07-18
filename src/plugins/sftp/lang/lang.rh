@@ -97,6 +97,12 @@
 // logs
 #define IDS_LOGS_TITLE                  140
 
+// connect window / bookmarks (feature 017)
+#define IDS_QUICKCONNECT                150
+#define IDS_BOOKMARKNAME                151
+#define IDS_BOOKMARKSAVED               152
+#define IDS_CONFIRM_DELETEBOOKMARK      153
+
 // ---------------------------------------------------------------------------
 // Dialogs (500..599) and their controls (600..1999)
 // ---------------------------------------------------------------------------
@@ -127,6 +133,7 @@
 #define IDB_COPYBOOKMARK                623
 #define IDB_CONNECT                     624
 #define IDT_BOOKMARKS                   625
+#define IDB_SAVEBOOKMARK                626
 
 #define IDD_PASSWORD                    510
 #define IDE_PROMPTPASSWORD              630
