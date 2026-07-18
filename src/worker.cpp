@@ -6290,7 +6290,14 @@ BOOL DoDeleteFile(HWND hProgressDlg, char* name, const CQuadWord& size, COperati
                 break;
             }
             }
-            if (useRecycleBin)
+            if (useRecycleBin && (int)strlen(name) >= MAX_PATH)
+            {
+                // the Recycle Bin (SHFileOperation, ANSI) is MAX_PATH-bound; a
+                // longer path cannot be recycled - degrade with a clear error
+                // instead of overrunning nameList (feature 014)
+                err = ERROR_FILENAME_EXCED_RANGE;
+            }
+            else if (useRecycleBin)
             {
                 char nameList[MAX_PATH + 1];
                 int l = (int)strlen(name) + 1;
@@ -6925,6 +6932,7 @@ BOOL DoDeleteDir(HWND hProgressDlg, char* name, const CQuadWord& size, COperatio
         if (script->CanUseRecycleBin && !dontUseRecycleBin &&
             (script->InvertRecycleBin && dlgData.UseRecycleBin == 0 ||
              !script->InvertRecycleBin && dlgData.UseRecycleBin == 1) &&
+            (int)strlen(name) < MAX_PATH && // Recycle Bin (SHFileOperation) is MAX_PATH-bound; longer (empty) dirs are removed permanently below - avoids overrunning nameList (feature 014)
             IsDirectoryEmpty(name)) // subdirectory must not contain any files!!!
         {
             char nameList[MAX_PATH + 1];

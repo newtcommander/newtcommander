@@ -37,8 +37,21 @@ NOT symbolicate; Release does.
 
 | # | file:line | buffer | verdict | fix |
 |---|-----------|--------|---------|-----|
-| 1 | viewer2.cpp:676 | `fileName[MAX_PATH]` | CRASH (dump-confirmed) | Eliminated the redundant intermediate; `OpenFile` now uses the `file` argument directly for `malloc(strlen(file)+1)` + `strcpy`. No fixed buffer. |
+| 1 | viewer2.cpp:676 | `fileName[MAX_PATH]` in `CViewerWindow::OpenFile` | CRASH (dump-confirmed) | Eliminated the redundant intermediate; `OpenFile` now uses the `file` argument directly for `malloc(strlen(file)+1)` + `strcpy`. No fixed buffer. |
 | 2 | fileswn9.cpp:60 | `curPath[2*MAX_PATH]` (=520) in `CFilesWindow::ParsePath` | BOUNDED-wrong | Widened to `SAL_MAX_PATH_UTF8`; 520 truncated the ~540-byte Unicode long path → "too long"/not-found popup. `GetGeneralPath(buf,size)` is size-bounded, so safe. |
+| 3 | worker.cpp:6295 | `nameList[MAX_PATH+1]` in `DoDeleteFile` recycle-bin branch | CRASH | `memmove(nameList, name, strlen(name)+1)` had **no length guard** — a long file path overran it when deleting to the Recycle Bin. Added a guard: `strlen(name) >= MAX_PATH` → `err = ERROR_FILENAME_EXCED_RANGE` (bounded message); the recycle bin (SHFileOperation, ANSI) is MAX_PATH-bound anyway (external). |
+| 4 | worker.cpp:6937 | `nameList[MAX_PATH+1]` in `DoDeleteDir` recycle-bin branch | CRASH | Same unbounded `memmove` for removing an empty subdir to the Recycle Bin. Added `strlen(name) < MAX_PATH` to the condition; a longer (empty) dir falls through to the long-path-capable `SalRemoveDirectory` (permanent — benign for an empty dir). |
+| 5 | fileswn6.cpp:317 | `sourceDir[MAX_PATH+4]` in `CFilesWindow::MoveFiles` | CRASH | `memcpy(sourceDir, source, len)` overran when moving a directory whose source path is long. Widened to `SAL_MAX_PATH_UTF8+4` (MoveFiles is **non-recursive** → stack-safe). |
+| 6 | fileswn6.cpp:344 | `targetDir[MAX_PATH]` in `CFilesWindow::MoveFiles` | CRASH | `strcpy(targetDir, target)` overran for a long move destination. Widened to `SAL_MAX_PATH_UTF8`. |
+| 7 | fileswn6.cpp:1053 | `source[MAX_PATH]` in the drag/paste copy-move handler | BOUNDED-wrong | `lstrcpyn(...,MAX_PATH)` truncated a long source → wrong same-root detection → wrong copy strategy. Widened to `SAL_MAX_PATH_UTF8`. |
+| 8 | fileswn6.cpp:1126 | `path[MAX_PATH]` (source refresh path) | BOUNDED-wrong | `lstrcpyn(...,MAX_PATH)` truncated the source dir handed to `SetWorkPath2` → wrong post-move refresh (a likely contributor to the "directory disappeared" symptom). Widened to `SAL_MAX_PATH_UTF8`. |
+
+Confirmed **already safe** (feature 012 heap-backed): `BuildScriptMain2` copy
+buffers `sourcePath`/`lastSourcePath`/`targetPath`/`targetName`/`mapNameBuf`
+are `CPasteBufs` heap allocations of `SAL_MAX_PATH_UTF8`; `BuildScriptDir`'s
+recursive `finalName` is `CFinalNameBuf` heap (recursion-safe). `sourcePath`
+in `BuildScriptMain` is `SAL_MAX_PATH_UTF8+10` (feature 011). `root`/`fsName`
+buffers hold only a volume root (COMPONENT — left `MAX_PATH`).
 
 Verified NOT reverted (013 held): `CImpDropTarget::CurDir`/`SrcPath`/
 `OldDataObjectSrcFSPath`, `mydir`, `root` are `SAL_MAX_PATH_UTF8`;

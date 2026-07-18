@@ -314,7 +314,7 @@ BOOL CFilesWindow::MoveFiles(const char* source, const char* target, const char*
         LastTickCount = GetTickCount();
 
         //---  enumerate files/directories of the source directory
-        char sourceDir[MAX_PATH + 4];
+        char sourceDir[SAL_MAX_PATH_UTF8 + 4]; // long-path capable (feature 014); +4 reserve for "\\*" append (non-recursive frame)
         int len = (int)strlen(source);
         if (source[len - 1] == '\\')
             len--;
@@ -340,7 +340,7 @@ BOOL CFilesWindow::MoveFiles(const char* source, const char* target, const char*
 
             GetAsyncKeyState(VK_ESCAPE); // initialize GetAsyncKeyState - see help
 
-            char targetDir[MAX_PATH];
+            char targetDir[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014); non-recursive frame
             strcpy(targetDir, target);
 
             BOOL sourceSupADS = IsPathOnVolumeSupADS(sourceDir, NULL);
@@ -1050,8 +1050,8 @@ void CFilesWindow::DropCopyMove(BOOL copy, char* targetPath, CCopyMoveData* data
         {
             if (!copy && data->Count > 0)
             {
-                char source[MAX_PATH];
-                lstrcpyn(source, data->At(0)->FileName, MAX_PATH);
+                char source[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014); truncation misdetected same-root -> wrong copy strategy
+                lstrcpyn(source, data->At(0)->FileName, SAL_MAX_PATH_UTF8);
                 CutDirectory(source);
                 BOOL sameRootPath = HasTheSameRootPath(source, targetPath);
                 script->SameRootButDiffVolume = sameRootPath && !HasTheSameRootPathAndVolume(source, targetPath);
@@ -1123,8 +1123,8 @@ void CFilesWindow::DropCopyMove(BOOL copy, char* targetPath, CCopyMoveData* data
                     char* name = data->At(0)->FileName;
                     if (name != NULL)
                     {
-                        char path[MAX_PATH];
-                        lstrcpyn(path, name, MAX_PATH);
+                        char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014); truncation gave a wrong source refresh path
+                        lstrcpyn(path, name, SAL_MAX_PATH_UTF8);
                         if (CutDirectory(path)) // assume a single source directory (panel operations only, not Find)
                         {
                             // change in the source directory and its subdirectories

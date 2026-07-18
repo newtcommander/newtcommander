@@ -21,7 +21,7 @@
 - [X] T008 [US2] Fix Unicode "too long"/not-found on navigate/parse: `fileswn9.cpp:60` `ParsePath` `curPath[2*MAX_PATH]` → `SAL_MAX_PATH_UTF8`
 - [X] T009 [US1] Verify paste chain (Ctrl+V) not reverted: `DropPath`, `CImpDropTarget::CurDir/SrcPath/OldDataObjectSrcFSPath`, `mydir`, `root` confirmed `SAL_MAX_PATH_UTF8`
 - [X] T010 [US1] Classify remaining viewer buffers (caption BOUNDED cosmetic; drop/open EXTERNAL) — no further crash in the F3 chain
-- [ ] T011 [US1][US2] Apply the full CRASH-site work-list from T006 across the ~30 core files (widen / heap on recursive routes / eliminate intermediates / bound external) — **pending T005/T006**
+- [~] T011 [US1][US2] Apply the CRASH-site work-list across core files. **Done this session** (research.md R1): delete-to-recycle-bin overflow ×2 (worker.cpp DoDeleteFile/DoDeleteDir), MoveFiles fast-path sourceDir/targetDir (fileswn6.cpp), copy-strategy/refresh truncation ×2 (fileswn6.cpp). Verified already-safe: BuildScriptMain2/Dir heap buffers (012). **Remaining**: the exhaustive per-file sweep of the ~30-file inventory (pending T005/T006 audit).
 - [ ] T012 [US2] Bundled enabled plugins' own file-op UI secondary pass — **pending**
 
 ## Phase 4: Verification
