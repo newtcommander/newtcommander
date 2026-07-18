@@ -231,25 +231,40 @@ BSHandlerSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
     {
-        // clean up the stored OldWndProc
-        WNDPROC currentWndProc = (WNDPROC)GetWindowLongPtr(hwnd, GWLP_WNDPROC);
-        SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)OldWndProc);
+        // clean up the stored OldWndProc. feature 015: use the W variant for a
+        // Unicode control so it is not flipped to ANSI on the way out.
+        if (IsWindowUnicode(hwnd))
+            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)OldWndProc);
+        else
+            SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)OldWndProc);
 
         RemoveProp(hwnd, BACKSPACE_SUBCLASSPROC);
         break;
     }
     }
-    return CallWindowProc(OldWndProc, hwnd, message, wParam, lParam);
+    // feature 015: forward through the matching (W/A) CallWindowProc so a Unicode
+    // control keeps delivering wide text (otherwise its content is down-converted
+    // to the ANSI code page and non-ANSI characters become '?')
+    return IsWindowUnicode(hwnd) ? CallWindowProcW(OldWndProc, hwnd, message, wParam, lParam)
+                                 : CallWindowProc(OldWndProc, hwnd, message, wParam, lParam);
 }
 
 // we don't use WinLib's subclass so we don't step on its toes
 // (some windows we need to attach may already be or will be under WinLib)
 BOOL AttachBackspaceHandler(HWND hwndEdit)
 {
-    WNDPROC oldWndProc = (WNDPROC)GetWindowLongPtr(hwndEdit, GWLP_WNDPROC);
+    // feature 015: preserve the control's Unicode state. SetWindowLongPtr (ANSI)
+    // would flip a Unicode edit (e.g. a combo edit in a Unicode dialog) to ANSI,
+    // which down-converts non-ANSI text to '?'. Use the W variants when Unicode.
+    BOOL unicode = IsWindowUnicode(hwndEdit);
+    WNDPROC oldWndProc = (WNDPROC)(unicode ? GetWindowLongPtrW(hwndEdit, GWLP_WNDPROC)
+                                           : GetWindowLongPtr(hwndEdit, GWLP_WNDPROC));
     if (SetProp(hwndEdit, BACKSPACE_SUBCLASSPROC, (HANDLE)oldWndProc))
     {
-        SetWindowLongPtr(hwndEdit, GWLP_WNDPROC, (LONG_PTR)BSHandlerSubclassProc);
+        if (unicode)
+            SetWindowLongPtrW(hwndEdit, GWLP_WNDPROC, (LONG_PTR)BSHandlerSubclassProc);
+        else
+            SetWindowLongPtr(hwndEdit, GWLP_WNDPROC, (LONG_PTR)BSHandlerSubclassProc);
         return TRUE;
     }
     return FALSE;

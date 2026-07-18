@@ -3862,14 +3862,23 @@ protected:
     int CtrlID;         // identifier forwarded via WM_USER_KEYDOWN
 
 public:
-    CKeyForwarder(HWND hDialog, int ctrlID, CObjectOrigin origin = ooAllocated);
+    // feature 015: 'unicodeWnd' must match the subclassed control's current
+    // Unicode state - AttachToWindow uses SetWindowLongPtr(A/W) accordingly, and
+    // the ANSI variant would flip a Unicode control (e.g. a combo edit in a
+    // Unicode dialog) to ANSI, turning non-ANSI text into '?'.
+    CKeyForwarder(HWND hDialog, int ctrlID, BOOL unicodeWnd, CObjectOrigin origin = ooAllocated);
 
 protected:
     virtual LRESULT WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
 
-CKeyForwarder::CKeyForwarder(HWND hDialog, int ctrlID, CObjectOrigin origin)
-    : CWindow(origin)
+CKeyForwarder::CKeyForwarder(HWND hDialog, int ctrlID, BOOL unicodeWnd, CObjectOrigin origin)
+    : CWindow(origin
+#ifndef _UNICODE
+              ,
+              unicodeWnd
+#endif // _UNICODE
+      )
 {
     SkipCharacter = FALSE;
     HDialog = hDialog;
@@ -3929,7 +3938,10 @@ BOOL CreateKeyForwarder(HWND hDialog, int ctrlID)
         }
     }
 
-    CKeyForwarder* edit = new CKeyForwarder(hDialog, ctrlID);
+    // feature 015: preserve the edit control's current Unicode state when
+    // subclassing, so a Unicode dialog's combo edit is not flipped back to ANSI
+    // (which turned non-ANSI names into '?' in the Rename/Copy/Move dialogs)
+    CKeyForwarder* edit = new CKeyForwarder(hDialog, ctrlID, IsWindowUnicode(hWindow));
     if (edit != NULL)
     {
         edit->AttachToWindow(hWindow);
