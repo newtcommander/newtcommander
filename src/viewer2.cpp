@@ -11,6 +11,189 @@
 #include "dialogs.h"
 
 // ****************************************************************************
+// feature 015 (viewer.md): Unicode content encoding detection + decoding.
+// The viewer keeps its byte-offset model; these helpers convert the raw file
+// bytes to Unicode for rendering and column mapping when a Unicode encoding is
+// active. They are self-contained and side-effect free.
+
+// Strict UTF-8 validation of a byte range (rejects overlong forms, surrogates,
+// out-of-range code points). A trailing truncated multi-byte sequence (the
+// sample cut mid-character) is tolerated - it does not make an otherwise valid
+// UTF-8 sample fail.
+static BOOL ViewerIsValidUTF8(const unsigned char* p, int len)
+{
+    int i = 0;
+    while (i < len)
+    {
+        unsigned char c = p[i];
+        if (c < 0x80)
+        {
+            i++;
+            continue;
+        }
+        int n;              // number of continuation bytes
+        unsigned int minCP; // smallest code point legal for this length (reject overlong)
+        unsigned int cp;
+        if ((c & 0xE0) == 0xC0)
+        {
+            n = 1;
+            minCP = 0x80;
+            cp = c & 0x1F;
+        }
+        else if ((c & 0xF0) == 0xE0)
+        {
+            n = 2;
+            minCP = 0x800;
+            cp = c & 0x0F;
+        }
+        else if ((c & 0xF8) == 0xF0)
+        {
+            n = 3;
+            minCP = 0x10000;
+            cp = c & 0x07;
+        }
+        else
+            return FALSE; // lone continuation byte or 5/6-byte form
+        if (i + n >= len)
+            return TRUE; // sequence truncated by the sample boundary - accept
+        for (int k = 1; k <= n; k++)
+        {
+            unsigned char cc = p[i + k];
+            if ((cc & 0xC0) != 0x80)
+                return FALSE;
+            cp = (cp << 6) | (cc & 0x3F);
+        }
+        if (cp < minCP || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+            return FALSE; // overlong, out of range, or UTF-16 surrogate
+        i += n + 1;
+    }
+    return TRUE;
+}
+
+int ViewerDetectEncoding(const unsigned char* buf, int len, int* bomLen)
+{
+    if (bomLen != NULL)
+        *bomLen = 0;
+    if (buf == NULL || len <= 0)
+        return VCE_LEGACY;
+    // 1) BOM
+    if (len >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF)
+    {
+        if (bomLen != NULL)
+            *bomLen = 3;
+        return VCE_UTF8;
+    }
+    if (len >= 2 && buf[0] == 0xFF && buf[1] == 0xFE)
+    {
+        if (bomLen != NULL)
+            *bomLen = 2;
+        return VCE_UTF16LE;
+    }
+    if (len >= 2 && buf[0] == 0xFE && buf[1] == 0xFF)
+    {
+        if (bomLen != NULL)
+            *bomLen = 2;
+        return VCE_UTF16BE;
+    }
+    // 2) no BOM: valid UTF-8 (must contain at least one multi-byte sequence to
+    //    prefer it over plain ASCII/legacy - pure ASCII stays VCE_LEGACY so its
+    //    rendering is byte-for-byte identical to before). A NUL byte marks the
+    //    sample as binary (keeps FR-009: a binary file that happens to be valid
+    //    UTF-8 is not forced to text - it falls through to the binary/hex path).
+    BOOL hasHighByte = FALSE;
+    for (int i = 0; i < len; i++)
+    {
+        if (buf[i] == 0)
+            return VCE_LEGACY; // binary
+        if (buf[i] >= 0x80)
+            hasHighByte = TRUE;
+    }
+    if (hasHighByte && ViewerIsValidUTF8(buf, len))
+        return VCE_UTF8;
+    return VCE_LEGACY;
+}
+
+int ViewerDecodeChar(const unsigned char* p, int avail, int enc, WCHAR out[2], int* nWchars)
+{
+    *nWchars = 1;
+    if (avail <= 0)
+    {
+        out[0] = L' ';
+        return 0;
+    }
+    if (enc == VCE_UTF16LE || enc == VCE_UTF16BE)
+    {
+        if (avail < 2)
+        {
+            out[0] = 0xFFFD;
+            return 1; // odd trailing byte - one byte, replacement
+        }
+        WCHAR w = (enc == VCE_UTF16LE) ? (WCHAR)(p[0] | (p[1] << 8))
+                                       : (WCHAR)(p[1] | (p[0] << 8));
+        out[0] = w;
+        return 2;
+    }
+    // UTF-8
+    unsigned char c = p[0];
+    if (c < 0x80)
+    {
+        out[0] = (WCHAR)c;
+        return 1;
+    }
+    int n;
+    unsigned int minCP, cp;
+    if ((c & 0xE0) == 0xC0)
+    {
+        n = 1;
+        minCP = 0x80;
+        cp = c & 0x1F;
+    }
+    else if ((c & 0xF0) == 0xE0)
+    {
+        n = 2;
+        minCP = 0x800;
+        cp = c & 0x0F;
+    }
+    else if ((c & 0xF8) == 0xF0)
+    {
+        n = 3;
+        minCP = 0x10000;
+        cp = c & 0x07;
+    }
+    else
+    {
+        out[0] = 0xFFFD;
+        return 1; // invalid lead byte
+    }
+    if (avail < n + 1)
+        return 0; // incomplete - caller must supply more bytes
+    for (int k = 1; k <= n; k++)
+    {
+        if ((p[k] & 0xC0) != 0x80)
+        {
+            out[0] = 0xFFFD;
+            return 1; // bad continuation - resync one byte at a time
+        }
+        cp = (cp << 6) | (p[k] & 0x3F);
+    }
+    if (cp < minCP || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF))
+    {
+        out[0] = 0xFFFD;
+        return 1;
+    }
+    if (cp >= 0x10000) // beyond BMP -> surrogate pair (two display units)
+    {
+        cp -= 0x10000;
+        out[0] = (WCHAR)(0xD800 + (cp >> 10));
+        out[1] = (WCHAR)(0xDC00 + (cp & 0x3FF));
+        *nWchars = 2;
+    }
+    else
+        out[0] = (WCHAR)cp;
+    return n + 1;
+}
+
+// ****************************************************************************
 
 struct CTVData
 {
@@ -847,6 +1030,38 @@ void CViewerWindow::FileChanged(HANDLE file, BOOL testOnlyFileSize, BOOL& fatalE
                             CanSwitchQuietlyToHex = FALSE; // if we force Text mode, prompt before switching to Hex
                     }
 
+                    // feature 015 (viewer.md): detect a Unicode content encoding
+                    // (BOM, else valid UTF-8) up front, independent of the legacy
+                    // code-page auto-select. A positive detection means the file
+                    // is text, is rendered wide, and the single-byte CodeTable is
+                    // bypassed. UTF-16 in particular must force text mode because
+                    // the legacy binary heuristic would see its NUL bytes as binary.
+                    ContentEncoding = VCE_LEGACY;
+                    ContentBOMLen = 0;
+                    if (defViewMode != 2) // not forced Hex
+                    {
+                        BOOL uniErr = FALSE;
+                        int uniLen = (int)Prepare(NULL, 0, RECOGNIZE_FILE_TYPE_BUFFER_LEN, uniErr);
+                        if (!uniErr && uniLen > 0)
+                        {
+                            int bom = 0;
+                            int enc = ViewerDetectEncoding(Buffer, uniLen, &bom);
+                            // UTF-8 is rendered wide here. UTF-16 correct rendering
+                            // additionally needs the EOL/line scanner to be 16-bit
+                            // aware (its LF is 0x0A00); until that follow-up lands,
+                            // leave UTF-16 to the existing path (shown as hex) so it
+                            // is not rendered worse than before.
+                            if (enc == VCE_UTF8)
+                            {
+                                ContentEncoding = enc;
+                                ContentBOMLen = bom;
+                                Type = vtText;
+                                CodeType = 0; // Unicode overrides the single-byte table
+                                UseCodeTable = FALSE;
+                            }
+                        }
+                    }
+
                     int len;
                     BOOL fatalErr2 = FALSE;
                     if (CodePageAutoSelect || defViewMode == 0)
@@ -872,14 +1087,14 @@ void CViewerWindow::FileChanged(HANDLE file, BOOL testOnlyFileSize, BOOL& fatalE
                             EnablePaint = FALSE;
                             RecognizeFileType(HWindow, recBuf, recLen, FALSE, &isText, codePage);
                             EnablePaint = oldEnablePaint;
-                            if (defViewMode == 0)
+                            if (defViewMode == 0 && ContentEncoding == VCE_LEGACY)
                             {
                                 if (isText)
                                     Type = vtText;
                                 else
                                     Type = vtHex;
                             }
-                            if (CodePageAutoSelect)
+                            if (CodePageAutoSelect && ContentEncoding == VCE_LEGACY)
                             {
                                 if (isText && defViewMode != 2)
                                 {
@@ -899,7 +1114,8 @@ void CViewerWindow::FileChanged(HANDLE file, BOOL testOnlyFileSize, BOOL& fatalE
                         else if (defViewMode == 2)
                             Type = vtHex;
                         // if auto-select is off, fall back to the default conversion
-                        if (!CodePageAutoSelect)
+                        // (but not when a Unicode encoding was detected - it wins)
+                        if (!CodePageAutoSelect && ContentEncoding == VCE_LEGACY)
                         {
                             int defCodeType;
                             if (!CodeTables.GetCodeType(DefaultConvert, defCodeType))
@@ -1433,7 +1649,60 @@ BOOL CViewerWindow::GetOffsetOrXAbs(__int64 x, __int64* offset, __int64* offsetX
             __int64 len = Prepare(NULL, off, readLen, fatalErr);
             if (fatalErr)
                 return FALSE;
-            if (len > 0)
+            if (len > 0 && ContentEncoding != VCE_LEGACY)
+            {
+                // feature 015: code-point stepping. 'off' is a byte offset, 'lineLen'
+                // a display column; a code point advances 'off' by its byte length and
+                // 'lineLen' by its cell count (2 for a beyond-BMP surrogate pair).
+                char* s = (char*)(Buffer + (off - Seek));
+                int avail = (int)len;
+                while (avail > 0)
+                {
+                    unsigned char* p = (unsigned char*)s;
+                    __int64 colStart = lineLen; // column at this character's start
+                    __int64 offStart = off;
+                    int stepBytes, stepCols;
+                    if (*p == '\t')
+                    {
+                        stepBytes = 1;
+                        stepCols = (int)(Configuration.TabSize - (lineLen % Configuration.TabSize));
+                    }
+                    else
+                    {
+                        WCHAR w[2];
+                        int nW;
+                        stepBytes = ViewerDecodeChar(p, avail, ContentEncoding, w, &nW);
+                        if (stepBytes == 0)
+                            break; // code point split at the window end -> re-Prepare from 'off'
+                        stepCols = nW; // 1, or 2 for a surrogate pair
+                    }
+                    if (!getXFromOffset && x >= colStart && x < colStart + stepCols)
+                    { // the requested column falls on this character
+                        if (offset != NULL)
+                            *offset = offStart;
+                        if (offsetX != NULL)
+                            *offsetX = colStart;
+                        return TRUE;
+                    }
+                    lineLen += stepCols;
+                    s += stepBytes;
+                    off += stepBytes;
+                    avail -= stepBytes;
+                    if (getXFromOffset ? findOffset <= off : x == lineLen)
+                    {
+                        if (foundX != NULL)
+                            *foundX = getXFromOffset ? (findOffset <= offStart ? colStart : lineLen) : lineLen;
+                        if (offset != NULL)
+                            *offset = off;
+                        if (offsetX != NULL)
+                            *offsetX = lineLen;
+                        return TRUE;
+                    }
+                }
+                // if avail>0 here a code point was split at the window edge: loop
+                // around; Prepare(off,...) brings the whole character into the buffer
+            }
+            else if (len > 0)
             {
                 char* s = (char*)(Buffer + (off - Seek));
                 while (len--)

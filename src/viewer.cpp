@@ -555,6 +555,8 @@ CViewerWindow::CViewerWindow(const char* fileName, CViewType type, const char* c
     CodeType = 0;
     CodeTables.Init(MainWindow->HWindow);
     UseCodeTable = FALSE;
+    ContentEncoding = VCE_LEGACY; // feature 015 (viewer.md)
+    ContentBOMLen = 0;
     if (fileName == NULL)
         FileName = NULL; // error
     else
@@ -763,6 +765,39 @@ void MyTextOut(HDC hdc, int nXStart, int nYStart, LPCTSTR lpString, int cbString
     }
     else
         TextOut(hdc, nXStart, nYStart, lpString, cbString);
+}
+
+// feature 015 (viewer.md): number of display cells a UTF-8 byte segment occupies
+// (== UTF-16 code units; a beyond-BMP code point is a 2-cell surrogate pair).
+static int Utf8SegCells(const char* seg, int segBytes)
+{
+    if (segBytes <= 0)
+        return 0;
+    int wl = MultiByteToWideChar(CP_UTF8, 0, seg, segBytes, NULL, 0);
+    return wl > 0 ? wl : segBytes;
+}
+
+// feature 015: draw one segment of the byte line buffer at cell column 'xCell'.
+// For UTF-8 content the bytes are decoded to UTF-16 and drawn packed with
+// ExtTextOutW (so glyphs are correct, not mojibake); for legacy content it is the
+// plain one-byte-per-cell MyTextOut. 'charWidth' is the fixed cell width.
+static void MyTextOutSeg(HDC hdc, int xCell, int yStart, const char* seg, int segBytes,
+                         int encoding, int charWidth)
+{
+    if (segBytes <= 0)
+        return;
+    if (encoding == VCE_UTF8)
+    {
+        WCHAR wbuf[2002];
+        int wl = MultiByteToWideChar(CP_UTF8, 0, seg, segBytes, wbuf, 2001);
+        if (wl > 0)
+        {
+            ExtTextOutW(hdc, xCell * charWidth, yStart, 0, NULL, wbuf, wl, NULL);
+            return;
+        }
+        // fall through to the legacy path on conversion failure
+    }
+    MyTextOut(hdc, xCell * charWidth, yStart, seg, segBytes);
 }
 
 void CViewerWindow::Paint(HDC dc)
@@ -1375,20 +1410,29 @@ void CViewerWindow::Paint(HDC dc)
 
                             if (lineLen > OriginX)
                             { // output text to Bitmap.HMemDC
+                                // feature 015 (viewer.md): for UTF-8 content the byte
+                                // segments are decoded to Unicode and drawn packed
+                                // (glyphs are correct instead of mojibake); segment X
+                                // positions use decoded cell counts so the selection
+                                // highlight aligns with the glyphs. For legacy content
+                                // this is exactly the old one-byte-per-cell drawing.
+                                int enc = ContentEncoding;
+                                int cu1 = (enc == VCE_UTF8) ? Utf8SegCells(line, (int)u1) : (int)u1;
+                                int cu2 = (enc == VCE_UTF8) ? Utf8SegCells(line + u1, (int)u2) : (int)u2;
                                 if (u3 > 0)
-                                    MyTextOut(Bitmap.HMemDC, (int)((u1 + u2) * CharWidth), 0, line + u1 + u2, (int)u3);
+                                    MyTextOutSeg(Bitmap.HMemDC, cu1 + cu2, 0, line + u1 + u2, (int)u3, enc, CharWidth);
                                 if (u2 > 0)
                                 {
                                     SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_SELECTED]));
                                     SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_SELECTED]));
                                     SetBkMode(Bitmap.HMemDC, OPAQUE);
-                                    MyTextOut(Bitmap.HMemDC, (int)(u1 * CharWidth), 0, line + u1, (int)u2);
+                                    MyTextOutSeg(Bitmap.HMemDC, cu1, 0, line + u1, (int)u2, enc, CharWidth);
                                     SetBkMode(Bitmap.HMemDC, TRANSPARENT);
                                     SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
                                     SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
                                 }
                                 if (u1 > 0)
-                                    MyTextOut(Bitmap.HMemDC, 0, 0, line, (int)u1);
+                                    MyTextOutSeg(Bitmap.HMemDC, 0, 0, line, (int)u1, enc, CharWidth);
                             }
 
                             // bitblt the entire row to the screen

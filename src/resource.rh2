@@ -629,6 +629,7 @@
 #define CM_EXTSEL_END         6098
 #define CM_EXTSEL_FILEBEG     6099
 #define CM_EXTSEL_FILEEND     6100
+#define CM_VIEWER_CODING_UTF8 6101 // feature 015 (viewer.md): switch the viewer to UTF-8
 
 
 // timers

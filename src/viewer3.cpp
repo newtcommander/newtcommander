@@ -37,7 +37,15 @@ void CViewerWindow::SetViewerCaption()
         if (caption[0] != 0)
             strcat(caption, " - ");
         strcat(caption, LoadStr(IDS_VIEWERTITLE));
-        if (CodeType > 0)
+        if (ContentEncoding != VCE_LEGACY)
+        {
+            // feature 015 (viewer.md): report the Unicode encoding actually used
+            const char* encName = ContentEncoding == VCE_UTF8 ? "UTF-8" : ContentEncoding == VCE_UTF16LE ? "UTF-16 LE"
+                                                                      : ContentEncoding == VCE_UTF16BE   ? "UTF-16 BE"
+                                                                                                         : "Unicode";
+            sprintf(caption + strlen(caption), " - [%s]", encName);
+        }
+        else if (CodeType > 0)
         {
             char codeName[200];
             CodeTables.GetCodeName(CodeType, codeName, 200);
@@ -68,6 +76,8 @@ void CViewerWindow::SetCodeType(int c)
 {
     CodeType = c;
     UseCodeTable = CodeTables.GetCode(CodeTable, CodeType);
+    ContentEncoding = VCE_LEGACY; // feature 015: choosing a single-byte coding turns off Unicode mode
+    ContentBOMLen = 0;
 
     // invalidate the buffer
     Seek = 0;
@@ -1831,6 +1841,37 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             return 0;
         }
 
+        case CM_VIEWER_CODING_UTF8:
+        {
+            // feature 015 (viewer.md): manually switch the open file to UTF-8 and
+            // re-decode without touching the file on disk.
+            if (MouseDrag)
+                return 0;
+            ContentEncoding = VCE_UTF8;
+            ContentBOMLen = 0;
+            CodeType = 0;
+            UseCodeTable = FALSE;
+            if (Type != vtText)
+                Type = vtText;
+            BOOL fatalErr = FALSE;
+            __int64 newSeekY = FindBegin(SeekY, fatalErr);
+            if (fatalErr)
+                FatalFileErrorOccured();
+            if (fatalErr || ExitTextMode)
+                return 0;
+            SeekY = newSeekY;
+            FileChanged(NULL, FALSE, fatalErr, FALSE); // detectFileType=FALSE: keep our manual choice
+            if (fatalErr)
+                FatalFileErrorOccured();
+            if (fatalErr || ExitTextMode)
+                return 0;
+            SetViewerCaption();
+            ResetFindOffsetOnNextPaint = TRUE;
+            InvalidateRect(HWindow, NULL, FALSE);
+            UpdateWindow(HWindow);
+            return 0;
+        }
+
         case CM_VIEWER_AUTOCOPY:
         {
             Configuration.AutoCopySelection = !Configuration.AutoCopySelection;
@@ -3192,6 +3233,22 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     memset(&mi, 0, sizeof(mi));
                     mi.cbSize = sizeof(mi);
 
+                    // feature 015 (viewer.md): UTF-8 as a selectable coding, above
+                    // the single-byte tables (a separate item because it is not a
+                    // 256-byte table). Checked while UTF-8 mode is active.
+                    {
+                        char utf8Name[] = "UTF-8";
+                        MENUITEMINFO miU;
+                        memset(&miU, 0, sizeof(miU));
+                        miU.cbSize = sizeof(miU);
+                        miU.fMask = MIIM_TYPE | MIIM_ID;
+                        miU.fType = MFT_STRING;
+                        miU.wID = CM_VIEWER_CODING_UTF8;
+                        miU.dwTypeData = utf8Name;
+                        InsertMenuItem(subMenu, 0, TRUE, &miU);
+                        count++;
+                    }
+
                     /* used by the script export_mnu.py that generates salmenu.mnu for Translator
    keep in sync with the InsertMenuItem() calls below...
 MENU_TEMPLATE_ITEM ViewerCodingMenu[] = 
@@ -3239,6 +3296,7 @@ MENU_TEMPLATE_ITEM ViewerCodingMenu[] =
                 }
 
                 CheckMenuItem(subMenu, CM_RECOGNIZE_CODEPAGE, MF_BYCOMMAND | (CodePageAutoSelect ? MF_CHECKED : MF_UNCHECKED));
+                CheckMenuItem(subMenu, CM_VIEWER_CODING_UTF8, MF_BYCOMMAND | (ContentEncoding == VCE_UTF8 ? MF_CHECKED : MF_UNCHECKED)); // feature 015
             }
             subMenu = GetSubMenu(main, OPTIONS_MENU_INDEX);
             if (subMenu != NULL)

@@ -16,6 +16,12 @@
 
 #define VIEWER_HISTORY_SIZE 30 // number of remembered strings
 
+// feature 015 (viewer.md): CViewerWindow::ContentEncoding values (Unicode content)
+#define VCE_LEGACY 0    // legacy single-byte (CodeType/CodeTable), one byte per column
+#define VCE_UTF8 1      // UTF-8
+#define VCE_UTF16LE 2   // UTF-16 little-endian
+#define VCE_UTF16BE 3   // UTF-16 big-endian
+
 // menu positions - redo when the menu changes!
 #define VIEWER_FILE_MENU_INDEX 0         // in the viewer main menu
 #define VIEWER_FILE_MENU_OTHFILESINDEX 3 // in the File submenu of the viewer main menu
@@ -25,6 +31,19 @@
 #define OPTIONS_MENU_INDEX 5             // in the viewer main menu
 
 #define WM_USER_VIEWERREFRESH WM_APP + 201 // [0, 0] - perform a refresh
+
+// feature 015 (viewer.md): detect the content encoding of a leading sample.
+// Returns a VCE_* value; *bomLen receives the length of a leading BOM (0 if none).
+// BOM first, then a strict UTF-8 validation of the whole sample; otherwise VCE_LEGACY.
+int ViewerDetectEncoding(const unsigned char* buf, int len, int* bomLen);
+
+// feature 015: decode one character at 'p' (with 'avail' bytes available) under
+// encoding 'enc' (VCE_UTF8/VCE_UTF16LE/VCE_UTF16BE). Writes up to 2 UTF-16 code
+// units into out[] (*nWchars), and returns the number of source bytes consumed.
+// Returns 0 when 'avail' is too small to hold a complete sequence (caller should
+// read more). Invalid sequences decode to U+FFFD consuming 1 byte (UTF-8) or the
+// unit as-is (UTF-16), so the function always makes forward progress when avail>0.
+int ViewerDecodeChar(const unsigned char* p, int avail, int enc, WCHAR out[2], int* nWchars);
 
 #ifndef INSIDE_SALAMANDER
 char* LoadStr(int resID);
@@ -371,6 +390,16 @@ protected:
     int CodeType;        // numeric encoding identifier; CodeTables memory for this viewer window
     BOOL UseCodeTable;   // should CodeTable be used for recoding?
     char CodeTable[256]; // code table
+
+    // feature 015 (viewer.md): Unicode content encoding. 0 = legacy single-byte
+    // (the CodeType/CodeTable path above, one byte per column, ANSI render);
+    // otherwise the content is decoded to Unicode per this value and rendered
+    // wide, with one Unicode code point per display column. Byte offsets remain
+    // the seek/selection/search anchor; only rendering + column hit-testing are
+    // code-point aware, and only when this is non-zero (so legacy files are
+    // byte-for-byte unchanged).
+    int ContentEncoding; // 0=legacy, VCE_UTF8, VCE_UTF16LE, VCE_UTF16BE
+    int ContentBOMLen;   // bytes of a BOM at file start (rendered as invisible U+FEFF; informational)
 
     char CurrentDir[MAX_PATH]; // path for the open dialog
 
