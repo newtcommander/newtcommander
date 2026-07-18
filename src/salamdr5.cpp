@@ -921,7 +921,7 @@ BOOL SalSplitWindowsPath(HWND parent, const char* title, const char* errorTitle,
     if (*afterRoot == '\\')
         afterRoot++;
 
-    char newDirs[MAX_PATH];
+    char newDirs[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014)
     char textBuf[2 * MAX_PATH + 200];
 
     if (SalSplitGeneralPath(parent, title, errorTitle, selCount, path, afterRoot, secondPart,
@@ -963,7 +963,7 @@ BOOL SalSplitWindowsPath(HWND parent, const char* title, const char* errorTitle,
                 }
                 if (invalidPath || !CreateDirectory(newDirs, NULL))
                 {
-                    sprintf(textBuf, LoadStr(IDS_CREATEDIRFAILED), newDirs);
+                    _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), newDirs); // long-path capable (feature 014)
                     SalMessageBox(parent, textBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
                     ok = FALSE;
                     break;
@@ -977,7 +977,7 @@ BOOL SalSplitWindowsPath(HWND parent, const char* title, const char* errorTitle,
 
             // --- refresh non-automatically refreshed directories (takes place after stop-refresh
             // ends, so only after the operation is finished)
-            char changesRoot[MAX_PATH];
+            char changesRoot[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014)
             memmove(changesRoot, path, secondPart - path);
             changesRoot[secondPart - path] = 0;
             // path change - creation of new subdirectories along the path (required even if
@@ -1007,7 +1007,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
 {
     mask = NULL;
     char textBuf[2 * MAX_PATH + 200];
-    char tmpNewDirs[MAX_PATH];
+    char tmpNewDirs[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014)
     tmpNewDirs[0] = 0;
     if (newDirs != NULL)
         newDirs[0] = 0;
@@ -1066,8 +1066,8 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
                 }
                 else // name with a trailing slash -> directory
                 {
-                    SalPathAppend(tmpNewDirs, maskFrom, MAX_PATH);
-                    SalPathAddBackslash(path, 2 * MAX_PATH); // the path must always end with a backslash; make sure it does...
+                    SalPathAppend(tmpNewDirs, maskFrom, SAL_MAX_PATH_UTF8);
+                    SalPathAddBackslash(path, SAL_MAX_PATH_UTF8); // the path must always end with a backslash; make sure it does...
                     mask = path + strlen(path) + 1;
                     strcpy(mask, "*.*");
                 }
@@ -1086,7 +1086,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
                     if (Configuration.CnfrmCreatePath) // ask whether the path should be created
                     {
                         BOOL dontShow = FALSE;
-                        sprintf(textBuf, LoadStr(IDS_MOVECOPY_CREATEPATH), tmpNewDirs);
+                        _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_MOVECOPY_CREATEPATH), tmpNewDirs); // long-path capable (feature 014)
 
                         MSGBOXEX_PARAMS params;
                         memset(&params, 0, sizeof(params));
@@ -1151,7 +1151,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
             }
 
             // simple target path with a universal mask
-            SalPathAddBackslash(path, 2 * MAX_PATH); // the path must always end with a backslash; make sure it does...
+            SalPathAddBackslash(path, SAL_MAX_PATH_UTF8); // the path must always end with a backslash; make sure it does... (feature 014: long-path capable)
             mask = path + strlen(path) + 1;
             strcpy(mask, "*.*");
             return TRUE; // leave the Copy/Move dialog loop and perform the operation
@@ -1183,7 +1183,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
         {
             SalMessageBox(parent, LoadStr(IDS_ARCPATHNOTSUPPORTED), errorTitle, MB_OK | MB_ICONEXCLAMATION);
             if (backslashAtEnd)
-                SalPathAddBackslash(path, 2 * MAX_PATH); // if the '\\' was trimmed, add it back
+                SalPathAddBackslash(path, SAL_MAX_PATH_UTF8); // if the '\\' was trimmed, add it back (feature 014: long-path capable)
             return FALSE;                                // go back to the copy/move dialog
         }
     }

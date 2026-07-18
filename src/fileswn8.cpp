@@ -296,17 +296,17 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
 #endif // _WIN64
 
         //---  build the target path for copy/move
-        char path[2 * MAX_PATH + 200]; // +200 is a reserve (Windows can create paths longer than MAX_PATH)
-        target->GetGeneralPath(path, 2 * MAX_PATH + 200);
+        char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014); non-recursive frame
+        target->GetGeneralPath(path, SAL_MAX_PATH_UTF8);
         if (target->Is(ptDisk))
         {
-            SalPathAppend(path, "*.*", 2 * MAX_PATH + 200);
+            SalPathAppend(path, "*.*", SAL_MAX_PATH_UTF8);
         }
         else
         {
             if (target->Is(ptZIPArchive))
             {
-                SalPathAddBackslash(path, 2 * MAX_PATH + 200);
+                SalPathAddBackslash(path, SAL_MAX_PATH_UTF8);
 
                 // if packing to the archive in the other panel is not possible, leave the path empty
                 int format = PackerFormatConfig.PackIsArchive(target->GetZIPArchive());
@@ -500,9 +500,9 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                 havePermissions = (flags & FS_PERSISTENT_ACLS) != 0;
             while (1)
             {
-                if (strlen(path) >= 2 * MAX_PATH)
+                if (strlen(path) >= SAL_MAX_PATH_UTF8)
                     path[0] = 0; // the path is too long; not an ideal solution but I'm not up for a better one now :(
-                res = (int)CCopyMoveMoreDialog(HWindow, path, 2 * MAX_PATH,
+                res = (int)CCopyMoveMoreDialog(HWindow, path, SAL_MAX_PATH_UTF8,
                                                (type == atCopy) ? LoadStr(IDS_COPY) : LoadStr(IDS_MOVE), &str,
                                                (type == atCopy) ? IDD_COPYDIALOG : IDD_MOVEDIALOG,
                                                Configuration.CopyHistory, COPY_HISTORY_SIZE,
@@ -534,12 +534,12 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                 char textBuf[2 * MAX_PATH + 200];
                 if (ParsePath(path, pathType, pathIsDir, secondPart,
                               type == atCopy ? LoadStr(IDS_ERRORCOPY) : LoadStr(IDS_ERRORMOVE),
-                              count <= 1 ? nextFocus : NULL, NULL, 2 * MAX_PATH))
+                              count <= 1 ? nextFocus : NULL, NULL, SAL_MAX_PATH_UTF8))
                 {
                     // use 'if' instead of a 'switch' to ensure that 'break' and 'continue' work correctly
                     if (pathType == PATH_TYPE_WINDOWS) // Windows path (drive + UNC)
                     {
-                        if (strlen(path) >= MAX_PATH)
+                        if (strlen(path) >= SAL_MAX_PATH_UTF8) // long-path capable (feature 014); was MAX_PATH = spurious "too long" for every target >= 260
                         {
                             SalMessageBox(HWindow, LoadStr(IDS_TOOLONGPATH),
                                           (type == atCopy) ? LoadStr(IDS_ERRORCOPY) : LoadStr(IDS_ERRORMOVE),
