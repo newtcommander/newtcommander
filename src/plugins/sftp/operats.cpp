@@ -292,7 +292,7 @@ static void CollectPanelItems(int panel, TIndirectArray<CSFTPDirEntry>* items)
             break;
         e->Name = _strdup(SFTPRealName(it));
         CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
-        if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
+        if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; e->Uid = d->Uid; e->Gid = d->Gid; } // feature 018: Uid/Gid seed the owner/group dialog
         e->Size = it->Size.Value;
         items->Add(e);
         if (!items->IsGood()) { items->ResetState(); delete e; break; }
@@ -689,6 +689,83 @@ BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, con
         ChmodRecursive(&ctx, rpath, mode, itemIsDir, recurse);
         if (setTime)
             session->SetMTime(rpath, mtime);
+    }
+
+    SalamanderGeneral->DestroySafeWaitWindow();
+    return TRUE;
+}
+
+// feature 018: change owner/group of one item, recursing into a directory
+// subtree when requested (mirrors ChmodRecursive; skips symlinks).
+static void ChownRecursive(COperationCtx* ctx, const char* remotePath,
+                           unsigned long uid, unsigned long gid, BOOL setUid, BOOL setGid,
+                           BOOL isDir, BOOL recurse)
+{
+    if (ctx->CheckCancel())
+        return;
+    if (!ctx->Session->Chown(remotePath, uid, gid, setUid, setGid))
+    {
+        char msg[1200];
+        _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERR_CHOWN), remotePath, ctx->Session->GetLastErrorText());
+        Logs.Append(ctx->Session->GetLogUID(), msg);
+    }
+    if (isDir && recurse)
+    {
+        TIndirectArray<CSFTPDirEntry> entries(64, 64);
+        if (ctx->Session->ListDir(remotePath, &entries, &ctx->Cancelled))
+        {
+            for (int i = 0; i < entries.Count && !ctx->CheckCancel(); i++)
+            {
+                CSFTPDirEntry* e = entries[i];
+                if (e->HasMode && SFTP_S_ISLNK(e->Mode))
+                    continue; // do not chown through symlinks
+                char child[4096];
+                PosixPathAppend(remotePath, e->Name, child, sizeof(child));
+                ChownRecursive(ctx, child, uid, gid, setUid, setGid, SFTP_S_ISDIR(e->Mode), recurse);
+            }
+        }
+    }
+}
+
+BOOL SFTPChangeOwnerFromPanel(HWND parent, CSFTPSession* session, int panel, const char* remoteDir)
+{
+    // snapshot the selection BEFORE the modal dialog (panel CFileData go stale
+    // once the dialog pumps messages) - same rule as SFTPChangeAttrsFromPanel
+    TIndirectArray<CSFTPDirEntry> items(16, 16);
+    CollectPanelItems(panel, &items);
+    if (items.Count == 0)
+        return FALSE;
+
+    char label[256];
+    lstrcpynA(label, items[0]->Name, sizeof(label));
+    BOOL multiple = items.Count > 1;
+    if (multiple)
+        _snprintf_s(label, _TRUNCATE, "%d item(s)", items.Count);
+
+    BOOL hasDir = FALSE;
+    for (int i = 0; i < items.Count; i++)
+        if (items[i]->HasMode && SFTP_S_ISDIR(items[i]->Mode))
+        {
+            hasDir = TRUE;
+            break;
+        }
+
+    unsigned long uid = items[0]->Uid, gid = items[0]->Gid;
+    BOOL setUid = FALSE, setGid = FALSE, recurse = FALSE;
+    if (!ShowOwnerGroupDialog(parent, label, hasDir, &uid, &setUid, &gid, &setGid, &recurse))
+        return FALSE;
+
+    COperationCtx ctx(parent, session);
+    SalamanderGeneral->CreateSafeWaitWindow(LoadStr(IDS_PLUGINNAME), LoadStr(IDS_PLUGINNAME), 500, TRUE,
+                                            SalamanderGeneral->GetMainWindowHWND());
+
+    for (int i = 0; i < items.Count && !ctx.CheckCancel(); i++)
+    {
+        CSFTPDirEntry* e = items[i];
+        char rpath[4096];
+        PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
+        BOOL itemIsDir = e->HasMode && SFTP_S_ISDIR(e->Mode);
+        ChownRecursive(&ctx, rpath, uid, gid, setUid, setGid, itemIsDir, recurse);
     }
 
     SalamanderGeneral->DestroySafeWaitWindow();

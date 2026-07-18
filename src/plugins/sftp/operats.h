@@ -29,3 +29,5 @@ BOOL SFTPDeleteFromPanel(HWND parent, CSFTPSession* session, int panel, const ch
 // Applies a chmod (and optional mtime) to the panel's selection under
 // 'remoteDir'. Opens the chmod dialog; returns TRUE when changes were applied.
 BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, const char* remoteDir);
+// feature 018: change owner/group of the panel selection (recursive for dirs)
+BOOL SFTPChangeOwnerFromPanel(HWND parent, CSFTPSession* session, int panel, const char* remoteDir);

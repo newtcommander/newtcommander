@@ -126,7 +126,7 @@ public:
                                          int selectedFiles, int selectedDirs);
     virtual void WINAPI ShowProperties(const char* fsName, HWND parent, int panel, int selectedFiles, int selectedDirs) {}
     virtual void WINAPI ContextMenu(const char* fsName, HWND parent, int menuX, int menuY, int type,
-                                    int panel, int selectedFiles, int selectedDirs) {}
+                                    int panel, int selectedFiles, int selectedDirs);
     virtual BOOL WINAPI HandleMenuMsg(UINT uMsg, WPARAM wParam, LPARAM lParam, LRESULT* plResult) { return FALSE; }
     virtual BOOL WINAPI OpenFindDialog(const char* fsName, int panel) { return FALSE; }
     virtual void WINAPI OpenActiveFolder(const char* fsName, HWND parent) {}

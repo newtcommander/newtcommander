@@ -701,6 +701,27 @@ BOOL CSFTPSession::Chmod(const char* path, unsigned long mode)
     return libssh2_sftp_stat_ex(Sftp, path, (unsigned int)strlen(path), LIBSSH2_SFTP_SETSTAT, &attrs) == 0;
 }
 
+BOOL CSFTPSession::Chown(const char* path, unsigned long uid, unsigned long gid,
+                         BOOL setUid, BOOL setGid)
+{
+    // feature 018: change owner/group via SFTP setstat with UID/GID. An unset
+    // field is left intact by first reading the current attrs and only
+    // overriding the requested one(s).
+    if (Sftp == NULL || (!setUid && !setGid))
+        return FALSE;
+    LIBSSH2_SFTP_ATTRIBUTES attrs;
+    memset(&attrs, 0, sizeof(attrs));
+    // start from the current uid/gid so a "leave unchanged" field keeps its value
+    if (libssh2_sftp_stat_ex(Sftp, path, (unsigned int)strlen(path), LIBSSH2_SFTP_STAT, &attrs) != 0)
+        memset(&attrs, 0, sizeof(attrs));
+    attrs.flags = LIBSSH2_SFTP_ATTR_UIDGID;
+    if (setUid)
+        attrs.uid = uid;
+    if (setGid)
+        attrs.gid = gid;
+    return libssh2_sftp_stat_ex(Sftp, path, (unsigned int)strlen(path), LIBSSH2_SFTP_SETSTAT, &attrs) == 0;
+}
+
 BOOL CSFTPSession::SetMTime(const char* path, __int64 mtime)
 {
     if (Sftp == NULL)

@@ -43,6 +43,14 @@ BOOL ShowPasswordPrompt(HWND parent, const char* promptText, char* out, int outS
 BOOL ShowChmodDialog(HWND parent, const char* targetLabel, BOOL multiple,
                      unsigned long* mode, BOOL* recurse, BOOL* setTime, __int64* mtime);
 
+// Owner/Group dialog (feature 018). 'hasDir' enables the recursive option.
+// 'uid'/'gid' are in/out (seed = current); '*setUid'/'*setGid' report which
+// field the user chose to change; '*recurse' applies to a directory subtree.
+// Returns TRUE on OK (with at least one of setUid/setGid TRUE).
+BOOL ShowOwnerGroupDialog(HWND parent, const char* targetLabel, BOOL hasDir,
+                          unsigned long* uid, BOOL* setUid, unsigned long* gid, BOOL* setGid,
+                          BOOL* recurse);
+
 // Symlink creation dialog. Fills name+target (each MAX_PATH). Returns TRUE on OK.
 BOOL ShowSymlinkDialog(HWND parent, char* name, char* target);
 

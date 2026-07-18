@@ -477,6 +477,101 @@ BOOL ShowChmodDialog(HWND parent, const char* targetLabel, BOOL multiple,
 }
 
 // ---------------------------------------------------------------------------
+// owner / group (feature 018)
+// ---------------------------------------------------------------------------
+
+struct COwnerGroupData
+{
+    const char* Label;
+    BOOL HasDir; // enable the recursive option
+    unsigned long Uid, Gid;
+    BOOL SetUid, SetGid;
+    BOOL Recurse;
+};
+
+static void OwnerGroupSyncEnable(HWND hwnd)
+{
+    EnableWindow(GetDlgItem(hwnd, IDE_OG_OWNER), IsDlgButtonChecked(hwnd, IDC_OG_SETOWNER));
+    EnableWindow(GetDlgItem(hwnd, IDE_OG_GROUP), IsDlgButtonChecked(hwnd, IDC_OG_SETGROUP));
+}
+
+static INT_PTR CALLBACK OwnerGroupProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    COwnerGroupData* d = (COwnerGroupData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+    {
+        d = (COwnerGroupData*)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
+        SetDlgItemTextA(hwnd, IDT_OG_TARGET, d->Label != NULL ? d->Label : "");
+        SetDlgItemInt(hwnd, IDE_OG_OWNER, d->Uid, FALSE);
+        SetDlgItemInt(hwnd, IDE_OG_GROUP, d->Gid, FALSE);
+        CheckDlgButton(hwnd, IDC_OG_SETOWNER, d->SetUid ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_OG_SETGROUP, d->SetGid ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_OG_RECURSE, d->Recurse ? BST_CHECKED : BST_UNCHECKED);
+        EnableWindow(GetDlgItem(hwnd, IDC_OG_RECURSE), d->HasDir); // recursion only for directories
+        OwnerGroupSyncEnable(hwnd);
+        SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
+        return TRUE;
+    }
+    case WM_COMMAND:
+        switch (LOWORD(wParam))
+        {
+        case IDC_OG_SETOWNER:
+        case IDC_OG_SETGROUP:
+            OwnerGroupSyncEnable(hwnd);
+            return TRUE;
+        case IDOK:
+        {
+            BOOL setUid = IsDlgButtonChecked(hwnd, IDC_OG_SETOWNER);
+            BOOL setGid = IsDlgButtonChecked(hwnd, IDC_OG_SETGROUP);
+            if (!setUid && !setGid)
+            {
+                SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_OG_NEEDFIELD),
+                                                 LoadStr(IDS_OG_TITLE), MB_OK | MB_ICONEXCLAMATION);
+                return TRUE;
+            }
+            d->SetUid = setUid;
+            d->SetGid = setGid;
+            d->Uid = GetDlgItemInt(hwnd, IDE_OG_OWNER, NULL, FALSE);
+            d->Gid = GetDlgItemInt(hwnd, IDE_OG_GROUP, NULL, FALSE);
+            d->Recurse = d->HasDir && IsDlgButtonChecked(hwnd, IDC_OG_RECURSE);
+            EndDialog(hwnd, IDOK);
+            return TRUE;
+        }
+        case IDCANCEL:
+            EndDialog(hwnd, IDCANCEL);
+            return TRUE;
+        }
+        break;
+    }
+    return FALSE;
+}
+
+BOOL ShowOwnerGroupDialog(HWND parent, const char* targetLabel, BOOL hasDir,
+                          unsigned long* uid, BOOL* setUid, unsigned long* gid, BOOL* setGid,
+                          BOOL* recurse)
+{
+    COwnerGroupData d;
+    d.Label = targetLabel;
+    d.HasDir = hasDir;
+    d.Uid = *uid;
+    d.Gid = *gid;
+    d.SetUid = FALSE;
+    d.SetGid = FALSE;
+    d.Recurse = FALSE;
+    if (DialogBoxParam(HLanguage, MAKEINTRESOURCE(IDD_OWNERGROUP), parent, OwnerGroupProc, (LPARAM)&d) != IDOK)
+        return FALSE;
+    *uid = d.Uid;
+    *gid = d.Gid;
+    *setUid = d.SetUid;
+    *setGid = d.SetGid;
+    *recurse = d.Recurse;
+    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
 // configuration
 // ---------------------------------------------------------------------------
 

@@ -103,6 +103,12 @@
 #define IDS_BOOKMARKSAVED               152
 #define IDS_CONFIRM_DELETEBOOKMARK      153
 
+// owner/group change (feature 018)
+#define IDS_OG_TITLE                    160
+#define IDS_ERR_CHOWN                   161
+#define IDS_MENU_CHOWN                  162
+#define IDS_OG_NEEDFIELD                163
+
 // ---------------------------------------------------------------------------
 // Dialogs (500..599) and their controls (600..1999)
 // ---------------------------------------------------------------------------
@@ -194,3 +200,12 @@
 #define IDE_LOGTEXT                     700
 #define IDB_LOGCLEAR                    701
 #define IDL_LOGCONNECTIONS              702
+
+// owner/group dialog (feature 018)
+#define IDD_OWNERGROUP                  570
+#define IDT_OG_TARGET                   710
+#define IDC_OG_SETOWNER                 711
+#define IDE_OG_OWNER                    712
+#define IDC_OG_SETGROUP                 713
+#define IDE_OG_GROUP                    714
+#define IDC_OG_RECURSE                  715

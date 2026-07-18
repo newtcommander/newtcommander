@@ -136,6 +136,8 @@ public:
     BOOL Rename(const char* from, const char* to);
     BOOL Symlink(const char* target, const char* linkPath);
     BOOL Chmod(const char* path, unsigned long mode);
+    // feature 018: change owner (uid) and/or group (gid); an unset field is kept
+    BOOL Chown(const char* path, unsigned long uid, unsigned long gid, BOOL setUid, BOOL setGid);
     BOOL SetMTime(const char* path, __int64 mtime);
 
     // File transfer primitives (blocking). Handles are opaque.

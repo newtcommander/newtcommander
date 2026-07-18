@@ -679,7 +679,8 @@ DWORD WINAPI CPluginFSInterface::GetSupportedServices()
            FS_SERVICE_CHANGEATTRS | FS_SERVICE_VIEWFILE |
            FS_SERVICE_GETCHANGEDRIVEORDISCONNECTITEM | FS_SERVICE_GETFSICON |
            FS_SERVICE_GETNEXTDIRLINEHOTPATH | FS_SERVICE_GETPATHFORMAINWNDTITLE |
-           FS_SERVICE_ACCEPTSCHANGENOTIF | FS_SERVICE_COMMANDLINE;
+           FS_SERVICE_ACCEPTSCHANGENOTIF | FS_SERVICE_COMMANDLINE |
+           FS_SERVICE_CONTEXTMENU; // feature 018: right-click file/dir menu (its absence is why right-click did nothing)
 }
 
 BOOL WINAPI CPluginFSInterface::GetChangeDriveOrDisconnectItem(const char* fsName, char*& title, HICON& icon, BOOL& destroyIcon)
@@ -1023,4 +1024,95 @@ void WINAPI CPluginFSInterface::GetAllowedDropEffects(int mode, const char* tgtF
 {
     if (allowedEffects != NULL)
         *allowedEffects &= (DROPEFFECT_COPY | DROPEFFECT_MOVE);
+}
+
+// feature 018: private context-menu command ids (kept below the +5000 range
+// used for Salamander standard commands so the two never collide)
+#define CTXCMD_CHOWN 4001
+
+void WINAPI CPluginFSInterface::ContextMenu(const char* fsName, HWND parent, int menuX, int menuY, int type,
+                                            int panel, int selectedFiles, int selectedDirs)
+{
+    // feature 018: build a right-click menu for panel items. Mirrors the FTP
+    // plugin: enumerate Salamander's standard panel commands (View/Copy/Move/
+    // Delete/Rename/Change Attributes/...) with ids shifted by +5000, then append
+    // our own "Change Owner/Group" item. Change Attributes appears automatically
+    // because FS_SERVICE_CHANGEATTRS is set.
+    if (type != fscmItemsInPanel)
+        return; // path/panel menus not provided for now
+
+    HMENU menu = CreatePopupMenu();
+    if (menu == NULL)
+        return;
+
+    MENUITEMINFO mi;
+    char nameBuf[200];
+    BOOL isFocusedDir = FALSE;
+    SalamanderGeneral->GetPanelFocusedItem(panel, &isFocusedDir);
+
+    int i = 0;
+    int index = 0, salCmd = 0, type2 = sctyUnknown, lastType = sctyUnknown;
+    BOOL enabled = FALSE;
+    while (SalamanderGeneral->EnumSalamanderCommands(&index, &salCmd, nameBuf, sizeof(nameBuf), &enabled, &type2))
+    {
+        if (!enabled || salCmd == SALCMD_OPEN || // "open" is not useful here (dirs open by Enter)
+            (type2 == sctyForFocusedFile && isFocusedDir) ||
+            (type2 != sctyForFocusedFile && type2 != sctyForFocusedFileOrDirectory &&
+             type2 != sctyForSelectedFilesAndDirectories))
+            continue;
+        if (type2 != lastType && lastType != sctyUnknown) // separator between command groups
+        {
+            memset(&mi, 0, sizeof(mi));
+            mi.cbSize = sizeof(mi);
+            mi.fMask = MIIM_TYPE;
+            mi.fType = MFT_SEPARATOR;
+            InsertMenuItem(menu, i++, TRUE, &mi);
+        }
+        lastType = type2;
+        memset(&mi, 0, sizeof(mi));
+        mi.cbSize = sizeof(mi);
+        mi.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+        mi.fType = MFT_STRING;
+        mi.wID = salCmd + 5000;
+        mi.dwTypeData = nameBuf;
+        mi.cch = (UINT)strlen(nameBuf);
+        mi.fState = MFS_ENABLED;
+        InsertMenuItem(menu, i++, TRUE, &mi);
+    }
+
+    // our own Change Owner/Group item (after a separator)
+    char chownItem[200];
+    lstrcpynA(chownItem, LoadStr(IDS_MENU_CHOWN), sizeof(chownItem));
+    if (i > 0)
+    {
+        memset(&mi, 0, sizeof(mi));
+        mi.cbSize = sizeof(mi);
+        mi.fMask = MIIM_TYPE;
+        mi.fType = MFT_SEPARATOR;
+        InsertMenuItem(menu, i++, TRUE, &mi);
+    }
+    memset(&mi, 0, sizeof(mi));
+    mi.cbSize = sizeof(mi);
+    mi.fMask = MIIM_TYPE | MIIM_ID | MIIM_STATE;
+    mi.fType = MFT_STRING;
+    mi.wID = CTXCMD_CHOWN;
+    mi.dwTypeData = chownItem;
+    mi.cch = (UINT)strlen(chownItem);
+    mi.fState = MFS_ENABLED;
+    InsertMenuItem(menu, i++, TRUE, &mi);
+
+    DWORD cmd = TrackPopupMenuEx(menu, TPM_RETURNCMD | TPM_LEFTALIGN | TPM_RIGHTBUTTON,
+                                 menuX, menuY, parent, NULL);
+    DestroyMenu(menu);
+
+    if (cmd >= 5000)
+    {
+        // a Salamander standard command (incl. Change Attributes) - let the core run it
+        SalamanderGeneral->PostSalamanderCommand(cmd - 5000);
+    }
+    else if (cmd == CTXCMD_CHOWN)
+    {
+        if (EnsureConnected(parent) && SFTPChangeOwnerFromPanel(parent, &Session, panel, Path))
+            SalamanderGeneral->PostRefreshPanelFS(this, FALSE);
+    }
 }
