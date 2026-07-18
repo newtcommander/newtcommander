@@ -673,8 +673,8 @@ void CViewerWindow::HeightChanged(BOOL& fatalErr)
 void CViewerWindow::OpenFile(const char* file, const char* caption, BOOL wholeCaption)
 {
     CALL_STACK_MESSAGE3("CViewerWindow::OpenFile(%s, %s)", file, caption);
-    char fileName[MAX_PATH];
-    strcpy(fileName, file);
+    // long-path: use the `file` argument directly; no fixed MAX_PATH intermediate
+    // buffer (the name/path may exceed MAX_PATH, so an intermediate would overrun)
 
     if (Caption != NULL)
     {
@@ -690,9 +690,9 @@ void CViewerWindow::OpenFile(const char* file, const char* caption, BOOL wholeCa
         WholeCaption = FALSE;
     if (FileName != NULL)
         free(FileName);
-    FileName = (char*)malloc(strlen(fileName) + 1);
+    FileName = (char*)malloc(strlen(file) + 1);
     if (FileName != NULL)
-        strcpy(FileName, fileName);
+        strcpy(FileName, file);
     TooBigSelAction = 0;
     CanSwitchToHex = TRUE;
     CanSwitchQuietlyToHex = TRUE;

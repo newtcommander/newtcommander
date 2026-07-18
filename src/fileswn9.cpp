@@ -57,11 +57,11 @@ BOOL CFilesWindow::ParsePath(char* path, int& type, BOOL& isDir, char*& secondPa
     CALL_STACK_MESSAGE3("CFilesWindow::ParsePath(%s, , , , %s, ,)", path, errorTitle);
 
     const char* curArchivePath = NULL;
-    char curPath[2 * MAX_PATH];
-    GetGeneralPath(curPath, 2 * MAX_PATH);
+    char curPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 014); 2*MAX_PATH truncated Unicode long paths -> "too long"/not-found
+    GetGeneralPath(curPath, SAL_MAX_PATH_UTF8);
     if (Is(ptZIPArchive))
     {
-        SalPathAddBackslash(curPath, 2 * MAX_PATH);
+        SalPathAddBackslash(curPath, SAL_MAX_PATH_UTF8);
         curArchivePath = GetZIPArchive();
     }
 
