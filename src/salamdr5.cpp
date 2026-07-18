@@ -819,7 +819,11 @@ PARSE_AGAIN:
                 int len2 = (int)strlen(path);
                 if (path[len2 - 1] != '\\') // paths ending with a backslash behave differently (classic and UNC): UNC returns success, while regular paths return ERROR_INVALID_NAME; unpacking from an archive located on a UNC path to the path "" used to report an unknown archive (because PackerFormatConfig.PackIsArchive received "...test.zip\\" instead of "...test.zip")
                 {
-                    DWORD attrs = len2 < MAX_PATH ? SalGetFileAttributes(path) : 0xFFFFFFFF;
+                    // feature 014: SalGetFileAttributes is long-path capable; the old
+                    // `len2 < MAX_PATH` gate declared every >=260 prefix non-existent,
+                    // so an EXISTING long target dir produced "Target path doesn't
+                    // exist. Do you want to create it?"
+                    DWORD attrs = SalGetFileAttributes(path);
                     if (attrs != 0xFFFFFFFF) // this part of the path exists
                     {
                         if ((attrs & FILE_ATTRIBUTE_DIRECTORY) == 0) // it is a file
@@ -860,7 +864,7 @@ PARSE_AGAIN:
                     }
                     else
                     {
-                        DWORD err = len2 < MAX_PATH ? GetLastError() : ERROR_INVALID_NAME /* too long path */;
+                        DWORD err = GetLastError(); // feature 014: real error from the long-path-capable SalGetFileAttributes
                         if (err != ERROR_FILE_NOT_FOUND && err != ERROR_INVALID_NAME &&
                             err != ERROR_PATH_NOT_FOUND && err != ERROR_BAD_PATHNAME &&
                             err != ERROR_DIRECTORY) // strange error - just report it

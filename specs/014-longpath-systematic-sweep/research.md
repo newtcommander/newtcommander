@@ -103,6 +103,26 @@ caps a process working directory at MAX_PATH, so the launched app cannot
 inherit the long cwd (the file may still open by full path); this is an OS
 limit, not an app buffer.
 
+## R1d — F5 target-existence walk ("Target path doesn't exist. Do you want to create it?")
+
+After R1b removed the F5 "too long" gate, the next downstream failure surfaced
+(user retest): F5 copy into the EXISTING 291-char ASCII dir popped
+IDS_MOVECOPY_CREATEPATH ("Target path … doesn't exist. Do you want to create
+it?") with a clipped path. Root cause in `SalParsePath`'s existence walk
+(`salamdr5.cpp` ~822/863): `DWORD attrs = len2 < MAX_PATH ?
+SalGetFileAttributes(path) : 0xFFFFFFFF;` — every ≥260-byte prefix was declared
+non-existent **without asking the disk** (and the error was synthesized as
+ERROR_INVALID_NAME), so the walk cut the path back under 260 and treated the
+existing tail as "directories to create". Removed both gates —
+`SalGetFileAttributes` is the long-path-capable feature-004 wrapper, and a
+genuinely non-existent long path still returns PATH_NOT_FOUND (walk semantics
+unchanged). Verified the rest of the F5 chain has no such gate:
+`SalGetFullName` (absolute long paths pass; UNC server/share gates are
+component-bounded), `GetTargetPathState` (uses SalGetFileAttributes),
+`MyGetDiskFreeSpace` (truncates, but only degrades the free-space warning).
+User confirmed Ctrl+C/Ctrl+V copy works after R1b/013 — F5 was the last broken
+copy route.
+
 ## R2 — Recursion hotspots (heap, not stack) — audit pending
 
 The copy/move/delete/calc-size engine (worker.cpp, fileswn6/8.cpp) walks
