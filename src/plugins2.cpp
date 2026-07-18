@@ -2153,6 +2153,90 @@ void CPlugins::CheckData()
     }
     PackerFormatConfig.BuildArray();
 
+    // feature 016: self-heal plugin archive associations (Enter on ZIP opened
+    // Explorer instead of browsing). Plugin associations are normally created
+    // only during a plugin's FIRST install (Connect with "newly gained
+    // function" flags); if they are lost later, nothing re-adds them. That is
+    // exactly what happened: the feature-010 pre-105 packers reset rebuilt the
+    // association table from AddDefault(0), whose legacy ZIP entry (OldType,
+    // plugin reference -1) the culls above delete, and since all plugins were
+    // already installed, every later Connect ran as a no-op upgrade - so zip,
+    // 7z, tar, iso, cab, ... permanently lost panel browsing. Restore here:
+    // any registered plugin with panel-view support and declared extensions
+    // that has NO association entry gets one for those of its extensions not
+    // claimed by any other entry. Idempotent; user-remapped extensions (owned
+    // by a different entry) are never touched.
+    BOOL restoredFormats = FALSE;
+    for (int pi = 0; pi < Data.Count; pi++)
+    {
+        CPluginData* p = Data[pi];
+        if (!p->SupportPanelView || p->Extensions == NULL || p->Extensions[0] == 0)
+            continue;
+        BOOL hasEntry = FALSE; // does any association already use this plugin for view?
+        for (i = 0; !hasEntry && i < PackerFormatConfig.GetFormatsCount(); i++)
+            if (PackerFormatConfig.GetUnpackerIndex(i) == -pi - 1)
+                hasEntry = TRUE;
+        if (hasEntry)
+            continue;
+        char missing[300]; // the plugin's extensions not claimed by any existing entry
+        int missingLen = 0;
+        missing[0] = 0;
+        const char* s = p->Extensions;
+        while (*s != 0)
+        {
+            const char* e = s;
+            while (*e != 0 && *e != ';')
+                e++;
+            int extLen = (int)(e - s);
+            if (extLen > 0 && extLen < 100)
+            {
+                char one[100];
+                memcpy(one, s, extLen);
+                one[extLen] = 0;
+                BOOL claimed = FALSE;
+                for (i = 0; !claimed && i < PackerFormatConfig.GetFormatsCount(); i++)
+                {
+                    char list[300];
+                    lstrcpyn(list, PackerFormatConfig.GetExt(i), _countof(list));
+                    char* t = list;
+                    while (*t != 0 && !claimed)
+                    {
+                        char* te = t;
+                        while (*te != 0 && *te != ';')
+                            te++;
+                        char saved = *te;
+                        *te = 0;
+                        if (StrICmp(t, one) == 0)
+                            claimed = TRUE;
+                        *te = saved;
+                        t = (*te == ';') ? te + 1 : te;
+                    }
+                }
+                if (!claimed && missingLen + extLen + 2 <= (int)sizeof(missing))
+                {
+                    if (missingLen > 0)
+                        missing[missingLen++] = ';';
+                    memcpy(missing + missingLen, one, extLen + 1);
+                    missingLen += extLen;
+                }
+            }
+            s = (*e == ';') ? e + 1 : e;
+        }
+        if (missing[0] != 0)
+        {
+            int idx = PackerFormatConfig.AddFormat();
+            if (idx != -1)
+            {
+                PackerFormatConfig.SetFormat(idx, missing, p->SupportPanelEdit,
+                                             p->SupportPanelEdit ? -pi - 1 : -1, -pi - 1, FALSE);
+                restoredFormats = TRUE;
+                TRACE_I("CPlugins::CheckData(): restored archive association for plugin " << p->Name << ": " << missing);
+            }
+        }
+    }
+    if (restoredFormats)
+        PackerFormatConfig.BuildArray();
+
     for (i = 0; i < PackerConfig.GetPackersCount(); i++)
     {
         int t = PackerConfig.GetPackerType(i);
