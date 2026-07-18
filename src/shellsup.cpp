@@ -2256,25 +2256,44 @@ MENU_TEMPLATE_ITEM PanelBkgndMenu[] =
                                 }
                                 else
                                 {
-                                    SetCurrentDirectory(panel->GetPath()); // for files whose names contain spaces: to make Open With work even for Microsoft Paint (under W2K it failed – reported "d:\documents.bmp was not found" for the file "D:\Documents and Settings\petr\My Documents\example.bmp")
+                                    // feature 014: set the working directory as Unicode; an ANSI cwd with
+                                    // non-ANSI characters (e.g. "...\Můj disk\AI") is mis-decoded so Open With
+                                    // fails ("The directory name is invalid")
+                                    WCHAR* cwdW = SalU8ToWAlloc(panel->GetPath());
+                                    if (cwdW != NULL)
+                                    {
+                                        SetCurrentDirectoryW(cwdW);
+                                        free(cwdW);
+                                    }
+                                    else
+                                        SetCurrentDirectory(panel->GetPath()); // for files whose names contain spaces: to make Open With work even for Microsoft Paint (under W2K it failed – reported "d:\documents.bmp was not found" for the file "D:\Documents and Settings\petr\My Documents\example.bmp")
                                 }
 
                                 DWORD disks = GetLogicalDrives();
 
                                 CShellExecuteWnd shellExecuteWnd;
+                                // feature 014: pass the working directory as Unicode (see ExecuteAssociation)
+                                WCHAR* iciDirW = SalU8ToWAlloc(panel->GetPath());
                                 CMINVOKECOMMANDINFOEX ici;
                                 ZeroMemory(&ici, sizeof(CMINVOKECOMMANDINFOEX));
                                 ici.cbSize = sizeof(CMINVOKECOMMANDINFOEX);
-                                ici.fMask = CMIC_MASK_PTINVOKE;
+                                ici.fMask = CMIC_MASK_PTINVOKE | (iciDirW != NULL ? CMIC_MASK_UNICODE : 0);
                                 if (CanUseShellExecuteWndAsParent(cmdName))
                                     ici.hwnd = shellExecuteWnd.Create(MainWindow->HWindow, "SEW: ShellAction::context_menu cmd=%d", cmd);
                                 else
                                     ici.hwnd = MainWindow->HWindow;
                                 if (cmd < 5000)
+                                {
                                     ici.lpVerb = MAKEINTRESOURCE(cmd);
+                                    ici.lpVerbW = (LPCWSTR)MAKEINTRESOURCEW(cmd);
+                                }
                                 else
+                                {
                                     ici.lpVerb = MAKEINTRESOURCE(cmd - 5000);
+                                    ici.lpVerbW = (LPCWSTR)MAKEINTRESOURCEW(cmd - 5000);
+                                }
                                 ici.lpDirectory = panel->GetPath();
+                                ici.lpDirectoryW = iciDirW;
                                 ici.nShow = SW_SHOWNORMAL;
                                 ici.ptInvoke = pt;
 
@@ -2327,6 +2346,9 @@ MENU_TEMPLATE_ITEM PanelBkgndMenu[] =
                                         MainWindow->PostChangeOnPathNotification(panel->GetPath(), FALSE);
                                     }
                                 }
+
+                                if (iciDirW != NULL)
+                                    free(iciDirW); // feature 014
 
                                 if (GetLogicalDrives() < disks) // unmapping
                                 {
@@ -2514,19 +2536,29 @@ void ExecuteAssociation(HWND hWindow, const char* path, const char* name)
                 if (cmd != -1)
                 {
                     CShellExecuteWnd shellExecuteWnd;
-                    CMINVOKECOMMANDINFO ici;
-                    ici.cbSize = sizeof(CMINVOKECOMMANDINFO);
-                    ici.fMask = 0;
+                    // feature 014: pass the working directory as Unicode. 'path' is
+                    // UTF-8; an ANSI lpDirectory with non-ANSI characters (e.g.
+                    // "...\Můj disk\AI") is mis-decoded by the shell, so the verb's
+                    // CreateProcess fails with ERROR_DIRECTORY ("The directory name
+                    // is invalid"). CMINVOKECOMMANDINFOEX + lpDirectoryW fixes it;
+                    // the ANSI lpDirectory stays as the fallback.
+                    WCHAR* dirW = SalU8ToWAlloc(path);
+                    CMINVOKECOMMANDINFOEX ici;
+                    memset(&ici, 0, sizeof(ici));
+                    ici.cbSize = sizeof(CMINVOKECOMMANDINFOEX);
+                    ici.fMask = (dirW != NULL) ? CMIC_MASK_UNICODE : 0;
                     ici.hwnd = shellExecuteWnd.Create(hWindow, "SEW: ExecuteAssociation cmd=%d", cmd);
                     ici.lpVerb = MAKEINTRESOURCE(cmd);
+                    ici.lpVerbW = (LPCWSTR)MAKEINTRESOURCEW(cmd);
                     ici.lpParameters = NULL;
                     ici.lpDirectory = path;
+                    ici.lpDirectoryW = dirW;
                     ici.nShow = SW_SHOWNORMAL;
-                    ici.dwHotKey = 0;
-                    ici.hIcon = 0;
 
                     CALL_STACK_MESSAGE1("ExecuteAssociation::2");
-                    ExecuteAssociationAux(menu, ici);
+                    ExecuteAssociationAux(menu, (CMINVOKECOMMANDINFO&)ici);
+                    if (dirW != NULL)
+                        free(dirW);
                 }
                 DestroyMenu(h);
             }

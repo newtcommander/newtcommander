@@ -68,6 +68,41 @@ EXTERNAL (DragQueryFile / GetOpenFileName cap at MAX_PATH — truncate, no
 overflow); `viewer.h CurrentDir[MAX_PATH]` is the Open-dialog seed, already
 guarded (degrades to empty for long paths).
 
+## R1b — F5/Ctrl-dialog copy-target chain ("too long" for long targets)
+
+The Copy/Move (F5/F6) target-path dialog chain capped the target at `MAX_PATH`
+even though the app can handle long paths — a spurious internal limit:
+`fileswn8.cpp` FilesAction `path[2*MAX_PATH+200]` buffer, the `CCopyMoveMoreDialog`
+buffer size, and the post-parse gate `if (strlen(path) >= MAX_PATH) → IDS_TOOLONGPATH`
+all rejected any target ≥260. And `salamdr5.cpp` `SalSplitWindowsPath`/
+`SalSplitGeneralPath` hardcoded `2*MAX_PATH` as the size guard for the inline
+`path\0mask\0` build, so a ≥520-byte path lost its trailing backslash. Widened
+the whole chain to `SAL_MAX_PATH_UTF8` (buffers, gates, size guards; the
+path-embedding `sprintf`s → `_snprintf_s`); the dialog is size-parametrized so
+it needed no change. Committed `2023e35`. Creating NEW dirs on a long target
+still degrades gracefully (ANSI `CreateDirectory`); copying into an EXISTING
+long dir now works.
+
+## R1c — Enter/open of a Unicode path ("The directory name is invalid")
+
+Opening a file with Enter (or right-click → Open) in a directory with non-ANSI
+characters — e.g. the SHORT path `...\010\Můj disk\AI\ukázka-ěščřžýáíé.txt` —
+failed with **ERROR_DIRECTORY ("The directory name is invalid")**. The shell
+context menu is built from a wide-parsed pidl (correct), but the verb was
+invoked through an **ANSI `CMINVOKECOMMANDINFO` with `lpDirectory` = the UTF-8
+path**; the shell mis-decodes it in the ANSI code page and the verb's
+`CreateProcess` gets an invalid working directory. Default `UseSalOpen` is
+FALSE, so this IContextMenu path is the active one. Fix (`shellsup.cpp`): use
+`CMINVOKECOMMANDINFOEX` with `CMIC_MASK_UNICODE` + `lpDirectoryW`/`lpVerbW`
+(UTF-8→UTF-16 via `SalU8ToWAlloc`) in `ExecuteAssociation` (Enter) and the
+right-click context-menu verb path, and convert that path's ANSI
+`SetCurrentDirectory(GetPath())` to `SetCurrentDirectoryW`. The ANSI fields
+remain as fallback for invalid UTF-8.
+NOTE (documented limit): in a directory **beyond MAX_PATH**, Windows itself
+caps a process working directory at MAX_PATH, so the launched app cannot
+inherit the long cwd (the file may still open by full path); this is an OS
+limit, not an app buffer.
+
 ## R2 — Recursion hotspots (heap, not stack) — audit pending
 
 The copy/move/delete/calc-size engine (worker.cpp, fileswn6/8.cpp) walks
