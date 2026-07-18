@@ -1,0 +1,4 @@
+LIBRARY MDVIEW.SPL
+
+EXPORTS SalamanderPluginEntry
+EXPORTS SalamanderPluginGetReqVer

@@ -1,0 +1,77 @@
+//****************************************************************************
+//
+// Copyright (c) 2026 Open Salamander Authors
+//
+//****************************************************************************
+
+//
+// lang.rc2 - resources Microsoft Visual C++ does not edit directly
+//
+
+#ifdef APSTUDIO_INVOKED
+#error this file is not editable by Microsoft Visual C++
+#endif
+
+#include "..\versinfo.rh2"
+#include "versinfo.rc2"
+
+STRINGTABLE
+{
+ IDS_PLUGINNAME,          "Markdown Viewer"
+ IDS_ABOUT,               "About Plugin"
+ IDS_PLUGIN_DESCRIPTION,  "Renders Markdown (.md) files when you press F3."
+ IDS_PLUGIN_HOME,         "www.altap.cz"
+ IDS_PLUGIN_BUGREP,       "An exception occurred in the Markdown Viewer plugin. Please inform the authors and, if possible, attach the .md file you were viewing."
+ IDS_PLUGIN_EMAIL,        "bugs@altap.cz"
+ IDS_VIEWER_OPENWNDS,     "Some Markdown Viewer windows are open. Do you want to close them?"
+ IDS_INVALID_NUM,         "Invalid number!"
+ IDS_FILES_FILTER,        "Markdown Files (*.md;*.markdown)|*.md;*.markdown|All Files (*.*)|*.*|"
+
+ IDS_MENU_FILE,           "&File"
+ IDS_MENU_FILE_OPENTEXT,  "Open as &Text\tCtrl+U"
+ IDS_MENU_FILE_CLOSE,     "&Close\tEsc"
+ IDS_MENU_EDIT,           "&Edit"
+ IDS_MENU_EDIT_COPY,      "&Copy\tCtrl+C"
+ IDS_MENU_EDIT_SELALL,    "Select &All\tCtrl+A"
+ IDS_MENU_EDIT_FIND,      "&Find...\tCtrl+F"
+ IDS_MENU_EDIT_FINDNEXT,  "Find &Next\tF3"
+ IDS_MENU_EDIT_FINDPREV,  "Find &Previous\tShift+F3"
+ IDS_MENU_VIEW,           "&View"
+ IDS_MENU_VIEW_SCHEME,    "Color &Scheme"
+ IDS_MENU_VIEW_FOLLOWSYS, "Follow S&ystem Theme"
+ IDS_MENU_VIEW_ZOOMIN,    "Zoom &In\tCtrl++"
+ IDS_MENU_VIEW_ZOOMOUT,   "Zoom &Out\tCtrl+-"
+ IDS_MENU_VIEW_ZOOMRESET, "&Reset Zoom\tCtrl+0"
+ IDS_MENU_HELP,           "&Help"
+ IDS_MENU_HELP_ABOUT,     "&About Markdown Viewer"
+
+ IDS_THEME_FIRST+0,       "Paper (light)"
+ IDS_THEME_FIRST+1,       "Soft Gray (light)"
+ IDS_THEME_FIRST+2,       "Warm Sepia (light)"
+ IDS_THEME_FIRST+3,       "Solar Light"
+ IDS_THEME_FIRST+4,       "Arctic Light"
+ IDS_THEME_FIRST+5,       "Graphite (dark)"
+ IDS_THEME_FIRST+6,       "Midnight (dark)"
+ IDS_THEME_FIRST+7,       "Solar Dark"
+ IDS_THEME_FIRST+8,       "Nordic Dark"
+ IDS_THEME_FIRST+9,       "High Contrast Black"
+
+ IDS_ENCODING_WARN,       "This file is not valid UTF-8; shown using the system code page. Use File > Open as Text for full control."
+ IDS_LOAD_ERROR,          "The file could not be opened."
+ IDS_TOO_LARGE,           "This document is too large to render. Open it as plain text?"
+ IDS_FIND_PROMPT,         "Find text:"
+ IDS_NOT_FOUND,           "Text not found."
+ IDS_LINK_BLOCKED,        "This link was blocked for security reasons."
+ IDS_WINDOW_TITLE,        "Markdown Viewer"
+}
+
+IDD_FIND DIALOGEX 0, 0, 220, 60
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Find"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Find &text:", IDC_STATIC, 7, 9, 60, 8
+    EDITTEXT        IDC_FIND_TEXT, 7, 21, 206, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "Find &Next", IDOK, 108, 40, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 163, 40, 50, 14
+END

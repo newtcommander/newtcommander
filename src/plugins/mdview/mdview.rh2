@@ -1,0 +1,67 @@
+//****************************************************************************
+//
+// Copyright (c) 2026 Open Salamander Authors
+//
+//****************************************************************************
+
+// WARNING: cannot be replaced by "#pragma once" (included from .rc; RC has no pragma once)
+#ifndef __MDVIEW_RH2
+#define __MDVIEW_RH2
+
+#if defined(APSTUDIO_INVOKED) && !defined(APSTUDIO_READONLY_SYMBOLS)
+#error this file is not editable by Microsoft Visual C++
+#endif
+
+// --- plugin identity / messages ---
+#define IDS_PLUGINNAME           46
+#define IDS_ABOUT                47
+#define IDS_PLUGIN_DESCRIPTION   48
+#define IDS_PLUGIN_HOME          49
+#define IDS_PLUGIN_BUGREP        50
+#define IDS_PLUGIN_EMAIL         51
+#define IDS_VIEWER_OPENWNDS      53
+#define IDS_INVALID_NUM          55
+#define IDS_FILES_FILTER         56
+
+// --- menu labels ---
+#define IDS_MENU_FILE            2000
+#define IDS_MENU_FILE_OPENTEXT   2001
+#define IDS_MENU_FILE_CLOSE      2002
+#define IDS_MENU_EDIT            2010
+#define IDS_MENU_EDIT_COPY       2011
+#define IDS_MENU_EDIT_SELALL     2012
+#define IDS_MENU_EDIT_FIND       2013
+#define IDS_MENU_EDIT_FINDNEXT   2014
+#define IDS_MENU_EDIT_FINDPREV   2015
+#define IDS_MENU_VIEW            2020
+#define IDS_MENU_VIEW_SCHEME     2021
+#define IDS_MENU_VIEW_FOLLOWSYS  2022
+#define IDS_MENU_VIEW_ZOOMIN     2023
+#define IDS_MENU_VIEW_ZOOMOUT    2024
+#define IDS_MENU_VIEW_ZOOMRESET  2025
+#define IDS_MENU_HELP            2030
+#define IDS_MENU_HELP_ABOUT      2031
+
+// --- theme display names (index order = g_themes[]) ---
+#define IDS_THEME_FIRST          2100 // 2100..2109 reserved for 10 themes
+
+// --- runtime messages ---
+#define IDS_ENCODING_WARN        2200
+#define IDS_LOAD_ERROR           2201
+#define IDS_TOO_LARGE            2202
+#define IDS_FIND_PROMPT          2203
+#define IDS_NOT_FOUND            2204
+#define IDS_LINK_BLOCKED         2205
+#define IDS_WINDOW_TITLE         2206
+
+#define IDB_PLUGINICO            1000
+
+// --- Find dialog ---
+#define IDD_FIND                 300
+#define IDC_FIND_TEXT            301
+
+#ifndef IDC_STATIC
+#define IDC_STATIC               (-1)
+#endif
+
+#endif // __MDVIEW_RH2

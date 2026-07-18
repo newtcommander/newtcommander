@@ -1,0 +1,18 @@
+//****************************************************************************
+//
+// Copyright (c) 2026 Open Salamander Authors
+//
+//****************************************************************************
+
+//
+// mdview.rc2 - resources Microsoft Visual C++ does not edit directly
+//
+
+#ifdef APSTUDIO_INVOKED
+#error this file is not editable by Microsoft Visual C++
+#endif
+
+#include "versinfo.rh2"
+#include "versinfo.rc2"
+
+IDB_PLUGINICO BITMAP "res\\plugico.bmp"

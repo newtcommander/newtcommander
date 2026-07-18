@@ -1,0 +1,15 @@
+// mdview main-module resource script (language-independent: icons + version).
+//
+#pragma code_page(65001)
+
+#include "mdview.rh"
+
+#define APSTUDIO_READONLY_SYMBOLS
+#include "winresrc.h"
+#include "mdview.rh2"
+#undef APSTUDIO_READONLY_SYMBOLS
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEU)
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+#include "mdview.rc2"   // non-Microsoft Visual C++ edited resources
+#endif
