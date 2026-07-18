@@ -3246,7 +3246,7 @@ CFindDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_HELP:
     {
-        PostMessage(HWindow, WM_COMMAND, CM_HELP_CONTENTS, 0);
+        // [019] Program help is not built; F1 does nothing in the Find window.
         return TRUE;
     }
 

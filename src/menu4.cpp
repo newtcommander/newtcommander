@@ -247,18 +247,9 @@ MENU_TEMPLATE_ITEM MainMenuTemplate[] =
 
         // Help
         {MNTT_PB, IDS_MENU_HELP, MNTS_B | MNTS_I | MNTS_A, CML_HELP, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_CONTENTS, MNTS_B | MNTS_I | MNTS_A, CM_HELP_CONTENTS, IDX_TB_HELP, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_INDEX, MNTS_B | MNTS_I | MNTS_A, CM_HELP_INDEX, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_SEARCH, MNTS_B | MNTS_I | MNTS_A, CM_HELP_SEARCH, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_KEYBOARD, MNTS_B | MNTS_I | MNTS_A, CM_HELP_KEYBOARD, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_CONTEXT, MNTS_B | MNTS_I | MNTS_A, CM_HELP_CONTEXT, IDX_TB_CONTEXTHELP, 0, NULL},
-        //    {MNTT_IT,    IDS_MENU_HELP_TIP,              MNTS_B|MNTS_I|MNTS_A, CM_HELP_TIP,              -1,                      0,                 NULL},
-        {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_FORUM, MNTS_B | MNTS_I | MNTS_A, CM_FORUM, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_TASKLIST, MNTS_B | MNTS_I | MNTS_A, CM_TASKLIST, -1, 0, NULL},
-        {MNTT_SP, -1, MNTS_B | MNTS_I | MNTS_A, 0, -1, 0, NULL},
-        {MNTT_PB, IDS_MENU_HELP_ABOUTPLUGINS, MNTS_B | MNTS_I | MNTS_A, CML_HELP_ABOUTPLUGINS, -1, 0, NULL},
-        {MNTT_PE},
+        // [019] Program help is not built; the Help menu keeps only "About Open
+        // Salamander". Removed: Contents, Index, Search, Keyboard, What is This?,
+        // Official Support Forum, Task List, and the About Plugin submenu.
         {MNTT_IT, IDS_MENU_HELP_ABOUT, MNTS_B | MNTS_I | MNTS_A, CM_HELP_ABOUT, -1, 0, NULL},
         {MNTT_PE},
         {MNTT_PE}, // terminator
@@ -333,12 +324,7 @@ MENU_TEMPLATE_ITEM FindMenuTemplate[] =
         {MNTT_IT, IDS_FFMENU_OPT_MANAGE, MNTS_B | MNTS_I | MNTS_A, CM_FIND_MANAGE, -1, 0, NULL},
         {MNTT_PE},
 
-        // Help
-        {MNTT_PB, IDS_FFMENU_HELP, MNTS_B | MNTS_I | MNTS_A, CML_FIND_HELP, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_CONTENTS, MNTS_B | MNTS_I | MNTS_A, CM_HELP_CONTENTS, IDX_TB_HELP, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_INDEX, MNTS_B | MNTS_I | MNTS_A, CM_HELP_INDEX, -1, 0, NULL},
-        {MNTT_IT, IDS_MENU_HELP_SEARCH, MNTS_B | MNTS_I | MNTS_A, CM_HELP_SEARCH, -1, 0, NULL},
-        {MNTT_PE},
+        // [019] Help menu removed from the Find window (program help not built).
 
         {MNTT_PE}, // terminator
 };

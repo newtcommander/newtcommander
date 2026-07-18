@@ -354,8 +354,8 @@ DWORD TopToolBarButtons[] =
 
                                                 TBBE_CONFIGRATION,
 
-        NIB2(TBBE_HELP_CONTENTS)
-            NIB2(TBBE_HELP_CONTEXT)
+        // [019] Help buttons (Help Contents / What is This?) removed from the
+        // default toolbar; program help is not built.
 
                 TBBE_TERMINATOR // terminator - musi zde byt !
 };
@@ -1215,7 +1215,7 @@ CBottomTBData BottomTBData[btbsCount][12] =
     {
         // btbdNormal
         {
-            {NIB3(TBBE_HELP_CONTENTS)}, // F1
+            {TBBE_TERMINATOR},          // F1 [019] help removed
             {TBBE_QUICK_RENAME},        // F2
             {TBBE_VIEW},                // F3
             {TBBE_EDIT},                // F4
@@ -1260,7 +1260,7 @@ CBottomTBData BottomTBData[btbsCount][12] =
         },
         // btbdShift
         {
-            {NIB3(TBBE_HELP_CONTEXT)}, // F1
+            {TBBE_TERMINATOR},         // F1 [019] help removed
             {TBBE_TERMINATOR},         // F2
             {NIB3(TBBE_OPEN_ACTIVE)},  // F3
             {TBBE_EDITNEW},            // F4
@@ -1305,7 +1305,7 @@ CBottomTBData BottomTBData[btbsCount][12] =
         },
         // btbsMenu,
         {
-            {NIB3(TBBE_HELP_CONTENTS)}, // F1
+            {TBBE_TERMINATOR},          // F1 [019] help removed
             {TBBE_TERMINATOR},          // F2
             {TBBE_TERMINATOR},          // F3
             {TBBE_TERMINATOR},          // F4

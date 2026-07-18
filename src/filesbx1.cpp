@@ -1275,15 +1275,7 @@ CFilesBox::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_HELP:
     {
-        if (MainWindow->HasLockedUI())
-            break;
-        if (MainWindow->HelpMode == HELP_INACTIVE &&
-            (GetKeyState(VK_CONTROL) & 0x8000) == 0 && (GetKeyState(VK_SHIFT) & 0x8000) == 0 &&
-            (GetKeyState(VK_MENU) & 0x8000) == 0)
-        {
-            PostMessage(MainWindow->HWindow, WM_COMMAND, CM_HELP_CONTENTS, 0); // plain F1 (no modifiers)
-            return TRUE;
-        }
+        // [019] Program help is not built; plain F1 no longer opens help Contents.
         break;
     }
 

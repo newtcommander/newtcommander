@@ -62,7 +62,6 @@ IDA_MAINACCELS1 ACCELERATORS
 BEGIN
     VK_F1,          CM_LCHANGEDRIVE,        VIRTKEY, ALT
     VK_F1,          CM_DRIVEINFO,           VIRTKEY, CONTROL
-    VK_F1,          CM_HELP_CONTEXT,        VIRTKEY, SHIFT
     VK_F2,          CM_RCHANGEDRIVE,        VIRTKEY, ALT
     VK_F2,          CM_RENAMEFILE,          VIRTKEY 
     VK_F2,          CM_CHANGEATTR,          VIRTKEY, CONTROL
