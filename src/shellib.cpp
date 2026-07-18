@@ -1668,7 +1668,13 @@ BOOL GetShellFolder(const char* dir, IShellFolder*& shellFolderObj, LPITEMIDLIST
                                                            IID_IShellFolder,
                                                            (LPVOID*)&shellFolderObj))))
                 {
-                    char root[MAX_PATH];
+                    // feature 012: 'dir' is the panel path (long-path capable);
+                    // this held the full path in a MAX_PATH buffer and the
+                    // strcpy below overran it (the crash behind Properties, New,
+                    // clipboard Copy/Cut, drag source, and the context menu).
+                    // The parent-path bind via GetItemIdListForFileName is
+                    // wide/long-path capable, so widening makes them work.
+                    char root[SAL_MAX_PATH_UTF8];
                     GetRootPath(root, dir);
                     if (strlen(root) < strlen(dir)) // not a root path
                     {
@@ -2551,8 +2557,8 @@ void ResolveNetHoodPath(char* path)
                             if (link->GetPath(tgtW, MAX_PATH, &dataW, SLGP_UNCPRIORITY) == NOERROR &&
                                 SalWToU8(tgtW, -1, tgt, 3 * MAX_PATH) != 0 &&
                                 (int)strlen(tgt) < MAX_PATH) // callers provide only MAX_PATH for 'path'
-                            {                      // do not call Resolve here; it is not that critical and would slow things down
-                                strcpy(path, tgt); // bingo, we finally know where the link points
+                            {                                // do not call Resolve here; it is not that critical and would slow things down
+                                strcpy(path, tgt);           // bingo, we finally know where the link points
                             }
                         }
                         fileInt->Release();

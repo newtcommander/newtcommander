@@ -2135,11 +2135,11 @@ struct CFileNamesEnumData
     CFileNamesEnumRequestType RequestType; // typ pozadavku
     int SrcUID;
     int LastFileIndex;
-    char LastFileName[MAX_PATH];
+    char LastFileName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
     BOOL PreferSelected;
     BOOL OnlyAssociatedExtensions;
     CPluginInterfaceAbstract* Plugin; // pouziva se pri 'OnlyAssociatedExtensions'==TRUE, oznacuje pro jaky plugin filtrovat jmena souboru ('Plugin'==NULL = interni viewer)
-    char FileName[MAX_PATH];
+    char FileName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
     BOOL Select;
     BOOL TimedOut; // TRUE pokud uz na vysledek nikdo neceka (zbytecne provadet hledani jmena)
 

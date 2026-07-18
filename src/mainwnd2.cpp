@@ -2393,7 +2393,7 @@ void CMainWindow::LoadPanelConfig(char* panelPath, CFilesWindow* panel, HKEY hSa
     if (OpenKey(hSalamander, reg, actKey))
     {
         DWORD value;
-        if (GetValue(actKey, PANEL_PATH_REG, REG_SZ, panelPath, MAX_PATH))
+        if (GetValue(actKey, PANEL_PATH_REG, REG_SZ, panelPath, SAL_MAX_PATH_UTF8)) // feature 012: long-path capable restore (caller buffer is SAL-sized)
         {
             if (GetValue(actKey, PANEL_HEADER_REG, REG_DWORD, &value, sizeof(DWORD)))
                 panel->HeaderLineVisible = value;
@@ -3824,8 +3824,11 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
 
         //---  left and right panel
 
-        char leftPanelPath[MAX_PATH];
-        char rightPanelPath[MAX_PATH];
+        // feature 012: a saved panel path may exceed MAX_PATH; load it into
+        // long-path buffers so the panel returns to a long-path directory on
+        // restart (the registry stores the full path; the restore truncated it)
+        char leftPanelPath[SAL_MAX_PATH_UTF8];
+        char rightPanelPath[SAL_MAX_PATH_UTF8];
         GetSystemDirectory(leftPanelPath, MAX_PATH);
         strcpy(rightPanelPath, leftPanelPath);
         char sysDefDir[MAX_PATH];

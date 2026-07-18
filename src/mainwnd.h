@@ -323,7 +323,7 @@ enum CMainWindowsHitTestEnum
 
 struct CChangeNotifData
 {
-    char Path[MAX_PATH];
+    char Path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
     BOOL IncludingSubdirs;
 };
 

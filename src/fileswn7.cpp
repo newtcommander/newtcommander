@@ -2028,10 +2028,13 @@ void CFilesWindow::AcceptChangeOnPathNotification(const char* path, BOOL includi
     {
         // test the equality of paths or at least their prefix (we only care about disk paths,
         // FS paths in 'path' are automatically excluded because they can never match GetPath())
-        char path1[MAX_PATH];
-        char path2[MAX_PATH];
-        lstrcpyn(path1, path, MAX_PATH);
-        lstrcpyn(path2, GetPath(), MAX_PATH); // for archives this is the path to the archive
+        // feature 012: long-path capable so the change-refresh match compares
+        // the real path, not a 260-char prefix (a false match steered the panel
+        // away from a long-path directory)
+        char path1[SAL_MAX_PATH_UTF8];
+        char path2[SAL_MAX_PATH_UTF8];
+        lstrcpyn(path1, path, SAL_MAX_PATH_UTF8);
+        lstrcpyn(path2, GetPath(), SAL_MAX_PATH_UTF8); // for archives this is the path to the archive
         SalPathRemoveBackslash(path1);
         SalPathRemoveBackslash(path2);
         int len1 = (int)strlen(path1);

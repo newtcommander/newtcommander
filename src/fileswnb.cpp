@@ -799,8 +799,8 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 
     case WM_USER_EQUIVPAIRNOTICE:
-    { // feature 004 (FR-007): the listing found two canonically equivalent but
-      // differently stored names; inform the user once (after the listing is done)
+    {   // feature 004 (FR-007): the listing found two canonically equivalent but
+        // differently stored names; inform the user once (after the listing is done)
         if (GetEquivalentPairNoticeName()[0] != 0)
         {
             char buf[SAL_FIND_NAME_U8 + 300];
@@ -1285,8 +1285,8 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 }
                 if (FileNamesEnumData.Found)
                 {
-                    lstrcpyn(FileNamesEnumData.FileName, GetPath(), MAX_PATH);
-                    SalPathAppend(FileNamesEnumData.FileName, Files->At(index).Name, MAX_PATH);
+                    lstrcpyn(FileNamesEnumData.FileName, GetPath(), SAL_MAX_PATH_UTF8);
+                    SalPathAppend(FileNamesEnumData.FileName, Files->At(index).Name, SAL_MAX_PATH_UTF8);
                     FileNamesEnumData.LastFileIndex = index;
                 }
                 else

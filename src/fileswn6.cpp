@@ -610,14 +610,46 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
     }
 
     CActionType type = (copy ? atCopy : atMove);
-    char sourcePath[2 * MAX_PATH];     // + MAX_PATH is a reserve (Windows create paths longer than MAX_PATH)
-    char lastSourcePath[2 * MAX_PATH]; // + MAX_PATH is a reserve (Windows create paths longer than MAX_PATH)
+    // feature 012: clipboard/drag source and target full paths may exceed
+    // MAX_PATH; these buffers are heap-backed SAL_MAX_PATH_UTF8 (this top-level
+    // paste builder holds four of them at once, too large for the stack) and
+    // released on every return by the holder's destructor
+    struct CPasteBufs
+    {
+        char *SourcePath, *LastSourcePath, *TargetPath, *MapNameBuf;
+        CPasteBufs()
+        {
+            SourcePath = (char*)malloc(SAL_MAX_PATH_UTF8);
+            LastSourcePath = (char*)malloc(SAL_MAX_PATH_UTF8);
+            TargetPath = (char*)malloc(SAL_MAX_PATH_UTF8);
+            MapNameBuf = (char*)malloc(SAL_MAX_PATH_UTF8);
+        }
+        ~CPasteBufs()
+        {
+            if (SourcePath != NULL)
+                free(SourcePath);
+            if (LastSourcePath != NULL)
+                free(LastSourcePath);
+            if (TargetPath != NULL)
+                free(TargetPath);
+            if (MapNameBuf != NULL)
+                free(MapNameBuf);
+        }
+        BOOL IsGood() { return SourcePath != NULL && LastSourcePath != NULL && TargetPath != NULL && MapNameBuf != NULL; }
+    } pasteBufs;
+    if (!pasteBufs.IsGood())
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    char* sourcePath = pasteBufs.SourcePath;
+    char* lastSourcePath = pasteBufs.LastSourcePath;
+    char* targetPath = pasteBufs.TargetPath;
+    char* mapNameBuf = pasteBufs.MapNameBuf;
     lastSourcePath[0] = 0;
     BOOL sourceSupADS = FALSE;
-    char targetPath[2 * MAX_PATH + 200]; // +200 is a reserve (Windows create paths longer than MAX_PATH)
-    char mapNameBuf[2 * MAX_PATH];       // + MAX_PATH  is a reserve (Windows create paths longer than MAX_PATH)
     strcpy(targetPath, targetDir);
-    SalPathAddBackslash(targetPath, 2 * MAX_PATH);
+    SalPathAddBackslash(targetPath, SAL_MAX_PATH_UTF8);
     BOOL targetIsFAT32 /*, targetSupEFS*/;
     BOOL targetSupADS = IsPathOnVolumeSupADS(targetPath, &targetIsFAT32);
     script->TargetPathSupADS = targetSupADS;
@@ -960,7 +992,7 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
                     if (err != NO_ERROR)
                     {
                         char message[MAX_PATH + 100];
-                        sprintf(message, LoadStr(IDS_FILEERRORFORMAT), fileName, GetErrorText(err));
+                        _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                         SetCurrentDirectoryToSystem();
                         SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                         if (usedNames != NULL)
@@ -972,8 +1004,8 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
             else
             {
                 char message[MAX_PATH + 100];
-                sprintf(message, LoadStr(IDS_FILEERRORFORMAT), fileName,
-                        GetErrorText(ERROR_INVALID_DATA));
+                _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName,
+                            GetErrorText(ERROR_INVALID_DATA)); // path may exceed the message buffer (feature 012)
                 SetCurrentDirectoryToSystem();
                 SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                 if (usedNames != NULL)
@@ -984,8 +1016,8 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
         else
         {
             char message[MAX_PATH + 100];
-            sprintf(message, LoadStr(IDS_FILEERRORFORMAT), fileName,
-                    GetErrorText(GetLastError()));
+            _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName,
+                        GetErrorText(GetLastError())); // path may exceed the message buffer (feature 012)
             //      SetCurrentDirectoryToSystem();
             SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             //      if (usedNames != NULL) delete usedNames;
@@ -1517,8 +1549,27 @@ BOOL CFilesWindow::BuildScriptDir(COperations* script, CActionType type, char* s
                               targetPathState, targetPathSupADS, targetPathIsFAT32,
                               mask, dirName, mapName, sourceDirAttr, firstLevelDir, onlySize,
                               fastDirectoryMove, srcAndTgtPathsFlags);
-    char text[2 * MAX_PATH + 100];
-    char finalName[2 * MAX_PATH + 200];                                      // +200 is a reserve (Windows creates paths longer than MAX_PATH)
+    char text[2 * MAX_PATH + 100]; // error/confirm messages only (bounded via _snprintf_s); may truncate a very long path in the message text
+    // feature 012: finalName holds a full long-path scratch name; this
+    // function recurses per directory level, so it is heap-backed (a
+    // SAL_MAX_PATH_UTF8 stack array per level would overflow the stack on deep
+    // trees) and released on every return by the holder's destructor
+    struct CFinalNameBuf
+    {
+        char* P;
+        CFinalNameBuf() { P = (char*)malloc(SAL_MAX_PATH_UTF8); }
+        ~CFinalNameBuf()
+        {
+            if (P != NULL)
+                free(P);
+        }
+    } finalNameBuf;
+    if (finalNameBuf.P == NULL)
+    {
+        TRACE_E(LOW_MEMORY);
+        return FALSE;
+    }
+    char* finalName = finalNameBuf.P;
     BOOL sourcePathIsNet = (srcAndTgtPathsFlags & OPFL_SRCPATH_IS_NET) != 0; // valid only for atCopy and atMove
 
     script->DirsCount++;
@@ -1673,7 +1724,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
     if (type == atDelete && Configuration.CnfrmSHDirDel &&
         (sourceDirAttr & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)))
     {
-        sprintf(text, LoadStr(IDS_DELETESHDIR), sourcePath);
+        _snprintf_s(text, _TRUNCATE, LoadStr(IDS_DELETESHDIR), sourcePath); // path may exceed the message buffer (feature 012)
         int res = SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_QUESTION),
                                 MB_YESNOCANCEL | MB_ICONQUESTION);
         UpdateWindow(MainWindow->HWindow);
@@ -1871,8 +1922,8 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                         {
                             // first we try whether an error occurs even when listing the directory - such an error
                             // is easier to understand, so we show it first (before the ADS read error)
-                            lstrcpyn(finalName, sourcePath, 2 * MAX_PATH + 200);
-                            if (SalPathAppend(finalName, "*", 2 * MAX_PATH + 200))
+                            lstrcpyn(finalName, sourcePath, SAL_MAX_PATH_UTF8);
+                            if (SalPathAppend(finalName, "*", SAL_MAX_PATH_UTF8))
                             {
                                 WIN32_FIND_DATAW fW;
                                 HANDLE search = SalFindFirstFile(finalName, &fW);
@@ -1881,7 +1932,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                                     DWORD err = GetLastError();
                                     if (err != ERROR_FILE_NOT_FOUND && err != ERROR_NO_MORE_FILES)
                                     {
-                                        sprintf(text, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err));
+                                        _snprintf_s(text, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                                         BOOL skip = TRUE;
                                         if (!ErrListDirSkipAll)
                                         {
@@ -2084,10 +2135,10 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
             DWORD err = GetLastError();
             if (err == ERROR_PATH_NOT_FOUND && type == atCountSize && dirDOSName != NULL && strcmp(dirName, dirDOSName) != 0)
             { // workaround for computing the size of a directory that must be accessed via DOS-name when we can't handle the UNICODE name (the multibyte version converted back to UNICODE doesn't match the original)
-                lstrcpyn(finalName, sourcePath, 2 * MAX_PATH + 200);
+                lstrcpyn(finalName, sourcePath, SAL_MAX_PATH_UTF8);
                 if (CutDirectory(finalName) &&
-                    SalPathAppend(finalName, dirDOSName, 2 * MAX_PATH + 200) &&
-                    SalPathAppend(finalName, "*", 2 * MAX_PATH + 200))
+                    SalPathAppend(finalName, dirDOSName, SAL_MAX_PATH_UTF8) &&
+                    SalPathAppend(finalName, "*", SAL_MAX_PATH_UTF8))
                 {
                     search = SalFindFirstFile(finalName, &fW);
                     if (search != INVALID_HANDLE_VALUE)
@@ -2099,8 +2150,8 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
             }
             if (err != ERROR_FILE_NOT_FOUND && err != ERROR_NO_MORE_FILES)
             {
-                sprintf(text, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err));
-                *sourceEnd = 0; // restoring sourcePath
+                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err)); // path may exceed the message buffer (feature 012)
+                *sourceEnd = 0;                                                                          // restoring sourcePath
                 if (targetEnd != NULL)
                     *targetEnd = 0; // restoring targetPath
                 BOOL skip = TRUE;
@@ -2165,7 +2216,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
 
                 if (askDirDelete)
                 {
-                    sprintf(text, LoadStr(IDS_NONEMPTYDIRDELCONFIRM), sourcePath);
+                    _snprintf_s(text, _TRUNCATE, LoadStr(IDS_NONEMPTYDIRDELCONFIRM), sourcePath); // path may exceed the message buffer (feature 012)
                     int res = SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_QUESTION),
                                             MB_YESNOCANCEL | MB_ICONQUESTION);
                     UpdateWindow(MainWindow->HWindow);
@@ -2256,7 +2307,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
 
             if (testFindNextErr && err != ERROR_NO_MORE_FILES)
             {
-                sprintf(text, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err));
+                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), sourcePath, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                 BOOL skip = TRUE;
                 if (!ErrListDirSkipAll)
                 {
@@ -2901,12 +2952,12 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                 script->BytesPerCluster = d1 * d2;
         }
 
-        char name[2 * MAX_PATH]; // + MAX_PATH is a reserve (Windows makes paths longer than MAX_PATH)
+        char name[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012); BuildScriptFile is a recursion leaf (single frame)
         int l = (int)strlen(sourcePath);
         memmove(name, sourcePath, l);
         if (name[l - 1] != '\\')
             name[l++] = '\\';
-        memmove(name + l, fileName, 1 + strlen(fileName)); // name is always < MAX_PATH
+        memmove(name + l, fileName, 1 + strlen(fileName));
         CQuadWord s;
         DWORD err = NO_ERROR;
         if (FileBasedCompression && !onlySize &&                                         // if compression is even possible
@@ -2931,7 +2982,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
         {
             if (!script->SkipAllCountSizeErrors)
             {
-                sprintf(message, LoadStr(IDS_GETCOMPRFILESIZEERROR), name, GetErrorText(err));
+                _snprintf_s(message, _TRUNCATE, LoadStr(IDS_GETCOMPRFILESIZEERROR), name, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                 script->SkipAllCountSizeErrors = SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE),
                                                                MB_YESNO | MB_ICONEXCLAMATION) == IDYES;
                 UpdateWindow(MainWindow->HWindow);

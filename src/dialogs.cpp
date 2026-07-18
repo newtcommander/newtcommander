@@ -301,11 +301,11 @@ unsigned ThreadProgressDlgBody(void* parameter)
     if (data->ConvertData != NULL)
         convertDataCopy = *data->ConvertData;
     CConvertData* convertData = (data->ConvertData != NULL ? &convertDataCopy : NULL);
-    char workPath1[MAX_PATH];
-    lstrcpyn(workPath1, data->Script->WorkPath1, MAX_PATH);
+    char workPath1[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
+    lstrcpyn(workPath1, data->Script->WorkPath1, SAL_MAX_PATH_UTF8);
     BOOL workPath1InclSubDirs = data->Script->WorkPath1InclSubDirs;
-    char workPath2[MAX_PATH];
-    lstrcpyn(workPath2, data->Script->WorkPath2, MAX_PATH);
+    char workPath2[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
+    lstrcpyn(workPath2, data->Script->WorkPath2, SAL_MAX_PATH_UTF8);
     BOOL workPath2InclSubDirs = data->Script->WorkPath2InclSubDirs;
 
     CProgressDialog dlg(NULL, data->Script, data->Caption, attrsData, convertData, TRUE, data);

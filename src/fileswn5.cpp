@@ -705,8 +705,8 @@ void CFilesWindow::ViewFile(char* name, BOOL altView, DWORD handlerID, int enumF
     CALL_STACK_MESSAGE6("CFilesWindow::ViewFile(%s, %d, %u, %d, %d)", name, altView, handlerID,
                         enumFileNamesSourceUID, enumFileNamesLastFileIndex);
     // verify that the file is on an accessible path
-    char path[MAX_PATH + 10];
-    if (name == NULL) // file from the panel
+    char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012): the internal viewer/file APIs accept long paths
+    if (name == NULL)             // file from the panel
     {
         if (Is(ptDisk) || Is(ptZIPArchive))
         {
@@ -741,13 +741,13 @@ void CFilesWindow::ViewFile(char* name, BOOL altView, DWORD handlerID, int enumF
             {
                 if (enumFileNamesLastFileIndex == -1)
                     enumFileNamesLastFileIndex = i - Dirs->Count;
-                lstrcpyn(path, GetPath(), MAX_PATH);
+                lstrcpyn(path, GetPath(), SAL_MAX_PATH_UTF8);
                 if (GetPath()[strlen(GetPath()) - 1] != '\\')
                     strcat(path, "\\");
                 char* s = path + strlen(path);
-                if ((s - path) + f->NameLen >= MAX_PATH)
+                if ((s - path) + f->NameLen >= SAL_MAX_PATH_UTF8) // feature 012: long-path capable
                 {
-                    if (f->DosName != NULL && strlen(f->DosName) + (s - path) < MAX_PATH)
+                    if (f->DosName != NULL && strlen(f->DosName) + (s - path) < SAL_MAX_PATH_UTF8)
                         strcpy(s, f->DosName);
                     else
                     {
@@ -765,12 +765,12 @@ void CFilesWindow::ViewFile(char* name, BOOL altView, DWORD handlerID, int enumF
                     DWORD err = GetLastError();
                     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_INVALID_NAME)
                     {
-                        if (strlen(f->DosName) + (s - path) < MAX_PATH)
+                        if (strlen(f->DosName) + (s - path) < SAL_MAX_PATH_UTF8)
                         {
                             strcpy(s, f->DosName);
                             if (SalGetFileAttributes(path) == 0xffffffff) // still error -> revert to the long name
                             {
-                                if ((s - path) + f->NameLen < MAX_PATH)
+                                if ((s - path) + f->NameLen < SAL_MAX_PATH_UTF8)
                                     strcpy(s, f->Name);
                             }
                         }
@@ -1067,12 +1067,12 @@ BOOL ViewFileInt(HWND parent, const char* name, BOOL altView, DWORD handlerID, B
         {
         case VIEWER_EXTERNAL:
         {
-            char expCommand[MAX_PATH];
-            char expArguments[MAX_PATH];
-            char expInitDir[MAX_PATH];
-            if (ExpandCommand(parent, viewer->Command, expCommand, MAX_PATH, FALSE) &&
-                ExpandArguments(parent, name, dosName, viewer->Arguments, expArguments, MAX_PATH, NULL) &&
-                ExpandInitDir(parent, name, dosName, viewer->InitDir, expInitDir, MAX_PATH, FALSE))
+            char expCommand[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012); external program command line, OS-capped ~32K = safe degradation
+            char expArguments[SAL_MAX_PATH_UTF8];
+            char expInitDir[SAL_MAX_PATH_UTF8];
+            if (ExpandCommand(parent, viewer->Command, expCommand, SAL_MAX_PATH_UTF8, FALSE) &&
+                ExpandArguments(parent, name, dosName, viewer->Arguments, expArguments, SAL_MAX_PATH_UTF8, NULL) &&
+                ExpandInitDir(parent, name, dosName, viewer->InitDir, expInitDir, SAL_MAX_PATH_UTF8, FALSE))
             {
                 if (SystemPolicies.GetMyRunRestricted() &&
                     !SystemPolicies.GetMyCanRun(expCommand))
@@ -1101,12 +1101,12 @@ BOOL ViewFileInt(HWND parent, const char* name, BOOL altView, DWORD handlerID, B
                               STARTF_USESHOWWINDOW;
                 si.wShowWindow = SW_SHOWNORMAL;
 
-                char cmdLine[2 * MAX_PATH];
-                lstrcpyn(cmdLine, expCommand, 2 * MAX_PATH);
-                AddDoubleQuotesIfNeeded(cmdLine, 2 * MAX_PATH); // CreateProcess wants the name with spaces in quotes (otherwise it tries various variants, see help)
+                char cmdLine[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
+                lstrcpyn(cmdLine, expCommand, SAL_MAX_PATH_UTF8);
+                AddDoubleQuotesIfNeeded(cmdLine, SAL_MAX_PATH_UTF8); // CreateProcess wants the name with spaces in quotes (otherwise it tries various variants, see help)
                 int len = (int)strlen(cmdLine);
                 int lArgs = (int)strlen(expArguments);
-                if (len + lArgs + 2 <= 2 * MAX_PATH)
+                if (len + lArgs + 2 <= SAL_MAX_PATH_UTF8)
                 {
                     cmdLine[len] = ' ';
                     memcpy(cmdLine + len + 1, expArguments, lArgs + 1);
@@ -1236,7 +1236,7 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
     }
 
     // verify that the file is on an accessible path
-    char path[MAX_PATH + 10];
+    char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
     if (name == NULL)
     {
         if (CheckPath(TRUE) != ERROR_SUCCESS)
@@ -1265,13 +1265,13 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
             CFileData* f = &Files->At(i - Dirs->Count);
             if (Is(ptDisk))
             {
-                lstrcpyn(path, GetPath(), MAX_PATH);
+                lstrcpyn(path, GetPath(), SAL_MAX_PATH_UTF8);
                 if (GetPath()[strlen(GetPath()) - 1] != '\\')
                     strcat(path, "\\");
                 char* s = path + strlen(path);
-                if ((s - path) + f->NameLen >= MAX_PATH)
+                if ((s - path) + f->NameLen >= SAL_MAX_PATH_UTF8) // feature 012: long-path capable
                 {
-                    if (f->DosName != NULL && strlen(f->DosName) + (s - path) < MAX_PATH)
+                    if (f->DosName != NULL && strlen(f->DosName) + (s - path) < SAL_MAX_PATH_UTF8)
                         strcpy(s, f->DosName);
                     else
                     {
@@ -1289,12 +1289,12 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
                     DWORD err = GetLastError();
                     if (err == ERROR_FILE_NOT_FOUND || err == ERROR_INVALID_NAME)
                     {
-                        if (strlen(f->DosName) + (s - path) < MAX_PATH)
+                        if (strlen(f->DosName) + (s - path) < SAL_MAX_PATH_UTF8)
                         {
                             strcpy(s, f->DosName);
                             if (SalGetFileAttributes(path) == 0xffffffff) // still error -> revert to the long name
                             {
-                                if ((s - path) + f->NameLen < MAX_PATH)
+                                if ((s - path) + f->NameLen < SAL_MAX_PATH_UTF8)
                                     strcpy(s, f->Name);
                             }
                         }
@@ -1390,12 +1390,12 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
         if (addToHistory)
             MainWindow->FileHistory->AddFile(fhitEdit, editor->HandlerID, name); // add file to history
 
-        char expCommand[MAX_PATH];
-        char expArguments[MAX_PATH];
-        char expInitDir[MAX_PATH];
-        if (ExpandCommand(HWindow, editor->Command, expCommand, MAX_PATH, FALSE) &&
-            ExpandArguments(HWindow, name, dosName, editor->Arguments, expArguments, MAX_PATH, NULL) &&
-            ExpandInitDir(HWindow, name, dosName, editor->InitDir, expInitDir, MAX_PATH, FALSE))
+        char expCommand[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012); external program command line, OS-capped ~32K = safe degradation
+        char expArguments[SAL_MAX_PATH_UTF8];
+        char expInitDir[SAL_MAX_PATH_UTF8];
+        if (ExpandCommand(HWindow, editor->Command, expCommand, SAL_MAX_PATH_UTF8, FALSE) &&
+            ExpandArguments(HWindow, name, dosName, editor->Arguments, expArguments, SAL_MAX_PATH_UTF8, NULL) &&
+            ExpandInitDir(HWindow, name, dosName, editor->InitDir, expInitDir, SAL_MAX_PATH_UTF8, FALSE))
         {
             if (SystemPolicies.GetMyRunRestricted() &&
                 !SystemPolicies.GetMyCanRun(expCommand))
@@ -1424,12 +1424,12 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
                           STARTF_USESHOWWINDOW;
             si.wShowWindow = SW_SHOWNORMAL;
 
-            char cmdLine[2 * MAX_PATH];
-            lstrcpyn(cmdLine, expCommand, 2 * MAX_PATH);
-            AddDoubleQuotesIfNeeded(cmdLine, 2 * MAX_PATH); // CreateProcess wants the name with spaces in quotes (otherwise it tries various variants, see help)
+            char cmdLine[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
+            lstrcpyn(cmdLine, expCommand, SAL_MAX_PATH_UTF8);
+            AddDoubleQuotesIfNeeded(cmdLine, SAL_MAX_PATH_UTF8); // CreateProcess wants the name with spaces in quotes (otherwise it tries various variants, see help)
             int len = (int)strlen(cmdLine);
             int lArgs = (int)strlen(expArguments);
-            if (len + lArgs + 2 <= 2 * MAX_PATH)
+            if (len + lArgs + 2 <= SAL_MAX_PATH_UTF8)
             {
                 cmdLine[len] = ' ';
                 memcpy(cmdLine + len + 1, expArguments, lArgs + 1);

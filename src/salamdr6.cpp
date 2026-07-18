@@ -167,7 +167,7 @@ BOOL GetFileNameForViewer(CFileNamesEnumRequestType requestType, int srcUID, int
     FileNamesEnumData.RequestType = requestType;
     FileNamesEnumData.SrcUID = srcUID;
     FileNamesEnumData.LastFileIndex = *lastFileIndex;
-    lstrcpyn(FileNamesEnumData.LastFileName, lastFileName != NULL ? lastFileName : "", MAX_PATH);
+    lstrcpyn(FileNamesEnumData.LastFileName, lastFileName != NULL ? lastFileName : "", SAL_MAX_PATH_UTF8);
     FileNamesEnumData.PreferSelected = preferSelected;
     FileNamesEnumData.OnlyAssociatedExtensions = onlyAssociatedExtensions;
     FileNamesEnumData.Plugin = plugin;
@@ -202,7 +202,7 @@ BOOL GetFileNameForViewer(CFileNamesEnumRequestType requestType, int srcUID, int
             HANDLES(EnterCriticalSection(&FileNamesEnumDataSect));
             *lastFileIndex = FileNamesEnumData.LastFileIndex;
             if (fileName != NULL)
-                lstrcpyn(fileName, FileNamesEnumData.FileName, MAX_PATH);
+                lstrcpyn(fileName, FileNamesEnumData.FileName, SAL_MAX_PATH_UTF8);
             if (noMoreFiles != NULL)
                 *noMoreFiles = FileNamesEnumData.NoMoreFiles;
             if (srcBusy != NULL)
@@ -220,7 +220,7 @@ BOOL GetFileNameForViewer(CFileNamesEnumRequestType requestType, int srcUID, int
             {
                 *lastFileIndex = FileNamesEnumData.LastFileIndex;
                 if (fileName != NULL)
-                    lstrcpyn(fileName, FileNamesEnumData.FileName, MAX_PATH);
+                    lstrcpyn(fileName, FileNamesEnumData.FileName, SAL_MAX_PATH_UTF8);
                 if (noMoreFiles != NULL)
                     *noMoreFiles = FileNamesEnumData.NoMoreFiles;
                 if (srcBusy != NULL)

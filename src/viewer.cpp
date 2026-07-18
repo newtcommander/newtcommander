@@ -559,8 +559,8 @@ CViewerWindow::CViewerWindow(const char* fileName, CViewType type, const char* c
         FileName = NULL; // error
     else
     {
-        char name[MAX_PATH];
-        lstrcpyn(name, fileName, MAX_PATH);
+        char name[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012); heap FileName store below is already safe
+        lstrcpyn(name, fileName, SAL_MAX_PATH_UTF8);
         if (SalGetFullName(name))
         {
             FileName = (char*)malloc(strlen(name) + 1);

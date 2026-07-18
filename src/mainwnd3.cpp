@@ -513,7 +513,7 @@ void CMainWindow::PostChangeOnPathNotification(const char* path, BOOL includingS
 
     // add this notification to the array (for later processing)
     CChangeNotifData data;
-    lstrcpyn(data.Path, path, MAX_PATH);
+    lstrcpyn(data.Path, path, SAL_MAX_PATH_UTF8); // long-path capable (feature 012)
     data.IncludingSubdirs = includingSubdirs;
     ChangeNotifArray.Add(data);
     if (!ChangeNotifArray.IsGood())
@@ -4496,7 +4496,7 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
                 NeedToResentDispachChangeNotif = TRUE;
             else
             {
-                char path[MAX_PATH];
+                char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
                 BOOL includingSubdirs;
                 BOOL ok = TRUE;
                 while (1)

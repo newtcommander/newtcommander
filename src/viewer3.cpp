@@ -740,9 +740,9 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             case SB_THUMBTRACK:
             {
-                // the actual scrolling runs from a timer because USB mice and MS scrollbars 
-                // misbehave otherwise: when the viewer is fullscreen, repainting the whole window 
-                // takes long enough that the stubborn scrollbar waits, so dragging feels like 
+                // the actual scrolling runs from a timer because USB mice and MS scrollbars
+                // misbehave otherwise: when the viewer is fullscreen, repainting the whole window
+                // takes long enough that the stubborn scrollbar waits, so dragging feels like
                 // a chewing gum; posting the scroll message or deferring painting did not help;
                 // a timer was the only reliable fix we found.
                 if (VScrollWParam == -1)
@@ -891,7 +891,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             BOOL ok = FALSE;
             BOOL srcBusy = FALSE;
             BOOL noMoreFiles = FALSE;
-            char fileName[MAX_PATH];
+            char fileName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
             fileName[0] = 0;
             int enumFileNamesLastFileIndex = EnumFileNamesLastFileIndex;
             if (LOWORD(wParam) == CM_PREVFILE || LOWORD(wParam) == CM_PREVSELFILE || LOWORD(wParam) == CM_LASTFILE)
@@ -1539,7 +1539,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             ENTER_AGAIN:
 
-                char fileName[MAX_PATH];
+                char fileName[SAL_MAX_PATH_UTF8];       // long-path capable (feature 012)
                 lstrcpyn(fileName, FileName, MAX_PATH); // long UTF-8 name would overflow; the ANSI dialog cannot take more anyway
                 OPENFILENAME ofn;
                 memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -3072,7 +3072,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     BOOL ok = FALSE;
                     BOOL srcBusy = FALSE;
                     BOOL noMoreFiles = FALSE;
-                    char fileName[MAX_PATH];
+                    char fileName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012)
                     fileName[0] = 0;
                     int enumFileNamesLastFileIndex = EnumFileNamesLastFileIndex;
                     ok = GetPreviousFileNameForViewer(EnumFileNamesSourceUID,

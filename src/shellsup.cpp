@@ -502,13 +502,13 @@ const char* GetCurrentDir(POINTL& pt, void* param, DWORD* effect, BOOL rButton, 
                     return panel->GetPath();
                 }
             }
-            char fullName[MAX_PATH];
+            char fullName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 012): the memcpy below ran before the length check and overran a MAX_PATH buffer
             int l = (int)strlen(panel->GetPath());
             memcpy(fullName, panel->GetPath(), l);
             if (fullName[l - 1] != '\\')
                 fullName[l++] = '\\';
             CFileData* file = &(panel->Files->At(index - panel->Dirs->Count));
-            if (l + file->NameLen >= MAX_PATH)
+            if (l + file->NameLen >= SAL_MAX_PATH_UTF8)
             {
                 TRACE_E("GetCurrentDir(): too long file name!");
                 panel->SetDropTarget(-1); // hide the marker

@@ -1000,10 +1000,15 @@ char* BuildName(char* path, char* name, char* dosName, BOOL* skip, BOOL* skipAll
         len += l2;
         if (path[l1 - 1] != '\\')
             len++;
-        if (len >= MAX_PATH && dosName != NULL)
+        // feature 012: the result is heap-allocated and consumed by the
+        // long-path Sal* file APIs, so full paths up to SAL_MAX_PATH_UTF8 are
+        // built (was capped at MAX_PATH, which refused every file operation in
+        // a long-path directory); the DOS-name fallback stays only as the
+        // last-resort fit for the extended limit
+        if (len >= SAL_MAX_PATH_UTF8 && dosName != NULL)
         {
             int l3 = (int)strlen(dosName);
-            if (len - l2 + l3 < MAX_PATH)
+            if (len - l2 + l3 < SAL_MAX_PATH_UTF8)
             {
                 len = len - l2 + l3;
                 name = dosName;
@@ -1011,7 +1016,7 @@ char* BuildName(char* path, char* name, char* dosName, BOOL* skip, BOOL* skipAll
             }
         }
     }
-    if (len >= MAX_PATH)
+    if (len >= SAL_MAX_PATH_UTF8)
     {
         char text[2 * MAX_PATH + 100];
         _snprintf_s(text, _TRUNCATE, LoadStr(IDS_NAMEISTOOLONG), name, path);
@@ -4311,7 +4316,7 @@ FIND_NEW_SLG_FILE:
                     else
                     {
                         if (Configuration.ConfigVersion < THIS_CONFIG_VERSION)
-                        {                                            // auto-install plug-inu ze standardniho plug-in-podadresare "plugins"
+                        { // auto-install plug-inu ze standardniho plug-in-podadresare "plugins"
                             Plugins.AutoInstallStdPluginsDir(MainWindow->HWindow);
                             Configuration.LastPluginVer = 0;   // pri prechodu na novou verzi bude zrusen soubor plugins.ver
                             Configuration.LastPluginVerOP = 0; // pri prechodu na novou verzi bude zrusen soubor plugins.ver i pro druhou platformu
