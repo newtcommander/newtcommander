@@ -46,14 +46,18 @@ unsigned ThreadViewerMessageLoopBody(void* parameter)
     //  TRACE_I("MoresStanislav: ThreadViewerMessageLoopBody 1");
     CTVData* data = (CTVData*)parameter;
     CViewerWindow* view = data->View;
-    char name[MAX_PATH];
+    // feature 013: the file name/caption may be a long path (feature 012 now
+    // hands the full name to the viewer); the internal viewer/file APIs accept
+    // it, so these must be SAL-sized (the strcpy below overran a MAX_PATH stack
+    // buffer = the F3 crash)
+    char name[SAL_MAX_PATH_UTF8];
     strcpy(name, data->Name);
-    char captionBuf[MAX_PATH];
+    char captionBuf[SAL_MAX_PATH_UTF8];
     const char* caption = NULL;
     BOOL wholeCaption = FALSE;
     if (data->Caption != NULL)
     {
-        lstrcpyn(captionBuf, data->Caption, MAX_PATH);
+        lstrcpyn(captionBuf, data->Caption, SAL_MAX_PATH_UTF8);
         caption = captionBuf;
         wholeCaption = data->WholeCaption;
     }

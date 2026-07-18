@@ -57,8 +57,8 @@ void GetNewOrBackgroundMenu(HWND hOwnerWindow, const char* dir, CMenuNew* menu,
 
 struct CDragDropOperData
 {
-    char SrcPath[MAX_PATH];     // Source path shared by all files/directories from Names ("" == path conversion from Unicode failed)
-    TIndirectArray<char> Names; // Sorted, allocated names of files/directories (CF_HDROP does not distinguish whether it is a file or a directory) ("" == path conversion from Unicode failed)
+    char SrcPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013); source path shared by all files/directories ("" == conversion failed)
+    TIndirectArray<char> Names;      // Sorted, allocated names of files/directories (CF_HDROP does not distinguish whether it is a file or a directory) ("" == path conversion from Unicode failed)
 
     CDragDropOperData() : Names(200, 200) { SrcPath[0] = 0; }
 };
@@ -257,9 +257,9 @@ private:
     HWND OwnerWindow;
     IDataObject* OldDataObject;
     BOOL OldDataObjectIsFake;
-    int OldDataObjectIsSimple;                 // -1 (unknown value), TRUE/FALSE = is/is not simple (all names share one path)
-    int OldDataObjectSrcType;                  // 0 (unknown type), 1/2 = archive/FS
-    char OldDataObjectSrcFSPath[2 * MAX_PATH]; // only for FS type: source FS path
+    int OldDataObjectIsSimple;                      // -1 (unknown value), TRUE/FALSE = is/is not simple (all names share one path)
+    int OldDataObjectSrcType;                       // 0 (unknown type), 1/2 = archive/FS
+    char OldDataObjectSrcFSPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013); FS type source FS path
 
     CDoCopyMove DoCopyMove;
     void* DoCopyMoveParam;
@@ -278,7 +278,7 @@ private:
 
     int TgtType; // see CIDTTgtType values; idtttWindows also for archives and FS where dropping the current data object is not possible
     IDropTarget* CurDirDropTarget;
-    char CurDir[2 * MAX_PATH];
+    char CurDir[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013)
 
     CEnterLeaveDrop EnterLeaveDrop;
     void* EnterLeaveDropParam;

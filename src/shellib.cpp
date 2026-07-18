@@ -463,12 +463,12 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                                 TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
                                                 mulbyteName[0] = 0;
                                             }
-                                            if (strlen(mulbyteName) < MAX_PATH) // SrcPath has MAX_PATH; "" == conversion failed
+                                            if (strlen(mulbyteName) < SAL_MAX_PATH_UTF8) // SrcPath is SAL-sized (feature 013); "" == conversion failed
                                                 strcpy(namesList->SrcPath, mulbyteName);
                                             else
                                                 namesList->SrcPath[0] = 0;
                                             if (prefixLen < 3)
-                                                SalPathAddBackslash(namesList->SrcPath, MAX_PATH);
+                                                SalPathAddBackslash(namesList->SrcPath, SAL_MAX_PATH_UTF8);
                                         }
                                         ret = TRUE;
                                         break;
@@ -578,7 +578,7 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                             if (prefixU8 != NULL)
                                                 free(prefixU8);
                                             if (prefixLen < 3)
-                                                SalPathAddBackslash(namesList->SrcPath, MAX_PATH);
+                                                SalPathAddBackslash(namesList->SrcPath, SAL_MAX_PATH_UTF8);
                                         }
                                         ret = TRUE;
                                         break;
@@ -704,7 +704,7 @@ STDMETHODIMP CImpDropTarget::DragEnter(IDataObject* pDataObject,
         OldDataObject->Release();
     OldDataObject = pDataObject;
     OldDataObjectIsFake = IsFakeDataObject(OldDataObject, &OldDataObjectSrcType,
-                                           OldDataObjectSrcFSPath, 2 * MAX_PATH);
+                                           OldDataObjectSrcFSPath, SAL_MAX_PATH_UTF8);
 
     OldDataObjectIsSimple = -1; // unknown value
     OldDataObject->AddRef();
@@ -1114,8 +1114,8 @@ STDMETHODIMP CImpDropTarget::Drop(IDataObject* pDataObject, DWORD grfKeyState,
     }
 
     int dataObjectSrcType;
-    char dataObjectSrcFSPath[2 * MAX_PATH];
-    BOOL isFake = IsFakeDataObject(pDataObject, &dataObjectSrcType, dataObjectSrcFSPath, 2 * MAX_PATH);
+    char dataObjectSrcFSPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013); source FS path
+    BOOL isFake = IsFakeDataObject(pDataObject, &dataObjectSrcType, dataObjectSrcFSPath, SAL_MAX_PATH_UTF8);
     BOOL tgtFile = TRUE; // is the target of the operation a file?
     CDragDropOperData* namesList = new CDragDropOperData;
     if (GetCurDir != NULL)
@@ -2275,10 +2275,10 @@ void OpenFolderAndFocusItem(HWND hOwnerWindow, const char* dir, const char* item
     // if the path contains components ending with spaces or dots, the shell will not return
     // the PIDL for the requested path, but for the path created by trimming those
     // spaces/dots, so it is better to give up on it early...
-    char mydir[2 * MAX_PATH];
+    char mydir[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013); 'dir' is a panel/shell path
     strcpy(mydir, dir);
     if (item[0] != 0)
-        SalPathAppend(mydir, item, 2 * MAX_PATH);
+        SalPathAppend(mydir, item, SAL_MAX_PATH_UTF8);
     if (PathContainsValidComponents((char*)mydir, FALSE))
     {
         BOOL useOldMethod = TRUE; // SHOpenFolderAndSelectItems is supported from XP onward, and we still run on W2K and XP without SPx
@@ -2385,7 +2385,7 @@ int CALLBACK DirectoryBrowse(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData)
         SetWindowText(hwnd, ((CBrowseData*)lpData)->Title);
         if (((CBrowseData*)lpData)->InitDir != NULL)
         {
-            char path[MAX_PATH];
+            char path[SAL_MAX_PATH_UTF8]; // long-path capable (feature 013); InitDir may be a long panel path (the shell browse dialog itself is MAX_PATH-bound = safe degradation)
             GetRootPath(path, ((CBrowseData*)lpData)->InitDir);
             if (strlen(path) < strlen(((CBrowseData*)lpData)->InitDir)) // not a root directory
             {
