@@ -388,7 +388,10 @@ CFilterDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 CCopyMoveDialog::CCopyMoveDialog(HWND parent, char* path, int pathBufSize, char* title,
                                  CTruncatedString* subject, DWORD helpID,
                                  char* history[], int historyCount, BOOL directoryHelper)
-    : CCommonDialog(HLanguage, history ? IDD_COPYMOVEDIALOG_CB : IDD_COPYMOVEDIALOG, parent)
+    // feature 015: Unicode dialog so the path/name combo can show characters
+    // outside the ANSI code page (emoji, Cyrillic, ...) instead of '?'
+    : CCommonDialog(HLanguage, history ? IDD_COPYMOVEDIALOG_CB : IDD_COPYMOVEDIALOG, parent,
+                    ooStandard, NULL, TRUE /*unicodeWnd*/)
 {
     DirectoryHelper = FALSE;
     if (directoryHelper)
@@ -576,7 +579,10 @@ CCopyMoveMoreDialog::CCopyMoveMoreDialog(HWND parent, char* path, int pathBufSiz
                                          CTruncatedString* subject, DWORD helpID,
                                          char* history[], int historyCount, CCriteriaData* criteriaInOut,
                                          BOOL havePermissions, BOOL supportsADS)
-    : CCommonDialog(HLanguage, IDD_COPYMOVEMOREDIALOG, helpID, parent)
+    // feature 015: Unicode dialog so the target-path combo shows non-ANSI
+    // characters instead of '?'
+    : CCommonDialog(HLanguage, IDD_COPYMOVEMOREDIALOG, helpID, parent,
+                    ooStandard, NULL, TRUE /*unicodeWnd*/)
 {
     if (history == NULL)
         TRACE_E("CCopyMoveMoreDialog without history is not supported.");

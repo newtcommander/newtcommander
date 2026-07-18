@@ -760,17 +760,32 @@ protected:
     BOOL CallEndStopRefresh; // EndStopRefresh needs to be called
 
 public:
+    // feature 015: 'unicodeWnd' TRUE makes the dialog a Unicode window
+    // (DialogBoxParamW), so controls can hold characters outside the system ANSI
+    // code page and the Sal*U8 (wide) helpers stop being lossy (?-substitution).
     CCommonDialog(HINSTANCE modul, int resID, HWND parent,
-                  CObjectOrigin origin = ooStandard, HWND hCenterAgains = NULL)
-        : CDialog(modul, resID, parent, origin)
+                  CObjectOrigin origin = ooStandard, HWND hCenterAgains = NULL,
+                  BOOL unicodeWnd = FALSE)
+        : CDialog(modul, resID, parent, origin
+#ifndef _UNICODE
+                  ,
+                  unicodeWnd
+#endif // _UNICODE
+          )
     {
         HCenterAgains = hCenterAgains;
         HOldPluginMsgBoxParent = NULL;
         CallEndStopRefresh = FALSE;
     }
     CCommonDialog(HINSTANCE modul, int resID, UINT helpID, HWND parent,
-                  CObjectOrigin origin = ooStandard, HWND hCenterAgains = NULL)
-        : CDialog(modul, resID, helpID, parent, origin)
+                  CObjectOrigin origin = ooStandard, HWND hCenterAgains = NULL,
+                  BOOL unicodeWnd = FALSE)
+        : CDialog(modul, resID, helpID, parent, origin
+#ifndef _UNICODE
+                  ,
+                  unicodeWnd
+#endif // _UNICODE
+          )
     {
         HCenterAgains = hCenterAgains;
         HOldPluginMsgBoxParent = NULL;
