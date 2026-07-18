@@ -547,7 +547,20 @@ struct CConnectData
     BOOL OrganizeMode;
     CSFTPServer* Result;
     HWND Hwnd;
+    // feature 017: password/passphrase edit "dirty" tracking. When an entry has a
+    // stored secret, the field shows a fixed-length placeholder (so it is visibly
+    // non-empty without revealing the real length); the secret is only re-read as
+    // a NEW password when the user actually edits the field (Dirty == TRUE).
+    BOOL PwdDirty;
+    BOOL PassDirty;
+    BOOL SuppressDirty; // TRUE while loading fields programmatically (ignore EN_CHANGE)
 };
+
+// feature 017: fixed-length mask shown when a password/passphrase is stored but
+// not revealed. Its length is constant (does NOT match the real secret length)
+// and its content is never used as a password (guarded by the Dirty flag and an
+// explicit content check). Eight chars -> eight bullets in the ES_PASSWORD box.
+#define SFTP_SECRET_PLACEHOLDER "********"
 
 static void ConnectSetAuthMode(HWND hwnd, int authMethod)
 {
@@ -562,18 +575,31 @@ static void ConnectSetAuthMode(HWND hwnd, int authMethod)
 
 static void ConnectLoadServerToFields(HWND hwnd, const CSFTPServer* s)
 {
+    CConnectData* d = (CConnectData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    if (d != NULL)
+        d->SuppressDirty = TRUE; // programmatic fill: do not mark the fields dirty
     SetDlgItemTextU8(hwnd, IDE_HOSTADDRESS, s->Address != NULL ? s->Address : "");
     SetDlgItemInt(hwnd, IDE_PORT, s->Port > 0 ? s->Port : SFTP_DEFAULT_PORT, FALSE);
     SetDlgItemTextU8(hwnd, IDE_USERNAME, s->UserName != NULL ? s->UserName : "");
     CheckRadioButton(hwnd, IDC_AUTHPASSWORD, IDC_AUTHKEY,
                      s->AuthMethod == saPrivateKey ? IDC_AUTHKEY : IDC_AUTHPASSWORD);
-    SetDlgItemTextA(hwnd, IDE_PASSWORD, "");
+    // feature 017: show a fixed-length placeholder when a secret is stored, so
+    // it is visibly non-empty without leaking the real length
+    SetDlgItemTextA(hwnd, IDE_PASSWORD,
+                    (s->SavePassword && s->EncryptedPassword != NULL) ? SFTP_SECRET_PLACEHOLDER : "");
     CheckDlgButton(hwnd, IDC_SAVEPASSWORD, s->SavePassword ? BST_CHECKED : BST_UNCHECKED);
     SetDlgItemTextU8(hwnd, IDE_KEYFILE, s->KeyFile != NULL ? s->KeyFile : "");
-    SetDlgItemTextA(hwnd, IDE_PASSPHRASE, "");
+    SetDlgItemTextA(hwnd, IDE_PASSPHRASE,
+                    (s->SavePassphrase && s->EncryptedPassphrase != NULL) ? SFTP_SECRET_PLACEHOLDER : "");
     CheckDlgButton(hwnd, IDC_SAVEPASSPHRASE, s->SavePassphrase ? BST_CHECKED : BST_UNCHECKED);
     SetDlgItemTextU8(hwnd, IDE_INITIALPATH, s->InitialPath != NULL ? s->InitialPath : "");
     ConnectSetAuthMode(hwnd, s->AuthMethod);
+    if (d != NULL)
+    {
+        d->PwdDirty = FALSE;
+        d->PassDirty = FALSE;
+        d->SuppressDirty = FALSE;
+    }
 }
 
 // reads dialog fields into 's'; encrypts typed secrets. When 'forConnect', also
@@ -616,12 +642,20 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     }
 
     CSalamanderPasswordManagerAbstract* pm = SalamanderGeneral->GetSalamanderPasswordManager();
+    // feature 017: a field is a NEWLY typed secret only if the user actually
+    // edited it (Dirty) and it is not the stored-secret placeholder. Otherwise
+    // the stored blob is kept/reused (see the 'else if' branches below).
+    CConnectData* dd = (CConnectData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
     if (authMethod == saPassword)
     {
         char pwd[512];
         GetDlgItemTextA(hwnd, IDE_PASSWORD, pwd, sizeof(pwd));
-        if (pwd[0] != 0)
+        // "typed" iff the user actually edited the field (Dirty). When not dirty
+        // the field holds either nothing or the fixed placeholder for a stored
+        // secret - both mean "keep/reuse the existing blob", never a new password.
+        BOOL pwdTyped = (pwd[0] != 0) && (dd == NULL || dd->PwdDirty);
+        if (pwdTyped)
         {
             if (forConnect)
                 lstrcpynA(ConnectPlainPassword, pwd, sizeof(ConnectPlainPassword));
@@ -655,7 +689,8 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     {
         char pass[512];
         GetDlgItemTextA(hwnd, IDE_PASSPHRASE, pass, sizeof(pass));
-        if (pass[0] != 0)
+        BOOL passTyped = (pass[0] != 0) && (dd == NULL || dd->PassDirty);
+        if (passTyped)
         {
             if (forConnect)
                 lstrcpynA(ConnectPlainPassphrase, pass, sizeof(ConnectPlainPassphrase));
@@ -835,6 +870,31 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         case IDB_BROWSEKEY:
             BrowseForKey(hwnd);
             return TRUE;
+        case IDE_PASSWORD:
+            // feature 017: track real edits vs the stored-secret placeholder
+            if (HIWORD(wParam) == EN_CHANGE)
+            {
+                if (d != NULL && !d->SuppressDirty)
+                    d->PwdDirty = TRUE;
+            }
+            else if (HIWORD(wParam) == EN_SETFOCUS)
+            {
+                if (d != NULL && !d->PwdDirty) // select the placeholder so the first keystroke replaces it
+                    SendMessage((HWND)lParam, EM_SETSEL, 0, -1);
+            }
+            return TRUE;
+        case IDE_PASSPHRASE:
+            if (HIWORD(wParam) == EN_CHANGE)
+            {
+                if (d != NULL && !d->SuppressDirty)
+                    d->PassDirty = TRUE;
+            }
+            else if (HIWORD(wParam) == EN_SETFOCUS)
+            {
+                if (d != NULL && !d->PassDirty)
+                    SendMessage((HWND)lParam, EM_SETSEL, 0, -1);
+            }
+            return TRUE;
         case IDL_BOOKMARKS:
             if (HIWORD(wParam) == LBN_SELCHANGE)
             {
@@ -993,5 +1053,8 @@ BOOL ShowConnectDialog(HWND parent, BOOL organizeMode, CSFTPServer* result)
     d.OrganizeMode = organizeMode;
     d.Result = result;
     d.Hwnd = NULL;
+    d.PwdDirty = FALSE;
+    d.PassDirty = FALSE;
+    d.SuppressDirty = FALSE;
     return DialogBoxParam(HLanguage, MAKEINTRESOURCE(IDD_CONNECT), parent, ConnectProc, (LPARAM)&d) == IDOK;
 }

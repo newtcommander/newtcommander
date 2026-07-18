@@ -95,6 +95,21 @@ build + registry round-trip + code review):
   Up/Down; context menus; Advanced fields (compression/keepalive/target panel);
   **K2** passphrase prompt/retry. None block the reported problems.
 
+### R5 — Stored-secret indicator (user feedback, follow-up in same feature)
+
+After the password fix worked, the user noted the password field is blank when a
+bookmark with a saved password is selected — correct (it never round-trips the
+plaintext) but not visibly obvious that a password IS stored. Added: when an
+entry has a stored secret, the password/passphrase field shows a **fixed-length
+placeholder** ("********", 8 bullets) — visibly non-empty but NOT the real length
+(no length leak). The placeholder is never read as a new secret: a per-field
+**Dirty flag** (set on EN_CHANGE, cleared during programmatic load via a
+SuppressDirty guard) means the field is treated as a newly typed password only
+when the user actually edits it; otherwise the stored blob is reused/kept. On
+focus, the placeholder is selected (EM_SETSEL) so the first keystroke replaces
+it. Relies solely on the Dirty flag (no content compare) so a literal
+"********" password still saves.
+
 Commit-semantics note: structural actions (New/Duplicate/Rename/Delete/Save)
 take effect immediately as explicit user actions (existing model); Cancel
 discards uncommitted **field** edits. This is the current behavior made
