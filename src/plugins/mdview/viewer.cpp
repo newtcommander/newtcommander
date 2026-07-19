@@ -1,21 +1,81 @@
 // SPDX-FileCopyrightText: 2026 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// viewer.cpp - the mdview viewer window: RichEdit host, thread/lock plumbing,
-// menu, keyboard, search, zoom, color schemes, link security gate.
+// viewer.cpp - the mdview viewer window: WebView2 host, thread/lock plumbing,
+// menu, keyboard, search, zoom, color schemes, link security gate. The v1
+// RTF/RichEdit path was retired in feature 021 (single HTML backend, FR-038a).
 
 #include "precomp.h"
 #include "render.h"
+#include "htmlgen.h"
+#include "webview.h"
 #include "viewer.h"
 
 CWindowQueue ViewerWindowQueue("MDView Viewers");
 CThreadQueue ThreadQueue("MDView Viewers");
 
 static HACCEL ViewerAccels = NULL;
-static HMODULE RichEditLib = NULL;
 
-#define ID_RICHEDIT 1
 #define SIZE_GATE (20LL * 1024 * 1024)
+
+// ==========================================================================
+// small local helpers
+// ==========================================================================
+
+static std::string WToUtf8Str(const std::wstring& w)
+{
+    if (w.empty()) return std::string();
+    int need = WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), NULL, 0, NULL, NULL);
+    std::string s;
+    s.resize(need > 0 ? need : 0);
+    if (need > 0) WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), &s[0], need, NULL, NULL);
+    return s;
+}
+
+// percent-decode a URI path component into UTF-16
+static std::wstring UriDecode(const std::wstring& in)
+{
+    std::string bytes;
+    for (size_t i = 0; i < in.size(); i++)
+    {
+        wchar_t c = in[i];
+        if (c == L'%' && i + 2 < in.size())
+        {
+            auto hex = [](wchar_t h) -> int {
+                if (h >= L'0' && h <= L'9') return h - L'0';
+                if (h >= L'a' && h <= L'f') return h - L'a' + 10;
+                if (h >= L'A' && h <= L'F') return h - L'A' + 10;
+                return -1;
+            };
+            int hi = hex(in[i + 1]), lo = hex(in[i + 2]);
+            if (hi >= 0 && lo >= 0) { bytes += (char)((hi << 4) | lo); i += 2; continue; }
+        }
+        if (c < 0x80) bytes += (char)c;
+        else
+        {
+            char buf[8];
+            int n = WideCharToMultiByte(CP_UTF8, 0, &c, 1, buf, sizeof(buf), NULL, NULL);
+            bytes.append(buf, n > 0 ? n : 0);
+        }
+    }
+    int need = MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), NULL, 0);
+    std::wstring w;
+    w.resize(need > 0 ? need : 0);
+    if (need > 0) MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), &w[0], need);
+    return w;
+}
+
+static std::wstring UserDataFolder()
+{
+    wchar_t path[MAX_PATH] = {0};
+    if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
+    {
+        std::wstring p = path;
+        p += L"\\Open Salamander\\mdview.WebView2";
+        return p;
+    }
+    return std::wstring();
+}
 
 // ==========================================================================
 // Init / release
@@ -26,10 +86,6 @@ BOOL InitViewer()
     if (!InitializeWinLib(PluginNameEN, DLLInstance))
         return FALSE;
     SetWinLibStrings(LoadStr(IDS_INVALID_NUM), LoadStr(IDS_PLUGINNAME));
-
-    RichEditLib = LoadLibraryW(L"Msftedit.dll"); // RichEdit 4.1 (RICHEDIT50W)
-    if (RichEditLib == NULL)
-        return FALSE;
 
     ACCEL acc[] = {
         {FVIRTKEY | FCONTROL, 'F', CM_EDIT_FIND},
@@ -52,7 +108,6 @@ BOOL InitViewer()
 void ReleaseViewer()
 {
     if (ViewerAccels != NULL) { DestroyAcceleratorTable(ViewerAccels); ViewerAccels = NULL; }
-    if (RichEditLib != NULL) { FreeLibrary(RichEditLib); RichEditLib = NULL; }
     ReleaseWinLib(DLLInstance);
 }
 
@@ -251,18 +306,22 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
 {
     Lock = NULL;
     Name = NULL;
-    HRich = NULL;
+    Web = NULL;
     HSchemeMenu = NULL;
     Theme = MdThemeById(g_scheme);
     if (Theme == NULL) Theme = MdThemeDefault(false);
     Encoding = MDENC_UTF8;
     FindText[0] = 0;
+    FindIndex = -1;
+    RemoteAllowed = false;
+    RenderPending = false;
     EnumFilesSourceUID = enumFilesSourceUID;
     EnumFilesCurrentIndex = enumFilesCurrentIndex;
 }
 
 CViewerWindow::~CViewerWindow()
 {
+    if (Web != NULL) { Web->Destroy(); delete Web; Web = NULL; }
     free(Name);
 }
 
@@ -306,9 +365,6 @@ void CViewerWindow::BuildMenu()
     AppendMenuA(bar, MF_POPUP, (UINT_PTR)file, LoadStr(IDS_MENU_FILE));
 
     HMENU edit = CreatePopupMenu();
-    AppendMenuA(edit, MF_STRING, CM_EDIT_COPY, LoadStr(IDS_MENU_EDIT_COPY));
-    AppendMenuA(edit, MF_STRING, CM_EDIT_SELALL, LoadStr(IDS_MENU_EDIT_SELALL));
-    AppendMenuA(edit, MF_SEPARATOR, 0, NULL);
     AppendMenuA(edit, MF_STRING, CM_EDIT_FIND, LoadStr(IDS_MENU_EDIT_FIND));
     AppendMenuA(edit, MF_STRING, CM_EDIT_FINDNEXT, LoadStr(IDS_MENU_EDIT_FINDNEXT));
     AppendMenuA(edit, MF_STRING, CM_EDIT_FINDPREV, LoadStr(IDS_MENU_EDIT_FINDPREV));
@@ -325,6 +381,8 @@ void CViewerWindow::BuildMenu()
     AppendMenuA(view, MF_STRING, CM_VIEW_ZOOMIN, LoadStr(IDS_MENU_VIEW_ZOOMIN));
     AppendMenuA(view, MF_STRING, CM_VIEW_ZOOMOUT, LoadStr(IDS_MENU_VIEW_ZOOMOUT));
     AppendMenuA(view, MF_STRING, CM_VIEW_ZOOMRESET, LoadStr(IDS_MENU_VIEW_ZOOMRESET));
+    AppendMenuA(view, MF_SEPARATOR, 0, NULL);
+    AppendMenuA(view, MF_STRING, CM_VIEW_REMOTEIMG, LoadStr(IDS_MENU_VIEW_REMOTEIMG));
     AppendMenuA(bar, MF_POPUP, (UINT_PTR)view, LoadStr(IDS_MENU_VIEW));
 
     HMENU help = CreatePopupMenu();
@@ -343,6 +401,8 @@ void CViewerWindow::RefreshSchemeChecks()
     CheckMenuRadioItem(HSchemeMenu, CM_SCHEME_FIRST, CM_SCHEME_FIRST + MdThemeCount - 1,
                        CM_SCHEME_FIRST + idx, MF_BYCOMMAND);
     CheckMenuItem(HSchemeMenu, CM_VIEW_FOLLOWSYS, MF_BYCOMMAND | (g_followSys ? MF_CHECKED : MF_UNCHECKED));
+    HMENU bar = GetMenu(HWindow);
+    if (bar) CheckMenuItem(bar, CM_VIEW_REMOTEIMG, MF_BYCOMMAND | (RemoteAllowed ? MF_CHECKED : MF_UNCHECKED));
 }
 
 void CViewerWindow::UpdateTitle()
@@ -355,24 +415,28 @@ void CViewerWindow::UpdateTitle()
     SetWindowTextW(HWindow, title.c_str());
 }
 
-static DWORD CALLBACK StreamInCb(DWORD_PTR cookie, LPBYTE buff, LONG cb, LONG* pcb)
+// Rebuild the HTML from DecodedText with the current theme/find/consent state
+// and (if the surface is ready) navigate; otherwise defer until OnReady.
+void CViewerWindow::Regenerate(const std::wstring& fragment)
 {
-    std::pair<const std::string*, size_t>* c = (std::pair<const std::string*, size_t>*)cookie;
-    size_t rem = c->first->size() - c->second;
-    LONG n = (LONG)(rem < (size_t)cb ? rem : (size_t)cb);
-    if (n > 0) memcpy(buff, c->first->data() + c->second, n);
-    c->second += n;
-    *pcb = n;
-    return 0;
+    Theme = EffectiveTheme();
+    std::string mdUtf8 = WToUtf8Str(DecodedText);
+    std::wstring findTerm = FindText[0] ? std::wstring(FindText) : std::wstring();
+    MdRenderHtml(mdUtf8, *Theme, DocDir, Html, findTerm, RemoteAllowed);
+    if (Web != NULL)
+    {
+        Web->SetDocument(&Html, DocDir);
+        Web->SetZoomPercent(g_zoom);
+        if (Web->IsReady()) Web->Navigate(fragment);
+        else RenderPending = true;
+    }
+    UpdateTitle();
 }
 
 void CViewerWindow::RenderDocument()
 {
-    Theme = EffectiveTheme();
-
-    std::wstring text;
-    bool loaded = false;
     std::vector<BYTE> bytes;
+    bool loaded = false;
 
     WCHAR* wext = Name ? SplU8ToWExtAlloc(Name) : NULL;
     if (wext != NULL)
@@ -392,9 +456,9 @@ void CViewerWindow::RenderDocument()
                                                          LoadStr(IDS_WINDOW_TITLE),
                                                          MB_YESNO | MB_ICONQUESTION) == IDYES)
                         OpenAsText();
-                    text = L"# " + std::wstring(L"Too large\n\nThis document exceeds the render limit.");
-                    MdRenderMarkdown(text, *Theme, DocDir, Render);
-                    goto stream;
+                    DecodedText = L"# Too large\n\nThis document exceeds the render limit.";
+                    Regenerate();
+                    return;
                 }
                 DWORD n = (DWORD)sz.QuadPart;
                 bytes.resize(n);
@@ -407,59 +471,18 @@ void CViewerWindow::RenderDocument()
 
     if (!loaded)
     {
-        text = L"# Cannot open\n\n";
-        MdRenderMarkdown(text, *Theme, DocDir, Render);
-        goto stream;
+        DecodedText = L"# Cannot open\n\nThe file could not be opened.";
+        Regenerate();
+        return;
     }
 
-    Encoding = MdDetectDecode(bytes.data(), bytes.size(), text);
+    Encoding = MdDetectDecode(bytes.data(), bytes.size(), DecodedText);
     if (Encoding == MDENC_BINARY)
     {
         OpenAsText();
-        text = L"# Not a text file\n\nOpened in the text viewer instead.";
+        DecodedText = L"# Not a text file\n\nOpened in the text viewer instead.";
     }
-    MdRenderMarkdown(text, *Theme, DocDir, Render);
-
-stream:
-    SendMessage(HRich, WM_SETREDRAW, FALSE, 0);
-    SendMessage(HRich, EM_SETREADONLY, FALSE, 0);
-    {
-        std::pair<const std::string*, size_t> ctx(&Render.rtf, 0);
-        EDITSTREAM es;
-        es.dwCookie = (DWORD_PTR)&ctx;
-        es.dwError = 0;
-        es.pfnCallback = StreamInCb;
-        SendMessageW(HRich, EM_STREAMIN, SF_RTF, (LPARAM)&es);
-    }
-    // background per scheme
-    SendMessage(HRich, EM_SETBKGNDCOLOR, 0, (LPARAM)Theme->docBg);
-
-    // clickable links: apply CFE_LINK to each recorded range (capped)
-    {
-        SendMessage(HRich, EM_SETEVENTMASK, 0, ENM_LINK);
-        CHARFORMAT2W cf;
-        ZeroMemory(&cf, sizeof(cf));
-        cf.cbSize = sizeof(cf);
-        cf.dwMask = CFM_LINK;
-        cf.dwEffects = CFE_LINK;
-        size_t limit = Render.linkRanges.size();
-        if (limit > 5000) limit = 5000;
-        for (size_t i = 0; i < limit; i++)
-        {
-            CHARRANGE cr;
-            cr.cpMin = Render.linkRanges[i].cpMin;
-            cr.cpMax = Render.linkRanges[i].cpMax;
-            SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&cr);
-            SendMessageW(HRich, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
-        }
-    }
-
-    SendMessage(HRich, EM_SETREADONLY, TRUE, 0);
-    { CHARRANGE cr = {0, 0}; SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&cr); }
-    SendMessage(HRich, EM_SETZOOM, g_zoom, 100);
-    SendMessage(HRich, WM_SETREDRAW, TRUE, 0);
-    InvalidateRect(HRich, NULL, TRUE);
-    UpdateTitle();
+    Regenerate();
 }
 
 void CViewerWindow::SetZoom(int pct)
@@ -467,7 +490,7 @@ void CViewerWindow::SetZoom(int pct)
     if (pct < 50) pct = 50;
     if (pct > 300) pct = 300;
     g_zoom = pct;
-    SendMessage(HRich, EM_SETZOOM, g_zoom, 100);
+    if (Web != NULL) Web->SetZoomPercent(g_zoom);
 }
 
 void CViewerWindow::SelectScheme(int idx)
@@ -477,16 +500,7 @@ void CViewerWindow::SelectScheme(int idx)
     if (MdThemes[idx].dark) lstrcpynA(g_schemeDark, MdThemes[idx].id, sizeof(g_schemeDark));
     else lstrcpynA(g_schemeLight, MdThemes[idx].id, sizeof(g_schemeLight));
     RefreshSchemeChecks();
-    // preserve scroll position
-    LRESULT firstLine = SendMessage(HRich, EM_GETFIRSTVISIBLELINE, 0, 0);
-    RenderDocument();
-    LRESULT charIdx = SendMessage(HRich, EM_LINEINDEX, firstLine, 0);
-    if (charIdx >= 0)
-    {
-        CHARRANGE cr = {(LONG)charIdx, (LONG)charIdx};
-        SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&cr);
-        SendMessage(HRich, EM_SCROLLCARET, 0, 0);
-    }
+    Regenerate();
 }
 
 void CViewerWindow::CycleScheme(int dir)
@@ -501,37 +515,27 @@ void CViewerWindow::DoFind(BOOL forward, BOOL prompt)
 {
     if (prompt || FindText[0] == 0)
     {
+        wchar_t prev[256];
+        lstrcpynW(prev, FindText, 256);
         if (DialogBoxParamW(HLanguage, MAKEINTRESOURCEW(IDD_FIND), HWindow, FindDlgProc,
                             (LPARAM)FindText) != IDOK)
             return;
         if (FindText[0] == 0) return;
+        // (re)generate marks for the (possibly new) term and reset the cursor
+        FindIndex = -1;
+        Regenerate();
     }
-
-    CHARRANGE sel;
-    SendMessage(HRich, EM_EXGETSEL, 0, (LPARAM)&sel);
-    FINDTEXTEXW ft;
-    ZeroMemory(&ft, sizeof(ft));
-    ft.lpstrText = FindText;
-    DWORD flags = forward ? FR_DOWN : 0;
-    if (forward) { ft.chrg.cpMin = sel.cpMax; ft.chrg.cpMax = -1; }
-    else { ft.chrg.cpMin = sel.cpMin; ft.chrg.cpMax = 0; }
-
-    LRESULT pos = SendMessageW(HRich, EM_FINDTEXTEXW, flags, (LPARAM)&ft);
-    if (pos < 0)
+    if (Html.matchCount <= 0)
     {
-        // wrap once
-        if (forward) { ft.chrg.cpMin = 0; ft.chrg.cpMax = -1; }
-        else { ft.chrg.cpMin = -1; ft.chrg.cpMax = 0; }
-        pos = SendMessageW(HRich, EM_FINDTEXTEXW, flags, (LPARAM)&ft);
-    }
-    if (pos >= 0)
-    {
-        SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&ft.chrgText);
-        SendMessage(HRich, EM_SCROLLCARET, 0, 0);
-    }
-    else
         SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_NOT_FOUND), LoadStr(IDS_WINDOW_TITLE),
                                          MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    FindIndex += forward ? 1 : -1;
+    if (FindIndex < 0) FindIndex = Html.matchCount - 1;
+    if (FindIndex >= Html.matchCount) FindIndex = 0;
+    std::wstring frag = L"mdfind-" + std::to_wstring(FindIndex);
+    if (Web != NULL && Web->IsReady()) Web->Navigate(frag);
 }
 
 void CViewerWindow::OpenAsText()
@@ -548,73 +552,68 @@ void CViewerWindow::OpenAsText()
     SalamanderGeneral->ViewFileInPluginViewer(NULL, &data, FALSE, NULL, Name, err);
 }
 
-void CViewerWindow::ActivateLinkByCp(long cp)
+void CViewerWindow::EngineFailed()
 {
-    int linkId = -1;
-    for (const MdLinkRange& r : Render.linkRanges)
-        if (cp >= r.cpMin && cp < r.cpMax) { linkId = r.linkId; break; }
-    if (linkId < 0 || linkId >= (int)Render.links.size()) return;
-    const MdLinkEntry& e = Render.links[linkId];
+    SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_ENGINE_UNAVAILABLE),
+                                     LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONWARNING);
+    OpenAsText();
+    DestroyWindow(HWindow);
+}
 
-    // internal anchor -> scroll
-    if (e.internalAnchor)
+// Handles a cancelled navigation (link click) routed from the WebView2 host.
+void CViewerWindow::ActivateLink(const std::wstring& uri)
+{
+    const std::wstring host = L"https://mdview.invalid/";
+    if (uri.compare(0, host.size(), host) == 0)
     {
-        for (const MdAnchorEntry& a : Render.anchors)
-            if (a.slug == e.url)
-            {
-                CHARRANGE cr = {a.charPos, a.charPos};
-                SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&cr);
-                SendMessage(HRich, EM_SCROLLCARET, 0, 0);
-                return;
-            }
-        return; // missing anchor: no-op (FR-012)
-    }
+        // relative link inside the document
+        std::wstring rel = uri.substr(host.size());
+        size_t hash = rel.find(L'#');
+        if (hash != std::wstring::npos) rel = rel.substr(0, hash);
+        size_t q = rel.find(L'?');
+        if (q != std::wstring::npos) rel = rel.substr(0, q);
+        if (rel.empty() || rel == L"doc.html") return; // our own document
+        rel = UriDecode(rel);
 
-    // scheme allowlist
-    std::wstring url = e.url;
-    size_t colon = url.find(L':');
-    bool hasScheme = false;
-    std::wstring scheme;
-    if (colon != std::wstring::npos)
-    {
-        scheme = url.substr(0, colon);
-        hasScheme = !scheme.empty();
-        for (wchar_t& ch : scheme) ch = (wchar_t)towlower(ch);
-        for (wchar_t ch : scheme)
-            if (!iswalpha(ch)) { hasScheme = false; break; }
-    }
-
-    if (hasScheme)
-    {
-        if (scheme == L"http" || scheme == L"https" || scheme == L"mailto" || scheme == L"ftp")
-            ShellExecuteW(HWindow, L"open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        else
-            SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_LINK_BLOCKED),
-                                             LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONWARNING);
-        return;
-    }
-
-    // relative local link: open .md/.markdown in a new mdview window; others = blocked
-    std::wstring lower = url;
-    for (wchar_t& ch : lower) ch = (wchar_t)towlower(ch);
-    bool isMd = (lower.size() > 3 && lower.substr(lower.size() - 3) == L".md") ||
-                (lower.size() > 9 && lower.substr(lower.size() - 9) == L".markdown");
-    // strip a #fragment
-    size_t hash = url.find(L'#');
-    if (hash != std::wstring::npos) url = url.substr(0, hash);
-    if (isMd && !DocDir.empty() && url.find(L':') == std::wstring::npos &&
-        url.substr(0, 2) != L"\\\\")
-    {
+        std::wstring lower = rel;
+        for (wchar_t& ch : lower) ch = (wchar_t)towlower(ch);
+        bool isMd = (lower.size() > 3 && lower.substr(lower.size() - 3) == L".md") ||
+                    (lower.size() > 9 && lower.substr(lower.size() - 9) == L".markdown");
+        for (wchar_t& ch : rel) if (ch == L'/') ch = L'\\';
+        if (isMd && !DocDir.empty() && rel.find(L':') == std::wstring::npos && rel.compare(0, 2, L"\\\\") != 0)
+        {
+            std::wstring full = DocDir;
+            if (!full.empty() && full.back() != L'\\') full += L'\\';
+            full += rel;
+            char* u8 = SplWToU8Alloc(full.c_str());
+            if (u8 != NULL) { SpawnViewer(u8, -1, -1, FALSE, NULL, NULL); free(u8); }
+            return;
+        }
+        // other local target: show the resolved path only (never launched)
         std::wstring full = DocDir;
         if (!full.empty() && full.back() != L'\\') full += L'\\';
-        for (wchar_t& ch : url) if (ch == L'/') ch = L'\\';
-        full += url;
-        char* u8 = SplWToU8Alloc(full.c_str());
-        if (u8 != NULL) { SpawnViewer(u8, -1, -1, FALSE, NULL, NULL); free(u8); }
+        full += rel;
+        std::wstring msg = full + L"\n\n";
+        char* u8 = SplWToU8Alloc(msg.c_str());
+        SalamanderGeneral->SalMessageBox(HWindow, u8 ? u8 : LoadStr(IDS_LINK_BLOCKED),
+                                         LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONINFORMATION);
+        if (u8) free(u8);
         return;
     }
-    SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_LINK_BLOCKED),
-                                     LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONWARNING);
+
+    // absolute scheme: allowlist http/https/mailto only (no ftp; FR-034)
+    std::wstring scheme;
+    size_t colon = uri.find(L':');
+    if (colon != std::wstring::npos && colon > 0)
+    {
+        scheme = uri.substr(0, colon);
+        for (wchar_t& ch : scheme) ch = (wchar_t)towlower(ch);
+    }
+    if (scheme == L"http" || scheme == L"https" || scheme == L"mailto")
+        ShellExecuteW(HWindow, L"open", uri.c_str(), NULL, NULL, SW_SHOWNORMAL);
+    else
+        SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_LINK_BLOCKED),
+                                         LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONWARNING);
 }
 
 void CViewerWindow::OpenFile(const char* name, BOOL setLock)
@@ -627,7 +626,6 @@ void CViewerWindow::OpenFile(const char* name, BOOL setLock)
     free(Name);
     Name = _strdup(name);
 
-    // display path + directory
     WCHAR* wp = SplU8ToWAlloc(name);
     if (wp != NULL)
     {
@@ -646,45 +644,44 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
-        HRich = CreateWindowExW(0, L"RICHEDIT50W", L"",
-                                WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_NOHIDESEL,
-                                0, 0, 0, 0, HWindow, (HMENU)ID_RICHEDIT, DLLInstance, NULL);
-        if (HRich == NULL)
-            return -1;
-        SendMessageW(HRich, EM_AUTOURLDETECT, FALSE, 0);
-        SendMessage(HRich, EM_SETEVENTMASK, 0, ENM_LINK);
-        SendMessage(HRich, EM_EXLIMITTEXT, 0, 0x7FFFFFFF);
         BuildMenu();
         ViewerWindowQueue.Add(new CWindowQueueItem(HWindow));
+
+        if (!CMdWebHost::RuntimeAvailable())
+        {
+            // defer the fatal path until after OpenFile set Name (so OpenAsText works)
+            PostMessage(HWindow, WM_APP + 1, 0, 0);
+            break;
+        }
+        Web = new CMdWebHost();
+        CMdWebHost::Callbacks cb;
+        cb.OnReady = [this]() {
+            if (RenderPending)
+            {
+                RenderPending = false;
+                Web->SetDocument(&Html, DocDir);
+                Web->SetZoomPercent(g_zoom);
+                Web->Navigate();
+            }
+        };
+        cb.OnActivateLink = [this](const std::wstring& uri) { ActivateLink(uri); };
+        cb.OnInitFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
+        cb.OnProcessFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
+        Web->Create(HWindow, UserDataFolder(), cb);
         break;
     }
+
+    case WM_APP + 1: // engine unavailable / failed -> fall back to text viewer
+        EngineFailed();
+        return 0;
 
     case WM_SIZE:
     {
-        if (HRich != NULL)
+        if (Web != NULL)
         {
             RECT r;
             GetClientRect(HWindow, &r);
-            MoveWindow(HRich, 0, 0, r.right, r.bottom, TRUE);
-        }
-        break;
-    }
-
-    case WM_SETFOCUS:
-        if (HRich != NULL) SetFocus(HRich);
-        break;
-
-    case WM_NOTIFY:
-    {
-        NMHDR* nh = (NMHDR*)lParam;
-        if (nh != NULL && nh->idFrom == ID_RICHEDIT && nh->code == EN_LINK)
-        {
-            ENLINK* el = (ENLINK*)lParam;
-            if (el->msg == WM_LBUTTONUP)
-            {
-                ActivateLinkByCp(el->chrg.cpMin);
-                return TRUE;
-            }
+            Web->Resize(r.right, r.bottom);
         }
         break;
     }
@@ -701,12 +698,11 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case CM_FILE_CLOSE: DestroyWindow(HWindow); return 0;
         case CM_FILE_OPENTEXT: OpenAsText(); return 0;
-        case CM_EDIT_COPY: SendMessage(HRich, WM_COPY, 0, 0); return 0;
-        case CM_EDIT_SELALL: { CHARRANGE cr = {0, -1}; SendMessage(HRich, EM_EXSETSEL, 0, (LPARAM)&cr); return 0; }
         case CM_EDIT_FIND: DoFind(TRUE, TRUE); return 0;
         case CM_EDIT_FINDNEXT: DoFind(TRUE, FALSE); return 0;
         case CM_EDIT_FINDPREV: DoFind(FALSE, FALSE); return 0;
-        case CM_VIEW_FOLLOWSYS: g_followSys = !g_followSys; RefreshSchemeChecks(); RenderDocument(); return 0;
+        case CM_VIEW_FOLLOWSYS: g_followSys = !g_followSys; RefreshSchemeChecks(); Regenerate(); return 0;
+        case CM_VIEW_REMOTEIMG: RemoteAllowed = !RemoteAllowed; RefreshSchemeChecks(); Regenerate(); return 0;
         case CM_VIEW_ZOOMIN: SetZoom(g_zoom + 10); return 0;
         case CM_VIEW_ZOOMOUT: SetZoom(g_zoom - 10); return 0;
         case CM_VIEW_ZOOMRESET: SetZoom(100); return 0;
@@ -717,20 +713,9 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
 
-    case WM_MOUSEWHEEL:
-    {
-        if (GetKeyState(VK_CONTROL) & 0x8000)
-        {
-            short delta = GET_WHEEL_DELTA_WPARAM(wParam);
-            SetZoom(g_zoom + (delta > 0 ? 10 : -10));
-            return 0;
-        }
-        break;
-    }
-
     case WM_USER_VIEWERCFGCHNG:
         RefreshSchemeChecks();
-        RenderDocument();
+        Regenerate();
         return 0;
 
     case WM_DESTROY:
@@ -740,6 +725,7 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             g_wndPlacement.length = sizeof(WINDOWPLACEMENT);
             GetWindowPlacement(HWindow, &g_wndPlacement);
         }
+        if (Web != NULL) Web->Destroy();
         ViewerWindowQueue.Remove(HWindow);
         PostQuitMessage(0);
         break;

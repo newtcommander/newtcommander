@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// render.h - Markdown parsing + theming + RTF generation for mdview.
-// Self-contained: no I/O, no network. See specs/020-mdview-plugin/research.md
-// (D-R2/D-R6): a pragmatic block+inline parser feeding a static RTF renderer;
-// md4c is the documented production upgrade behind this same boundary.
+// render.h - color schemes, encoding detection, GitHub slug, and syntax-
+// highlight interface for mdview. Markdown -> HTML generation lives in
+// htmlgen.h; the rendering surface is WebView2 (see webview.h). The v1
+// RTF/RichEdit path was retired in feature 021.
 
 #pragma once
 
@@ -37,7 +37,7 @@ const MdTheme* MdThemeById(const char* id);    // nullptr if unknown
 const MdTheme* MdThemeDefault(bool dark);      // paper / graphite
 int MdThemeIndex(const MdTheme* t);
 
-// --- Encoding detection (research.md D-R5, FR-050) -------------------------
+// --- Encoding detection (research.md R10, FR-035) -------------------------
 
 enum MdEncoding
 {
@@ -52,53 +52,20 @@ enum MdEncoding
 // Decodes raw bytes into UTF-16 'out'. Returns the detected encoding.
 MdEncoding MdDetectDecode(const BYTE* data, size_t len, std::wstring& out);
 
-// --- Render result --------------------------------------------------------
-
-struct MdLinkEntry
-{
-    std::wstring url;      // resolved target (may be an internal "#anchor")
-    bool internalAnchor;   // true => 'url' is a slug to scroll to
-};
-
-struct MdAnchorEntry
-{
-    std::wstring slug;
-    long charPos;          // approximate RichEdit character index
-};
-
-struct MdLinkRange
-{
-    long cpMin, cpMax;     // RichEdit character range of the clickable text
-    int linkId;            // index into 'links'
-};
-
-struct MdRenderResult
-{
-    std::string rtf;                    // RTF bytes fed to RichEdit via EM_STREAMIN
-    std::vector<MdLinkEntry> links;
-    std::vector<MdAnchorEntry> anchors;
-    std::vector<MdLinkRange> linkRanges;
-};
+// --- limits (FR-055) ------------------------------------------------------
 
 struct MdRenderLimits
 {
-    size_t maxDepth = 64;               // FR-092 nesting cap
-    size_t maxNodesText = 40u * 1024 * 1024; // output cap safety
+    size_t maxDepth = 64;                     // nesting cap
+    size_t maxNodesText = 40u * 1024 * 1024;  // output byte cap
 };
 
-// Renders 'md' (UTF-16) with 'theme' into 'out'. Pure; never throws on
-// malformed input (best-effort, FR-082). 'docDir' is the directory of the
-// source file (UTF-16, long-path safe) used only to classify image refs.
-void MdRenderMarkdown(const std::wstring& md, const MdTheme& theme,
-                      const std::wstring& docDir, MdRenderResult& out,
-                      const MdRenderLimits& lim = MdRenderLimits());
-
-// GitHub-style heading slug (Unicode lowercase, keep letters/digits/-/_/space
-// then spaces->'-'; Czech diacritics preserved). Exposed for testing.
+// GitHub-style heading slug (lowercase, keep letters/digits/-/_ then spaces
+// -> '-'; Czech diacritics preserved). Exposed for testing and htmlgen.
 std::wstring MdSlug(const std::wstring& headingText);
 
 // --- syntax highlighting (highlight.cpp) ----------------------------------
-// Color-table indices shared with render.cpp's RTF color table order.
+// Stable token-class indices consumed by htmlgen's MDCF_*->CSS-class adapter.
 #define MDCF_KEYWORD 15
 #define MDCF_STRING  16
 #define MDCF_NUMBER  17
@@ -113,6 +80,6 @@ struct HlRun
     int colorCf; // one of MDCF_*
 };
 
-// Best-effort lexical highlighting for the tier-1 languages (FR-013).
+// Best-effort lexical highlighting for the tier-1 languages (FR-005).
 // Unknown/absent language => 'runs' left empty (plain block).
 void HighlightCode(const std::wstring& code, const std::string& lang, std::vector<HlRun>& runs);

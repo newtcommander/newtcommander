@@ -129,11 +129,19 @@
     </ClCompile>
     <ClCompile Include="..\..\shared\winliblt.cpp">
     </ClCompile>
+    <ClCompile Include="..\..\..\common\dep\md4c\md4c.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ObjectFileName>$(IntDir)lib_md4c.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\mdview.cpp">
     </ClCompile>
     <ClCompile Include="..\render.cpp">
     </ClCompile>
     <ClCompile Include="..\highlight.cpp">
+    </ClCompile>
+    <ClCompile Include="..\htmlgen.cpp">
+    </ClCompile>
+    <ClCompile Include="..\webview.cpp">
     </ClCompile>
     <ClCompile Include="..\viewer.cpp">
     </ClCompile>
@@ -170,6 +178,10 @@
     <ClInclude Include="..\mdview.h">
     </ClInclude>
     <ClInclude Include="..\render.h">
+    </ClInclude>
+    <ClInclude Include="..\htmlgen.h">
+    </ClInclude>
+    <ClInclude Include="..\webview.h">
     </ClInclude>
     <ClInclude Include="..\viewer.h">
     </ClInclude>

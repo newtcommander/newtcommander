@@ -1,0 +1,6 @@
+# generated test output / build artifacts
+sample.html
+*.obj
+*.exe
+*.ilk
+*.pdb

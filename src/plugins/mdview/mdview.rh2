@@ -39,6 +39,7 @@
 #define IDS_MENU_VIEW_ZOOMIN     2023
 #define IDS_MENU_VIEW_ZOOMOUT    2024
 #define IDS_MENU_VIEW_ZOOMRESET  2025
+#define IDS_MENU_VIEW_REMOTEIMG  2026
 #define IDS_MENU_HELP            2030
 #define IDS_MENU_HELP_ABOUT      2031
 
@@ -53,6 +54,7 @@
 #define IDS_NOT_FOUND            2204
 #define IDS_LINK_BLOCKED         2205
 #define IDS_WINDOW_TITLE         2206
+#define IDS_ENGINE_UNAVAILABLE   2207
 
 #define IDB_PLUGINICO            1000
 

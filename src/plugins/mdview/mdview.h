@@ -43,6 +43,7 @@ extern WINDOWPLACEMENT g_wndPlacement;
 #define CM_HELP_ABOUT      112
 #define CM_NEXTFILE        113
 #define CM_PREVFILE        114
+#define CM_VIEW_REMOTEIMG  115
 #define CM_SCHEME_FIRST    200 // 200..209 (one per theme)
 #define CM_SCHEME_NEXT     210
 #define CM_SCHEME_PREV     211

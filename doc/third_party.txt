@@ -95,3 +95,20 @@ Copyright (c) 2007 Eli Fant
 Copyright (c) 2009-2019 Daniel Stenberg
 Copyright (c) 2010 Simon Josefsson
 Copyright (c) The libssh2 project and its contributors.
+
+=== md4c ===
+The Markdown Viewer (mdview) plugin uses the MD4C Markdown parser
+(https://github.com/mity/md4c), a single-file CommonMark 0.31 + GFM parser.
+MD4C is distributed under the MIT license (see doc\license\license_mit.txt and
+src\common\dep\md4c\LICENSE.md).
+Copyright (c) 2016-2026 Martin Mitas
+
+=== Microsoft Edge WebView2 ===
+The Markdown Viewer (mdview) plugin renders through the Microsoft Edge WebView2
+control. The WebView2 SDK (version 1.0.4078.44; headers +
+WebView2LoaderStatic.lib) is vendored under src\common\dep\webview2\ and is
+distributed under a BSD-3-Clause style license (see
+src\common\dep\webview2\LICENSE.txt). The WebView2 Evergreen Runtime is a
+Windows 11 operating-system component and is not distributed with Open
+Salamander.
+Copyright (C) Microsoft Corporation. All rights reserved.

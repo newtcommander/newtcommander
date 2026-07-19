@@ -51,8 +51,80 @@ Feature 020. Spec/plan/tasks: `specs/020-mdview-plugin/`.
 6. Contrast values are hand-tuned; the automated FR-061 gate check is a
    documented follow-up.
 
-## Key files
+## Key files (v1)
 
 `mdview.cpp` entry/interface/config · `viewer.cpp/.h` window+RichEdit ·
 `render.cpp/.h` parser+themes+RTF · `highlight.cpp` lexer · resources in
 `*.rh2`/`*.rc`/`lang/`.
+
+---
+
+# v2 — Feature 021: WebView2 HTML rendering surface
+
+Spec/plan/tasks: `specs/021-mdview-html-renderer/`. Analysis:
+`specs/020-mdview-plugin/analysis/html-renderer.md`. The v1 RTF/RichEdit path
+was **retired** (single HTML backend, FR-038a). Feature-020 Decisions Q1/Q2 were
+formally amended (owner-ratified) to allow rendered raw HTML + a browser-class
+engine.
+
+## What v2 implements
+
+- **Pipeline**: file → `MdDetectDecode` (kept) → UTF-16 → UTF-8 → **md4c**
+  (vendored `src/common/dep/md4c/`, MIT, `MD_DIALECT_GITHUB`, raw HTML NOT
+  suppressed) → custom `MD_PARSER` renderer **`htmlgen.cpp`** → self-contained
+  HTML document + per-theme CSS → **WebView2** (`webview.cpp` `CMdWebHost`).
+- **Rendering surface**: embedded WebView2 (Evergreen, Win11 OS component). SDK
+  vendored at `src/common/dep/webview2/` (headers + `WebView2LoaderStatic.lib`
+  x86/x64, v1.0.4078.44, BSD-3). Runtime is an OS component (not distributed).
+- **Security lockdown** (FR-050..057, by configuration + test): scripts off;
+  context-menu/devtools/status-bar/error-page off; browser-accel-keys off; zoom
+  control off; autofill/password/SmartScreen/host-objects/web-message/pinch/
+  swipe off; `--disable-background-networking`. Content served from a private
+  virtual host `https://mdview.invalid/` via `WebResourceRequested` with an
+  `AddWebResourceRequestedFilter("*")` **default-deny** net (no content-triggered
+  network). `NavigationStarting`/`NewWindowRequested` cancel all navigation
+  except the document; `ProcessFailed` → text-viewer fallback.
+- **Raw HTML** rendered natively (FR-020); **no sanitizer** (FR-022) — safety is
+  the lockdown. Text is HTML-escaped (the XSS boundary); `MD_TEXT_HTML`/
+  `MD_BLOCK_HTML` are emitted verbatim.
+- **Tables** = real grids with per-column alignment; **margins/reading measure**
+  (`max-width:46rem`, full-width toggle); **images**: local relative served by
+  the interceptor, remote blocked + placeholder until per-document consent
+  (View → Load Remote Images), absolute/UNC/traversal refused; **syntax
+  highlighting** via `highlight.cpp` → `hl-*` CSS classes.
+- **Parity**: zoom (`put_ZoomFactor`, persisted), 10 schemes + follow-system
+  (F9), script-free **find** (`<mark id="mdfind-N">` + `#fragment`, `mark:target`
+  CSS), accelerators routed via `add_AcceleratorKeyPressed` → `CM_*`, link gate
+  (internal `#anchor` native; local `.md` → new window; other local → path-only;
+  http/https/mailto → ShellExecute, **no ftp**), encoding/long-path/size-gate/
+  `OpenAsText` kept. Engine unavailable/init-fail → error + text viewer.
+
+## Build integration
+
+`mdview.props`: WebView2 include + `lib\$(ShortPlatform)` dir +
+`WebView2LoaderStatic.lib;shlwapi.lib;ole32.lib;winhttp.lib;version.lib`; WINVER
+raised to `0x0A00`. `mdview.vcxproj`: `md4c.c` (NotUsing PCH + ObjectFileName),
+`htmlgen.cpp`, `webview.cpp`. No changes to sln/slnf/plugins.cfg/build.cmd.
+**Note**: `<wrl.h>`/WebView2 headers are included in `webview.cpp` with the debug
+`new` macro suspended (`#pragma push_macro/#undef new`) — WRL's implements.h is
+incompatible with the leak-tracking macro.
+
+## Tests
+
+`tests/mdview_htmlgen_test/` — standalone console harness (`test_main.cpp`, 25
+assertions: tables/alignment, slugs, code+lang, lists/tasks, escaping, raw-HTML
+pass-through, local-image rewrite, remote block + consent, find marks, wrapper/
+CSS) + `dump_main.cpp` (md → html dumper) + `sample.md`. Build per
+`specs/021-mdview-html-renderer/quickstart.md`. All 25 pass. Debug x64 `mdview.spl`
++ `english.slg` build clean.
+
+## v2 follow-ups / known limitations
+
+- **Ctrl+wheel zoom** not wired (keyboard zoom works); Ctrl+C/Ctrl+A rely on
+  WebView2 native handling (menu Copy/Select-All items were removed).
+- Scheme/consent change re-navigates (scroll resets); scroll-restore is a
+  follow-up.
+- Remote-image consent is per-document/session (no global) and fetches via
+  WinHTTP; consent is a View-menu toggle.
+- **Runtime GUI verification (F3 in the app)** is the one manual step — as with
+  every prior mdview feature — pending a human at the keyboard.

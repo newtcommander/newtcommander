@@ -1,0 +1,6 @@
+Microsoft.Web.WebView2 SDK
+Version: 1.0.4078.44
+Source: https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.4078.44
+License: BSD-3-Clause style (see LICENSE.txt)
+Vendored: headers (WebView2.h, WebView2EnvironmentOptions.h) + WebView2LoaderStatic.lib (x64,x86).
+Runtime: WebView2 Evergreen Runtime (Windows 11 OS component; not distributed).

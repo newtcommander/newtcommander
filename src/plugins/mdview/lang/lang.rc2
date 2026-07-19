@@ -42,6 +42,7 @@ STRINGTABLE
  IDS_MENU_VIEW_ZOOMIN,    "Zoom &In\tCtrl++"
  IDS_MENU_VIEW_ZOOMOUT,   "Zoom &Out\tCtrl+-"
  IDS_MENU_VIEW_ZOOMRESET, "&Reset Zoom\tCtrl+0"
+ IDS_MENU_VIEW_REMOTEIMG, "Load &Remote Images"
  IDS_MENU_HELP,           "&Help"
  IDS_MENU_HELP_ABOUT,     "&About Markdown Viewer"
 
@@ -63,6 +64,7 @@ STRINGTABLE
  IDS_NOT_FOUND,           "Text not found."
  IDS_LINK_BLOCKED,        "This link was blocked for security reasons."
  IDS_WINDOW_TITLE,        "Markdown Viewer"
+ IDS_ENGINE_UNAVAILABLE,  "The WebView2 runtime is not available. Opening the file as plain text instead."
 }
 
 IDD_FIND DIALOGEX 0, 0, 220, 60

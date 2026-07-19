@@ -622,3 +622,28 @@ Defaults adopted in the spec (confirmed; may still be tuned at plan phase):
 | D10 | Debug failure-injection hook | Included (debug builds only) |
 | D11 | Performance targets | PR-1/PR-2/PR-4 acceptance-blocking; others advisory |
 | D12 | Default schemes | Paper (light), Graphite (dark) |
+
+### Amendment 2026-07-19 (feature 021 — HTML rendering surface)
+
+Feature [021-mdview-html-renderer](../021-mdview-html-renderer/spec.md) evolves
+the v1 rendering surface. Ratified by the project owner's directive to
+implement it. Two v1 decisions above are superseded for v2 (rationale and
+per-invariant enforcement in
+[analysis §4.1.5 / §9](analysis/html-renderer.md) and
+`021 spec.md` FR-070):
+
+- **Q2 amended** — "Static script-free renderer" is superseded by adopting a
+  **browser-class OS HTML engine (WebView2 / Evergreen, a Windows 11 OS
+  component)**. The ten security invariants remain non-negotiable; their
+  enforcement class changes from *by construction* to *by configuration +
+  re-verification test* (per-invariant lockdown table + a debug self-test
+  corpus run on runtime version bumps).
+- **Q1 amended** — "Raw HTML = inert literal" is superseded by **rendering all
+  embedded HTML natively**, with active content (scripts, event handlers,
+  forms, iframes, remote refs) kept inert by the engine lockdown rather than by
+  a sanitizer/whitelist (021 FR-022).
+
+The v1 RTF/RichEdit implementation is retired in favor of the single HTML
+backend; on engine init failure the viewer falls back to the internal text
+viewer (021 FR-038a). Q3 (local `.md` → new window) and the security invariants
+are carried forward unchanged.
