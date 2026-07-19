@@ -24,6 +24,7 @@ public:
         std::function<void(const std::wstring&)> OnActivateLink; // navigation gate
         std::function<void()> OnInitFailed;                // env/controller/runtime failure
         std::function<void()> OnProcessFailed;             // renderer crashed
+        std::function<void(int)> OnZoomChanged;            // engine-driven zoom (percent)
     };
 
     CMdWebHost();
@@ -34,6 +35,7 @@ public:
     bool IsReady() const;
     void Resize(int cx, int cy);
     void SetZoomPercent(int pct);
+    void Focus(); // move keyboard focus into the rendered content
 
     // Sets the document served by the interceptor (does not navigate).
     void SetDocument(const MdHtmlResult* doc, const std::wstring& docDir);

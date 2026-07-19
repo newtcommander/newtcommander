@@ -128,3 +128,39 @@ CSS) + `dump_main.cpp` (md → html dumper) + `sample.md`. Build per
   WinHTTP; consent is a View-menu toggle.
 - **Runtime GUI verification (F3 in the app)** is the one manual step — as with
   every prior mdview feature — pending a human at the keyboard.
+
+---
+
+# v2.1 — Feature 022: viewer UX fixes
+
+Spec/plan/tasks: `specs/022-mdview-viewer-ux-fixes/`. Six defects found in
+feature-021 GUI testing, all fixed in `webview.{h,cpp}` + `viewer.{h,cpp}`:
+
+1. **Keyboard scroll after F3** — WebView2 content now receives focus via
+   `controller->MoveFocus(PROGRAMMATIC)` at controller-ready, on every
+   `NavigationCompleted`, and on the window's `WM_SETFOCUS`. Arrows/PgUp/PgDn
+   work without a click.
+2. **Ctrl+0 on the numeric keypad** — `AcceleratorKeyPressed` and the frame
+   accelerator table now accept `VK_NUMPAD0` as well as `'0'` for zoom reset.
+3. **Zoom percent in the title** — `UpdateTitle` appends ` (NNN%)`, kept live by
+   the `ZoomFactorChanged` callback.
+4. **Ctrl+mouse-wheel zoom** — `put_IsZoomControlEnabled(TRUE)` lets the engine
+   handle Ctrl+wheel and Ctrl+±; `add_ZoomFactorChanged` syncs `g_zoom` + title.
+   The accelerator handler no longer intercepts Ctrl+± (engine owns them); it
+   still owns Ctrl+0 reset (a browser-accel key disabled by the lockdown).
+5. **Search** — the v021 double-navigation race is gone. `CMdWebHost` tracks a
+   `docVersion` (bumped in `SetDocument`); `Navigate` builds
+   `doc.html?v=<version>[#frag]`, and the interceptor matches the document by
+   path (ignoring `?`/`#`). A new term reloads with fresh `<mark>`s; find
+   next/prev is a same-document `#fragment` scroll. `DoFind` rewritten to a
+   single navigation.
+6. **Open as Text (Ctrl+U)** — root cause: `ViewFileInPluginViewer` is
+   main-thread-only but the viewer runs in its own thread. Replaced with a
+   robust in-window **View Source** toggle (`SourceMode` → `MdBuildSourceHtml`
+   emits the raw text as an escaped `<pre>`; find/zoom still work). The internal
+   text viewer is now only used for the engine-unavailable fallback, invoked
+   from `ViewFile` on the main thread (which also lets the size-gate show huge
+   files cheaply as source). The unsafe cross-thread `OpenAsText` was removed.
+
+Tests: `tests/mdview_htmlgen_test/` extended to 29 assertions (source view +
+find-in-source). Debug x64 builds clean. GUI smoke test pending user.

@@ -44,3 +44,10 @@ bool MdRenderHtml(const std::string& mdUtf8, const MdTheme& theme,
 // Generates the inline stylesheet (CSS variables from the theme + base rules:
 // body inset, reading measure, tables, code, blockquote, images, marks).
 std::string MdBuildThemeCss(const MdTheme& theme);
+
+// Renders the raw source text 'srcUtf8' as an inert, escaped <pre> document
+// (the "View Source" / Open-as-Text mode). No Markdown parsing; 'findTerm'
+// wraps matches in <mark id="mdfind-N"> exactly like MdRenderHtml so find works
+// identically on the source. Never throws.
+bool MdBuildSourceHtml(const std::string& srcUtf8, const MdTheme& theme,
+                       MdHtmlResult& out, const std::wstring& findTerm = L"");

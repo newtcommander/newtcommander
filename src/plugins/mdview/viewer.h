@@ -30,6 +30,7 @@ public:
     int FindIndex;            // current match for find next/prev
     bool RemoteAllowed;       // per-document remote-image consent (D2)
     bool RenderPending;       // set before the controller is ready
+    bool SourceMode;          // "View Source" (Ctrl+U): raw text instead of rendered
 
     int EnumFilesSourceUID;
     int EnumFilesCurrentIndex;
@@ -47,13 +48,14 @@ protected:
     void BuildMenu();
     void RefreshSchemeChecks();
     const MdTheme* EffectiveTheme();
-    void Regenerate(const std::wstring& fragment = std::wstring());
+    void RebuildHtml();                                        // (re)generate Html only
+    void ShowDocument(const std::wstring& fragment = std::wstring()); // serve + navigate
+    void Regenerate(const std::wstring& fragment = std::wstring());   // RebuildHtml + ShowDocument
     void RenderDocument();
     void SetZoom(int pct);
     void SelectScheme(int idx);
     void CycleScheme(int dir);
     void DoFind(BOOL forward, BOOL prompt);
-    void OpenAsText();
     void ActivateLink(const std::wstring& uri);
     void UpdateTitle();
     void EngineFailed();

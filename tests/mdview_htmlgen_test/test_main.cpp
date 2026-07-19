@@ -122,6 +122,22 @@ int main()
         Check("theme CSS variables", Has(h, "--bg:") && Has(h, ".hl-kw"));
         Check("reading measure", Has(h, "max-width:46rem"));
     }
+    // US4: View Source mode — raw text escaped in <pre>, NOT parsed as Markdown
+    {
+        const MdTheme* t = MdThemeById("paper");
+        MdHtmlResult r;
+        MdBuildSourceHtml("# Heading\n<b>x</b>\n", *t, r, L"");
+        Check("source in <pre>", Has(r.html, "<pre class=\"mdsource\">"));
+        Check("source not parsed (literal #, no <h1>)", Has(r.html, "# Heading") && !Has(r.html, "<h1"));
+        Check("source escapes embedded HTML", Has(r.html, "&lt;b&gt;x&lt;/b&gt;"));
+    }
+    // US3: find works in source view too
+    {
+        const MdTheme* t = MdThemeById("paper");
+        MdHtmlResult r;
+        MdBuildSourceHtml("foo bar foo baz\n", *t, r, L"foo");
+        Check("source find marks", Has(r.html, "<mark id=\"mdfind-0\">") && r.matchCount == 2);
+    }
 
     printf("\n=== htmlgen test: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

@@ -98,6 +98,7 @@ BOOL InitViewer()
         {FVIRTKEY | FCONTROL, VK_OEM_MINUS, CM_VIEW_ZOOMOUT},
         {FVIRTKEY | FCONTROL, VK_SUBTRACT, CM_VIEW_ZOOMOUT},
         {FVIRTKEY | FCONTROL, '0', CM_VIEW_ZOOMRESET},
+        {FVIRTKEY | FCONTROL, VK_NUMPAD0, CM_VIEW_ZOOMRESET},
         {FVIRTKEY, VK_F9, CM_SCHEME_NEXT},
         {FVIRTKEY | FSHIFT, VK_F9, CM_SCHEME_PREV},
     };
@@ -251,6 +252,24 @@ BOOL WINAPI CPluginInterfaceForViewer::ViewFile(const char* name, int left, int 
                                                 BOOL* lockOwner, CSalamanderPluginViewerData* viewerData,
                                                 int enumFilesSourceUID, int enumFilesCurrentIndex)
 {
+    // Engine-unavailable fallback: ViewFile runs on the main thread, where the
+    // internal text viewer may legally be opened (ViewFileInPluginViewer is
+    // main-thread-only). Do this before spawning our own viewer thread.
+    if (!CMdWebHost::RuntimeAvailable())
+    {
+        CSalamanderPluginInternalViewerData data;
+        ZeroMemory(&data, sizeof(data));
+        data.Size = sizeof(data);
+        data.FileName = name;
+        data.Mode = 0;
+        data.Caption = NULL;
+        data.WholeCaption = FALSE;
+        int err = 0;
+        SalamanderGeneral->ViewFileInPluginViewer(NULL, &data, FALSE, NULL, NULL, err);
+        if (returnLock) { *lock = NULL; *lockOwner = FALSE; }
+        return TRUE;
+    }
+
     HANDLE contEvent = HANDLES(CreateEvent(NULL, FALSE, FALSE, NULL));
     if (contEvent == NULL)
         return FALSE;
@@ -315,6 +334,7 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
     FindIndex = -1;
     RemoteAllowed = false;
     RenderPending = false;
+    SourceMode = false;
     EnumFilesSourceUID = enumFilesSourceUID;
     EnumFilesCurrentIndex = enumFilesCurrentIndex;
 }
@@ -402,7 +422,11 @@ void CViewerWindow::RefreshSchemeChecks()
                        CM_SCHEME_FIRST + idx, MF_BYCOMMAND);
     CheckMenuItem(HSchemeMenu, CM_VIEW_FOLLOWSYS, MF_BYCOMMAND | (g_followSys ? MF_CHECKED : MF_UNCHECKED));
     HMENU bar = GetMenu(HWindow);
-    if (bar) CheckMenuItem(bar, CM_VIEW_REMOTEIMG, MF_BYCOMMAND | (RemoteAllowed ? MF_CHECKED : MF_UNCHECKED));
+    if (bar)
+    {
+        CheckMenuItem(bar, CM_VIEW_REMOTEIMG, MF_BYCOMMAND | (RemoteAllowed ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(bar, CM_FILE_OPENTEXT, MF_BYCOMMAND | (SourceMode ? MF_CHECKED : MF_UNCHECKED));
+    }
 }
 
 void CViewerWindow::UpdateTitle()
@@ -410,19 +434,33 @@ void CViewerWindow::UpdateTitle()
     std::wstring title = FilePathW;
     if (!title.empty()) title += L" - ";
     title += L"Markdown Viewer";
+    if (SourceMode) title += L" [Source]";
     if (Encoding == MDENC_ANSI) title += L" [ANSI]";
     else if (Encoding == MDENC_UTF16LE || Encoding == MDENC_UTF16BE) title += L" [UTF-16]";
+    wchar_t z[16];
+    _snwprintf_s(z, _TRUNCATE, L" (%d%%)", g_zoom);
+    title += z;
     SetWindowTextW(HWindow, title.c_str());
 }
 
-// Rebuild the HTML from DecodedText with the current theme/find/consent state
-// and (if the surface is ready) navigate; otherwise defer until OnReady.
-void CViewerWindow::Regenerate(const std::wstring& fragment)
+// (Re)generate Html from DecodedText with the current theme/find/consent/source
+// state, without navigating.
+void CViewerWindow::RebuildHtml()
 {
     Theme = EffectiveTheme();
-    std::string mdUtf8 = WToUtf8Str(DecodedText);
+    std::string srcUtf8 = WToUtf8Str(DecodedText);
     std::wstring findTerm = FindText[0] ? std::wstring(FindText) : std::wstring();
-    MdRenderHtml(mdUtf8, *Theme, DocDir, Html, findTerm, RemoteAllowed);
+    if (SourceMode)
+        MdBuildSourceHtml(srcUtf8, *Theme, Html, findTerm);
+    else
+        MdRenderHtml(srcUtf8, *Theme, DocDir, Html, findTerm, RemoteAllowed);
+    UpdateTitle();
+}
+
+// Serve the current Html and (if the surface is ready) navigate; otherwise
+// defer until OnReady. SetDocument bumps the doc version -> full reload.
+void CViewerWindow::ShowDocument(const std::wstring& fragment)
+{
     if (Web != NULL)
     {
         Web->SetDocument(&Html, DocDir);
@@ -430,7 +468,12 @@ void CViewerWindow::Regenerate(const std::wstring& fragment)
         if (Web->IsReady()) Web->Navigate(fragment);
         else RenderPending = true;
     }
-    UpdateTitle();
+}
+
+void CViewerWindow::Regenerate(const std::wstring& fragment)
+{
+    RebuildHtml();
+    ShowDocument(fragment);
 }
 
 void CViewerWindow::RenderDocument()
@@ -451,12 +494,19 @@ void CViewerWindow::RenderDocument()
             {
                 if (sz.QuadPart > SIZE_GATE)
                 {
+                    // Too large to render as Markdown; show the raw source
+                    // instead (reading is cheap - it is the parse/layout that the
+                    // gate protects against). Capped at 64 MB.
+                    LONGLONG cap = 64LL * 1024 * 1024;
+                    DWORD n = (DWORD)(sz.QuadPart < cap ? sz.QuadPart : cap);
+                    bytes.resize(n);
+                    DWORD rd = 0;
+                    if (ReadFile(h, n ? &bytes[0] : NULL, n, &rd, NULL)) bytes.resize(rd);
+                    else bytes.clear();
                     CloseHandle(h);
-                    if (SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_TOO_LARGE),
-                                                         LoadStr(IDS_WINDOW_TITLE),
-                                                         MB_YESNO | MB_ICONQUESTION) == IDYES)
-                        OpenAsText();
-                    DecodedText = L"# Too large\n\nThis document exceeds the render limit.";
+                    Encoding = MdDetectDecode(bytes.data(), bytes.size(), DecodedText);
+                    SourceMode = true;
+                    RefreshSchemeChecks();
                     Regenerate();
                     return;
                 }
@@ -479,8 +529,10 @@ void CViewerWindow::RenderDocument()
     Encoding = MdDetectDecode(bytes.data(), bytes.size(), DecodedText);
     if (Encoding == MDENC_BINARY)
     {
-        OpenAsText();
-        DecodedText = L"# Not a text file\n\nOpened in the text viewer instead.";
+        // CanViewFile already declines binary (cascades to the text viewer); this
+        // is a belt-and-suspenders placeholder if we are reached anyway.
+        DecodedText = L"# Not a text file\n\nThis file does not appear to be text.";
+        SourceMode = false;
     }
     Regenerate();
 }
@@ -491,6 +543,7 @@ void CViewerWindow::SetZoom(int pct)
     if (pct > 300) pct = 300;
     g_zoom = pct;
     if (Web != NULL) Web->SetZoomPercent(g_zoom);
+    UpdateTitle();
 }
 
 void CViewerWindow::SelectScheme(int idx)
@@ -515,15 +568,18 @@ void CViewerWindow::DoFind(BOOL forward, BOOL prompt)
 {
     if (prompt || FindText[0] == 0)
     {
-        wchar_t prev[256];
-        lstrcpynW(prev, FindText, 256);
         if (DialogBoxParamW(HLanguage, MAKEINTRESOURCEW(IDD_FIND), HWindow, FindDlgProc,
                             (LPARAM)FindText) != IDOK)
             return;
         if (FindText[0] == 0) return;
-        // (re)generate marks for the (possibly new) term and reset the cursor
+        // Regenerate with <mark>s for the (new) term and re-serve it. SetDocument
+        // bumps the doc version, so the single Navigate below is a full reload
+        // that carries the new marks (fixes the v021 double-navigation race).
         FindIndex = -1;
-        Regenerate();
+        RebuildHtml();
+        if (Web != NULL) Web->SetDocument(&Html, DocDir);
+        if (Html.matchCount <= 0 && Web != NULL && Web->IsReady())
+            Web->Navigate(); // reload to clear any previous term's highlights
     }
     if (Html.matchCount <= 0)
     {
@@ -534,29 +590,22 @@ void CViewerWindow::DoFind(BOOL forward, BOOL prompt)
     FindIndex += forward ? 1 : -1;
     if (FindIndex < 0) FindIndex = Html.matchCount - 1;
     if (FindIndex >= Html.matchCount) FindIndex = 0;
-    std::wstring frag = L"mdfind-" + std::to_wstring(FindIndex);
-    if (Web != NULL && Web->IsReady()) Web->Navigate(frag);
-}
-
-void CViewerWindow::OpenAsText()
-{
-    if (Name == NULL) return;
-    CSalamanderPluginInternalViewerData data;
-    ZeroMemory(&data, sizeof(data));
-    data.Size = sizeof(data);
-    data.FileName = Name;
-    data.Mode = 0;
-    data.Caption = NULL;
-    data.WholeCaption = FALSE;
-    int err = 0;
-    SalamanderGeneral->ViewFileInPluginViewer(NULL, &data, FALSE, NULL, Name, err);
+    if (Web != NULL && Web->IsReady())
+    {
+        Web->Navigate(L"mdfind-" + std::to_wstring(FindIndex));
+        Web->Focus();
+    }
 }
 
 void CViewerWindow::EngineFailed()
 {
+    // The missing-runtime case is handled up front in ViewFile on the main
+    // thread; if we reach here the controller failed to initialize despite the
+    // runtime being present. We cannot safely open the internal text viewer from
+    // this worker thread (ViewFileInPluginViewer is main-thread-only), so report
+    // and close.
     SalamanderGeneral->SalMessageBox(HWindow, LoadStr(IDS_ENGINE_UNAVAILABLE),
                                      LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONWARNING);
-    OpenAsText();
     DestroyWindow(HWindow);
 }
 
@@ -667,6 +716,7 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         cb.OnActivateLink = [this](const std::wstring& uri) { ActivateLink(uri); };
         cb.OnInitFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
         cb.OnProcessFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
+        cb.OnZoomChanged = [this](int pct) { g_zoom = pct; UpdateTitle(); };
         Web->Create(HWindow, UserDataFolder(), cb);
         break;
     }
@@ -686,6 +736,12 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
 
+    case WM_SETFOCUS:
+        // forward frame focus into the WebView2 content so keyboard scrolling
+        // (arrows / PgUp / PgDn) works without a mouse click
+        if (Web != NULL && Web->IsReady()) Web->Focus();
+        return 0;
+
     case WM_COMMAND:
     {
         int id = LOWORD(wParam);
@@ -697,7 +753,12 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         switch (id)
         {
         case CM_FILE_CLOSE: DestroyWindow(HWindow); return 0;
-        case CM_FILE_OPENTEXT: OpenAsText(); return 0;
+        case CM_FILE_OPENTEXT: // "View Source" toggle (Ctrl+U)
+            SourceMode = !SourceMode;
+            FindIndex = -1;
+            RefreshSchemeChecks();
+            Regenerate();
+            return 0;
         case CM_EDIT_FIND: DoFind(TRUE, TRUE); return 0;
         case CM_EDIT_FINDNEXT: DoFind(TRUE, FALSE); return 0;
         case CM_EDIT_FINDPREV: DoFind(FALSE, FALSE); return 0;

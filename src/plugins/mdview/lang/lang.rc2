@@ -28,7 +28,7 @@ STRINGTABLE
  IDS_FILES_FILTER,        "Markdown Files (*.md;*.markdown)|*.md;*.markdown|All Files (*.*)|*.*|"
 
  IDS_MENU_FILE,           "&File"
- IDS_MENU_FILE_OPENTEXT,  "Open as &Text\tCtrl+U"
+ IDS_MENU_FILE_OPENTEXT,  "View &Source\tCtrl+U"
  IDS_MENU_FILE_CLOSE,     "&Close\tEsc"
  IDS_MENU_EDIT,           "&Edit"
  IDS_MENU_EDIT_COPY,      "&Copy\tCtrl+C"

@@ -140,14 +140,22 @@ struct CMdWebHostImpl
     ComPtr<ICoreWebView2Environment> env;
     ComPtr<ICoreWebView2Controller> controller;
     ComPtr<ICoreWebView2> webview;
-    EventRegistrationToken navTok{}, newWinTok{}, resTok{}, procTok{}, accelTok{};
+    EventRegistrationToken navTok{}, newWinTok{}, resTok{}, procTok{}, accelTok{}, zoomTok{}, navDoneTok{};
     bool ready = false;
     bool comInit = false;
     const MdHtmlResult* doc = nullptr;
     std::wstring docDir;
     std::wstring userDataFolder;
     int pendingZoom = 100;
+    int docVersion = 0; // bumped on SetDocument; cache-busts the doc URL (search reload)
 };
+
+// the request path with any ?query / #fragment stripped
+static std::wstring PathOnly(const std::wstring& u)
+{
+    size_t q = u.find_first_of(L"?#");
+    return q == std::wstring::npos ? u : u.substr(0, q);
+}
 
 static void MakeAndSetResponse(CMdWebHostImpl* impl, ICoreWebView2WebResourceRequestedEventArgs* args,
                                const BYTE* data, size_t n, int status, const wchar_t* reason,
@@ -172,17 +180,18 @@ static void ServeRequest(CMdWebHostImpl* impl, ICoreWebView2WebResourceRequested
     if (uriRaw) CoTaskMemFree(uriRaw);
 
     const MdHtmlResult* doc = impl->doc;
+    std::wstring path = PathOnly(u);
 
-    if (u == kBase && doc != NULL)
+    if (path == kBase && doc != NULL)
     {
         MakeAndSetResponse(impl, args, (const BYTE*)doc->html.data(), doc->html.size(),
                            200, L"OK", L"Content-Type: text/html; charset=utf-8");
         return;
     }
     size_t pl = wcslen(kImgPrefix);
-    if (doc != NULL && u.compare(0, pl, kImgPrefix) == 0)
+    if (doc != NULL && path.compare(0, pl, kImgPrefix) == 0)
     {
-        int idx = _wtoi(u.c_str() + pl);
+        int idx = _wtoi(path.c_str() + pl);
         if (idx >= 0 && idx < (int)doc->images.size())
         {
             const MdImageRef& ref = doc->images[idx];
@@ -222,7 +231,7 @@ static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* 
         st->put_AreDevToolsEnabled(FALSE);
         st->put_IsStatusBarEnabled(FALSE);
         st->put_IsBuiltInErrorPageEnabled(FALSE);
-        st->put_IsZoomControlEnabled(FALSE);
+        st->put_IsZoomControlEnabled(TRUE); // engine handles Ctrl+wheel / Ctrl+-+; synced via ZoomFactorChanged
         st->put_IsWebMessageEnabled(FALSE);
         st->put_AreHostObjectsAllowed(FALSE);
         ComPtr<ICoreWebView2Settings3> st3;
@@ -291,6 +300,31 @@ static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* 
             .Get(),
         &impl->procTok);
 
+    // --- focus the content once each navigation completes (so arrows/PgUp/PgDn
+    //     scroll immediately after F3, without a mouse click) ---
+    wv->add_NavigationCompleted(
+        Callback<ICoreWebView2NavigationCompletedEventHandler>(
+            [impl](ICoreWebView2*, ICoreWebView2NavigationCompletedEventArgs*) -> HRESULT {
+                if (impl->controller)
+                    impl->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+                return S_OK;
+            })
+            .Get(),
+        &impl->navDoneTok);
+
+    // --- keep the persisted zoom + title in sync with engine-driven zoom
+    //     (Ctrl+wheel, Ctrl+-+) ---
+    ctl->add_ZoomFactorChanged(
+        Callback<ICoreWebView2ZoomFactorChangedEventHandler>(
+            [impl](ICoreWebView2Controller* sender, IUnknown*) -> HRESULT {
+                double f = 1.0;
+                if (SUCCEEDED(sender->get_ZoomFactor(&f)) && impl->cb.OnZoomChanged)
+                    impl->cb.OnZoomChanged((int)(f * 100.0 + 0.5));
+                return S_OK;
+            })
+            .Get(),
+        &impl->zoomTok);
+
     // --- accelerator routing (focus lives inside the WebView2 HWND) ---
     ctl->add_AcceleratorKeyPressed(
         Callback<ICoreWebView2AcceleratorKeyPressedEventHandler>(
@@ -312,9 +346,10 @@ static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* 
                 {
                     if (vk == 'F') cmd = CM_EDIT_FIND;
                     else if (vk == 'U') cmd = CM_FILE_OPENTEXT;
-                    else if (vk == VK_OEM_PLUS || vk == VK_ADD) cmd = CM_VIEW_ZOOMIN;
-                    else if (vk == VK_OEM_MINUS || vk == VK_SUBTRACT) cmd = CM_VIEW_ZOOMOUT;
-                    else if (vk == '0') cmd = CM_VIEW_ZOOMRESET;
+                    // Ctrl+-+ / Ctrl+wheel are handled natively by the engine
+                    // (IsZoomControlEnabled); we only own zoom RESET, because
+                    // Ctrl+0 is a browser-accelerator key disabled by the lockdown.
+                    else if (vk == '0' || vk == VK_NUMPAD0) cmd = CM_VIEW_ZOOMRESET;
                 }
                 if (cmd)
                 {
@@ -331,6 +366,7 @@ static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* 
     ctl->put_Bounds(rc);
     ctl->put_ZoomFactor(impl->pendingZoom / 100.0);
     ctl->put_IsVisible(TRUE);
+    ctl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
 
     impl->ready = true;
     if (impl->cb.OnReady) impl->cb.OnReady();
@@ -424,14 +460,28 @@ void CMdWebHost::SetDocument(const MdHtmlResult* doc, const std::wstring& docDir
 {
     p->doc = doc;
     p->docDir = docDir;
+    p->docVersion++; // content changed -> next Navigate forces a full reload
 }
 
 void CMdWebHost::Navigate(const std::wstring& fragment)
 {
     if (!p->webview) return;
+    // The ?v=<version> query makes a term change (SetDocument bumped the version)
+    // a fresh URL -> full reload with new <mark>s; a fragment-only change with the
+    // same version is a same-document scroll (find next/prev).
     std::wstring url = kBase;
+    url += L"?v=";
+    wchar_t num[16];
+    _itow_s(p->docVersion, num, 10);
+    url += num;
     if (!fragment.empty()) { url += L"#"; url += fragment; }
     p->webview->Navigate(url.c_str());
+}
+
+void CMdWebHost::Focus()
+{
+    if (p->controller)
+        p->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
 }
 
 void CMdWebHost::Destroy()

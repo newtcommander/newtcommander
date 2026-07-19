@@ -650,3 +650,61 @@ bool MdRenderHtml(const std::string& mdUtf8, const MdTheme& theme,
     out.bytesOut = out.html.size();
     return true;
 }
+
+bool MdBuildSourceHtml(const std::string& srcUtf8, const MdTheme& theme,
+                       MdHtmlResult& out, const std::wstring& findTerm)
+{
+    out.html.clear();
+    out.images.clear();
+    out.anchors.clear();
+    out.matchCount = 0;
+    out.bytesOut = 0;
+
+    std::string findLowerA;
+    if (!findTerm.empty())
+    {
+        findLowerA = WToUtf8(findTerm);
+        for (char& c : findLowerA) if (c >= 'A' && c <= 'Z') c += 32;
+    }
+
+    std::string body = "<pre class=\"mdsource\">";
+    const std::string& s = srcUtf8;
+    if (findLowerA.empty())
+    {
+        Esc(body, s.data(), s.size(), false);
+    }
+    else
+    {
+        std::string low = s;
+        for (char& c : low) if (c >= 'A' && c <= 'Z') c += 32;
+        size_t i = 0, n = s.size();
+        while (i < n)
+        {
+            size_t pos = low.find(findLowerA, i);
+            if (pos == std::string::npos) { Esc(body, s.data() + i, n - i, false); break; }
+            Esc(body, s.data() + i, pos - i, false);
+            body += "<mark id=\"mdfind-";
+            body += std::to_string(out.matchCount++);
+            body += "\">";
+            Esc(body, s.data() + pos, findLowerA.size(), false);
+            body += "</mark>";
+            i = pos + findLowerA.size();
+        }
+    }
+    body += "</pre>";
+
+    out.html = "<!doctype html>\n<html><head><meta charset=\"utf-8\">"
+               "<meta name=\"color-scheme\" content=\"";
+    out.html += theme.dark ? "dark" : "light";
+    out.html += "\"><style>\n";
+    out.html += MdBuildThemeCss(theme);
+    out.html += "\n.mdsource{white-space:pre-wrap;word-break:break-word;"
+                "font-family:Consolas,'Cascadia Mono',monospace;font-size:.95em;line-height:1.5;"
+                "color:var(--cf);background:var(--cb);border:1px solid var(--tb);"
+                "border-radius:6px;padding:14px 16px;}";
+    out.html += "\n</style></head><body><article class=\"markdown-body\">\n";
+    out.html += body;
+    out.html += "\n</article></body></html>";
+    out.bytesOut = out.html.size();
+    return true;
+}
