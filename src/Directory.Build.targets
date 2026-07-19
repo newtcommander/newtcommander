@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Feature 023: Clean Release build output (no Intermediate directory).
+
+  Every project sets IntDir to a folder *inside* its Release output directory
+  (typically "$(OutDir)Intermediate\"), which litters the shipped output tree
+  (…\salamander\Release_<plat>\) with build scaffolding. For Release only, this
+  file relocates each such intermediate directory to a sibling "obj\" root that
+  lives OUTSIDE the shipped output tree, by rewriting only the output-tree root
+  segment of IntDir and preserving the project's existing (already unique)
+  relative sub-path. Because String.Replace is a no-op when the token is absent,
+  projects whose intermediates are not under the salamander output tree (e.g.
+  the setup\ projects) are left untouched. Debug is intentionally not modified,
+  so incremental development and its Intermediate layout stay exactly as before.
+
+  This is imported after every project's property sheets (Microsoft.Cpp.targets
+  imports Directory.Build.targets last), so this assignment wins over the value
+  set in the per-project *.props files. Relocating (rather than deleting)
+  intermediates keeps incremental Release builds fast: the object/PCH cache
+  simply moves, it is not discarded.
+-->
+<Project>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <IntDir>$(IntDir.Replace('salamander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))</IntDir>
+  </PropertyGroup>
+</Project>

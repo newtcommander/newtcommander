@@ -180,6 +180,13 @@ if %BUILD_EXIT% equ 0 if not "%BUILD_FULL%"=="1" if exist "%OUT_DIR%\plugins\plu
     if errorlevel 1 set "BUILD_EXIT=1"
 )
 
+:: Release only: keep the shipped output tree free of build scaffolding
+:: (feature 023). Intermediates are relocated outside the tree by
+:: src\Directory.Build.targets and saltests is not built in Release; this
+:: removes any residual Intermediate\saltests directories a previous build
+:: (e.g. an incremental build over a pre-existing tree) left behind.
+if %BUILD_EXIT% equ 0 if /i "%BUILD_CONFIG%"=="Release" call :clean_release_tree
+
 :: Record end time
 set "END_TIME=%time%"
 
@@ -347,6 +354,22 @@ if %PLUG_COUNT% equ 0 (
     exit /b 1
 )
 echo   plugins.ver version %NEW_VER%: %PLUG_COUNT% plugins registered for auto-install
+exit /b 0
+
+:: ============================================================
+:: Release output tree cleanup (feature 023)
+:: ============================================================
+:: Removes build scaffolding from the shipped Release output tree: any
+:: directory named Intermediate (at any depth) and the saltests directory.
+:: Safe for incremental builds - the live object/PCH cache is relocated to
+:: %OPENSAL_BUILD_DIR%obj\ (outside %OUT_DIR%) by src\Directory.Build.targets,
+:: so this sweep only ever deletes stale or empty scaffolding, never the live
+:: cache. Release only; Debug intentionally keeps its Intermediate directories.
+
+:clean_release_tree
+echo.
+echo Cleaning release output tree ^(removing build scaffolding^): %OUT_DIR%
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$out='%OUT_DIR%'; if (Test-Path -LiteralPath $out) { Get-ChildItem -LiteralPath $out -Directory -Recurse -Force -Filter 'Intermediate' | Sort-Object { $_.FullName.Length } -Descending | ForEach-Object { if (Test-Path -LiteralPath $_.FullName) { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue } }; $st = Join-Path $out 'saltests'; if (Test-Path -LiteralPath $st) { Remove-Item -LiteralPath $st -Recurse -Force -ErrorAction SilentlyContinue } }"
 exit /b 0
 
 :: ============================================================
