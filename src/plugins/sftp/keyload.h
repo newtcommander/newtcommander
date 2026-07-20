@@ -28,3 +28,10 @@ CSFTPKeyFormat DetectKeyFormat(const char* keyFilePath);
 // format. When it returns FALSE, '*reasonStrId' is set to a resource id
 // naming the supported formats (used to reject e.g. .ppk v3 - FR-003).
 BOOL KeyFormatSupported(CSFTPKeyFormat fmt, int* reasonStrId);
+
+// CF-20: TRUE if the key file's header shows it is passphrase-encrypted
+// (classic PEM "Proc-Type/DEK-Info", or "BEGIN ENCRYPTED PRIVATE KEY"). Used to
+// prompt for a passphrase only when one is actually needed. OpenSSH-container
+// encryption is not detected here (cipher name is inside the base64 body), so a
+// FALSE result does not prove the key is unencrypted.
+BOOL KeyFileLooksEncrypted(const char* keyFilePath);

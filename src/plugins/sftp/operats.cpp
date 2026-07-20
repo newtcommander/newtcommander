@@ -12,6 +12,11 @@
 
 #define XFER_BUFSIZE (256 * 1024)
 
+// CF-5: cap recursion so a maliciously/accidentally deep directory tree (server-
+// or local-side) cannot exhaust the stack and crash the whole process. 128
+// levels is far beyond any real tree yet nowhere near the ~1 MB stack limit.
+#define SFTP_MAX_RECURSION 128
+
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
@@ -29,6 +34,11 @@ static BOOL WideToUtf8(const wchar_t* s, char* out, int outCount)
 // builds a Windows long-path-capable wide path from a UTF-8 path
 static void MakeLocalWidePath(const char* utf8Path, wchar_t* wide, int wideCount)
 {
+    // CF-18: leave an empty (invalid) path if the conversion fails, so a caller
+    // that does not check gets a clean CreateFileW error instead of operating on
+    // an uninitialized stack buffer.
+    if (wideCount > 0)
+        wide[0] = 0;
     Utf8ToWide(utf8Path, wide, wideCount);
 }
 
@@ -51,7 +61,44 @@ static void SanitizeLocalName(const char* name, char* out, int outSize)
     out[i] = 0;
     // reject "." / ".." which would still traverse
     if (strcmp(out, ".") == 0 || strcmp(out, "..") == 0)
+    {
         lstrcpynA(out, "_", outSize);
+        return;
+    }
+    // CF-16: strip trailing dots/spaces (Windows silently drops them, which can
+    // collapse the name onto a different existing target) and disarm reserved
+    // device basenames a hostile server could use (CON, NUL, COM1..9, LPT1..9,
+    // with or without an extension) - opening those hits a device, not a file.
+    int len = (int)strlen(out);
+    while (len > 0 && (out[len - 1] == '.' || out[len - 1] == ' '))
+        out[--len] = 0;
+    if (out[0] == 0)
+    {
+        lstrcpynA(out, "_", outSize);
+        return;
+    }
+    char base[16];
+    int b = 0;
+    for (; out[b] != 0 && out[b] != '.' && b < (int)sizeof(base) - 1; b++)
+    {
+        char u = out[b];
+        base[b] = (u >= 'a' && u <= 'z') ? (char)(u - 32) : u;
+    }
+    base[b] = 0;
+    static const char* const kReserved[] = {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"};
+    for (int r = 0; r < (int)(sizeof(kReserved) / sizeof(kReserved[0])); r++)
+    {
+        if (strcmp(base, kReserved[r]) == 0)
+        {
+            char tmp[600];
+            _snprintf_s(tmp, _TRUNCATE, "_%s", out);
+            lstrcpynA(out, tmp, outSize);
+            break;
+        }
+    }
 }
 
 enum COverwriteMode
@@ -213,14 +260,25 @@ static CXferResult DownloadOneFile(COperationCtx* ctx, const char* remotePath, c
     }
     CloseHandle(lf);
     ctx->Session->CloseHandle(h);
+    // CF-17: a freshly created/truncated target left partial on cancel/error
+    // would replace the user's original file with garbage - remove it. (Append/
+    // resume keeps the file, since the original bytes are still valid.)
+    if (res == xrFailed && !append)
+        DeleteFileW(wlocal);
     return res;
 }
 
 static CXferResult DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
-                                     unsigned long mode, BOOL isLink, unsigned __int64 size);
+                                     unsigned long mode, BOOL isLink, unsigned __int64 size, int depth);
 
-static CXferResult DownloadDir(COperationCtx* ctx, const char* remoteDir, const char* localDir)
+static CXferResult DownloadDir(COperationCtx* ctx, const char* remoteDir, const char* localDir, int depth)
 {
+    if (depth > SFTP_MAX_RECURSION) // CF-5
+    {
+        SalamanderGeneral->SalMessageBox(ctx->Parent, LoadStr(IDS_ERR_TOODEEP),
+                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        return xrFailed;
+    }
     wchar_t wdir[4096];
     MakeLocalWidePath(localDir, wdir, 4096);
     CreateDirectoryW(wdir, NULL); // ignore "already exists"
@@ -243,7 +301,7 @@ static CXferResult DownloadDir(COperationCtx* ctx, const char* remoteDir, const 
         SanitizeLocalName(e->Name, safe, sizeof(safe));            // safe local name
         _snprintf_s(lpath, _TRUNCATE, "%s\\%s", localDir, safe);
         BOOL isLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-        CXferResult r = DownloadRecursive(ctx, rpath, lpath, e->Mode, isLink, e->Size);
+        CXferResult r = DownloadRecursive(ctx, rpath, lpath, e->Mode, isLink, e->Size, depth + 1);
         if (r == xrFailed) agg = xrFailed;
         else if (r == xrSkipped && agg == xrOk) agg = xrSkipped;
     }
@@ -251,7 +309,7 @@ static CXferResult DownloadDir(COperationCtx* ctx, const char* remoteDir, const 
 }
 
 static CXferResult DownloadRecursive(COperationCtx* ctx, const char* remotePath, const char* localPath,
-                                     unsigned long mode, BOOL isLink, unsigned __int64 size)
+                                     unsigned long mode, BOOL isLink, unsigned __int64 size, int depth)
 {
     if (ctx->CheckCancel())
         return xrFailed;
@@ -270,7 +328,7 @@ static CXferResult DownloadRecursive(COperationCtx* ctx, const char* remotePath,
     }
 
     if (SFTP_S_ISDIR(mode))
-        return DownloadDir(ctx, remotePath, localPath);
+        return DownloadDir(ctx, remotePath, localPath, depth);
 
     WaitText("Downloading %s ...", PosixBaseName(remotePath));
     return DownloadOneFile(ctx, remotePath, localPath, size);
@@ -291,6 +349,7 @@ static void CollectPanelItems(int panel, TIndirectArray<CSFTPDirEntry>* items)
         if (e == NULL)
             break;
         e->Name = _strdup(SFTPRealName(it));
+        if (e->Name == NULL) { delete e; break; } // CF-19: e->Name is dereferenced later
         CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
         if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; e->Uid = d->Uid; e->Gid = d->Gid; } // feature 018: Uid/Gid seed the owner/group dialog
         e->Size = it->Size.Value;
@@ -309,8 +368,12 @@ static void CollectPanelItems(int panel, TIndirectArray<CSFTPDirEntry>* items)
                 CSFTPItemData* d = (CSFTPItemData*)it->PluginData;
                 if (d != NULL) { e->Mode = d->Mode; e->HasMode = d->HasMode; }
                 e->Size = it->Size.Value;
-                items->Add(e);
-                if (!items->IsGood()) { items->ResetState(); delete e; }
+                if (e->Name == NULL) { delete e; } // CF-19
+                else
+                {
+                    items->Add(e);
+                    if (!items->IsGood()) { items->ResetState(); delete e; }
+                }
             }
         }
     }
@@ -335,7 +398,7 @@ BOOL SFTPDownloadFromPanel(HWND parent, CSFTPSession* session, int panel,
         SanitizeLocalName(e->Name, safe, sizeof(safe));
         _snprintf_s(lpath, _TRUNCATE, "%s\\%s", targetLocalPath, safe);
         BOOL isLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-        CXferResult r = DownloadRecursive(&ctx, rpath, lpath, e->Mode, isLink, e->Size);
+        CXferResult r = DownloadRecursive(&ctx, rpath, lpath, e->Mode, isLink, e->Size, 0);
         if (r == xrFailed)
             ok = FALSE;
         else if (r == xrOk && move)
@@ -418,8 +481,23 @@ static BOOL UploadOneFile(COperationCtx* ctx, const char* localPath, const char*
     return ok;
 }
 
-static BOOL UploadDirRecursive(COperationCtx* ctx, const char* localDir, const char* remoteDir)
+static BOOL UploadDirRecursive(COperationCtx* ctx, const char* localDir, const char* remoteDir, int depth)
 {
+    if (depth > SFTP_MAX_RECURSION) // CF-5
+    {
+        SalamanderGeneral->SalMessageBox(ctx->Parent, LoadStr(IDS_ERR_TOODEEP),
+                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        return FALSE;
+    }
+    // CF-6: never traverse a local reparse point (junction/dir-symlink). Following
+    // it would pull in files from outside the selected tree, and the paired
+    // move-delete (DeleteLocalTree) would then destroy the link target's contents.
+    wchar_t wself[4096];
+    MakeLocalWidePath(localDir, wself, 4096);
+    DWORD selfAttr = GetFileAttributesW(wself);
+    if (selfAttr != INVALID_FILE_ATTRIBUTES && (selfAttr & FILE_ATTRIBUTE_REPARSE_POINT))
+        return TRUE; // skip the link; nothing to upload
+
     ctx->Session->Mkdir(remoteDir, 0755); // ignore "already exists"
 
     wchar_t wpattern[4096];
@@ -449,7 +527,7 @@ static BOOL UploadDirRecursive(COperationCtx* ctx, const char* localDir, const c
         PosixPathAppend(remoteDir, name, rpath, sizeof(rpath));
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            if (!UploadDirRecursive(ctx, lpath, rpath))
+            if (!UploadDirRecursive(ctx, lpath, rpath, depth + 1))
                 ok = FALSE;
         }
         else
@@ -464,8 +542,22 @@ static BOOL UploadDirRecursive(COperationCtx* ctx, const char* localDir, const c
 }
 
 // recursively deletes a local directory tree (for move disk->FS)
-static void DeleteLocalTree(const char* localDir)
+static void DeleteLocalTree(const char* localDir, int depth)
 {
+    if (depth > SFTP_MAX_RECURSION) // CF-5
+        return;
+    wchar_t wdir[4096];
+    MakeLocalWidePath(localDir, wdir, 4096);
+    // CF-6: if this directory is a reparse point (junction/dir-symlink), remove
+    // only the link - descending would delete the link TARGET's contents, which
+    // live outside the moved tree. Each recursion level re-checks, so nested
+    // links are handled too.
+    DWORD selfAttr = GetFileAttributesW(wdir);
+    if (selfAttr != INVALID_FILE_ATTRIBUTES && (selfAttr & FILE_ATTRIBUTE_REPARSE_POINT))
+    {
+        RemoveDirectoryW(wdir);
+        return;
+    }
     wchar_t wpattern[4096];
     char pattern[4096];
     _snprintf_s(pattern, _TRUNCATE, "%s\\*", localDir);
@@ -484,14 +576,12 @@ static void DeleteLocalTree(const char* localDir)
             wchar_t wchild[4096];
             MakeLocalWidePath(child, wchild, 4096);
             if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                DeleteLocalTree(child);
+                DeleteLocalTree(child, depth + 1);
             else
                 DeleteFileW(wchild);
         } while (FindNextFileW(hFind, &fd));
         FindClose(hFind);
     }
-    wchar_t wdir[4096];
-    MakeLocalWidePath(localDir, wdir, 4096);
     RemoveDirectoryW(wdir);
 }
 
@@ -524,7 +614,7 @@ BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
         PosixPathAppend(targetRemoteDir, PosixBaseName(name), rpath, sizeof(rpath));
         BOOL itemOk;
         if (isDir)
-            itemOk = UploadDirRecursive(&ctx, lpath, rpath);
+            itemOk = UploadDirRecursive(&ctx, lpath, rpath, 0);
         else
         {
             WaitText("Uploading %s ...", name);
@@ -537,7 +627,7 @@ BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
             wchar_t wl[4096];
             MakeLocalWidePath(lpath, wl, 4096);
             if (isDir)
-                DeleteLocalTree(lpath);
+                DeleteLocalTree(lpath, 0);
             else
                 DeleteFileW(wl);
         }
@@ -553,10 +643,16 @@ BOOL SFTPUploadToFS(HWND parent, CSFTPSession* session, const char* sourcePath,
 // delete
 // ---------------------------------------------------------------------------
 
-static BOOL DeleteRecursive(COperationCtx* ctx, const char* remotePath, unsigned long mode, BOOL isLink)
+static BOOL DeleteRecursive(COperationCtx* ctx, const char* remotePath, unsigned long mode, BOOL isLink, int depth)
 {
     if (ctx->CheckCancel())
         return FALSE;
+    if (depth > SFTP_MAX_RECURSION) // CF-5
+    {
+        SalamanderGeneral->SalMessageBox(ctx->Parent, LoadStr(IDS_ERR_TOODEEP),
+                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        return FALSE;
+    }
 
     if (!isLink && SFTP_S_ISDIR(mode))
     {
@@ -569,7 +665,7 @@ static BOOL DeleteRecursive(COperationCtx* ctx, const char* remotePath, unsigned
                 char child[4096];
                 PosixPathAppend(remotePath, e->Name, child, sizeof(child));
                 BOOL childLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-                DeleteRecursive(ctx, child, e->Mode, childLink);
+                DeleteRecursive(ctx, child, e->Mode, childLink, depth + 1);
             }
         }
         if (!ctx->Session->Rmdir(remotePath))
@@ -610,7 +706,7 @@ BOOL SFTPDeleteFromPanel(HWND parent, CSFTPSession* session, int panel, const ch
         PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
         WaitText("Deleting %s ...", e->Name);
         BOOL isLink = e->HasMode && SFTP_S_ISLNK(e->Mode);
-        if (!DeleteRecursive(&ctx, rpath, e->Mode, isLink))
+        if (!DeleteRecursive(&ctx, rpath, e->Mode, isLink, 0))
             ok = FALSE;
     }
 
@@ -623,9 +719,11 @@ BOOL SFTPDeleteFromPanel(HWND parent, CSFTPSession* session, int panel, const ch
 // ---------------------------------------------------------------------------
 
 static void ChmodRecursive(COperationCtx* ctx, const char* remotePath, unsigned long mode,
-                           BOOL isDir, BOOL recurse)
+                           BOOL isDir, BOOL recurse, int depth)
 {
     if (ctx->CheckCancel())
+        return;
+    if (depth > SFTP_MAX_RECURSION) // CF-5
         return;
     if (!ctx->Session->Chmod(remotePath, mode))
     {
@@ -645,7 +743,7 @@ static void ChmodRecursive(COperationCtx* ctx, const char* remotePath, unsigned 
                     continue; // do not chmod through symlinks
                 char child[4096];
                 PosixPathAppend(remotePath, e->Name, child, sizeof(child));
-                ChmodRecursive(ctx, child, mode, SFTP_S_ISDIR(e->Mode), recurse);
+                ChmodRecursive(ctx, child, mode, SFTP_S_ISDIR(e->Mode), recurse, depth + 1);
             }
         }
     }
@@ -686,7 +784,7 @@ BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, con
         char rpath[4096];
         PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
         BOOL itemIsDir = e->HasMode && SFTP_S_ISDIR(e->Mode);
-        ChmodRecursive(&ctx, rpath, mode, itemIsDir, recurse);
+        ChmodRecursive(&ctx, rpath, mode, itemIsDir, recurse, 0);
         if (setTime)
             session->SetMTime(rpath, mtime);
     }
@@ -699,9 +797,11 @@ BOOL SFTPChangeAttrsFromPanel(HWND parent, CSFTPSession* session, int panel, con
 // subtree when requested (mirrors ChmodRecursive; skips symlinks).
 static void ChownRecursive(COperationCtx* ctx, const char* remotePath,
                            unsigned long uid, unsigned long gid, BOOL setUid, BOOL setGid,
-                           BOOL isDir, BOOL recurse)
+                           BOOL isDir, BOOL recurse, int depth)
 {
     if (ctx->CheckCancel())
+        return;
+    if (depth > SFTP_MAX_RECURSION) // CF-5
         return;
     if (!ctx->Session->Chown(remotePath, uid, gid, setUid, setGid))
     {
@@ -721,7 +821,7 @@ static void ChownRecursive(COperationCtx* ctx, const char* remotePath,
                     continue; // do not chown through symlinks
                 char child[4096];
                 PosixPathAppend(remotePath, e->Name, child, sizeof(child));
-                ChownRecursive(ctx, child, uid, gid, setUid, setGid, SFTP_S_ISDIR(e->Mode), recurse);
+                ChownRecursive(ctx, child, uid, gid, setUid, setGid, SFTP_S_ISDIR(e->Mode), recurse, depth + 1);
             }
         }
     }
@@ -765,7 +865,7 @@ BOOL SFTPChangeOwnerFromPanel(HWND parent, CSFTPSession* session, int panel, con
         char rpath[4096];
         PosixPathAppend(remoteDir, e->Name, rpath, sizeof(rpath));
         BOOL itemIsDir = e->HasMode && SFTP_S_ISDIR(e->Mode);
-        ChownRecursive(&ctx, rpath, uid, gid, setUid, setGid, itemIsDir, recurse);
+        ChownRecursive(&ctx, rpath, uid, gid, setUid, setGid, itemIsDir, recurse, 0);
     }
 
     SalamanderGeneral->DestroySafeWaitWindow();

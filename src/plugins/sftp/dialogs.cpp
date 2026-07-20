@@ -95,7 +95,7 @@ static INT_PTR CALLBACK PasswordPromptProc(HWND hwnd, UINT msg, WPARAM wParam, L
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK)
         {
-            GetDlgItemTextA(hwnd, IDE_PROMPTPASSWORD, d->Out, d->OutSize);
+            GetDlgItemTextU8(hwnd, IDE_PROMPTPASSWORD, d->Out, d->OutSize);
             EndDialog(hwnd, IDOK);
             return TRUE;
         }
@@ -504,7 +504,7 @@ static INT_PTR CALLBACK OwnerGroupProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
     {
         d = (COwnerGroupData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
-        SetDlgItemTextA(hwnd, IDT_OG_TARGET, d->Label != NULL ? d->Label : "");
+        SetDlgItemTextU8(hwnd, IDT_OG_TARGET, d->Label != NULL ? d->Label : "");
         SetDlgItemInt(hwnd, IDE_OG_OWNER, d->Uid, FALSE);
         SetDlgItemInt(hwnd, IDE_OG_GROUP, d->Gid, FALSE);
         CheckDlgButton(hwnd, IDC_OG_SETOWNER, d->SetUid ? BST_CHECKED : BST_UNCHECKED);
@@ -745,11 +745,16 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     if (authMethod == saPassword)
     {
         char pwd[512];
-        GetDlgItemTextA(hwnd, IDE_PASSWORD, pwd, sizeof(pwd));
+        GetDlgItemTextU8(hwnd, IDE_PASSWORD, pwd, sizeof(pwd));
         // "typed" iff the user actually edited the field (Dirty). When not dirty
         // the field holds either nothing or the fixed placeholder for a stored
         // secret - both mean "keep/reuse the existing blob", never a new password.
-        BOOL pwdTyped = (pwd[0] != 0) && (dd == NULL || dd->PwdDirty);
+        // Never treat the stored-secret placeholder as a newly typed password,
+        // even if the field was made dirty (caret moved past the select-all) or
+        // the dialog data is missing - otherwise "********" would overwrite the
+        // saved blob or be sent to the server (CF-11).
+        BOOL pwdTyped = (pwd[0] != 0) && strcmp(pwd, SFTP_SECRET_PLACEHOLDER) != 0 &&
+                        (dd == NULL || dd->PwdDirty);
         if (pwdTyped)
         {
             if (forConnect)
@@ -783,8 +788,9 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     else // key
     {
         char pass[512];
-        GetDlgItemTextA(hwnd, IDE_PASSPHRASE, pass, sizeof(pass));
-        BOOL passTyped = (pass[0] != 0) && (dd == NULL || dd->PassDirty);
+        GetDlgItemTextU8(hwnd, IDE_PASSPHRASE, pass, sizeof(pass));
+        BOOL passTyped = (pass[0] != 0) && strcmp(pass, SFTP_SECRET_PLACEHOLDER) != 0 &&
+                         (dd == NULL || dd->PassDirty);
         if (passTyped)
         {
             if (forConnect)

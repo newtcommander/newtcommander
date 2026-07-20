@@ -272,9 +272,13 @@ BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFT
     }
 
     char fingerprint[128];
+    BOOL haveFingerprint = FALSE;
     const char* sha = libssh2_hostkey_hash(Ssh, LIBSSH2_HOSTKEY_HASH_SHA256);
     if (sha != NULL)
+    {
         FormatSHA256Fingerprint((const unsigned char*)sha, fingerprint, sizeof(fingerprint));
+        haveFingerprint = TRUE;
+    }
     else
         lstrcpynA(fingerprint, "SHA256:?", sizeof(fingerprint));
 
@@ -290,6 +294,20 @@ BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFT
     }
     else
     {
+        // CF-21: an unknown or changed key must be verifiable out-of-band by the
+        // user. If no SHA-256 fingerprint could be computed, fail closed instead
+        // of asking the user to trust "SHA256:?". (An exact blob match above needs
+        // no fingerprint, so this only blocks the interactive trust path.)
+        if (!haveFingerprint)
+        {
+            lstrcpynA(LastErrorText,
+                      "Cannot verify the server's host key: no fingerprint available.",
+                      sizeof(LastErrorText));
+            if (result != NULL)
+                *result = crHostKeyRejected;
+            free(keyB64);
+            return FALSE;
+        }
         int choice = ShowHostKeyDialog(parent, m == hkmMismatch, Params.Host, Params.Port,
                                        typeName, fingerprint, m == hkmMismatch ? storedFp : NULL);
         if (choice == IDB_HOSTKEY_TRUST)
@@ -315,6 +333,48 @@ BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFT
     return ok;
 }
 
+// CF-9: read a whole file (given a UTF-8 path) into a heap buffer via the W file
+// API, so non-ASCII / long private-key paths work (libssh2's *_fromfile opens
+// via the ANSI CRT, which mangles such paths). Returns TRUE with *data/*len set;
+// the caller frees *data (and should wipe it - it holds private-key bytes).
+static BOOL ReadKeyFileU8(const char* u8path, char** data, DWORD* len)
+{
+    *data = NULL;
+    *len = 0;
+    WCHAR* w = SplU8ToWExtAlloc(u8path);
+    if (w == NULL)
+        return FALSE;
+    HANDLE h = CreateFileW(w, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                           FILE_ATTRIBUTE_NORMAL, NULL);
+    free(w);
+    if (h == INVALID_HANDLE_VALUE)
+        return FALSE;
+    LARGE_INTEGER size;
+    if (!GetFileSizeEx(h, &size) || size.QuadPart <= 0 || size.QuadPart > (64 * 1024 * 1024))
+    {
+        CloseHandle(h);
+        return FALSE;
+    }
+    DWORD n = (DWORD)size.QuadPart;
+    char* buf = (char*)malloc(n);
+    if (buf == NULL)
+    {
+        CloseHandle(h);
+        return FALSE;
+    }
+    DWORD got = 0;
+    BOOL ok = ReadFile(h, buf, n, &got, NULL) && got == n;
+    CloseHandle(h);
+    if (!ok)
+    {
+        free(buf);
+        return FALSE;
+    }
+    *data = buf;
+    *len = n;
+    return TRUE;
+}
+
 BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
 {
     // discover which methods the server offers
@@ -332,7 +392,12 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
                 *result = crNoAuthMethod;
             return FALSE;
         }
-        if (GetFileAttributesA(Params.KeyFile) == INVALID_FILE_ATTRIBUTES)
+        // CF-9: the key path is UTF-8; check existence via the W API (the ANSI
+        // one mangles non-ACP paths and would falsely report "not found").
+        WCHAR* wKeyFile = SplU8ToWExtAlloc(Params.KeyFile);
+        BOOL keyExists = wKeyFile != NULL && GetFileAttributesW(wKeyFile) != INVALID_FILE_ATTRIBUTES;
+        free(wKeyFile);
+        if (!keyExists)
         {
             _snprintf_s(LastErrorText, _TRUNCATE, LoadStr(IDS_ERR_KEYFILEMISSING), Params.KeyFile);
             if (result != NULL)
@@ -351,11 +416,23 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
                 *result = crAuthKey;
             return FALSE;
         }
-        // Public key auth from file: libssh2 derives the public key from the
-        // private key when the pubkey path is NULL.
-        int rc = libssh2_userauth_publickey_fromfile_ex(
-            Ssh, Params.User, (unsigned int)strlen(Params.User), NULL, Params.KeyFile,
+        // CF-9: load the key bytes via the W API and authenticate from memory so
+        // non-ASCII / long key paths work (libssh2's *_fromfile uses ACP fopen).
+        // libssh2 derives the public key from the private key (pubkey data NULL).
+        char* keyData = NULL;
+        DWORD keyDataLen = 0;
+        if (!ReadKeyFileU8(Params.KeyFile, &keyData, &keyDataLen))
+        {
+            lstrcpynA(LastErrorText, LoadStr(IDS_ERR_AUTHKEY), sizeof(LastErrorText));
+            if (result != NULL)
+                *result = crAuthKey;
+            return FALSE;
+        }
+        int rc = libssh2_userauth_publickey_frommemory(
+            Ssh, Params.User, strlen(Params.User), NULL, 0, keyData, keyDataLen,
             Params.Passphrase[0] ? Params.Passphrase : NULL);
+        SecureZeroMemory(keyData, keyDataLen); // wipe private-key bytes
+        free(keyData);
         if (rc == 0)
         {
             Log("Authenticated with private key.");
@@ -412,6 +489,31 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
     return FALSE;
 }
 
+// CF-4: pin modern algorithms so deprecated ones (arcfour/RC4, 3des-cbc,
+// diffie-hellman-group1-sha1, hmac-md5, hmac-sha1, ssh-rsa/SHA-1, ssh-dss) are
+// never negotiated - even against a server that only offers them. Each list
+// keeps the interoperability floor (ecdh + DH group14/16/18, chacha20/AES-CTR,
+// HMAC-SHA2, ecdsa/rsa-sha2). Non-fatal: libssh2 filters each list against the
+// compiled-in methods and, if a whole list ends up unsupported, that method
+// type simply keeps its library default.
+static void ApplyAlgorithmPreferences(LIBSSH2_SESSION* ssh)
+{
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_KEX,
+                                "ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,"
+                                "diffie-hellman-group-exchange-sha256,"
+                                "diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,"
+                                "diffie-hellman-group14-sha256");
+    const char* ciphers = "chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr";
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_CRYPT_CS, ciphers);
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_CRYPT_SC, ciphers);
+    const char* macs = "hmac-sha2-256,hmac-sha2-512";
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_MAC_CS, macs);
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_MAC_SC, macs);
+    libssh2_session_method_pref(ssh, LIBSSH2_METHOD_HOSTKEY,
+                                "ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,"
+                                "rsa-sha2-256,rsa-sha2-512");
+}
+
 BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
                            CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
 {
@@ -439,6 +541,13 @@ BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
     libssh2_session_set_blocking(Ssh, 1);
     long timeoutMs = (Params.OperationTimeoutSec > 0 ? Params.OperationTimeoutSec : 30) * 1000L;
     libssh2_session_set_timeout(Ssh, timeoutMs);
+
+    ApplyAlgorithmPreferences(Ssh);
+
+    // CF-27: honor the user's compression setting (previously a dead option -
+    // the flag was never applied). Must be set before the handshake.
+    if (Params.UseCompression)
+        libssh2_session_flag(Ssh, LIBSSH2_FLAG_COMPRESS, 1);
 
     if (libssh2_session_handshake(Ssh, Socket) != 0)
     {
@@ -557,7 +666,11 @@ BOOL CSFTPSession::ListDir(const char* path, TIndirectArray<CSFTPDirEntry>* entr
             break;
         }
         memset(&attrs, 0, sizeof(attrs));
-        longEntry[0] = 0; // clear so a missing longname does not reuse the previous entry's owner/group
+        // CF-13: readdir_ex returns the NAME length only, not the longentry
+        // length, and libssh2 does not NUL-terminate longentry. Zero the whole
+        // buffer first so a terminator always follows the copied bytes (and a
+        // missing longname does not reuse the previous entry's owner/group).
+        memset(longEntry, 0, sizeof(longEntry));
         int rc = libssh2_sftp_readdir_ex(dir, nameBuf, sizeof(nameBuf) - 1, longEntry, sizeof(longEntry) - 1, &attrs);
         if (rc <= 0)
             break;
@@ -570,6 +683,11 @@ BOOL CSFTPSession::ListDir(const char* path, TIndirectArray<CSFTPDirEntry>* entr
         if (e == NULL)
             break;
         e->Name = _strdup(nameBuf);
+        if (e->Name == NULL) // CF-19: e->Name is dereferenced when building paths
+        {
+            delete e;
+            break;
+        }
         if (attrs.flags & LIBSSH2_SFTP_ATTR_PERMISSIONS)
         {
             e->Mode = attrs.permissions;

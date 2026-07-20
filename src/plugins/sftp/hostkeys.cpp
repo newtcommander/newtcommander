@@ -90,6 +90,16 @@ BOOL CSFTPHostKeyList::Trust(const char* host, int port, const char* keyType,
     k->KeyType = _strdup(keyType != NULL ? keyType : "");
     k->KeyBlobB64 = _strdup(keyBlobB64 != NULL ? keyBlobB64 : "");
     k->FingerprintSHA256 = _strdup(fingerprint != NULL ? fingerprint : "");
+    // CF-19: never keep a half-populated entry on OOM - a NULL host/blob would be
+    // unmatchable or persisted broken. Fail closed (Match already treats a NULL
+    // stored blob as a mismatch, so the next connect re-verifies).
+    if ((isNew && k->Host == NULL) || k->KeyType == NULL || k->KeyBlobB64 == NULL ||
+        k->FingerprintSHA256 == NULL)
+    {
+        if (isNew)
+            delete k; // not yet added to the list
+        return FALSE;
+    }
     GetSystemTimeAsFileTime(&k->Added);
 
     if (isNew)

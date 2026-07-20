@@ -9,6 +9,7 @@
 #include "listing.h"
 #include "dialogs.h"
 #include "operats.h"
+#include "keyload.h"
 #include "logs.h"
 #include "fs.h"
 
@@ -39,7 +40,13 @@ static void DecryptInto(const BYTE* blob, int blobSize, char* out, int outSize)
     char* plain = NULL;
     if (pm->DecryptPassword(blob, blobSize, &plain) && plain != NULL)
     {
-        lstrcpynA(out, plain, outSize);
+        // CF-15: never use a silently truncated secret - a wrong password/
+        // passphrase would be sent with no diagnostic. Fail closed (out stays
+        // empty) so the caller prompts instead.
+        if ((int)strlen(plain) < outSize)
+            lstrcpynA(out, plain, outSize);
+        else
+            out[0] = 0;
         // wipe and free the plugin-manager buffer
         SecureZeroMemory(plain, strlen(plain));
         SalamanderGeneral->Free(plain);
@@ -75,7 +82,14 @@ void ConnectSFTPServer(HWND parent, int panel)
 {
     CSFTPServer srv;
     if (!ShowConnectDialog(parent, FALSE, &srv))
+    {
+        // CF-14: the dialog may have staged plaintext secrets in these globals
+        // before the user cancelled; never leave a decrypted secret in memory.
+        SecureZeroMemory(ConnectPlainPassword, sizeof(ConnectPlainPassword));
+        SecureZeroMemory(ConnectPlainPassphrase, sizeof(ConnectPlainPassphrase));
+        g_PendingParams.WipeSecrets();
         return;
+    }
 
     FillParamsFromServer(&srv, &g_PendingParams);
 
@@ -98,7 +112,21 @@ void ConnectSFTPServer(HWND parent, int panel)
         char prompt[512];
         _snprintf_s(prompt, _TRUNCATE, LoadStr(IDS_ENTERPASSWORD), g_PendingParams.User);
         if (!ShowPasswordPrompt(parent, prompt, g_PendingParams.Password, sizeof(g_PendingParams.Password)))
+        {
+            g_PendingParams.WipeSecrets(); // CF-14: do not leave the decrypted secret behind
             return;
+        }
+    }
+    // CF-20: for key auth, prompt for the passphrase up front only when the key
+    // is actually encrypted and none was saved, so an encrypted key no longer
+    // fails with a cryptic "key could not be unlocked" (and unencrypted keys are
+    // not prompted). A cancelled prompt just proceeds with no passphrase.
+    else if (g_PendingParams.AuthMethod == saPrivateKey && g_PendingParams.Passphrase[0] == 0 &&
+             g_PendingParams.KeyFile[0] != 0 && KeyFileLooksEncrypted(g_PendingParams.KeyFile))
+    {
+        char prompt[512];
+        _snprintf_s(prompt, _TRUNCATE, LoadStr(IDS_ENTERPASSPHRASE), g_PendingParams.KeyFile);
+        ShowPasswordPrompt(parent, prompt, g_PendingParams.Passphrase, sizeof(g_PendingParams.Passphrase));
     }
     g_HasPending = TRUE;
 
@@ -161,7 +189,7 @@ void WINAPI CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbst
         if (isDir == 2) // up-dir: cut the last path component
         {
             char cur[3072];
-            fs->GetCurrentPath(cur);
+            fs->GetCurrentPathFull(cur, sizeof(cur)); // CF-7: no MAX_PATH truncation
             char* slash = strrchr(cur, '/');
             if (slash != NULL && *(slash + 1) == 0 && slash != cur)
             {
@@ -175,9 +203,11 @@ void WINAPI CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbst
         else
         {
             char userPart[3072];
-            fs->GetCurrentPath(userPart);
+            fs->GetCurrentPathFull(userPart, sizeof(userPart)); // CF-7
             char full[3072];
-            _snprintf_s(full, _TRUNCATE, "%s/%s", userPart, file.Name);
+            // CF-26: build the path from the real remote name, not the panel's
+            // sanitized display name (which '?'-substitutes invalid UTF-8).
+            _snprintf_s(full, _TRUNCATE, "%s/%s", userPart, SFTPRealName(&file));
             SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, full);
         }
     }
@@ -222,7 +252,6 @@ CPluginFSInterface::CPluginFSInterface()
     HasParams = FALSE;
     FatalError = FALSE;
     LogUID = -1;
-    CurrentListing = NULL;
 }
 
 CPluginFSInterface::~CPluginFSInterface()
@@ -357,6 +386,14 @@ BOOL WINAPI CPluginFSInterface::GetCurrentPath(char* userPart)
     return TRUE;
 }
 
+// CF-7: full-size variant for the plugin's own navigation, which uses 3072-byte
+// buffers. The SDK GetCurrentPath contract mandates a MAX_PATH buffer, so it
+// would silently truncate a long remote path and navigate to the wrong place.
+void CPluginFSInterface::GetCurrentPathFull(char* buf, int bufSize)
+{
+    MakeUserPart(Path, buf, bufSize);
+}
+
 BOOL WINAPI CPluginFSInterface::GetFullName(CFileData& file, int isDir, char* buf, int bufSize)
 {
     if (isDir == 2) // up-dir: current path minus last component
@@ -372,7 +409,8 @@ BOOL WINAPI CPluginFSInterface::GetFullName(CFileData& file, int isDir, char* bu
         return TRUE;
     }
     char full[3072];
-    PosixPathAppend(Path, file.Name, full, sizeof(full));
+    // CF-26: use the real remote name, not the sanitized panel display name.
+    PosixPathAppend(Path, SFTPRealName(&file), full, sizeof(full));
     MakeUserPart(full, buf, bufSize);
     return TRUE;
 }
@@ -639,7 +677,6 @@ BOOL WINAPI CPluginFSInterface::ListCurrentPath(CSalamanderDirectoryAbstract* di
     }
 
     pluginData = listing;
-    CurrentListing = listing;
     iconsType = pitFromRegistry;
     return TRUE;
 }
@@ -866,14 +903,17 @@ void WINAPI CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
     {
         // download into the cache path
         wchar_t wpath[4096];
-        MultiByteToWideChar(CP_UTF8, 0, cacheName, -1, wpath, 4096);
+        // CF-18: on conversion failure MultiByteToWideChar writes nothing; do not
+        // open CreateFileW on an uninitialized buffer.
+        if (MultiByteToWideChar(CP_UTF8, 0, cacheName, -1, wpath, 4096) == 0)
+            return;
         HANDLE lf = CreateFileW(wpath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
         if (lf != INVALID_HANDLE_VALUE)
         {
             LIBSSH2_SFTP_HANDLE* h = Session.OpenRead(remote);
             if (h != NULL)
             {
-                static char buf[64 * 1024];
+                char buf[64 * 1024]; // CF-23: call-local; a static I/O buffer is a re-entrancy hazard
                 __int64 total = 0;
                 BOOL ok = TRUE;
                 for (;;)
@@ -993,9 +1033,11 @@ BOOL WINAPI CPluginFSInterface::CopyOrMoveFromDiskToFS(BOOL copy, int mode, cons
     if (colon != NULL)
         up = colon + 1;
     if (!ParseUserPart(up, host, &port, user, rpath, sizeof(rpath)) ||
-        _stricmp(host, Host) != 0 || port != Port)
+        _stricmp(host, Host) != 0 || port != Port || strcmp(user, User) != 0)
     {
-        // different server: cannot handle here
+        // CF-12: different server OR different user - do not silently run the
+        // upload over this session under the wrong identity (mirror IsOurPath,
+        // which also compares the user).
         return FALSE;
     }
 

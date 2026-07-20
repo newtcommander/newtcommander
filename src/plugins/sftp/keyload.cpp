@@ -7,8 +7,14 @@
 
 CSFTPKeyFormat DetectKeyFormat(const char* keyFilePath)
 {
-    HANDLE h = CreateFileA(keyFilePath, GENERIC_READ, FILE_SHARE_READ, NULL,
+    // CF-9: the key path is UTF-8; open via the W API (the ANSI one mangles
+    // non-ACP paths and would misdetect the format as kfUnknown).
+    WCHAR* w = SplU8ToWExtAlloc(keyFilePath);
+    if (w == NULL)
+        return kfUnknown;
+    HANDLE h = CreateFileW(w, GENERIC_READ, FILE_SHARE_READ, NULL,
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free(w);
     if (h == INVALID_HANDLE_VALUE)
         return kfUnknown;
 
@@ -32,6 +38,26 @@ CSFTPKeyFormat DetectKeyFormat(const char* keyFilePath)
     return kfUnknown;
 }
 
+BOOL KeyFileLooksEncrypted(const char* keyFilePath)
+{
+    WCHAR* w = SplU8ToWExtAlloc(keyFilePath);
+    if (w == NULL)
+        return FALSE;
+    HANDLE h = CreateFileW(w, GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    free(w);
+    if (h == INVALID_HANDLE_VALUE)
+        return FALSE;
+    char head[1024];
+    DWORD read = 0;
+    ReadFile(h, head, sizeof(head) - 1, &read, NULL);
+    CloseHandle(h);
+    head[read] = 0;
+    // classic PEM encryption markers and encrypted PKCS#8
+    return strstr(head, "ENCRYPTED") != NULL || strstr(head, "Proc-Type:") != NULL ||
+           strstr(head, "DEK-Info:") != NULL;
+}
+
 BOOL KeyFormatSupported(CSFTPKeyFormat fmt, int* reasonStrId)
 {
     switch (fmt)
@@ -41,10 +67,12 @@ BOOL KeyFormatSupported(CSFTPKeyFormat fmt, int* reasonStrId)
     case kfOpenSSH:
         return TRUE;
     case kfPuTTY:
-        // .ppk v2 is handled (US5); v3 (Argon2) is rejected with a clear message.
-        // Detection of v2 vs v3 is done by the key loader; treat as supported
-        // here and let the loader reject v3 by content.
-        return TRUE;
+        // CF-10: libssh2 cannot parse PuTTY .ppk keys and the plugin has no .ppk
+        // loader, so accepting them here only defers the failure to a cryptic
+        // low-level error. Reject up front with a clear "convert to OpenSSH" hint.
+        if (reasonStrId != NULL)
+            *reasonStrId = IDS_ERR_KEYPUTTY;
+        return FALSE;
     default:
         if (reasonStrId != NULL)
             *reasonStrId = IDS_ERR_AUTHKEY;

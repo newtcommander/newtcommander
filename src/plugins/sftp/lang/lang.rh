@@ -47,6 +47,8 @@
 #define IDS_ERR_NOAUTHMETHOD            52
 #define IDS_ENTERPASSWORD               53
 #define IDS_ENTERPASSPHRASE             54
+#define IDS_ERR_KEYPUTTY                55
+#define IDS_ERR_TOODEEP                 56
 
 // host key (TOFU)
 #define IDS_HOSTKEY_NEWTITLE            60

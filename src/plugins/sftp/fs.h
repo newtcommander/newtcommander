@@ -62,8 +62,6 @@ protected:
     BOOL FatalError;
     int LogUID;
 
-    CSFTPListingData* CurrentListing;
-
 public:
     CPluginFSInterface();
     virtual ~CPluginFSInterface();
@@ -74,6 +72,9 @@ public:
 
     // builds "user@host:port/path" into 'buf'
     void MakeUserPart(const char* path, char* buf, int bufSize);
+    // like GetCurrentPath but honors the real buffer size; internal navigation
+    // must not truncate a long remote path to MAX_PATH (CF-7)
+    void GetCurrentPathFull(char* buf, int bufSize);
     // parses a user-part into host/port/user/path; returns FALSE on syntax error
     static BOOL ParseUserPart(const char* userPart, char* host, int* port, char* user,
                               char* path, int pathSize);
