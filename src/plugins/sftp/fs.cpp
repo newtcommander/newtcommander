@@ -190,24 +190,34 @@ void WINAPI CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbst
         {
             char cur[3072];
             fs->GetCurrentPathFull(cur, sizeof(cur)); // CF-7: no MAX_PATH truncation
-            char* slash = strrchr(cur, '/');
-            if (slash != NULL && *(slash + 1) == 0 && slash != cur)
+            // strip a trailing slash (only the root user-part "user@host:port/" has one)
+            int curLen = (int)strlen(cur);
+            if (curLen > 0 && cur[curLen - 1] == '/')
+                cur[curLen - 1] = 0;
+            char* firstSlash = strchr(cur, '/'); // root slash (the host part has none)
+            char* lastSlash = strrchr(cur, '/');
+            if (lastSlash != NULL)
             {
-                *slash = 0;
-                slash = strrchr(cur, '/');
+                // Remember the sub-directory we are leaving and pass it as the
+                // focus name, so the cursor lands on it in the parent instead of
+                // the first item - consistent with disk paths and the FTP plugin.
+                // Both Enter on ".." and Backspace route here (Execute(0) on "..").
+                char focusName[MAX_PATH];
+                lstrcpynA(focusName, lastSlash + 1, sizeof(focusName));
+                if (lastSlash == firstSlash)
+                    *(lastSlash + 1) = 0; // parent is root: keep "user@host:port/"
+                else
+                    *lastSlash = 0; // parent sub-dir: NO trailing slash. With one,
+                                    // ChangePath's RealPath normalizes it away, so
+                                    // Salamander sees a "changed path" and drops the
+                                    // focus name (that is why it only worked at root).
+                SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, cur, NULL, -1,
+                                                             focusName[0] != 0 ? focusName : NULL);
             }
-            // Remember the sub-directory we are leaving and pass it as the focus
-            // name, so the cursor lands on it in the parent instead of the first
-            // item - consistent with disk paths and the FTP plugin. Both Enter on
-            // ".." and Backspace route through here (Execute(0) on the ".." item).
-            char focusName[MAX_PATH];
-            focusName[0] = 0;
-            if (slash != NULL && *(slash + 1) != 0)
-                lstrcpynA(focusName, slash + 1, sizeof(focusName));
-            if (slash != NULL)
-                *(slash + 1) = 0; // keep trailing slash for parent
-            SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, cur, NULL, -1,
-                                                         focusName[0] != 0 ? focusName : NULL);
+            else
+            {
+                SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, cur);
+            }
         }
         else
         {
