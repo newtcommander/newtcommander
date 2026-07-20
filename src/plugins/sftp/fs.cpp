@@ -196,9 +196,18 @@ void WINAPI CPluginInterfaceForFS::ExecuteOnFS(int panel, CPluginFSInterfaceAbst
                 *slash = 0;
                 slash = strrchr(cur, '/');
             }
+            // Remember the sub-directory we are leaving and pass it as the focus
+            // name, so the cursor lands on it in the parent instead of the first
+            // item - consistent with disk paths and the FTP plugin. Both Enter on
+            // ".." and Backspace route through here (Execute(0) on the ".." item).
+            char focusName[MAX_PATH];
+            focusName[0] = 0;
+            if (slash != NULL && *(slash + 1) != 0)
+                lstrcpynA(focusName, slash + 1, sizeof(focusName));
             if (slash != NULL)
                 *(slash + 1) = 0; // keep trailing slash for parent
-            SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, cur);
+            SalamanderGeneral->ChangePanelPathToPluginFS(panel, pluginFSName, cur, NULL, -1,
+                                                         focusName[0] != 0 ? focusName : NULL);
         }
         else
         {
