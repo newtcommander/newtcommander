@@ -2519,7 +2519,15 @@ void CFilesWindow::RenameFile(int specialIndex)
 
                         if (dlgRes == IDOK)
                         {
-                            strcpy(newName, formatedFileName);
+                            // Use the name the user actually typed in the dialog
+                            // (editName), not the original formatted name - matching
+                            // the ptDisk branch above. feature 005 rebound the dialog
+                            // to editName but this plugin-FS branch was left copying
+                            // formatedFileName, so plugin quick-rename always received
+                            // the OLD name (rename became a no-op / "cannot rename").
+                            // Keep the original baseline when the edit is only a
+                            // canonical-equivalence (NFC/NFD) change, like ptDisk.
+                            strcpy(newName, SalNameEquivalent(editName, formatedFileName) ? formatedFileName : editName);
                             ret = GetPluginFS()->QuickRename(GetPluginFS()->GetPluginFSName(), 2, HWindow, *f, isDir, newName, cancel);
                             if (ret || cancel)
                                 break; // not an error (cancel or success)

@@ -65,6 +65,39 @@
    surfaces.
 4. `LogFmt` the `from → to` (and, on failure, the error) for diagnosis.
 
+## ACTUAL root cause (found via runtime log after the first fix)
+
+After shipping the plugin-side fix (posix-rename + error capture), the symptom
+changed from "Cannot rename" to "no error, but the file is not renamed". The
+SFTP session log (`Rename %s -> %s`) then revealed the smoking gun: the user
+typed `aaregular.txt`, but the plugin received
+`Rename /home/sftptest/pub/regular.txt -> /home/sftptest/pub/regular.txt` — i.e.
+`from == to`, and `newName` was the **old** name, not what the user typed.
+
+**The real bug is in the core, not the plugin.** In `src/fileswn5.cpp` the
+quick-rename dialog `CCopyMoveDialog dlg(HWindow, editName, ...)` is bound to the
+`editName` buffer (line ~2386), so the user's typed name lands in `editName`.
+The `ptDisk` branch correctly applies `editName` (line ~2448, with an NFC-
+equivalence check). But the **plugin-FS branch** did
+`strcpy(newName, formatedFileName)` (line 2522) — copying the *original* name
+(`formatedFileName` = `AlterFileName(f->Name)`) instead of `editName`. So every
+plugin-FS quick rename passed the OLD name to the plugin, making it a rename to
+self (`from == to`).
+
+This is a **feature-005 (Unicode/NFC display) regression**: feature 005 rebound
+the dialog to `editName` and updated the `ptDisk` branch to use it, but the
+plugin-FS branch was left copying `formatedFileName`. It affects **all** plugin
+file systems (FTP too), not just SFTP.
+
+**Fix:** `fileswn5.cpp:2522` → `strcpy(newName, SalNameEquivalent(editName,
+formatedFileName) ? formatedFileName : editName);` — mirroring the `ptDisk`
+branch (use the typed name; keep the original baseline only when the edit is a
+mere canonical-equivalence change). Requires rebuilding `salamand.exe`.
+
+The plugin-side change (posix-rename + error capture, above) remains valuable
+(atomic overwrite; real error text), but the core fix is what makes the typed
+name reach the plugin.
+
 ## Scope / limits
 
 - Verified at the libssh2 layer against the live OpenSSH test server. The
