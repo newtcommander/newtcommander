@@ -792,9 +792,27 @@ BOOL CSFTPSession::Rename(const char* from, const char* to)
 {
     if (Sftp == NULL)
         return FALSE;
-    int rc = libssh2_sftp_rename_ex(Sftp, from, (unsigned int)strlen(from), to, (unsigned int)strlen(to),
-                                    LIBSSH2_SFTP_RENAME_OVERWRITE | LIBSSH2_SFTP_RENAME_ATOMIC |
-                                        LIBSSH2_SFTP_RENAME_NATIVE);
+    LogFmt("Rename %s -> %s", from, to);
+    // Prefer the atomic, overwrite-capable posix-rename@openssh.com extension
+    // (OpenSSH and most servers advertise it); it returns OP_UNSUPPORTED quickly
+    // when absent, so the fallback is cheap. The standard SSH_FXP_RENAME only
+    // carries the OVERWRITE flag for SFTP v5+, and libssh2 negotiates v3 - so a
+    // plain rename there cannot overwrite an existing target (modern OpenSSH then
+    // fails the rename with SSH_FX_FAILURE), which is why F2 rename onto an
+    // existing name failed.
+    int rc = libssh2_sftp_posix_rename_ex(Sftp, from, (unsigned int)strlen(from),
+                                          to, (unsigned int)strlen(to));
+    if (rc != 0)
+        rc = libssh2_sftp_rename_ex(Sftp, from, (unsigned int)strlen(from),
+                                    to, (unsigned int)strlen(to),
+                                    LIBSSH2_SFTP_RENAME_OVERWRITE);
+    if (rc != 0)
+    {
+        // capture the real libssh2 error - Rename previously returned FALSE
+        // without setting LastErrorText, so "Cannot rename ..." showed no reason.
+        SetLastErrorFromSsh(NULL);
+        Log(LastErrorText);
+    }
     return rc == 0;
 }
 
