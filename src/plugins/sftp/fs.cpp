@@ -722,8 +722,12 @@ DWORD WINAPI CPluginFSInterface::GetSupportedServices()
 
 BOOL WINAPI CPluginFSInterface::GetChangeDriveOrDisconnectItem(const char* fsName, char*& title, HICON& icon, BOOL& destroyIcon)
 {
+    // Put the connection text in the wide "name" column (leading TAB = empty
+    // drive-letter column), mirroring the FTP plugin. Otherwise the long
+    // "user@host:port" sits in the narrow first column, whose width is the max
+    // across all drive rows, and stretches the whole Change-Drive panel.
     char buf[512];
-    _snprintf_s(buf, _TRUNCATE, "%s@%s:%d\t\t", User, Host, Port);
+    _snprintf_s(buf, _TRUNCATE, "\t%s@%s:%d", User, Host, Port);
     title = SalamanderGeneral->DupStr(buf);
     icon = NULL; // the FS icon is supplied separately via GetFSIcon
     destroyIcon = FALSE;
