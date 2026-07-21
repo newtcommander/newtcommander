@@ -903,7 +903,7 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }
@@ -1255,7 +1255,7 @@ CPluginKeys::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
 
@@ -3256,7 +3256,7 @@ CCfgPageChangeDrive::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             BOOL selected = (lpdis->itemState & ODS_SELECTED) != 0;
             BOOL focused = (GetFocus() == lpdis->hwndItem);
 
-            FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
             if (selected)
             {
                 RECT rr = r;
@@ -3270,7 +3270,7 @@ CCfgPageChangeDrive::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             else
                 textColor = focused ? COLOR_GRAYTEXT : COLOR_GRAYTEXT;
 
-            SetTextColor(hDC, GetSysColor(textColor));
+            SetTextColor(hDC, ThemeSysColor(textColor));
             SetBkMode(hDC, TRANSPARENT);
             RECT dr = r;
             char text[] = " :";
@@ -3279,7 +3279,7 @@ CCfgPageChangeDrive::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             if (lpdis->itemState & ODS_FOCUS)
             {
-                SetTextColor(hDC, GetSysColor(COLOR_WINDOWTEXT));
+                SetTextColor(hDC, ThemeSysColor(COLOR_WINDOWTEXT));
                 DrawFocusRect(hDC, &r);
             }
         }

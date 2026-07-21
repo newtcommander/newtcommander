@@ -262,6 +262,8 @@ HBRUSH HMenuSelectedTextBrush = NULL;
 HBRUSH HMenuHilightBrush = NULL;
 HBRUSH HMenuGrayTextBrush = NULL;
 
+BOOL RebuildThemeChromeBrushes(); // feature 028: defined below ReleaseConstGraphics
+
 HPEN HActiveNormalPen = NULL; // pera pro ramecek kolem polozky
 HPEN HActiveSelectedPen = NULL;
 HPEN HInactiveNormalPen = NULL;
@@ -1879,16 +1881,10 @@ BOOL InitializeConstGraphics()
   strcpy(LogFont.lfFaceName, "MS Shell Dlg 2");
   */
 
-    // tyto brushe jsou alokovane systemem a automaticky se meni pri zmene barev
-    HDialogBrush = GetSysColorBrush(COLOR_BTNFACE);
-    HButtonTextBrush = GetSysColorBrush(COLOR_BTNTEXT);
-    HMenuSelectedBkBrush = GetSysColorBrush(COLOR_HIGHLIGHT);
-    HMenuSelectedTextBrush = GetSysColorBrush(COLOR_HIGHLIGHTTEXT);
-    HMenuHilightBrush = GetSysColorBrush(COLOR_3DHILIGHT);
-    HMenuGrayTextBrush = GetSysColorBrush(COLOR_3DSHADOW);
-    if (HDialogBrush == NULL || HButtonTextBrush == NULL ||
-        HMenuSelectedTextBrush == NULL || HMenuHilightBrush == NULL ||
-        HMenuGrayTextBrush == NULL)
+    // feature 028: these used to be system brushes (GetSysColorBrush); they are
+    // now app-owned so the Dark theme can substitute its palette and a theme
+    // switch can rebuild them (see RebuildThemeChromeBrushes)
+    if (!RebuildThemeChromeBrushes())
     {
         TRACE_E("Unable to create brush.");
         return FALSE;
@@ -1917,9 +1913,67 @@ BOOL InitializeConstGraphics()
     return TRUE;
 }
 
+// feature 028: (re)creates the app-owned chrome brushes from the active theme
+// palette; called from InitializeConstGraphics (startup) and InitializeGraphics
+// (every ColorsChanged, incl. a theme switch)
+BOOL RebuildThemeChromeBrushes()
+{
+    if (HDialogBrush != NULL)
+        HANDLES(DeleteObject(HDialogBrush));
+    if (HButtonTextBrush != NULL)
+        HANDLES(DeleteObject(HButtonTextBrush));
+    if (HMenuSelectedBkBrush != NULL)
+        HANDLES(DeleteObject(HMenuSelectedBkBrush));
+    if (HMenuSelectedTextBrush != NULL)
+        HANDLES(DeleteObject(HMenuSelectedTextBrush));
+    if (HMenuHilightBrush != NULL)
+        HANDLES(DeleteObject(HMenuHilightBrush));
+    if (HMenuGrayTextBrush != NULL)
+        HANDLES(DeleteObject(HMenuGrayTextBrush));
+    HDialogBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_BTNFACE)));
+    HButtonTextBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_BTNTEXT)));
+    HMenuSelectedBkBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_HIGHLIGHT)));
+    HMenuSelectedTextBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_HIGHLIGHTTEXT)));
+    HMenuHilightBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_3DHILIGHT)));
+    HMenuGrayTextBrush = HANDLES(CreateSolidBrush(ThemeSysColor(COLOR_3DSHADOW)));
+    return HDialogBrush != NULL && HButtonTextBrush != NULL &&
+           HMenuSelectedBkBrush != NULL && HMenuSelectedTextBrush != NULL &&
+           HMenuHilightBrush != NULL && HMenuGrayTextBrush != NULL;
+}
+
 void ReleaseConstGraphics()
 {
     ReleaseThemeGraphics(); // feature 028: engine-owned dark brushes
+    if (HDialogBrush != NULL)
+    {
+        HANDLES(DeleteObject(HDialogBrush));
+        HDialogBrush = NULL;
+    }
+    if (HButtonTextBrush != NULL)
+    {
+        HANDLES(DeleteObject(HButtonTextBrush));
+        HButtonTextBrush = NULL;
+    }
+    if (HMenuSelectedBkBrush != NULL)
+    {
+        HANDLES(DeleteObject(HMenuSelectedBkBrush));
+        HMenuSelectedBkBrush = NULL;
+    }
+    if (HMenuSelectedTextBrush != NULL)
+    {
+        HANDLES(DeleteObject(HMenuSelectedTextBrush));
+        HMenuSelectedTextBrush = NULL;
+    }
+    if (HMenuHilightBrush != NULL)
+    {
+        HANDLES(DeleteObject(HMenuHilightBrush));
+        HMenuHilightBrush = NULL;
+    }
+    if (HMenuGrayTextBrush != NULL)
+    {
+        HANDLES(DeleteObject(HMenuGrayTextBrush));
+        HMenuGrayTextBrush = NULL;
+    }
     ItemBitmap.Destroy();
     //if (HWorkerBitmap != NULL)
     //{
@@ -2358,7 +2412,7 @@ BOOL InitializeGraphics(BOOL colorsOnly)
         HBITMAP hTmpColorBitmap;
         if (!CreateToolbarBitmaps(HInstance,
                                   IDB_MENU,
-                                  RGB(255, 0, 255), GetSysColor(COLOR_BTNFACE),
+                                  RGB(255, 0, 255), ThemeSysColor(COLOR_BTNFACE),
                                   hTmpMaskBitmap, hTmpGrayBitmap, hTmpColorBitmap,
                                   FALSE, NULL, 0))
             return FALSE;
@@ -2373,7 +2427,7 @@ BOOL InitializeGraphics(BOOL colorsOnly)
         GetSVGIconsMainToolbar(&svgIcons, &svgIconsCount);
         if (!CreateToolbarBitmaps(HInstance,
                                   Use256ColorsBitmap() ? IDB_TOOLBAR_256 : IDB_TOOLBAR_16,
-                                  RGB(255, 0, 255), GetSysColor(COLOR_BTNFACE),
+                                  RGB(255, 0, 255), ThemeSysColor(COLOR_BTNFACE),
                                   hTmpMaskBitmap, hTmpGrayBitmap, hTmpColorBitmap,
                                   TRUE, svgIcons, svgIconsCount))
             return FALSE;
@@ -2489,8 +2543,8 @@ BOOL InitializeGraphics(BOOL colorsOnly)
         SVGArrowDropDown.Load(IDV_ARROW_DOWN, -1, -1, SVGSTATE_ENABLED | SVGSTATE_DISABLED);
     }
 
-    ImageList_SetBkColor(HHotToolBarImageList, GetSysColor(COLOR_BTNFACE));
-    ImageList_SetBkColor(HGrayToolBarImageList, GetSysColor(COLOR_BTNFACE));
+    ImageList_SetBkColor(HHotToolBarImageList, ThemeSysColor(COLOR_BTNFACE));
+    ImageList_SetBkColor(HGrayToolBarImageList, ThemeSysColor(COLOR_BTNFACE));
 
     if (SystemParametersInfo(SPI_GETMOUSEHOVERTIME, 0, &MouseHoverTime, FALSE) == 0)
     {
@@ -2533,12 +2587,14 @@ BOOL InitializeGraphics(BOOL colorsOnly)
     HThumbnailSelectedPen = HANDLES(CreatePen(PS_SOLID, 0, GetCOLORREF(CurrentColors[THUMBNAIL_FRAME_SELECTED])));
     HThumbnailFocSelPen = HANDLES(CreatePen(PS_SOLID, 0, GetCOLORREF(CurrentColors[THUMBNAIL_FRAME_FOCSEL])));
 
-    BtnShadowPen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW)));
-    BtnHilightPen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNHILIGHT)));
-    Btn3DLightPen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_3DLIGHT)));
-    BtnFacePen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNFACE)));
-    WndFramePen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_WINDOWFRAME)));
-    WndPen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_WINDOW)));
+    RebuildThemeChromeBrushes(); // feature 028: chrome brushes follow the theme
+
+    BtnShadowPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_BTNSHADOW)));
+    BtnHilightPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_BTNHILIGHT)));
+    Btn3DLightPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_3DLIGHT)));
+    BtnFacePen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_BTNFACE)));
+    WndFramePen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_WINDOWFRAME)));
+    WndPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_WINDOW)));
     if (HActiveNormalPen == NULL || HActiveSelectedPen == NULL ||
         HInactiveNormalPen == NULL || HInactiveSelectedPen == NULL ||
         HThumbnailNormalPen == NULL || HThumbnailFucsedPen == NULL ||
@@ -2552,11 +2608,11 @@ BOOL InitializeGraphics(BOOL colorsOnly)
 
     COLORMAP clrMap[3];
     clrMap[0].from = RGB(255, 0, 255);
-    clrMap[0].to = GetSysColor(COLOR_BTNFACE);
+    clrMap[0].to = ThemeSysColor(COLOR_BTNFACE);
     clrMap[1].from = RGB(255, 255, 255);
-    clrMap[1].to = GetSysColor(COLOR_BTNHILIGHT);
+    clrMap[1].to = ThemeSysColor(COLOR_BTNHILIGHT);
     clrMap[2].from = RGB(128, 128, 128);
-    clrMap[2].to = GetSysColor(COLOR_BTNSHADOW);
+    clrMap[2].to = ThemeSysColor(COLOR_BTNSHADOW);
     HHeaderSort = HANDLES(CreateMappedBitmap(HInstance, IDB_HEADER, 0, clrMap, 3));
     if (HHeaderSort == NULL)
     {
@@ -2565,9 +2621,9 @@ BOOL InitializeGraphics(BOOL colorsOnly)
     }
 
     clrMap[0].from = RGB(128, 128, 128); // seda -> COLOR_BTNSHADOW
-    clrMap[0].to = GetSysColor(COLOR_BTNSHADOW);
+    clrMap[0].to = ThemeSysColor(COLOR_BTNSHADOW);
     clrMap[1].from = RGB(0, 0, 0); // cerna -> COLOR_BTNTEXT
-    clrMap[1].to = GetSysColor(COLOR_BTNTEXT);
+    clrMap[1].to = ThemeSysColor(COLOR_BTNTEXT);
     clrMap[2].from = RGB(255, 255, 255); // bila -> pruhledna
     clrMap[2].to = RGB(255, 0, 255);
     HBITMAP hBottomTB = HANDLES(CreateMappedBitmap(HInstance, IDB_BOTTOMTOOLBAR, 0, clrMap, 3));
@@ -2585,8 +2641,8 @@ BOOL InitializeGraphics(BOOL colorsOnly)
     ImageList_AddMasked(HHotBottomTBImageList, hHotBottomTB, RGB(255, 0, 255));
     HANDLES(DeleteObject(hBottomTB));
     HANDLES(DeleteObject(hHotBottomTB));
-    ImageList_SetBkColor(HBottomTBImageList, GetSysColor(COLOR_BTNFACE));
-    ImageList_SetBkColor(HHotBottomTBImageList, GetSysColor(COLOR_BTNFACE));
+    ImageList_SetBkColor(HBottomTBImageList, ThemeSysColor(COLOR_BTNFACE));
+    ImageList_SetBkColor(HHotBottomTBImageList, ThemeSysColor(COLOR_BTNFACE));
     return TRUE;
 }
 
@@ -3070,7 +3126,7 @@ void ColorsChanged(BOOL refresh, BOOL colorsOnly, BOOL reloadUMIcons)
     Plugins.Event(PLUGINEVENT_COLORSCHANGED, 0);
 
     if (MainWindow != NULL && MainWindow->HTopRebar != NULL)
-        SendMessage(MainWindow->HTopRebar, RB_SETBKCOLOR, 0, (LPARAM)GetSysColor(COLOR_BTNFACE));
+        SendMessage(MainWindow->HTopRebar, RB_SETBKCOLOR, 0, (LPARAM)ThemeSysColor(COLOR_BTNFACE));
 
     if (refresh && MainWindow != NULL)
     {

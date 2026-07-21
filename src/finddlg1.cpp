@@ -4026,7 +4026,7 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
                             }
                         }
 
-                        SetBkColor(CacheBitmap->HMemDC, GetSysColor(bkColor));
+                        SetBkColor(CacheBitmap->HMemDC, ThemeSysColor(bkColor));
                         ExtTextOut(CacheBitmap->HMemDC, 0, 0, ETO_OPAQUE, &r2, "", 0, NULL);
                         SetBkMode(CacheBitmap->HMemDC, TRANSPARENT);
 
@@ -4035,7 +4035,7 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
                         r2.right -= 5;
                         CFoundFilesData* item2 = FoundFilesListView->At((int)cd->nmcd.dwItemSpec);
                         SelectObject(CacheBitmap->HMemDC, (HFONT)SendMessage(FoundFilesListView->HWindow, WM_GETFONT, 0, 0));
-                        int oldTextColor = SetTextColor(CacheBitmap->HMemDC, GetSysColor(textColor));
+                        int oldTextColor = SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(textColor));
 
                         // DT_PATH_ELLIPSIS doesn't work on some strings and causing clipped text to be printed
                         // PathCompactPath() requires a copy in a local buffer but doesn't clip text
@@ -4076,7 +4076,7 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
 
                     if (GrepData.FindDuplicates && item->Different == 1)
                     {
-                        cd->clrTextBk = GetSysColor(COLOR_3DFACE);
+                        cd->clrTextBk = ThemeSysColor(COLOR_3DFACE);
                         SetWindowLongPtr(HWindow, DWLP_MSGRESULT, CDRF_NEWFONT);
                         return TRUE;
                     }
@@ -4457,7 +4457,7 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(GetDlgItem(HWindow, IDC_FIND_RESULTS), GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(GetDlgItem(HWindow, IDC_FIND_RESULTS), ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }

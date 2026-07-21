@@ -172,10 +172,10 @@ void CMenuBar::DrawItem(HDC hDC, int index, int x)
     RECT r2 = r;
     r2.top = 0;
     r2.bottom = 1;
-    FillRect(hDC, &r2, (HBRUSH)(COLOR_BTNFACE + 1));
+    FillRect(hDC, &r2, ThemeSysColorBrush(COLOR_BTNFACE));
     r2.top = Height - 1;
     r2.bottom = Height;
-    FillRect(hDC, &r2, (HBRUSH)(COLOR_BTNFACE + 1));
+    FillRect(hDC, &r2, ThemeSysColorBrush(COLOR_BTNFACE));
 
     int bkColor = (HotIndex == index && !Closing) ? COLOR_HIGHLIGHT : COLOR_BTNFACE;
     int textColor = (HotIndex == index && !Closing) ? COLOR_HIGHLIGHTTEXT : COLOR_BTNTEXT;
@@ -183,7 +183,7 @@ void CMenuBar::DrawItem(HDC hDC, int index, int x)
 
     r.top += MENUBAR_TB_MARGIN - 1;
     r.left += MENUBAR_LR_MARGIN;
-    SetTextColor(hDC, GetSysColor(textColor));
+    SetTextColor(hDC, ThemeSysColor(textColor));
 
     // NOTE: Since Windows Vista Microsoft broke something in the rebar. Resizing
     // the window leads to redrawing all bands, as a result, the entire menu is redrawn and sometimes flickers
@@ -212,7 +212,7 @@ void CMenuBar::DrawItem(int index)
     HDC hDC = HANDLES(GetDC(HWindow));
     HFONT hOldFont = (HFONT)SelectObject(hDC, HFont);
     int oldBkMode = SetBkMode(hDC, TRANSPARENT);
-    COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_BTNTEXT));
+    COLORREF oldTextColor = SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
     int x = 0;
     int i;
     for (i = 0; i < index; i++)
@@ -229,7 +229,7 @@ void CMenuBar::DrawAllItems(HDC hDC)
     CALL_STACK_MESSAGE1("CMenuBar::DrawAllItems()");
     HFONT hOldFont = (HFONT)SelectObject(hDC, HFont);
     int oldBkMode = SetBkMode(hDC, TRANSPARENT);
-    COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_BTNTEXT));
+    COLORREF oldTextColor = SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
     int x = 0;
     int i;
     for (i = 0; i < Menu->Items.Count; i++)

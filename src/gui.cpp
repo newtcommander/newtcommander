@@ -39,7 +39,7 @@ public:
         HBITMAP hOld = (HBITMAP)SelectObject(HMemDC, HOldBmp);
 
         HIMAGELIST hImageList = ImageList_Create(Width, Height, ILC_MASK | GetImageListColorFlags(), 1, 0);
-        ImageList_AddMasked(hImageList, HBmp, GetSysColor(COLOR_BTNFACE)); // j.r. the color was hardcoded to 192,192,192 here, which caused issues with the XP look
+        ImageList_AddMasked(hImageList, HBmp, ThemeSysColor(COLOR_BTNFACE)); // j.r. the color was hardcoded to 192,192,192 here, which caused issues with the XP look
         RECT r;
         r.left = 0;
         r.top = 0;
@@ -938,8 +938,8 @@ void CStaticText::DrawFocus(HDC hDC)
     r.right = xOffset + TextWidth;
     r.bottom = TextHeight;
 
-    int oldColor = SetTextColor(hDC, GetSysColor(COLOR_BTNFACE));
-    int oldBkColor = SetBkColor(hDC, GetSysColor(COLOR_BTNTEXT));
+    int oldColor = SetTextColor(hDC, ThemeSysColor(COLOR_BTNFACE));
+    int oldBkColor = SetBkColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
     POINT oldBrushPoint;
     SetBrushOrgEx(hDC, 0, 0, &oldBrushPoint); // under XP with the Normal skin the paint misbehaved if the static was placed on a gradient background (FTP configuration)
     DrawFocusRect(hDC, &r);
@@ -1146,15 +1146,15 @@ CStaticText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 SetTextColor(hDC, RGB(0, 0, 255));
             BOOL enabled = IsWindowEnabled(HWindow);
             if (!enabled)
-                SetTextColor(hDC, GetSysColor(COLOR_GRAYTEXT));
+                SetTextColor(hDC, ThemeSysColor(COLOR_GRAYTEXT));
 
             //        COLORREF textClr;
             //        if (Flags & STF_HYPERLINK_COLOR)
             //          textClr = RGB(0, 0, 255);
             //        else
-            //          textClr = GetSysColor(COLOR_BTNTEXT);
+            //          textClr = ThemeSysColor(COLOR_BTNTEXT);
             //        COLORREF oldTextColor = SetTextColor(hDC, textClr);
-            //        COLORREF oldBkColor = SetBkColor(hDC, GetSysColor(COLOR_BTNFACE));
+            //        COLORREF oldBkColor = SetBkColor(hDC, ThemeSysColor(COLOR_BTNFACE));
             HFONT hOldFont = (HFONT)SelectObject(hDC, HFont);
 
             // we draw the text
@@ -1227,7 +1227,7 @@ CStaticText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 DrawThemeParentBackground(HWindow, hDC, &r);
             }
             else
-                FillRect(hDC, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+                FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
         }
 
         if ((GetWindowLongPtr(HWindow, GWL_STYLE) & WS_TABSTOP) && GetFocus() == HWindow)
@@ -1627,7 +1627,7 @@ CColorGraph::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
       PAINTSTRUCT ps;
       HDC hdc = HANDLES(BeginPaint(HWindow, &ps));
-      FillRect(hdc, &ClientRect, (HBRUSH)(COLOR_BTNFACE + 1));
+      FillRect(hdc, &ClientRect, ThemeSysColorBrush(COLOR_BTNFACE));
       PaintFace(hdc);
       HANDLES(EndPaint(HWindow, &ps));
       return 0;
@@ -1654,7 +1654,7 @@ CColorGraph::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             CBitmap bitmap;
             bitmap.CreateBmp(hdc, ClientRect.right, ClientRect.bottom);
 
-            HBRUSH hBrush = (HBRUSH)(COLOR_BTNFACE + 1);
+            HBRUSH hBrush = ThemeSysColorBrush(COLOR_BTNFACE);
             FillRect(bitmap.HMemDC, &ClientRect, hBrush);
 
             PaintFace(bitmap.HMemDC);
@@ -1869,7 +1869,7 @@ void CButton::PaintFace(HDC hdc, const RECT* rect, BOOL enabled)
                     RECT fillR = {0};
                     fillR.right = bm.bmWidth;
                     fillR.bottom = bm.bmHeight;
-                    FillRect(tmpFaceBitmap.HMemDC, &fillR, (HBRUSH)(COLOR_BTNFACE + 1));
+                    FillRect(tmpFaceBitmap.HMemDC, &fillR, ThemeSysColorBrush(COLOR_BTNFACE));
                     DrawIcon(tmpFaceBitmap.HMemDC, 0, 0, hIcon);
                     HBITMAP hBmp = tmpFaceBitmap.CreateCopyBitmap();
                     DrawState(hdc, NULL, NULL, (LPARAM)hBmp, 0,
@@ -1897,7 +1897,7 @@ void CButton::PaintFace(HDC hdc, const RECT* rect, BOOL enabled)
 
         HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
         int oldBkMode = SetBkMode(hdc, TRANSPARENT);
-        int oldTextColor = SetTextColor(hdc, GetSysColor(enabled ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
+        int oldTextColor = SetTextColor(hdc, ThemeSysColor(enabled ? COLOR_BTNTEXT : COLOR_GRAYTEXT));
         RECT r2 = r;
         r2.top--;
         DWORD dtFlags = DT_CENTER | DT_VCENTER | DT_SINGLELINE;
@@ -2110,7 +2110,7 @@ CButton::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                 }
                 // erase the background, the button has transparent areas
-                HBRUSH hBrush = (HBRUSH)(COLOR_BTNFACE + 1);
+                HBRUSH hBrush = ThemeSysColorBrush(COLOR_BTNFACE);
                 //          if (!(ButtonPressed && Pressed) && (Flags & BTF_CHECKBOX) && Checked) hBrush = HDitherBrush;
                 FillRect(hMemDC, &ClientRect, hBrush);
 
@@ -2128,10 +2128,10 @@ CButton::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     r.top += 4;
                     r.right = r.left + 1;
                     r.bottom -= 4;
-                    FillRect(hMemDC, &r, (HBRUSH)(COLOR_GRAYTEXT + 1));
+                    FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_GRAYTEXT));
                     r.left = r.right;
                     r.right = r.left + 1;
-                    FillRect(hMemDC, &r, (HBRUSH)(COLOR_3DHILIGHT + 1));
+                    FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_3DHILIGHT));
 
                     if (DropDownPressed && Pressed)
                     {
@@ -2169,12 +2169,12 @@ CButton::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             else
             {
                 // otherwise we draw it ourselves
-                HBRUSH hBrush = (HBRUSH)(COLOR_BTNFACE + 1);
+                HBRUSH hBrush = ThemeSysColorBrush(COLOR_BTNFACE);
                 if (/*!(ButtonPressed && Pressed) && */ (Flags & BTF_CHECKBOX) && Checked)
                 {
                     hBrush = HDitherBrush;
-                    SetTextColor(hMemDC, GetSysColor(COLOR_BTNFACE));
-                    SetBkColor(hMemDC, GetSysColor(COLOR_3DHILIGHT));
+                    SetTextColor(hMemDC, ThemeSysColor(COLOR_BTNFACE));
+                    SetBkColor(hMemDC, ThemeSysColor(COLOR_3DHILIGHT));
                 }
                 FillRect(hMemDC, &ClientRect, hBrush);
 
@@ -2237,8 +2237,8 @@ CButton::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         r.right++;
                         r.bottom++;
                     }
-                    int oldColor = SetTextColor(hMemDC, GetSysColor(COLOR_BTNFACE));
-                    int oldBkColor = SetBkColor(hMemDC, GetSysColor(COLOR_BTNTEXT));
+                    int oldColor = SetTextColor(hMemDC, ThemeSysColor(COLOR_BTNFACE));
+                    int oldBkColor = SetBkColor(hMemDC, ThemeSysColor(COLOR_BTNTEXT));
                     DrawFocusRect(hMemDC, &r);
                     SetTextColor(hMemDC, oldColor);
                     SetBkColor(hMemDC, oldBkColor);
@@ -2728,7 +2728,7 @@ CToolbarHeader::CToolbarHeader(HWND hDlg, int ctrlID, HWND hAlignWindow, DWORD b
     HBITMAP hTmpColorBitmap;
     CreateToolbarBitmaps(HInstance,
                          IDB_EDTLBTB,
-                         RGB(255, 0, 255), GetSysColor(COLOR_BTNFACE),
+                         RGB(255, 0, 255), ThemeSysColor(COLOR_BTNFACE),
                          hTmpMaskBitmap, hTmpGrayBitmap, hTmpColorBitmap,
                          FALSE, svgIcons, TLBHDR_COUNT);
     HHotImageList = ImageList_Create(iconSize, iconSize, ILC_MASK | ILC_COLORDDB, TLBHDR_COUNT, 1);
@@ -2858,7 +2858,7 @@ void CToolbarHeader::OnPaint(HDC hDC, BOOL hideAccel, BOOL prefixOnly)
 {
     RECT r;
     GetClientRect(HWindow, &r);
-    DrawEdge(hDC, &r, BDR_SUNKENOUTER, BF_RECT);
+    ThemeDrawEdge(hDC, &r, BDR_SUNKENOUTER, BF_RECT);
     r.left += 5;
     char buff[100];
     GetWindowText(HWindow, buff, 100);
@@ -2948,7 +2948,7 @@ CToolbarHeader::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HDC hdc = (HDC)wParam;
         RECT r;
         GetClientRect(HWindow, &r);
-        FillRect(hdc, &r, (HBRUSH)(COLOR_3DFACE + 1));
+        FillRect(hdc, &r, ThemeSysColorBrush(COLOR_3DFACE));
         return 1;
     }
     }
@@ -3798,7 +3798,7 @@ HIMAGELIST CreateCheckboxImagelist(int itemSize)
         HTHEME hTheme = OpenThemeData(NULL, L"BUTTON");
         if (hTheme != NULL)
         {
-            FillRect(hMemDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+            FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
             SIZE sz;
             GetThemePartSize(hTheme, hMemDC, BP_CHECKBOX, CBS_CHECKEDNORMAL, NULL, TS_TRUE, &sz);
             if (sz.cx < r.right && sz.cy < r.bottom)
@@ -3823,13 +3823,13 @@ HIMAGELIST CreateCheckboxImagelist(int itemSize)
     }
     if (fallBack)
     {
-        FillRect(hMemDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+        FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
         DrawFrameControl(hMemDC, &r, DFC_BUTTON, DFCS_BUTTONCHECK);
         SelectObject(hMemDC, hOldBitmap);
         ImageList_Add(hIL, hBitmap, NULL);
 
         hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
-        FillRect(hMemDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+        FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
         DrawFrameControl(hMemDC, &r, DFC_BUTTON, DFCS_BUTTONCHECK | DFCS_CHECKED);
         SelectObject(hMemDC, hOldBitmap);
         ImageList_Add(hIL, hBitmap, NULL);

@@ -1356,7 +1356,7 @@ CFilesBox::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         GetClientRect(HWindow, &r);
         r.right += 2;
         r.bottom += 2;
-        DrawEdge(hdc, &r, BDR_SUNKENOUTER, BF_RECT);
+        ThemeDrawEdge(hdc, &r, BDR_SUNKENOUTER, BF_RECT);
         if (Parent->StatusLine != NULL && Parent->StatusLine->HWindow != NULL)
         {
             r.left = 0;

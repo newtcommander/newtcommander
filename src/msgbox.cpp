@@ -1125,14 +1125,14 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             RECT rOrig = r;
             int ySeparator = BackgroundSeparator;
             r.bottom = ySeparator;
-            FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
             r = rOrig;
             r.top = ySeparator;
             r.bottom = r.top + 1;
-            FillRect(hDC, &r, (HBRUSH)(COLOR_3DLIGHT + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_3DLIGHT));
             r = rOrig;
             r.top = ySeparator + 1;
-            FillRect(hDC, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
             return TRUE;
         }
         else
@@ -1148,10 +1148,10 @@ CMessageBox::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             int resID = GetWindowLong(hwndStatic, GWL_ID);
             if (resID == IDI_MSGBOX_ICON || resID == IDS_MSGBOX_TEXT || resID == IDS_MSGBOX_URL)
             {
-                COLORREF textClr = GetSysColor(COLOR_WINDOWTEXT);
+                COLORREF textClr = ThemeSysColor(COLOR_WINDOWTEXT);
                 SetTextColor(hdcStatic, textClr);
-                SetBkColor(hdcStatic, GetSysColor(COLOR_WINDOW));
-                return (INT_PTR)(HBRUSH)(COLOR_WINDOW + 1);
+                SetBkColor(hdcStatic, ThemeSysColor(COLOR_WINDOW));
+                return (INT_PTR)ThemeSysColorBrush(COLOR_WINDOW);
             }
             break;
         }

@@ -225,7 +225,7 @@ void CHeaderLine::PaintItem(HDC hDC, int index, int x)
         // column name
         HFONT hOldFont = (HFONT)SelectObject(ItemBitmap.HMemDC, hot1 && Configuration.SingleClick ? FontUL : Font);
         int oldMode = SetBkMode(ItemBitmap.HMemDC, TRANSPARENT);
-        COLORREF oldColor = SetTextColor(ItemBitmap.HMemDC, hot1 ? GetCOLORREF(CurrentColors[HOT_PANEL]) : GetSysColor(COLOR_BTNTEXT));
+        COLORREF oldColor = SetTextColor(ItemBitmap.HMemDC, hot1 ? GetCOLORREF(CurrentColors[HOT_PANEL]) : ThemeSysColor(COLOR_BTNTEXT));
         int nameLen = lstrlen(column->Name);
         TextOut(ItemBitmap.HMemDC, r.left + 3, (r.bottom - FontCharHeight) / 2, column->Name, nameLen);
 
@@ -264,7 +264,7 @@ void CHeaderLine::PaintItem(HDC hDC, int index, int x)
             if (sz.cx == 0) // measure now if we have no size yet
                 GetTextExtentPoint32(ItemBitmap.HMemDC, column->Name, nameLen, &sz);
             SelectObject(ItemBitmap.HMemDC, hot2 && Configuration.SingleClick ? FontUL : Font);
-            SetTextColor(ItemBitmap.HMemDC, hot2 ? GetCOLORREF(CurrentColors[HOT_PANEL]) : GetSysColor(COLOR_BTNTEXT));
+            SetTextColor(ItemBitmap.HMemDC, hot2 ? GetCOLORREF(CurrentColors[HOT_PANEL]) : ThemeSysColor(COLOR_BTNTEXT));
             char* colExtStr = column->Name + nameLen + 1; // the text "Ext" is stored after the name (in the same buffer)
             int colExtStrLen = (int)strlen(colExtStr);
             TextOut(ItemBitmap.HMemDC, textLeft, (r.bottom - FontCharHeight) / 2,

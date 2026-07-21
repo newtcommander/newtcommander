@@ -34,7 +34,9 @@ CSVGSprite SVGArrowDropDown;
 
 DWORD GetSVGSysColor(int index)
 {
-    DWORD color = GetSysColor(index);
+    // feature 028: SVG sprites rasterize against the theme palette so toolbar
+    // and menu glyphs stay legible in the Dark theme
+    DWORD color = ThemeSysColor(index);
     DWORD ret = 0xFF000000;
     ret |= GetBValue(color) << 16;
     ret |= GetGValue(color) << 8;

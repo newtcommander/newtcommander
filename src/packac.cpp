@@ -304,7 +304,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(GetDlgItem(HWindow, IDC_ACLIST), GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(GetDlgItem(HWindow, IDC_ACLIST), ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }

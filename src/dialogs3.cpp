@@ -2677,10 +2677,10 @@ void CWaitWindow::PaintProgressBar(HDC dc)
         r.top++;
         RECT r2 = r;
         r2.right = r2.left + done;
-        FillRect(dc, &r2, (HBRUSH)(COLOR_HIGHLIGHT + 1));
+        FillRect(dc, &r2, ThemeSysColorBrush(COLOR_HIGHLIGHT));
         r2 = r;
         r2.left = r2.left + done;
-        FillRect(dc, &r2, (HBRUSH)(COLOR_WINDOW + 1));
+        FillRect(dc, &r2, ThemeSysColorBrush(COLOR_WINDOW));
     }
     if (releaseDC)
         ReleaseDC(HWindow, dc);
@@ -2710,11 +2710,11 @@ void CWaitWindow::PaintText(HDC hDC)
         if (CacheBitmap != NULL && CacheBitmap->HMemDC != NULL)
             hDestDC = CacheBitmap->HMemDC;
 
-        FillRect(hDestDC, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+        FillRect(hDestDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
 
         HFONT hOldFont = (HFONT)SelectObject(hDestDC, EnvFont);
         int prevBkMode = SetBkMode(hDestDC, TRANSPARENT);
-        SetTextColor(hDestDC, GetSysColor(COLOR_BTNTEXT));
+        SetTextColor(hDestDC, ThemeSysColor(COLOR_BTNTEXT));
         // we won't clip so that we survive minor text extension
         // that may occur during a SetText call
         // the text may carry UTF-8 names/paths: draw wide (feature 010)
@@ -2749,7 +2749,7 @@ CWaitWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         RECT r;
         GetClientRect(HWindow, &r);
-        FillRect(hDC, &r, (HBRUSH)(COLOR_BTNFACE + 1));
+        FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
 
         PaintText(hDC);
 
@@ -2930,7 +2930,7 @@ CConversionTablesDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(GetDlgItem(HWindow, IDC_CT_LIST), GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(GetDlgItem(HWindow, IDC_CT_LIST), ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }

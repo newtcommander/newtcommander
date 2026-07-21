@@ -86,12 +86,12 @@ BOOL CMenuSharedResources::Create(HWND hParent, int width, int height)
     HParent = hParent;
 
     // colors
-    NormalBkColor = GetSysColor(COLOR_BTNFACE);
-    SelectedBkColor = GetSysColor(COLOR_HIGHLIGHT);
-    NormalTextColor = GetSysColor(COLOR_BTNTEXT);
-    SelectedTextColor = GetSysColor(COLOR_HIGHLIGHTTEXT);
-    HilightColor = GetSysColor(COLOR_3DHILIGHT);
-    GrayTextColor = GetSysColor(COLOR_3DSHADOW);
+    NormalBkColor = ThemeSysColor(COLOR_BTNFACE);
+    SelectedBkColor = ThemeSysColor(COLOR_HIGHLIGHT);
+    NormalTextColor = ThemeSysColor(COLOR_BTNTEXT);
+    SelectedTextColor = ThemeSysColor(COLOR_HIGHLIGHTTEXT);
+    HilightColor = ThemeSysColor(COLOR_3DHILIGHT);
+    GrayTextColor = ThemeSysColor(COLOR_3DSHADOW);
 
     // generate a copy and a bold version from the menu font
     NONCLIENTMETRICS ncm;
@@ -428,8 +428,8 @@ void CMenuPopup::DrawCheckBitmapVista(HDC hDC, CMenuItem* item, int yOffset, BOO
                 // it is not selected, so it is already painted with the correct color
                 SetBrushOrgEx(SharedRes->CacheBitmap->HMemDC, 0, r.top, NULL);
                 HBRUSH hOldBrush2 = (HBRUSH)SelectObject(SharedRes->CacheBitmap->HMemDC, HDitherBrush);
-                int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_BTNFACE));
-                int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_3DHILIGHT));
+                int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNFACE));
+                int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_3DHILIGHT));
                 PatBlt(SharedRes->CacheBitmap->HMemDC, r.left + 1, r.top + 1,
                        SharedRes->TextItemHeight - 1, SharedRes->TextItemHeight - 1,
                        PATCOPY);
@@ -445,7 +445,7 @@ void CMenuPopup::DrawCheckBitmapVista(HDC hDC, CMenuItem* item, int yOffset, BOO
                 if (!(item->State & MENU_STATE_GRAYED) && item->State & MENU_STATE_CHECKED)
                     mode = BDR_SUNKENOUTER;
                 r.right--;
-                DrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
+                ThemeDrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
             }
         }
 
@@ -598,8 +598,8 @@ void CMenuPopup::DrawCheckBitmap(HDC hDC, CMenuItem* item, int yOffset, BOOL sel
                 // it is not selected, so it is already painted with the correct color
                 SetBrushOrgEx(SharedRes->CacheBitmap->HMemDC, 0, r.top, NULL);
                 HBRUSH hOldBrush2 = (HBRUSH)SelectObject(SharedRes->CacheBitmap->HMemDC, HDitherBrush);
-                int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_BTNFACE));
-                int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_3DHILIGHT));
+                int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNFACE));
+                int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_3DHILIGHT));
                 PatBlt(SharedRes->CacheBitmap->HMemDC, r.left + 1, r.top + 1,
                        SharedRes->TextItemHeight - 1, SharedRes->TextItemHeight - 1,
                        PATCOPY);
@@ -615,7 +615,7 @@ void CMenuPopup::DrawCheckBitmap(HDC hDC, CMenuItem* item, int yOffset, BOOL sel
                 if (!(item->State & MENU_STATE_GRAYED) && item->State & MENU_STATE_CHECKED)
                     mode = BDR_SUNKENOUTER;
                 r.right--;
-                DrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
+                ThemeDrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
             }
         }
 
@@ -730,8 +730,8 @@ void CMenuPopup::DrawCheckImage(HDC hDC, CMenuItem* item, int yOffset, BOOL sele
             // it is not selected, so it is already painted with the correct color
             SetBrushOrgEx(SharedRes->CacheBitmap->HMemDC, 0, r.top, NULL);
             HBRUSH hOldBrush2 = (HBRUSH)SelectObject(SharedRes->CacheBitmap->HMemDC, HDitherBrush);
-            int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_BTNFACE));
-            int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, GetSysColor(COLOR_3DHILIGHT));
+            int oldTextColor = SetTextColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNFACE));
+            int oldBkColor = SetBkColor(SharedRes->CacheBitmap->HMemDC, ThemeSysColor(COLOR_3DHILIGHT));
             PatBlt(SharedRes->CacheBitmap->HMemDC, r.left + 1, r.top + 1,
                    SharedRes->TextItemHeight - 1, SharedRes->TextItemHeight - 1,
                    PATCOPY);
@@ -747,7 +747,7 @@ void CMenuPopup::DrawCheckImage(HDC hDC, CMenuItem* item, int yOffset, BOOL sele
             if (!(item->State & MENU_STATE_GRAYED) && checked)
                 mode = BDR_SUNKENOUTER;
             r.right--;
-            DrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
+            ThemeDrawEdge(SharedRes->CacheBitmap->HMemDC, &r, mode, BF_RECT);
         }
     }
 

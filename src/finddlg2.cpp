@@ -556,7 +556,7 @@ CFindTBHeader::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         HFONT hOldFont = (HFONT)SelectObject(hdc, (HFONT)SendMessage(HWindow, WM_GETFONT, 0, 0));
         int oldBkMode = SetBkMode(hdc, TRANSPARENT);
-        FillRect(hdc, &r, (HBRUSH)(COLOR_3DFACE + 1));
+        FillRect(hdc, &r, ThemeSysColorBrush(COLOR_3DFACE));
         DrawText(hdc, Text, -1, &tr, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
         SetBkMode(hdc, oldBkMode);
         SelectObject(hdc, hOldFont);

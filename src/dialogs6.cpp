@@ -87,14 +87,14 @@ CTipOfTheDayWindow::PaintBodyText(HDC hDC)
 
   InflateRect(&r, -leftWidth / 8, -leftWidth / 8);
 
-  FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+  FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
 
   int tipIndex = Configuration.LastTipOfTheDay;
   if (tipIndex >= 0 && tipIndex < Parent->Tips.Count)
   {
     HFONT hOldFont = (HFONT)SelectObject(hDC, HBodyFont);
     int oldBkMode = SetBkMode(hDC, TRANSPARENT);
-    COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_WINDOWTEXT));
+    COLORREF oldTextColor = SetTextColor(hDC, ThemeSysColor(COLOR_WINDOWTEXT));
     char *line = (char *)Parent->Tips[tipIndex];
     DrawText(hDC, line, -1, &r, DT_LEFT | DT_NOPREFIX | DT_WORDBREAK);
     SetTextColor(hDC, oldTextColor);
@@ -141,7 +141,7 @@ CTipOfTheDayWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
       r.right = leftWidth;
       r.top++;
       r.bottom--;
-      FillRect(hDC, &r, (HBRUSH)(COLOR_BTNSHADOW + 1));
+      FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNSHADOW));
       // place the icon stolen from Microsoft here - why does
       // everyone complain when they have such nice icons? ;-)
       DrawIcon(hDC, r.left + (r.right - r.left - 32) / 2, 16,
@@ -153,7 +153,7 @@ CTipOfTheDayWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
       r.left = leftWidth;
       r.bottom = topWidth;
       r.right--;
-      FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+      FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
       r.top += leftWidth / 5;
       r.left += leftWidth / 8;
       HFONT hOldFont = (HFONT)SelectObject(hDC, HHeadingFont);
@@ -170,7 +170,7 @@ CTipOfTheDayWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
       r.left = leftWidth;
       r.right--;
       r.bottom--;
-      FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+      FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
 
       PaintBodyText(hDC);
 
@@ -394,7 +394,7 @@ HIMAGELIST
 CSharesDialog::CreateImageList()
 {
     HIMAGELIST himl = ImageList_Create(16, 16, GetImageListColorFlags() | ILC_MASK, 2, 0);
-    //  ImageList_SetBkColor(himl, GetSysColor(COLOR_WINDOW)); // make transparent icons work under XP
+    //  ImageList_SetBkColor(himl, ThemeSysColor(COLOR_WINDOW)); // make transparent icons work under XP
 
     HICON hIcon = SalLoadImage(4, 4, IconSizes[ICONSIZE_16], IconSizes[ICONSIZE_16], IconLRFlags); // symbolsDirectory
     if (hIcon != NULL)
@@ -715,7 +715,7 @@ CSharesDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }
@@ -870,7 +870,7 @@ HIMAGELIST
 CDisconnectDialog::CreateImageList()
 {
     HIMAGELIST himl = ImageList_Create(16, 16, GetImageListColorFlags() | ILC_MASK, 4, 10);
-    //  ImageList_SetBkColor(himl, GetSysColor(COLOR_WINDOW)); // make transparent icons work under XP
+    //  ImageList_SetBkColor(himl, ThemeSysColor(COLOR_WINDOW)); // make transparent icons work under XP
 
     // CONNECTION_ICON_NETWORK
     HICON hIcon = SalLoadImage(33, 10, IconSizes[ICONSIZE_16], IconSizes[ICONSIZE_16], IconLRFlags); // accessible network drive
@@ -1389,7 +1389,7 @@ CDisconnectDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }
@@ -2610,7 +2610,7 @@ CCfgPageIconOvrls::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
 

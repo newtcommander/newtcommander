@@ -789,13 +789,13 @@ void PaintSymbol(HDC hDC, HDC hMemDC, HBITMAP hBitmap, int xOffset, int width, i
         if (Configuration.ShowPanelCaption)
             textColor = GetCOLORREF(CurrentColors[activeCaption ? ACTIVE_CAPTION_FG : INACTIVE_CAPTION_FG]);
         else
-            textColor = GetSysColor(COLOR_BTNTEXT);
+            textColor = ThemeSysColor(COLOR_BTNTEXT);
     }
     COLORREF bkColor;
     if (Configuration.ShowPanelCaption)
         bkColor = GetCOLORREF(CurrentColors[activeCaption ? ACTIVE_CAPTION_BK : INACTIVE_CAPTION_BK]);
     else
-        bkColor = GetSysColor(COLOR_BTNFACE);
+        bkColor = ThemeSysColor(COLOR_BTNFACE);
     int oldTextColor = SetTextColor(hDC, textColor);
     int oldBkColor = SetBkColor(hDC, bkColor);
     int x = (rect->left + rect->right) / 2 - width / 2;
@@ -822,7 +822,7 @@ void CStatusWindow::PaintThrobber(HDC hDC)
     if (Configuration.ShowPanelCaption)
         fgClr = GetCOLORREF(CurrentColors[activeCaption ? ACTIVE_CAPTION_FG : INACTIVE_CAPTION_FG]);
     else
-        fgClr = GetSysColor(COLOR_BTNTEXT);
+        fgClr = ThemeSysColor(COLOR_BTNTEXT);
 
     ThrobberFrames->Draw(ThrobberFrame, hDC, x, y, fgClr, IL_DRAW_ASALPHA);
 }
@@ -852,7 +852,7 @@ void CStatusWindow::PaintSecurity(HDC hDC)
         if (Configuration.ShowPanelCaption)
             fgClr = GetCOLORREF(CurrentColors[activeCaption ? ACTIVE_CAPTION_FG : INACTIVE_CAPTION_FG]);
         else
-            fgClr = GetSysColor(COLOR_BTNTEXT);
+            fgClr = ThemeSysColor(COLOR_BTNTEXT);
     }
 
     LockFrames->Draw(DWORD(Security - 1), hDC, x, y, fgClr, IL_DRAW_ASALPHA /*IL_DRAW_TRANSPARENT*/);
@@ -893,7 +893,7 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
         RECT textR = r;
         textR.top += 2;
         textR.bottom -= 2;
-        DrawEdge(dc, &textR, BDR_SUNKENOUTER, BF_RECT);
+        ThemeDrawEdge(dc, &textR, BDR_SUNKENOUTER, BF_RECT);
 
         // Fill the area under the text (active/inactive)
         textR.left++;
@@ -1118,9 +1118,9 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
             }
             else
             {
-                SetTextColor(dc, GetSysColor(COLOR_BTNTEXT));
+                SetTextColor(dc, ThemeSysColor(COLOR_BTNTEXT));
                 if (highlightText && !highlightHotTrackOnly)
-                    SetTextColor(dc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+                    SetTextColor(dc, ThemeSysColor(COLOR_HIGHLIGHTTEXT));
             }
 
             int firstClipChar = 2 * textLen;
@@ -1201,7 +1201,7 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                 {
                     oldColor = SetTextColor(dc, GetCOLORREF(CurrentColors[HOT_PANEL]));
                     if (showFlashText)
-                        SetTextColor(dc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+                        SetTextColor(dc, ThemeSysColor(COLOR_HIGHLIGHTTEXT));
                 }
                 HFONT hOldFont = NULL;
                 if (Configuration.SingleClick && HotItem != NULL)
@@ -1275,7 +1275,7 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                 if (isDirectoryLine && Configuration.ShowPanelCaption)
                     SetTextColor(dc, GetCOLORREF(CurrentColors[activeCaption ? ACTIVE_CAPTION_FG : INACTIVE_CAPTION_FG]));
                 else
-                    SetTextColor(dc, GetSysColor(COLOR_BTNTEXT));
+                    SetTextColor(dc, ThemeSysColor(COLOR_BTNTEXT));
             }
 
             HFONT hOldFont = NULL;

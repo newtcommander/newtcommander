@@ -1568,7 +1568,7 @@ CInnerText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             COLORREF sysBkColor = EditWindow->Enabled ? COLOR_WINDOW : COLOR_BTNFACE;
             COLORREF sysTxColor = EditWindow->Enabled ? COLOR_WINDOWTEXT : COLOR_BTNSHADOW;
-            int oldColor = SetTextColor(dc, GetSysColor(sysTxColor));
+            int oldColor = SetTextColor(dc, ThemeSysColor(sysTxColor));
             HFONT oldFont = (HFONT)SelectObject(dc, EnvFont);
             RECT r;
             GetClientRect(HWindow, &r);

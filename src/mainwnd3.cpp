@@ -1234,6 +1234,17 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
         break;
     }
 
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORLISTBOX:
+    {
+        // feature 028: dark colors for the command line edit/combo controls
+        INT_PTR themeResult;
+        if (ThemeHandleCtlColor(uMsg, wParam, lParam, &themeResult))
+            return themeResult;
+        break;
+    }
+
     case WM_SYSCOLORCHANGE:
     {
         UserMenuIconBkgndReader.SetSysColorsChanged();

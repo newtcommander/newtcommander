@@ -1123,7 +1123,7 @@ CLanguageSelectorDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
         break;
     }
     }

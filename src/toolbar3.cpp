@@ -470,9 +470,9 @@ CTBCustomizeDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         BOOL focused = selected && GetFocus() == GetDlgItem(HWindow, dis->CtlID);
 
         if (selected && focused)
-            FillRect(hDC, &r, (HBRUSH)(COLOR_HIGHLIGHT + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_HIGHLIGHT));
         else
-            FillRect(hDC, &r, (HBRUSH)(COLOR_WINDOW + 1));
+            FillRect(hDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
 
         const char* text;
         if (separator)
@@ -493,7 +493,7 @@ CTBCustomizeDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         r.left += imageWidth;
         int normalColor = index == -1 ? COLOR_GRAYTEXT : COLOR_WINDOWTEXT;
-        SetTextColor(hDC, GetSysColor(selected && focused ? COLOR_HIGHLIGHTTEXT : normalColor));
+        SetTextColor(hDC, ThemeSysColor(selected && focused ? COLOR_HIGHLIGHTTEXT : normalColor));
         SetBkMode(hDC, TRANSPARENT);
         // feature 010: button names (LoadStr/WM_USER_TBENUMBUTTON2) are UTF-8;
         // draw wide, legacy ANSI route is the invalid-UTF-8 fallback
@@ -509,7 +509,7 @@ CTBCustomizeDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (selected && !focused)
         {
             SelectObject(hDC, HANDLES(GetStockObject(NULL_BRUSH)));
-            HPEN hPen = HANDLES(CreatePen(PS_SOLID, 0, GetSysColor(COLOR_HIGHLIGHT)));
+            HPEN hPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_HIGHLIGHT)));
             HPEN hOldPen = (HPEN)SelectObject(hDC, hPen);
             Rectangle(hDC, r.left, r.top, r.right, r.bottom);
             SelectObject(hDC, hOldPen);

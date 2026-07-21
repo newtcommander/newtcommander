@@ -2031,7 +2031,7 @@ CExecuteWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             HFONT hOldFont = (HFONT)SelectObject(dc, EnvFont);
             int prevBkMode = SetBkMode(dc, TRANSPARENT);
-            SetTextColor(dc, GetSysColor(COLOR_BTNTEXT));
+            SetTextColor(dc, ThemeSysColor(COLOR_BTNTEXT));
             DrawText(dc, Text, (int)strlen(Text), &r, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
             SetBkMode(dc, prevBkMode);
             SelectObject(dc, hOldFont);

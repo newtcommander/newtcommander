@@ -553,8 +553,8 @@ void CToolBar::DrawItem(HDC hDC, int index)
                     // ditherovane zamackle pozadi
                     SetBrushOrgEx(CacheBitmap->HMemDC, 0, r.top, NULL);
                     HBRUSH hOldBrush = (HBRUSH)SelectObject(CacheBitmap->HMemDC, HDitherBrush);
-                    int oldTextColor = SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNFACE));
-                    int oldBkColor = SetBkColor(CacheBitmap->HMemDC, GetSysColor(COLOR_3DHILIGHT));
+                    int oldTextColor = SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNFACE));
+                    int oldBkColor = SetBkColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_3DHILIGHT));
                     PatBlt(CacheBitmap->HMemDC, r.left + 1, r.top + 1,
                            r.right - r.left - 2, r.bottom - r.top - 2, PATCOPY);
                     SetTextColor(CacheBitmap->HMemDC, oldTextColor);
@@ -566,7 +566,7 @@ void CToolBar::DrawItem(HDC hDC, int index)
 
             // ramecek kolem tela
             DWORD mode = bodyDown ? BDR_SUNKENOUTER : BDR_RAISEDINNER;
-            DrawEdge(CacheBitmap->HMemDC, &r, mode, BF_RECT);
+            ThemeDrawEdge(CacheBitmap->HMemDC, &r, mode, BF_RECT);
 
             if (HotIndex == index && outterDropPresent)
             {
@@ -574,7 +574,7 @@ void CToolBar::DrawItem(HDC hDC, int index)
                 r.left = r.right;
                 r.right = width;
                 mode = dropDown ? BDR_SUNKENOUTER : BDR_RAISEDINNER;
-                DrawEdge(CacheBitmap->HMemDC, &r, mode, BF_RECT);
+                ThemeDrawEdge(CacheBitmap->HMemDC, &r, mode, BF_RECT);
             }
         }
 
@@ -645,7 +645,7 @@ void CToolBar::DrawItem(HDC hDC, int index)
                 textR2.top++;
                 textR2.right++;
                 textR2.bottom++;
-                SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNHILIGHT));
+                SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNHILIGHT));
                 if (textW != NULL)
                 {
                     DrawTextW(CacheBitmap->HMemDC, textW, textLenW,
@@ -656,10 +656,10 @@ void CToolBar::DrawItem(HDC hDC, int index)
                     DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
                              &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
                 }
-                SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNSHADOW));
+                SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNSHADOW));
             }
             else
-                SetTextColor(CacheBitmap->HMemDC, GetSysColor(COLOR_BTNTEXT));
+                SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNTEXT));
             if (textW != NULL)
             {
                 DrawTextW(CacheBitmap->HMemDC, textW, textLenW, &r,
