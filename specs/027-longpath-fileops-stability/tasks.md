@@ -80,9 +80,9 @@ Release testing of everything else.
 
 **Independent Test**: Timing harness — fixed file set copied ordinary→ordinary vs long→long on the same volume; long ≤ 1.10 × ordinary; sub-260 no slower than baseline.
 
-- [ ] T022 [US4] Clean-path pre-scan in `src/common/salpath.cpp` `SalPathToWExtAlloc` (skip `SalCanonicalizePathW` when the UTF-8 input has no `/`, no `.` path segment, no doubled separator past the root)
-- [ ] T023 [P] [US4] saltests: pre-scan correctness cases (clean absolute, `.`/`..` segments, doubled separators, UNC, trailing dot/space names → canonicalization still applied where required; output identical to always-canonicalize) in `src/saltests/`
-- [ ] T024 [US4] Timing harness script `specs/027-longpath-fileops-stability/audit/perf.ps1`: create 500×4 KB + 5×50 MB set, copy via `Sal*`-wrapper test binary (saltests bench) or file-system fallback in ordinary vs long-Unicode dirs; record before/after numbers in `specs/027-longpath-fileops-stability/audit/perf-results.md`
+- [X] T022 [US4] Clean-path pre-scan in `src/common/salpath.cpp` `SalPathToWExtAlloc` (skip `SalCanonicalizePathW` when the UTF-8 input has no `/`, no `.` path segment, no doubled separator past the root)
+- [X] T023 [P] [US4] saltests: pre-scan correctness cases (clean absolute, `.`/`..` segments, doubled separators, UNC, trailing dot/space names → canonicalization still applied where required; output identical to always-canonicalize) in `src/saltests/`
+- [X] T024 [US4] Timing harness script `specs/027-longpath-fileops-stability/audit/perf.ps1`: create 500×4 KB + 5×50 MB set, copy via `Sal*`-wrapper test binary (saltests bench) or file-system fallback in ordinary vs long-Unicode dirs; record before/after numbers in `specs/027-longpath-fileops-stability/audit/perf-results.md`
 
 **Checkpoint**: SC-005 evidence recorded.
 

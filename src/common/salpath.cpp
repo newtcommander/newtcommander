@@ -168,6 +168,38 @@ BOOL CSalPathBuf::CutLastComponent()
 
 // converts '/' to '\' and collapses ".", ".." and doubled separators
 // beyond the root; returns FALSE when ".." would climb above the root
+// feature 027 (perf): returns TRUE only when the part past the root is already
+// canonical -- no '/', no '.'/'..' component, no doubled separator, no trailing
+// separator -- so the (allocating, O(n)) SalCanonicalizePathW pass can be
+// skipped. Long-path file operations call SalPathToWExtAlloc several times per
+// file; most real paths are already clean, so this removes the dominant
+// avoidable per-call cost while leaving output identical.
+static BOOL SalPathIsAlreadyCanonicalW(const WCHAR* path, int rootLen)
+{
+    const WCHAR* in = path + rootLen;
+    if (*in == 0)
+        return TRUE; // just the root
+    while (*in != 0)
+    {
+        const WCHAR* end = in;
+        while (*end != 0 && *end != L'\\' && *end != L'/')
+            end++;
+        int compLen = (int)(end - in);
+        if (compLen == 0)
+            return FALSE; // doubled separator or leading separator past root
+        if (compLen == 1 && in[0] == L'.')
+            return FALSE; // "." component
+        if (compLen == 2 && in[0] == L'.' && in[1] == L'.')
+            return FALSE; // ".." component
+        if (*end == L'/')
+            return FALSE; // forward slash needs normalizing
+        if (*end == L'\\' && *(end + 1) == 0)
+            return FALSE; // trailing separator (the canonicalizer strips it)
+        in = *end == 0 ? end : end + 1;
+    }
+    return TRUE;
+}
+
 static BOOL SalCanonicalizePathW(WCHAR* path, int rootLen)
 {
     for (WCHAR* s = path; *s != 0; s++)
@@ -290,12 +322,15 @@ WCHAR* SalPathToWExtAlloc(const char* u8path)
         return NULL;
     }
 
-    if (!SalCanonicalizePathW(w, rootLen))
+    if (!SalPathIsAlreadyCanonicalW(w, rootLen)) // feature 027: skip the pass for already-clean paths
     {
-        free(w);
-        return NULL;
+        if (!SalCanonicalizePathW(w, rootLen))
+        {
+            free(w);
+            return NULL;
+        }
+        len = wcslen(w);
     }
-    len = wcslen(w);
 
     // build the extended form
     const WCHAR* prefix = isDrive ? L"\\\\?\\" : L"\\\\?\\UNC\\";

@@ -193,6 +193,24 @@ static void TestExtendedPaths()
     // climbing above the root fails
     CHECK(SalPathToWExtAlloc("C:\\a\\..\\..") == NULL);
 
+    // feature 027 pre-scan: clean paths (skip branch) and the dirty forms it
+    // must still route through canonicalization produce identical output
+    w = SalPathToWExtAlloc("C:\\already\\clean\\path"); // clean -> skip branch
+    CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\already\\clean\\path") == 0);
+    free(w);
+    w = SalPathToWExtAlloc("C:\\trailing\\"); // trailing separator must be stripped
+    CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\trailing") == 0);
+    free(w);
+    w = SalPathToWExtAlloc("C:\\double\\\\sep"); // doubled separator must collapse
+    CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\double\\sep") == 0);
+    free(w);
+    w = SalPathToWExtAlloc("C:\\a\\.\\b"); // single-dot component must drop
+    CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\a\\b") == 0);
+    free(w);
+    w = SalPathToWExtAlloc("C:\\dotted.name\\file..ext"); // dots inside names are NOT components -> clean
+    CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\dotted.name\\file..ext") == 0);
+    free(w);
+
     // already-extended input passes through
     w = SalPathToWExtAlloc("\\\\?\\C:\\x");
     CHECK(w != NULL && wcscmp(w, L"\\\\?\\C:\\x") == 0);
