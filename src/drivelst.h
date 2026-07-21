@@ -103,10 +103,10 @@ class CDrivesList
 protected:
     CFilesWindow* FilesWindow;
     CDriveTypeEnum* DriveType;
-    DWORD_PTR* DriveTypeParam; // x64: the referenced value must be able to hold a pointer, so DWORD_PTR
-    int* PostCmd;              // post-cmd for context menu of a FS plugin
-    void** PostCmdParam;       // post-cmd-parameter for context menu of a FS plugin
-    BOOL* FromContextMenu;     // set to TRUE if the menu command was triggered by a context menu
+    DWORD_PTR* DriveTypeParam;           // x64: the referenced value must be able to hold a pointer, so DWORD_PTR
+    int* PostCmd;                        // post-cmd for context menu of a FS plugin
+    void** PostCmdParam;                 // post-cmd-parameter for context menu of a FS plugin
+    BOOL* FromContextMenu;               // set to TRUE if the menu command was triggered by a context menu
     char CurrentPath[SAL_MAX_PATH_UTF8]; // panel path (UTF-8) can exceed MAX_PATH; see feature 027 (dump D1)
     TDirectArray<CDriveData>* Drives;
     CMenuPopup* MenuPopup;

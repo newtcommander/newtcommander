@@ -488,18 +488,18 @@ unsigned IconThreadThreadFBody(void* parameter)
                     }
                     else
                     {
-                    memmove(path, window->GetPath(), l);
-                    if (path[l - 1] != '\\')
-                        path[l++] = '\\';
-                    name = path + l; // pointer to the location of the name in the full path
-                    *name = 0;
-                    MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, path, l, wPath, MAX_PATH + 10);
-                    wName = wPath + l;
-                    *wName = 0;
-                    pathIsInvalid = !PathContainsValidComponents(path, FALSE);
-                    if (pathIsInvalid)
-                        TRACE_I("Path contains invalid components, shell cannot read icons from such paths! Path: " << path);
-                    isGoogleDrivePath = ShellIconOverlays.IsGoogleDrivePath(path);
+                        memmove(path, window->GetPath(), l);
+                        if (path[l - 1] != '\\')
+                            path[l++] = '\\';
+                        name = path + l; // pointer to the location of the name in the full path
+                        *name = 0;
+                        MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, path, l, wPath, MAX_PATH + 10);
+                        wName = wPath + l;
+                        *wName = 0;
+                        pathIsInvalid = !PathContainsValidComponents(path, FALSE);
+                        if (pathIsInvalid)
+                            TRACE_I("Path contains invalid components, shell cannot read icons from such paths! Path: " << path);
+                        isGoogleDrivePath = ShellIconOverlays.IsGoogleDrivePath(path);
                     }
                 }
 
@@ -2280,7 +2280,7 @@ void CFilesWindow::OpenActiveFolder()
                 if (StrNICmp(path, dirName, len) == 0 && (path[len] == '\\' || path[len] == 0))
                 {
                     lstrcpyn(dirName, WindowsDirectory, MAX_PATH);
-                    SalPathAppend(dirName, "System32", MAX_PATH); // if Sysnative fit, System32 will fit as well
+                    SalPathAppend(dirName, "System32", MAX_PATH);        // if Sysnative fit, System32 will fit as well
                     if (strlen(dirName) + strlen(path + len) < MAX_PATH) // feature 027: keep dirName bounded; Explorer is MAX_PATH anyway
                     {
                         memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);
@@ -2311,7 +2311,7 @@ void CFilesWindow::OpenActiveFolder()
                         if (!done)
                         {
                             lstrcpyn(dirName, WindowsDirectory, MAX_PATH);
-                            SalPathAppend(dirName, "SysWOW64", MAX_PATH); // if System32 fit, SysWOW64 will fit as well
+                            SalPathAppend(dirName, "SysWOW64", MAX_PATH);        // if System32 fit, SysWOW64 will fit as well
                             if (strlen(dirName) + strlen(path + len) < MAX_PATH) // feature 027: keep dirName bounded
                             {
                                 memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);

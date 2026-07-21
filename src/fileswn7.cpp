@@ -397,7 +397,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
     BeginStopRefresh(); // the snooper takes a break
 
     //---  obtain the files and directories to work with
-    char subject[MAX_PATH + 100]; // text for the Unpack dialog (which is being unpacked)
+    char subject[MAX_PATH + 100];      // text for the Unpack dialog (which is being unpacked)
     char path[SAL_FIND_NAME_U8 + 200]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH+200)
     char expanded[200];
     CPanelTmpEnumData data;
@@ -1295,7 +1295,7 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
 
     //---  obtain the files and directories to work with
     char subject[MAX_PATH + 100]; // text for the Unpack dialog (that is being unpacked)
-    char path[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
+    char path[SAL_FIND_NAME_U8];  // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
     char text[1000];
     BOOL nameByItem;
     CPanelTmpEnumData data;

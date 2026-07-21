@@ -28,8 +28,8 @@ HANDLE SalFindFirstFile(const char* u8pattern, WIN32_FIND_DATAW* data);
 BOOL SalFindNextFile(HANDLE find, WIN32_FIND_DATAW* data);
 
 // recommended UTF-8 buffer sizes for a single find-data record
-#define SAL_FIND_NAME_U8 (3 * MAX_PATH)    // cFileName worst case (3 B per WCHAR)
-#define SAL_FIND_DOSNAME_U8 (3 * 14 + 2)   // cAlternateFileName (8.3)
+#define SAL_FIND_NAME_U8 (3 * MAX_PATH)  // cFileName worst case (3 B per WCHAR)
+#define SAL_FIND_DOSNAME_U8 (3 * 14 + 2) // cAlternateFileName (8.3)
 
 // fills the legacy-shaped 'a' view (attributes/times/sizes for helpers that
 // take WIN32_FIND_DATA*) + UTF-8 name buffers from wide find data; names that

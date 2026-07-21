@@ -1175,7 +1175,7 @@ BOOL IsDirectoryEmpty(const char* name) // directories/subdirectories contain no
 {
     CSalPathBuf dir; // recursive tree walk: path buffers must live on the heap
     if (!dir.Set(name) || !dir.AddBackslash())
-        return FALSE; // low memory: report "not empty" (the safe answer, no Recycle Bin shortcut)
+        return FALSE;           // low memory: report "not empty" (the safe answer, no Recycle Bin shortcut)
     int baseLen = dir.Length(); // length of "name\" (the search pattern gets appended behind it)
     if (!dir.Append("*"))
         return FALSE;
@@ -1503,8 +1503,8 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
     else // obtain the security info from the source
     {
         *err = SalGetNamedSecurityInfo(sourceNameSec,
-                                    DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-                                    &srcOwner, &srcGroup, &srcDACL, NULL, &srcSD);
+                                       DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
+                                       &srcOwner, &srcGroup, &srcDACL, NULL, &srcSD);
     }
     BOOL ret = *err == ERROR_SUCCESS;
 
@@ -1522,9 +1522,9 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
             BOOL inheritedDACL = /*(srcSDControl & SE_DACL_AUTO_INHERITED) != 0 &&*/ (srcSDControl & SE_DACL_PROTECTED) == 0; // SE_DACL_AUTO_INHERITED unfortunately is not always set (for example Total Commander clears it after moving a file, so we ignore it)
             DWORD attr = SalGetFileAttributes(targetNameSec);
             *err = SalSetNamedSecurityInfo(targetNameSec,
-                                        DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION |
-                                            (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
-                                        srcOwner, srcGroup, srcDACL, NULL);
+                                           DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION |
+                                               (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
+                                           srcOwner, srcGroup, srcDACL, NULL);
             ret = *err == ERROR_SUCCESS;
 
             if (!ret)
@@ -1536,8 +1536,8 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                 PACL tgtDACL = NULL;
                 PSECURITY_DESCRIPTOR tgtSD = NULL;
                 BOOL tgtRead = SalGetNamedSecurityInfo(targetNameSec,
-                                                    DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-                                                    &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
+                                                       DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
+                                                       &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
                 // if the owner of the target file is not the current user, try to set it ("take ownership") - only
                 // provided we have the right to write the owner so that we can write back the original owner afterwards
                 BOOL ownerOfFile = FALSE;
@@ -1549,7 +1549,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                     if (HaveWriteOwnerRight &&
                         CurrentProcessTokenUserValid && CurrentProcessTokenUser->User.Sid != NULL &&
                         SalSetNamedSecurityInfo(targetNameSec, OWNER_SECURITY_INFORMATION,
-                                             CurrentProcessTokenUser->User.Sid, NULL, NULL, NULL) == ERROR_SUCCESS)
+                                                CurrentProcessTokenUser->User.Sid, NULL, NULL, NULL) == ERROR_SUCCESS)
                     { // setting succeeded; we must retrieve 'tgtSD' again
                         ownerOfFile = TRUE;
                         if (tgtSD != NULL)
@@ -1559,8 +1559,8 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                         tgtDACL = NULL;
                         tgtSD = NULL;
                         tgtRead = SalGetNamedSecurityInfo(targetNameSec,
-                                                       DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-                                                       &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
+                                                          DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
+                                                          &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
                     }
                 }
                 else
@@ -1585,24 +1585,24 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                         AddAccessAllowedAce(allowChPermDACL, ACL_REVISION, READ_CONTROL | WRITE_DAC | WRITE_OWNER,
                                             CurrentProcessTokenUser->User.Sid) &&
                         SalSetNamedSecurityInfo(targetNameSec,
-                                             DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
-                                             NULL, NULL, allowChPermDACL, NULL) == ERROR_SUCCESS)
+                                                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
+                                                NULL, NULL, allowChPermDACL, NULL) == ERROR_SUCCESS)
                     {
                         ownerOK = SalSetNamedSecurityInfo(targetNameSec,
-                                                       OWNER_SECURITY_INFORMATION,
-                                                       srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS;
+                                                          OWNER_SECURITY_INFORMATION,
+                                                          srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS;
                         groupOK = SalSetNamedSecurityInfo(targetNameSec,
-                                                       GROUP_SECURITY_INFORMATION,
-                                                       NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS;
+                                                          GROUP_SECURITY_INFORMATION,
+                                                          NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS;
                         daclOK = SalSetNamedSecurityInfo(targetNameSec, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
-                                                      NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS;
+                                                         NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS;
                     }
                     if (allowChPermDACL != (PACL)buff3 && allowChPermDACL != NULL)
                         free(allowChPermDACL);
                 }
                 if (!ownerOK &&
                     (SalSetNamedSecurityInfo(targetNameSec, OWNER_SECURITY_INFORMATION,
-                                          srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS ||
+                                             srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS ||
                      tgtRead && (srcOwner == NULL && tgtOwner == NULL || // if the owner is already set, ignore a potential error while setting
                                  srcOwner != NULL && tgtOwner != NULL && EqualSid(srcOwner, tgtOwner))))
                 {
@@ -1610,7 +1610,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                 }
                 if (!groupOK &&
                     (SalSetNamedSecurityInfo(targetNameSec, GROUP_SECURITY_INFORMATION,
-                                          NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS ||
+                                             NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS ||
                      tgtRead && (srcGroup == NULL && tgtGroup == NULL || // if the group is already set, ignore a potential error while setting
                                  srcGroup != NULL && tgtGroup != NULL && EqualSid(srcGroup, tgtGroup))))
                 {
@@ -1618,7 +1618,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                 }
                 if (!daclOK && // the DACL must be set last because it depends on the owner (CREATOR OWNER is replaced with the real owner, etc.)
                     SalSetNamedSecurityInfo(targetNameSec, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
-                                         NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS)
+                                            NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS)
                 {
                     daclOK = TRUE;
                 }
@@ -2381,8 +2381,8 @@ COPY_ADS_AGAIN:
     if (CheckFileOrDirADS(sourceName, isDir, NULL, &streamNames, &streamNamesCount,
                           &lowMemory, &adsWinError, 0, NULL, NULL) &&
         !lowMemory && streamNames != NULL)
-    {              // we have the list of ADS, let's try to copy them to the target file/directory
-        int i;     // the longest ADS name determines the spare room in the full-name buffers
+    {          // we have the list of ADS, let's try to copy them to the target file/directory
+        int i; // the longest ADS name determines the spare room in the full-name buffers
         int maxAdsNameLen = 0;
         for (i = 0; i < streamNamesCount; i++)
         {
@@ -3877,7 +3877,7 @@ void CCopy_Context::CancelOpPhase2(int errBlkIndex)
 
     // when deleting the target file, set the file pointer to the end of the written portion;
     // the caller will truncate it with SetEndOfFile before deletion (otherwise zeroes might be written
-    // from the end of the written part to the end of the pre-allocated file - pre-allocation is 
+    // from the end of the written part to the end of the pre-allocated file - pre-allocation is
     // used to prevent fragmentation)
     if (*Out != NULL) // only if the target file was not closed meanwhile
     {
@@ -4233,7 +4233,7 @@ void DoCopyFileLoopAsync(CAsyncCopyParams* asyncPar, HANDLE& in, HANDLE& out, vo
                             ctx.AutoRetryAttemptsSNAP = 0;
                             if (!res) // EOF at the beginning of the block (for cbsReading only: EOF can also be before this block and will be handled later in a block with a lower offset)
                             {
-                                // when GetOverlappedResult() returns FALSE it does not have to return bytes==0 
+                                // when GetOverlappedResult() returns FALSE it does not have to return bytes==0
                                 // (TRACE_C existed for that and crashes happened), so zero the bytes explicitly
                                 bytes = 0;
                                 if (testingEOF)
@@ -4944,7 +4944,7 @@ COPY_AGAIN:
                     if (copyADS) // copy ADS streams if needed
                     {
                         SalSetFileAttributes(op->TargetName, FILE_ATTRIBUTE_ARCHIVE); // probably unnecessary, it hardly slows copying; reason: the file must not be read-only to work with it
-                        CQuadWord operDone = operationDone;                        // the file is already copied
+                        CQuadWord operDone = operationDone;                           // the file is already copied
                         if (operDone < COPY_MIN_FILE_SIZE)
                             operDone = COPY_MIN_FILE_SIZE; // zero/small files take at least as long as files of size COPY_MIN_FILE_SIZE
                         BOOL adsSkip = FALSE;
@@ -5421,7 +5421,7 @@ COPY_AGAIN:
                                         // (deletion works, but direct overwrite does not (cannot open for writing) - workaround:
                                         //  delete and recreate the file)
                                         // (Samba can allow deleting read-only files, which enables deleting them,
-                                        //  otherwise Windows cannot delete a read-only file and we cannot drop 
+                                        //  otherwise Windows cannot delete a read-only file and we cannot drop
                                         //  the "read-only" attribute because the current user is not the owner)
                                         if (chAttr)
                                             SalSetFileAttributes(op->TargetName, attr);
@@ -6933,7 +6933,7 @@ BOOL DoDeleteDir(HWND hProgressDlg, char* name, const CQuadWord& size, COperatio
             (script->InvertRecycleBin && dlgData.UseRecycleBin == 0 ||
              !script->InvertRecycleBin && dlgData.UseRecycleBin == 1) &&
             (int)strlen(name) < MAX_PATH && // Recycle Bin (SHFileOperation) is MAX_PATH-bound; longer (empty) dirs are removed permanently below - avoids overrunning nameList (feature 014)
-            IsDirectoryEmpty(name)) // subdirectory must not contain any files!!!
+            IsDirectoryEmpty(name))         // subdirectory must not contain any files!!!
         {
             char nameList[MAX_PATH + 1];
             int l = (int)strlen(name) + 1;

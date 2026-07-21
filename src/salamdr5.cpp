@@ -1188,7 +1188,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
             SalMessageBox(parent, LoadStr(IDS_ARCPATHNOTSUPPORTED), errorTitle, MB_OK | MB_ICONEXCLAMATION);
             if (backslashAtEnd)
                 SalPathAddBackslash(path, SAL_MAX_PATH_UTF8); // if the '\\' was trimmed, add it back (feature 014: long-path capable)
-            return FALSE;                                // go back to the copy/move dialog
+            return FALSE;                                     // go back to the copy/move dialog
         }
     }
 }

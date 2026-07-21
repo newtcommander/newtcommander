@@ -228,7 +228,7 @@ static BOOL SalCanonicalizePathW(WCHAR* path, int rootLen)
             // ".." component: remove the previous component from 'out'
             if (out == path + rootLen)
                 return FALSE; // climbing above the root
-            out--; // step onto the separator written before the component
+            out--;            // step onto the separator written before the component
             while (out > path + rootLen && out[-1] != L'\\')
                 out--;
         }

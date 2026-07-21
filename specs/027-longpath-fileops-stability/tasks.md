@@ -105,11 +105,11 @@ Release testing of everything else.
 
 ## Phase 8: Polish & Final Verification
 
-- [ ] T029 Format changed files per repo config (clang-format / `normalize.ps1`); UTF-8-BOM preserved
-- [ ] T030 Full Debug x64 build clean (`build.cmd`) — zero new warnings in changed files
-- [ ] T031 Full Release x64 build clean (`build.cmd release`; close any running Release `salamand.exe` first — LNK1104 pitfall)
-- [ ] T032 Run complete saltests suite — green
-- [ ] T033 Re-validate spec checklists; update `specs/027-longpath-fileops-stability/quickstart.md` walkthrough with any changes; final commit(s) `[027]` prefix, author Pavel Stupka
+- [X] T029 Format changed files per repo config (clang-format / `normalize.ps1`); UTF-8-BOM preserved
+- [X] T030 Full Debug x64 build clean (`build.cmd`) — zero new warnings in changed files
+- [X] T031 Full Release x64 build clean (`build.cmd release`; close any running Release `salamand.exe` first — LNK1104 pitfall)
+- [X] T032 Run complete saltests suite — green
+- [X] T033 Re-validate spec checklists; update `specs/027-longpath-fileops-stability/quickstart.md` walkthrough with any changes; final commit(s) `[027]` prefix, author Pavel Stupka
 
 ---
 

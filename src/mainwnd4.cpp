@@ -409,7 +409,7 @@ BOOL GetNextFileFromPanel(int index, char* path, char* name, void* param)
     {
         CFileData* f = &((data->Index[index] < data->Window->Dirs->Count) ? data->Window->Dirs->At(data->Index[index]) : data->Window->Files->At(data->Index[index] - data->Window->Dirs->Count));
         lstrcpyn(path, data->Window->GetPath(), MAX_PATH); // User Menu path buffer is MAX_PATH (feature 027)
-        lstrcpyn(name, f->Name, MAX_PATH); // User Menu name buffer is MAX_PATH (feature 027)
+        lstrcpyn(name, f->Name, MAX_PATH);                 // User Menu name buffer is MAX_PATH (feature 027)
         return TRUE;
     }
     else

@@ -89,7 +89,8 @@ static void TestNormalization()
     CHECK(SalNormalizeNFC(L"\x010D", -1, buf, 8) > 0 && wcscmp(buf, L"\x010D") == 0);
     // ASCII passthrough
     CHECK(SalNormalizeNFC(L"abc", -1, buf, 8) > 0 && wcscmp(buf, L"abc") == 0);
-    WCHAR* nfc = SalNormalizeNFCAlloc(L"c\x030C" L".txt");
+    WCHAR* nfc = SalNormalizeNFCAlloc(L"c\x030C"
+                                      L".txt");
     CHECK(nfc != NULL && wcscmp(nfc, L"\x010D.txt") == 0);
     free(nfc);
 }

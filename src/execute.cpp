@@ -940,9 +940,9 @@ struct CFileDataExpData
 {
     CPluginDataInterfaceEncapsulation* PluginData;
     const CFileData* FileData;
-    BOOL IsDir;          // this is a file, not a directory
-    DWORD ValidFileData; // mask of valid data in CFileData
-    char Path[SAL_MAX_PATH_UTF8]; // path to the current panel (only for Make File List); UTF-8, can exceed MAX_PATH
+    BOOL IsDir;                     // this is a file, not a directory
+    DWORD ValidFileData;            // mask of valid data in CFileData
+    char Path[SAL_MAX_PATH_UTF8];   // path to the current panel (only for Make File List); UTF-8, can exceed MAX_PATH
     char Buffer[SAL_MAX_PATH_UTF8]; // holds full UTF-8 paths via $(Path) in Make File List (feature 027; was 2000)
 };
 

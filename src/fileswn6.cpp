@@ -1654,8 +1654,8 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
             s2 = mapName;
         if (strlen(s2) + targetLen >= SAL_MAX_PATH_UTF8) // long-path capable (feature 027; was PATH_MAX_PATH, which
         {                                                // rejected copying a folder into a long-path target)
-            *sourceEnd = 0; // restoring sourcePath
-            *targetEnd = 0; // restoring targetPath
+            *sourceEnd = 0;                              // restoring sourcePath
+            *targetEnd = 0;                              // restoring targetPath
             _snprintf_s(text, _TRUNCATE, LoadStr(IDS_TOOLONGNAME2), targetPath, s2);
             BOOL skip = TRUE;
             if (!ErrTooLongTgtDirNameSkipAll)
