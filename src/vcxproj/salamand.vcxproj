@@ -561,6 +561,8 @@
     </ClCompile>
     <ClCompile Include="..\tasklist.cpp">
     </ClCompile>
+    <ClCompile Include="..\themes.cpp">
+    </ClCompile>
     <ClCompile Include="..\thumbnl.cpp">
     </ClCompile>
     <ClCompile Include="..\toolbar1.cpp">
@@ -856,6 +858,8 @@
     <ClInclude Include="..\tabwnd.h">
     </ClInclude>
     <ClInclude Include="..\tasklist.h">
+    </ClInclude>
+    <ClInclude Include="..\themes.h">
     </ClInclude>
     <ClInclude Include="..\thumbnl.h">
     </ClInclude>

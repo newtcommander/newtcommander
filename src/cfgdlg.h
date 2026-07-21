@@ -322,6 +322,9 @@ struct CConfiguration
     // how experienced the user feels -- menus will be reduced accordingly
     BOOL SkillLevel; // SKILL_LEVEL_BEGINNER, SKILL_LEVEL_INTERMEDIATE, SKILL_LEVEL_ADVANCED
 
+    // feature 028: visual theme of the whole application
+    int ThemeMode; // THEME_MODE_DEFAULT (current look) or THEME_MODE_DARK
+
     // the history arrays are destroyed in the ClearHistory() method
     char* SelectHistory[SELECT_HISTORY_SIZE];
     char* CopyHistory[COPY_HISTORY_SIZE];

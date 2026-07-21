@@ -466,6 +466,9 @@
 
 // nechat rezervu
 
+#define CM_THEME_DEFAULT           2943  // feature 028: switch to the Default visual theme
+#define CM_THEME_DARK              2944  // feature 028: switch to the Dark visual theme
+
 #define CM_HIDE_SELECTED_NAMES     2945  // schova z panelu oznacena jmena
 #define CM_HIDE_UNSELECTED_NAMES   2946  // schova z panelu neoznacena jmena
 #define CM_SHOW_ALL_NAME           2947  // zobrazi v panelu vsechna jmena
@@ -538,6 +541,7 @@
 #define CML_OPTIONS             5535
 #define CML_OPTIONS_VISIBLE     5536
 #define CML_OPTIONS_PLUGINS     5537
+#define CML_OPTIONS_THEME       5538  // feature 028: Theme submenu
 
 #define CML_RIGHT               5540
 #define CML_RIGHT_CHANGEDRIVE   5541

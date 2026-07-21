@@ -1238,6 +1238,13 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
     {
         UserMenuIconBkgndReader.SetSysColorsChanged();
 
+        // feature 028: High Contrast may have toggled - it overrides the Dark
+        // theme, so re-resolve the effective palette before rebuilding
+        RefreshThemeHighContrastState();
+        UpdateCurrentColorsForTheme();
+        ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
+        ThemeApplyToTopLevel(HWindow);
+
         // propagate the color change to the rebar
         if (HTopRebar != NULL)
             SendMessage(HTopRebar, uMsg, wParam, lParam);
@@ -2913,6 +2920,18 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
             CSkillLevelDialog dlg(HWindow, &Configuration.SkillLevel);
             if (dlg.Execute() == IDOK)
                 MainMenu.SetSkillLevel(CfgSkillLevelToMenu(Configuration.SkillLevel));
+            break;
+        }
+
+        case CM_THEME_DEFAULT:
+        {
+            SetThemeMode(THEME_MODE_DEFAULT); // feature 028
+            break;
+        }
+
+        case CM_THEME_DARK:
+        {
+            SetThemeMode(THEME_MODE_DARK); // feature 028
             break;
         }
 
@@ -4927,6 +4946,15 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
             // we want only plugins with configuration options
             if (Plugins.AddNamesToMenu(popup, CM_PLUGINCFG_MIN, CM_PLUGINCFG_MAX - CM_PLUGINCFG_MIN, TRUE))
                 popup->AssignHotKeys();
+            break;
+        }
+
+        case CML_OPTIONS_THEME:
+        {
+            // feature 028: radio-check the active visual theme
+            popup->CheckRadioItem(CM_THEME_DEFAULT, CM_THEME_DARK,
+                                  Configuration.ThemeMode == THEME_MODE_DARK ? CM_THEME_DARK : CM_THEME_DEFAULT,
+                                  FALSE);
             break;
         }
 

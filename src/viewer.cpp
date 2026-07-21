@@ -809,12 +809,12 @@ void CViewerWindow::Paint(HDC dc)
         //    SetCursor(LoadCursor(NULL, IDC_WAIT));
         //---
         HFONT oldFont = (HFONT)SelectObject(dc, ViewerFont);
-        SetTextColor(dc, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
-        SetBkColor(dc, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
+        SetTextColor(dc, GetCOLORREF(CurrentViewerColors[VIEWER_FG_NORMAL]));
+        SetBkColor(dc, GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL]));
         //---
         HFONT oldFont2 = (HFONT)SelectObject(Bitmap.HMemDC, ViewerFont);
-        SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
-        SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
+        SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_NORMAL]));
+        SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL]));
         //---
         int oldMode = SetBkMode(Bitmap.HMemDC, TRANSPARENT);
 
@@ -981,13 +981,13 @@ void CViewerWindow::Paint(HDC dc)
                                 // u1, u2 sel
                                 if (u1 < u2)
                                 {
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_SELECTED]));
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_SELECTED]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_SELECTED]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_SELECTED]));
                                     SetBkMode(Bitmap.HMemDC, OPAQUE);
                                     MyTextOut(Bitmap.HMemDC, u1 * CharWidth, 0, text + u1, u2 - u1);
                                     SetBkMode(Bitmap.HMemDC, TRANSPARENT);
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_NORMAL]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL]));
                                 }
                                 // t2, u1 norm
                                 if (t2 < u1)
@@ -997,13 +997,13 @@ void CViewerWindow::Paint(HDC dc)
                                 // t1, t2 select
                                 if (t1 < t2)
                                 {
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_SELECTED]));
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_SELECTED]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_SELECTED]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_SELECTED]));
                                     SetBkMode(Bitmap.HMemDC, OPAQUE);
                                     MyTextOut(Bitmap.HMemDC, t1 * CharWidth, 0, text + t1, t2 - t1);
                                     SetBkMode(Bitmap.HMemDC, TRANSPARENT);
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_NORMAL]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL]));
                                 }
                                 // 0, t1 norm
                                 if (t1 > 0)
@@ -1423,13 +1423,13 @@ void CViewerWindow::Paint(HDC dc)
                                     MyTextOutSeg(Bitmap.HMemDC, cu1 + cu2, 0, line + u1 + u2, (int)u3, enc, CharWidth);
                                 if (u2 > 0)
                                 {
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_SELECTED]));
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_SELECTED]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_SELECTED]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_SELECTED]));
                                     SetBkMode(Bitmap.HMemDC, OPAQUE);
                                     MyTextOutSeg(Bitmap.HMemDC, cu1, 0, line + u1, (int)u2, enc, CharWidth);
                                     SetBkMode(Bitmap.HMemDC, TRANSPARENT);
-                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_FG_NORMAL]));
-                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL]));
+                                    SetTextColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_FG_NORMAL]));
+                                    SetBkColor(Bitmap.HMemDC, GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL]));
                                 }
                                 if (u1 > 0)
                                     MyTextOutSeg(Bitmap.HMemDC, 0, 0, line, (int)u1, enc, CharWidth);
@@ -1507,13 +1507,13 @@ void CViewerWindow::Paint(HDC dc)
 
 BOOL CViewerWindow::CreateViewerBrushs()
 {
-    BkgndBrush = HANDLES(CreateSolidBrush(GetCOLORREF(ViewerColors[VIEWER_BK_NORMAL])));
+    BkgndBrush = HANDLES(CreateSolidBrush(GetCOLORREF(CurrentViewerColors[VIEWER_BK_NORMAL])));
     if (BkgndBrush == NULL)
     {
         TRACE_E("Unable to create window background brush.");
         return FALSE;
     }
-    BkgndBrushSel = HANDLES(CreateSolidBrush(GetCOLORREF(ViewerColors[VIEWER_BK_SELECTED])));
+    BkgndBrushSel = HANDLES(CreateSolidBrush(GetCOLORREF(CurrentViewerColors[VIEWER_BK_SELECTED])));
     if (BkgndBrushSel == NULL)
     {
         TRACE_E("Unable to create window selected text background brush.");

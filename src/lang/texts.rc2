@@ -148,6 +148,9 @@ STRINGTABLE
  IDS_MENU_OPT_SAVECONFIG,    "&Save Configuration"
  IDS_MENU_OPT_EXPORTCONFIG,  "&Export Configuration..."
  IDS_MENU_OPT_IMPORTCONFIG,  "&Import Configuration..."
+ IDS_MENU_OPT_THEME,         "&Theme"
+ IDS_MENU_OPT_THEME_DEFAULT, "&Default"
+ IDS_MENU_OPT_THEME_DARK,    "Dar&k"
 
  IDS_MENU_RIGHT,             "&Right"
  IDS_MENU_RIGHT_CHANGEDRIVE, "&Change Drive\tAlt+F2"

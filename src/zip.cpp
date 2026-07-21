@@ -1757,19 +1757,19 @@ CSalamanderGeneral::GetCurrentColor(int color)
     // ViewerColors
     case SALCOL_VIEWER_FG_NORMAL:
         index = VIEWER_FG_NORMAL;
-        arr = ViewerColors;
+        arr = CurrentViewerColors;
         break;
     case SALCOL_VIEWER_BK_NORMAL:
         index = VIEWER_BK_NORMAL;
-        arr = ViewerColors;
+        arr = CurrentViewerColors;
         break;
     case SALCOL_VIEWER_FG_SELECTED:
         index = VIEWER_FG_SELECTED;
-        arr = ViewerColors;
+        arr = CurrentViewerColors;
         break;
     case SALCOL_VIEWER_BK_SELECTED:
         index = VIEWER_BK_SELECTED;
-        arr = ViewerColors;
+        arr = CurrentViewerColors;
         break;
 
     default:

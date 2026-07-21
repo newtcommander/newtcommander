@@ -471,6 +471,7 @@ const char* CONFIG_LASTPLUGINVER_OP = "Plugins.ver Version (x64)";
 #endif // _WIN64
 const char* CONFIG_LANGUAGE_REG = "Language";
 const char* CONFIG_SHOWSPLASHSCREEN_REG = "Show Splash Screen";
+const char* CONFIG_THEMEMODE_REG = "Theme Mode"; // feature 028
 const char* CONFIG_CONVERSIONTABLE_REG = "Conversion Table";
 const char* CONFIG_TITLEBARSHOWPATH_REG = "Title bar show path";
 const char* CONFIG_TITLEBARMODE_REG = "Title bar mode";
@@ -1734,6 +1735,8 @@ void CMainWindow::SaveConfig(HWND parent)
                          &Configuration.NotHiddenSystemFiles, sizeof(DWORD));
                 SetValue(actKey, CONFIG_RECYCLEBIN_REG, REG_DWORD,
                          &Configuration.UseRecycleBin, sizeof(DWORD));
+                SetValue(actKey, CONFIG_THEMEMODE_REG, REG_DWORD,
+                         &Configuration.ThemeMode, sizeof(DWORD)); // feature 028
                 SetValue(actKey, CONFIG_RECYCLEMASKS_REG, REG_SZ,
                          Configuration.RecycleMasks.GetMasksString(), -1);
                 SetValue(actKey, CONFIG_SAVEONEXIT_REG, REG_DWORD,
@@ -2267,13 +2270,13 @@ void CMainWindow::SaveConfig(HWND parent)
             if (CreateKey(salamander, SALAMANDER_COLORS_REG, actKey))
             {
                 DWORD scheme = 4; // custom
-                if (CurrentColors == SalamanderColors)
+                if (SchemeColors == SalamanderColors)
                     scheme = 0;
-                else if (CurrentColors == ExplorerColors)
+                else if (SchemeColors == ExplorerColors)
                     scheme = 1;
-                else if (CurrentColors == NortonColors)
+                else if (SchemeColors == NortonColors)
                     scheme = 2;
-                else if (CurrentColors == NavigatorColors)
+                else if (SchemeColors == NavigatorColors)
                     scheme = 3;
                 SetValue(actKey, SALAMANDER_CLRSCHEME_REG, REG_DWORD, &scheme, sizeof(DWORD));
 
@@ -2569,7 +2572,7 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
         if (OpenKey(salamander, SALAMANDER_COLORS_REG, actKey))
         {
             DWORD scheme;
-            CurrentColors = UserColors;
+            SchemeColors = UserColors;
             if (GetValue(actKey, SALAMANDER_CLRSCHEME_REG, REG_DWORD, &scheme, sizeof(DWORD)))
             {
                 // we added a new scheme (DOS Navigator) at position 3
@@ -2577,14 +2580,15 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
                     scheme = 4;
 
                 if (scheme == 0)
-                    CurrentColors = SalamanderColors;
+                    SchemeColors = SalamanderColors;
                 else if (scheme == 1)
-                    CurrentColors = ExplorerColors;
+                    SchemeColors = ExplorerColors;
                 else if (scheme == 2)
-                    CurrentColors = NortonColors;
+                    SchemeColors = NortonColors;
                 else if (scheme == 3)
-                    CurrentColors = NavigatorColors;
+                    SchemeColors = NavigatorColors;
             }
+            UpdateCurrentColorsForTheme(); // feature 028: CurrentColors follows the theme
 
             LoadRGBF(actKey, SALAMANDER_CLR_ITEM_FG_NORMAL_REG, UserColors[ITEM_FG_NORMAL]);
             LoadRGBF(actKey, SALAMANDER_CLR_ITEM_FG_SELECTED_REG, UserColors[ITEM_FG_SELECTED]);
@@ -3247,6 +3251,10 @@ BOOL CMainWindow::LoadConfig(BOOL importingOldConfig, const CCommandLineParams* 
                      &Configuration.NotHiddenSystemFiles, sizeof(DWORD));
             GetValue(actKey, CONFIG_RECYCLEBIN_REG, REG_DWORD,
                      &Configuration.UseRecycleBin, sizeof(DWORD));
+            GetValue(actKey, CONFIG_THEMEMODE_REG, REG_DWORD,
+                     &Configuration.ThemeMode, sizeof(DWORD)); // feature 028
+            if (Configuration.ThemeMode != THEME_MODE_DARK)
+                Configuration.ThemeMode = THEME_MODE_DEFAULT; // forward compatibility
             // a bit ugly: we provide MasksString, but the range is checked so it's fine
             GetValue(actKey, CONFIG_RECYCLEMASKS_REG, REG_SZ,
                      Configuration.RecycleMasks.GetWritableMasksString(), MAX_PATH);

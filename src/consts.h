@@ -1276,12 +1276,21 @@ inline void SetRGBPart(SALCOLOR* salColor, COLORREF rgb)
 extern SALCOLOR* CurrentColors;               // aktualni barvy
 extern SALCOLOR UserColors[NUMBER_OF_COLORS]; // zmenene barvy
 
+// feature 028: the color scheme selected in configuration; CurrentColors is
+// derived from it (Dark theme active -> DarkColors, otherwise SchemeColors)
+extern SALCOLOR* SchemeColors;
+
 extern SALCOLOR SalamanderColors[NUMBER_OF_COLORS]; // standardni barvy
 extern SALCOLOR ExplorerColors[NUMBER_OF_COLORS];   // standardni barvy
 extern SALCOLOR NortonColors[NUMBER_OF_COLORS];     // standardni barvy
 extern SALCOLOR NavigatorColors[NUMBER_OF_COLORS];  // standardni barvy
+extern SALCOLOR DarkColors[NUMBER_OF_COLORS];       // feature 028: Dark theme panel palette
 
 extern SALCOLOR ViewerColors[NUMBER_OF_VIEWERCOLORS]; // barvy vieweru
+
+// feature 028: what the viewer actually draws with (Dark -> DarkViewerColors)
+extern SALCOLOR* CurrentViewerColors;
+extern SALCOLOR DarkViewerColors[NUMBER_OF_VIEWERCOLORS];
 
 extern COLORREF CustomColors[NUMBER_OF_CUSTOMCOLORS]; // pro standardni color dialog
 
@@ -1528,6 +1537,7 @@ extern const char* CONFIG_LANGUAGECHANGED_REG;
 extern const char* CONFIG_USEALTLANGFORPLUGINS_REG;
 extern const char* CONFIG_STATUSAREA_REG;
 extern const char* CONFIG_SHOWSPLASHSCREEN_REG;
+extern const char* CONFIG_THEMEMODE_REG; // feature 028: visual theme (0=Default, 1=Dark)
 extern const char* CONFIG_ENABLECUSTICOVRLS_REG;
 extern const char* CONFIG_DISABLEDCUSTICOVRLS_REG;
 extern const char* VIEWERS_MASKS_REG;

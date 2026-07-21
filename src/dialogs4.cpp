@@ -276,6 +276,7 @@ CConfiguration::CConfiguration()
     FindFullRowSelect = FALSE;
     MinBeepWhenDone = TRUE;
     UseRecycleBin = 1;
+    ThemeMode = THEME_MODE_DEFAULT; // feature 028
     FileNameFormat = 4; // as on the disk
     SizeFormat = SIZE_FORMAT_BYTES;
     RecycleMasks.SetMasksString("*.txt;*.doc");
@@ -3336,13 +3337,13 @@ void CCfgPageColors::Transfer(CTransferInfo& ti)
             SetDlgItemText(HWindow, CConfigurationPage7Masks[i], LoadStr(labels[i]));
 
         int index = 4; // custom
-        if (CurrentColors == SalamanderColors)
+        if (SchemeColors == SalamanderColors)
             index = 0;
-        else if (CurrentColors == ExplorerColors)
+        else if (SchemeColors == ExplorerColors)
             index = 1;
-        else if (CurrentColors == NortonColors)
+        else if (SchemeColors == NortonColors)
             index = 2;
-        else if (CurrentColors == NavigatorColors)
+        else if (SchemeColors == NavigatorColors)
             index = 3;
         SendMessage(HScheme, CB_SETCURSEL, index, 0);
         SendMessage(HItem, CB_SETCURSEL, 0, 0);
@@ -3362,20 +3363,21 @@ void CCfgPageColors::Transfer(CTransferInfo& ti)
     {
         int index = (int)SendMessage(HScheme, CB_GETCURSEL, 0, 0);
         if (index == 0)
-            CurrentColors = SalamanderColors;
+            SchemeColors = SalamanderColors;
         else if (index == 1)
-            CurrentColors = ExplorerColors;
+            SchemeColors = ExplorerColors;
         else if (index == 2)
-            CurrentColors = NortonColors;
+            SchemeColors = NortonColors;
         else if (index == 3)
-            CurrentColors = NavigatorColors;
+            SchemeColors = NavigatorColors;
         else
         {
-            CurrentColors = UserColors;
+            SchemeColors = UserColors;
             int i;
             for (i = 0; i < NUMBER_OF_COLORS; i++)
                 UserColors[i] = TmpColors[i];
         }
+        UpdateCurrentColorsForTheme(); // feature 028: Dark theme keeps its palette
 
         ColorsChanged(TRUE, TRUE, FALSE); // save time, change only color-dependent items, do not reload icons
 

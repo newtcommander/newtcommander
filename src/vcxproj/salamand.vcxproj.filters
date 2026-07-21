@@ -501,6 +501,9 @@
     <ClCompile Include="..\svg.cpp">
       <Filter>cpp</Filter>
     </ClCompile>
+    <ClCompile Include="..\themes.cpp">
+      <Filter>cpp</Filter>
+    </ClCompile>
     <ClCompile Include="..\common\sheets.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -777,6 +780,9 @@
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\svg.h">
+      <Filter>h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\themes.h">
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\common\sheets.h">

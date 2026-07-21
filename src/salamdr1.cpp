@@ -436,6 +436,10 @@ DWORD EnablerPermissions = FALSE;
 
 COLORREF* CurrentColors = SalamanderColors;
 
+// feature 028: the scheme selected in configuration (what CurrentColors used
+// to be); CurrentColors now derives from it via UpdateCurrentColorsForTheme()
+COLORREF* SchemeColors = SalamanderColors;
+
 COLORREF UserColors[NUMBER_OF_COLORS];
 
 SALCOLOR ViewerColors[NUMBER_OF_VIEWERCOLORS] =
@@ -444,6 +448,20 @@ SALCOLOR ViewerColors[NUMBER_OF_VIEWERCOLORS] =
         RGBF(255, 255, 255, SCF_DEFAULT), // VIEWER_BK_NORMAL
         RGBF(255, 255, 255, SCF_DEFAULT), // VIEWER_FG_SELECTED
         RGBF(0, 0, 0, SCF_DEFAULT),       // VIEWER_BK_SELECTED
+};
+
+// feature 028: viewer draw sites read CurrentViewerColors so the Dark theme
+// can substitute DarkViewerColors without touching the user's ViewerColors
+SALCOLOR* CurrentViewerColors = ViewerColors;
+
+// feature 028: built-in Dark theme viewer palette; no SCF_DEFAULT flags
+// (UpdateDefaultColors must never resolve these to light system colors)
+SALCOLOR DarkViewerColors[NUMBER_OF_VIEWERCOLORS] =
+    {
+        RGBF(220, 220, 220, 0), // VIEWER_FG_NORMAL
+        RGBF(30, 30, 30, 0),    // VIEWER_BK_NORMAL
+        RGBF(255, 255, 255, 0), // VIEWER_FG_SELECTED
+        RGBF(38, 79, 120, 0),   // VIEWER_BK_SELECTED
 };
 
 COLORREF SalamanderColors[NUMBER_OF_COLORS] =
@@ -656,6 +674,63 @@ COLORREF NavigatorColors[NUMBER_OF_COLORS] =
         RGBF(0, 128, 128, 0),   // THUMBNAIL_FRAME_FOCUSED
         RGBF(255, 255, 0, 0),   // THUMBNAIL_FRAME_SELECTED
         RGBF(255, 255, 0, 0),   // THUMBNAIL_FRAME_FOCSEL
+};
+
+// feature 028: built-in Dark theme panel palette (Salamander scheme semantics
+// transposed to dark surfaces, specs/028-visual-themes/data-model.md, sec. 4);
+// intentionally no SCF_DEFAULT flags anywhere: UpdateDefaultColors would
+// otherwise overwrite the entries with light system colors
+COLORREF DarkColors[NUMBER_OF_COLORS] =
+    {
+        // focus frame pens
+        RGBF(240, 240, 240, 0), // FOCUS_ACTIVE_NORMAL
+        RGBF(255, 160, 160, 0), // FOCUS_ACTIVE_SELECTED
+        RGBF(128, 128, 128, 0), // FOCUS_FG_INACTIVE_NORMAL
+        RGBF(200, 120, 120, 0), // FOCUS_FG_INACTIVE_SELECTED
+        RGBF(32, 32, 32, 0),    // FOCUS_BK_INACTIVE_NORMAL
+        RGBF(32, 32, 32, 0),    // FOCUS_BK_INACTIVE_SELECTED
+
+        // panel item text
+        RGBF(240, 240, 240, 0), // ITEM_FG_NORMAL
+        RGBF(255, 110, 110, 0), // ITEM_FG_SELECTED
+        RGBF(255, 255, 255, 0), // ITEM_FG_FOCUSED
+        RGBF(255, 128, 128, 0), // ITEM_FG_FOCSEL
+        RGBF(240, 240, 240, 0), // ITEM_FG_HIGHLIGHT
+
+        // panel item backgrounds
+        RGBF(32, 32, 32, 0), // ITEM_BK_NORMAL
+        RGBF(32, 32, 32, 0), // ITEM_BK_SELECTED
+        RGBF(58, 58, 58, 0), // ITEM_BK_FOCUSED
+        RGBF(58, 58, 58, 0), // ITEM_BK_FOCSEL
+        RGBF(48, 48, 48, 0), // ITEM_BK_HIGHLIGHT
+
+        // icon blend colors
+        RGBF(255, 128, 128, 0), // ICON_BLEND_SELECTED
+        RGBF(128, 128, 128, 0), // ICON_BLEND_FOCUSED
+        RGBF(255, 96, 96, 0),   // ICON_BLEND_FOCSEL
+
+        // progress bar
+        RGBF(130, 180, 255, 0), // PROGRESS_FG_NORMAL
+        RGBF(255, 255, 255, 0), // PROGRESS_FG_SELECTED
+        RGBF(32, 32, 32, 0),    // PROGRESS_BK_NORMAL
+        RGBF(38, 79, 120, 0),   // PROGRESS_BK_SELECTED
+
+        // hot items
+        RGBF(102, 178, 255, 0), // HOT_PANEL
+        RGBF(180, 210, 255, 0), // HOT_ACTIVE
+        RGBF(160, 190, 230, 0), // HOT_INACTIVE
+
+        // panel captions
+        RGBF(255, 255, 255, 0), // ACTIVE_CAPTION_FG
+        RGBF(38, 79, 120, 0),   // ACTIVE_CAPTION_BK
+        RGBF(170, 170, 170, 0), // INACTIVE_CAPTION_FG
+        RGBF(45, 45, 45, 0),    // INACTIVE_CAPTION_BK
+
+        // thumbnail frame pens
+        RGBF(96, 96, 96, 0),    // THUMBNAIL_FRAME_NORMAL
+        RGBF(240, 240, 240, 0), // THUMBNAIL_FRAME_FOCUSED
+        RGBF(255, 110, 110, 0), // THUMBNAIL_FRAME_SELECTED
+        RGBF(200, 80, 80, 0),   // THUMBNAIL_FRAME_FOCSEL
 };
 
 COLORREF CustomColors[NUMBER_OF_CUSTOMCOLORS] =
@@ -1844,6 +1919,7 @@ BOOL InitializeConstGraphics()
 
 void ReleaseConstGraphics()
 {
+    ReleaseThemeGraphics(); // feature 028: engine-owned dark brushes
     ItemBitmap.Destroy();
     //if (HWorkerBitmap != NULL)
     //{
@@ -3957,6 +4033,13 @@ FIND_NEW_SLG_FILE:
         {
             GetValue(actKey, CONFIG_SHOWSPLASHSCREEN_REG, REG_DWORD,
                      &Configuration.ShowSplashScreen, sizeof(DWORD));
+            // feature 028: the theme must be known before the first window
+            // (splash) exists so a restored Dark theme never flashes light
+            GetValue(actKey, CONFIG_THEMEMODE_REG, REG_DWORD,
+                     &Configuration.ThemeMode, sizeof(DWORD));
+            if (Configuration.ThemeMode != THEME_MODE_DARK)
+                Configuration.ThemeMode = THEME_MODE_DEFAULT;
+            UpdateCurrentColorsForTheme();
             CloseKey(actKey);
         }
         CloseKey(hSalamander);
@@ -4232,6 +4315,14 @@ FIND_NEW_SLG_FILE:
             {
                 SetMessagesParent(MainWindow->HWindow);
                 PluginMsgBoxParent = MainWindow->HWindow;
+
+                // feature 028: dark title bar + class background before the
+                // window is first shown (theme read early, before the splash)
+                if (IsDarkThemeActive())
+                {
+                    ThemeUpdateWindowClassBackground(MainWindow->HWindow, COLOR_WINDOW);
+                    ThemeApplyToTopLevel(MainWindow->HWindow);
+                }
 
                 // vytahneme z registry Group Policy
                 IfExistSetSplashScreenText(LoadStr(IDS_STARTUP_POLICY));
