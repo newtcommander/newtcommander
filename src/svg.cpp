@@ -5,6 +5,7 @@
 #include "precomp.h"
 
 #include "svg.h"
+#include "themes_palette.h"
 
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg\nanosvg.h"
@@ -88,15 +89,43 @@ char* ReadSVGFile(const char* fileName)
     return buff;
 }
 
+// feature 029: adapt a nanosvg color (0xAABBGGRR) for dark surfaces; the
+// per-color rules are shared with the legacy bitmap transform
+// (ThemeDarkAdaptColor in themes_palette.h)
+static DWORD ThemeDarkAdaptSVGColor(DWORD abgr)
+{
+    int r = (int)(abgr & 0xFF);
+    int g = (int)((abgr >> 8) & 0xFF);
+    int b = (int)((abgr >> 16) & 0xFF);
+    ThemeDarkAdaptColor(&r, &g, &b);
+    return (abgr & 0xFF000000) | ((DWORD)b << 16) | ((DWORD)g << 8) | (DWORD)r;
+}
+
 // Renders icons for which we have an SVG representation
 void RenderSVGImage(NSVGrasterizer* rast, HDC hDC, int x, int y, const char* svgName, int iconSize, COLORREF bkColor, BOOL enabled)
 {
     char svgFile[2 * MAX_PATH];
     GetModuleFileName(NULL, svgFile, _countof(svgFile));
     char* s = strrchr(svgFile, '\\');
+    char* svg = NULL;
+    BOOL darkOverride = FALSE; // hand-tuned dark variant loaded (used verbatim)
     if (s != NULL)
-        sprintf(s + 1, "toolbars\\%s.svg", svgName);
-    char* svg = ReadSVGFile(svgFile);
+    {
+        // feature 029: while the Dark theme is active a hand-tuned variant in
+        // toolbars\dark\ takes precedence over the automatic adaptation
+        // (contract: specs/029-dark-toolbar-icons/contracts/dark-icon-override.md)
+        if (IsDarkThemeActive())
+        {
+            sprintf(s + 1, "toolbars\\dark\\%s.svg", svgName);
+            svg = ReadSVGFile(svgFile);
+            darkOverride = (svg != NULL);
+        }
+        if (svg == NULL)
+        {
+            sprintf(s + 1, "toolbars\\%s.svg", svgName);
+            svg = ReadSVGFile(svgFile);
+        }
+    }
     if (svg != NULL)
     {
         HDC hMemDC = HANDLES(CreateCompatibleDC(NULL));
@@ -133,6 +162,23 @@ void RenderSVGImage(NSVGrasterizer* rast, HDC hDC, int x, int y, const char* svg
             {
                 if ((shape->fill.color & 0x00FFFFFF) != 0x00FFFFFF)
                     shape->fill.color = disabledColor;
+                shape = shape->next;
+            }
+        }
+
+        // feature 029: the standard glyphs are drawn for light surfaces -
+        // lighten their dark/neutral strokes and fills so they stay legible
+        // on the dark toolbar; colored accents keep their hue; hand-tuned
+        // dark variants are rasterized verbatim
+        if (enabled && !darkOverride && IsDarkThemeActive())
+        {
+            NSVGshape* shape = image->shapes;
+            while (shape != NULL)
+            {
+                if (shape->fill.type == NSVG_PAINT_COLOR)
+                    shape->fill.color = ThemeDarkAdaptSVGColor(shape->fill.color);
+                if (shape->stroke.type == NSVG_PAINT_COLOR)
+                    shape->stroke.color = ThemeDarkAdaptSVGColor(shape->stroke.color);
                 shape = shape->next;
             }
         }

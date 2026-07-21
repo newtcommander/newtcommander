@@ -264,8 +264,8 @@ for %%d in (centeuro cyrillic westeuro) do (
     )
 )
 
-:: Toolbar icons
-robocopy "%~dp0src\res\toolbars" "%OUT_DIR%\toolbars" >nul
+:: Toolbar icons (/E: includes the dark\ override subdirectory, feature 029)
+robocopy "%~dp0src\res\toolbars" "%OUT_DIR%\toolbars" /E >nul
 if errorlevel 8 (
     echo ERROR: Failed to copy toolbar icons.
     exit /b 1
