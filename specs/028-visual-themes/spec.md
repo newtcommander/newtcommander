@@ -12,6 +12,20 @@ bude dostupné v menu. Prozatím v rámci tohoto rozšíření navrhni jeden nov
 styl - tmavý. Tedy po dokončení implementace budou k dispozici dva styly -
 výchozí (současný, tak jak program vypadá nyní) a nový tmavý styl."
 
+## Clarifications
+
+### Session 2026-07-21
+
+- Q: While the Dark theme is active, how should it interact with the existing
+  panel color-scheme customization (Colors page)? → A: Theme is a separate,
+  independent setting. Dark uses a built-in dark panel palette that is not
+  user-editable in this feature; the user's color-scheme choice (including
+  Custom colors) applies to the Default theme only and is restored untouched
+  when switching back.
+- Q: What form should the theme switch take in the user interface? → A: A
+  "Theme" submenu in the Options menu with radio-checked items "Default" and
+  "Dark" (active one checked). No Configuration-dialog page in this feature.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Switch the whole main window to the Dark theme from the menu (Priority: P1)
@@ -141,8 +155,10 @@ focused, highlighted) checking icon legibility and absence of light artifacts.
   the selected theme.
 - **User-customized panel colors**: a user may have customized the existing
   panel color scheme (e.g. "Custom" colors). Activating the Dark theme
-  presents the dark palette; switching back to Default restores the user's
-  previous color-scheme selection and custom colors untouched.
+  presents its built-in dark palette; switching back to Default restores the
+  user's previous color-scheme selection and custom colors untouched. Any
+  color-scheme changes made while the Dark theme is active affect the
+  Default theme's appearance, not the dark palette.
 - **Windows-owned surfaces**: windows drawn by the operating system or third
   parties (shell context menus, common Open/Save dialogs, shell property
   pages, other applications' windows launched from the program) follow the
@@ -166,8 +182,9 @@ focused, highlighted) checking icon legibility and absence of light artifacts.
 
 - **FR-001**: The program MUST offer exactly two visual themes: **Default**
   (the program's current appearance, unchanged) and **Dark**.
-- **FR-002**: The theme MUST be switchable from the program's main menu; the
-  menu MUST indicate which theme is currently active.
+- **FR-002**: The theme MUST be switchable from a "Theme" submenu in the
+  Options area of the main menu, listing Default and Dark as mutually
+  exclusive (radio-checked) items with the currently active theme checked.
 - **FR-003**: Selecting a theme MUST apply it to the main window immediately,
   without restarting the program.
 - **FR-004**: The selected theme MUST be persisted with the program's
@@ -196,10 +213,12 @@ focused, highlighted) checking icon legibility and absence of light artifacts.
 - **FR-010**: All text in the Dark theme MUST remain readable — standard
   text must have clearly sufficient contrast against its background in all
   item and control states.
-- **FR-011**: The existing panel color-scheme customization MUST continue to
-  work: the Dark theme supplies its own coherent panel palette, and the
-  user's previously selected scheme (including custom colors) is preserved
-  and restored when returning to the Default theme.
+- **FR-011**: The theme MUST be a setting separate from the existing panel
+  color-scheme customization. The Dark theme supplies its own built-in
+  coherent panel palette, which is not user-editable within this feature;
+  the user's previously selected scheme (including custom colors) continues
+  to apply to the Default theme and is preserved and restored untouched when
+  returning to it.
 - **FR-012**: Plugins that obtain display colors from the program MUST
   automatically receive the active theme's colors, so plugin surfaces built
   on the program's color mechanism follow the theme without plugin changes.
@@ -237,7 +256,8 @@ focused, highlighted) checking icon legibility and absence of light artifacts.
   a configuration with no recorded choice always starts in the Default theme.
 - **SC-003**: With the Default theme active, a side-by-side comparison with
   the pre-feature program finds zero visual differences across the main
-  window and all program dialogs.
+  window and all program dialogs, with the sole exception of the new "Theme"
+  submenu in the Options menu.
 - **SC-004**: With the Dark theme active, 100% of the main-window surfaces
   and at least 95% of program-created dialogs and secondary windows in the
   Themed Surface Inventory render dark — no white/light panels, stripes, or
@@ -254,10 +274,9 @@ focused, highlighted) checking icon legibility and absence of light artifacts.
 
 ## Assumptions
 
-- "Menu" placement: the theme switch will live in the existing **Options**
-  area of the main menu (alongside other appearance-related commands), as a
-  small submenu or paired menu items listing Default and Dark with the
-  active one checked. Exact wording/position is a design detail.
+- The theme switch lives in the existing **Options** menu as a "Theme"
+  submenu with radio-checked Default/Dark items (per Clarifications); no
+  Configuration-dialog page for themes is part of this feature.
 - Manual switching only: automatic following of the Windows light/dark
   setting is **not** part of this feature (noted as a possible future
   enhancement).
