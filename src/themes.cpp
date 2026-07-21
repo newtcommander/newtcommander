@@ -234,6 +234,25 @@ void ThemeUpdateWindowClassBackground(HWND hWindow, int lightSysColor)
         SetClassLongPtr(hWindow, GCLP_HBRBACKGROUND, (LONG_PTR)(HBRUSH)(UINT_PTR)(lightSysColor + 1));
 }
 
+void ThemeUpdateRebarStyle(HWND hRebar)
+{
+    if (hRebar == NULL)
+        return;
+    DWORD style = (DWORD)GetWindowLongPtr(hRebar, GWL_STYLE);
+    DWORD newStyle;
+    if (IsDarkThemeActive())
+        newStyle = style & ~(WS_BORDER | RBS_BANDBORDERS);
+    else
+        newStyle = style | WS_BORDER | RBS_BANDBORDERS;
+    if (newStyle != style)
+    {
+        SetWindowLongPtr(hRebar, GWL_STYLE, newStyle);
+        SetWindowPos(hRebar, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        InvalidateRect(hRebar, NULL, TRUE);
+    }
+}
+
 //
 // ****************************************************************************
 // Dialog theming

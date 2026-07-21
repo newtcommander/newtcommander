@@ -63,6 +63,11 @@ void ThemeApplyToDialog(HWND hDialog);
 // is the COLOR_* index the class was registered with (e.g. COLOR_WINDOW)
 void ThemeUpdateWindowClassBackground(HWND hWindow, int lightSysColor);
 
+// the classic (unthemed) rebar draws its WS_BORDER edges and RBS_BANDBORDERS
+// separators with light system 3D colors that cannot be recolored - strip
+// both styles while the Dark theme is active and restore them for Default
+void ThemeUpdateRebarStyle(HWND hRebar);
+
 // central WM_CTLCOLOR* handling for dialog procs; returns TRUE when handled
 // (Dark theme) and stores the brush into 'result'; FALSE in the Default theme
 BOOL ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result);

@@ -1703,6 +1703,11 @@ BOOL CEditWindow::Create(HWND hParent, int childID)
                          this);
     if (hWnd != NULL)
     {
+        // feature 028: the command line is created after the startup theming
+        // pass over the main-window children, so theme it here (its classic
+        // light border would otherwise shine through in the Dark theme)
+        if (IsDarkThemeActive())
+            SetWindowTheme(hWnd, L"DarkMode_CFD", NULL);
         if (EditLine != NULL)
         {
             EditLine->AttachToWindow(GetWindow(HWindow, GW_CHILD));
