@@ -577,7 +577,7 @@ struct CExecuteExpData
 {
     const char* Name;
     const char* DosName;
-    char Buffer[MAX_PATH];
+    char Buffer[SAL_MAX_PATH_UTF8]; // holds full UTF-8 paths (can exceed MAX_PATH); see feature 027 (dump D2)
     BOOL* FileNameUsed;
 
     CUserMenuAdvancedData* UserMenuAdvancedData; // applies only to User Menu, otherwise NULL here
@@ -604,7 +604,7 @@ const char* WINAPI ExecuteExpPath(HWND msgParent, void* param) // full path ("\\
     int l = (int)strlen(data->Buffer);
     if (l > 0 && data->Buffer[l - 1] == '\\')
         l--;
-    strcpy(data->Buffer, data->Name + l);
+    lstrcpyn(data->Buffer, data->Name + l, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -624,7 +624,7 @@ const char* WINAPI ExecuteExpDOSPath(HWND msgParent, void* param)
     int l = (int)strlen(data->Buffer);
     if (l > 0 && data->Buffer[l - 1] == '\\')
         l--;
-    strcpy(data->Buffer, data->DosName + l);
+    lstrcpyn(data->Buffer, data->DosName + l, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -646,7 +646,7 @@ const char* WINAPI ExecuteExpName(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpName().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     return data->Buffer;
 }
 
@@ -661,7 +661,7 @@ const char* WINAPI ExecuteExpDOSName(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpName().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     return data->Buffer;
 }
 
@@ -674,7 +674,7 @@ const char* WINAPI ExecuteExpPath2(HWND msgParent, void* param) // full path ("\
     int l = (int)strlen(data->Buffer);
     if (l > 0 && data->Buffer[l - 1] == '\\')
         l--;
-    strcpy(data->Buffer, data->Name + l);
+    lstrcpyn(data->Buffer, data->Name + l, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -721,7 +721,7 @@ const char* WINAPI ExecuteExpNamePart(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpNamePart().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     char* ss = strrchr(data->Buffer, '.');
     //  if (ss != NULL && ss != data->Buffer)   // extension is present ('.' not at the begining of the name, e.g. ".cvspass")
     if (ss != NULL) // extension is present (".cvspass" is considered an extension in Windows)
@@ -740,7 +740,7 @@ const char* WINAPI ExecuteExpExtPart(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpNamePart().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     s = strrchr(data->Buffer, '.');
     //  if (s != NULL && s != data->Buffer)   // extension is present ('.' not at the begining of the name, e.g. ".cvspass")
     if (s != NULL) // extension is present (".cvspass" is considered an extension in Windows)
@@ -759,7 +759,7 @@ const char* WINAPI ExecuteExpDOSNamePart(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpDOSNamePart().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     char* ss = strrchr(data->Buffer, '.');
     //  if (ss != NULL && ss != data->Buffer)   // extension is present ('.' not at the begining of the name, e.g. ".cvspass")
     if (ss != NULL) // extension is present (".cvspass" is considered an extension in Windows)
@@ -778,7 +778,7 @@ const char* WINAPI ExecuteExpDOSExtPart(HWND msgParent, void* param)
         TRACE_E("Unexpected value in ExecuteExpDOSNamePart().");
         return "";
     }
-    strcpy(data->Buffer, s + 1);
+    lstrcpyn(data->Buffer, s + 1, _countof(data->Buffer));
     s = strrchr(data->Buffer, '.');
     //  if (s != NULL && s != data->Buffer)   // extension is present ('.' not at the begining of the name, e.g. ".cvspass")
     if (s != NULL) // extension is present (".cvspass" is considered an extension in Windows)
@@ -791,7 +791,7 @@ const char* WINAPI ExecuteExpFullPath(HWND msgParent, void* param) // full path 
     CExecuteExpData* data = (CExecuteExpData*)param;
     if (data->FileNameUsed != NULL)
         *data->FileNameUsed = TRUE;
-    strcpy(data->Buffer, data->Name);
+    lstrcpyn(data->Buffer, data->Name, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -805,7 +805,7 @@ const char* WINAPI ExecuteExpFullPath(HWND msgParent, void* param) // full path 
 const char* WINAPI ExecuteExpWinDir(HWND msgParent, void* param) // full path to the Windows directory
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetWindowsDirectory(data->Buffer, MAX_PATH);
+    GetWindowsDirectory(data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) != '\\')
         strcat(data->Buffer, "\\");
@@ -815,7 +815,7 @@ const char* WINAPI ExecuteExpWinDir(HWND msgParent, void* param) // full path to
 const char* WINAPI ExecuteExpSysDir(HWND msgParent, void* param) // full path to the System directory
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetSystemDirectory(data->Buffer, MAX_PATH);
+    GetSystemDirectory(data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) != '\\')
         strcat(data->Buffer, "\\");
@@ -825,7 +825,7 @@ const char* WINAPI ExecuteExpSysDir(HWND msgParent, void* param) // full path to
 const char* WINAPI ExecuteExpSalDir(HWND msgParent, void* param) // full path to the Salamander directory
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetModuleFileName(HInstance, data->Buffer, MAX_PATH);
+    GetModuleFileName(HInstance, data->Buffer, _countof(data->Buffer));
     *(strrchr(data->Buffer, '\\') + 1) = 0;
     return data->Buffer;
 }
@@ -835,7 +835,7 @@ const char* WINAPI ExecuteExpDOSFullPath(HWND msgParent, void* param) // DOS ful
     CExecuteExpData* data = (CExecuteExpData*)param;
     if (data->FileNameUsed != NULL)
         *data->FileNameUsed = TRUE;
-    strcpy(data->Buffer, data->DosName);
+    lstrcpyn(data->Buffer, data->DosName, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -851,7 +851,7 @@ const char* WINAPI ExecuteExpDOSWinDir(HWND msgParent, void* param) // DOS full 
     CExecuteExpData* data = (CExecuteExpData*)param;
     char path[MAX_PATH];
     GetWindowsDirectory(path, MAX_PATH);
-    GetShortPathName(path, data->Buffer, MAX_PATH);
+    GetShortPathName(path, data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) != '\\')
         strcat(data->Buffer, "\\");
@@ -863,7 +863,7 @@ const char* WINAPI ExecuteExpDOSSysDir(HWND msgParent, void* param) // DOS full 
     CExecuteExpData* data = (CExecuteExpData*)param;
     char path[MAX_PATH];
     GetSystemDirectory(path, MAX_PATH);
-    GetShortPathName(path, data->Buffer, MAX_PATH);
+    GetShortPathName(path, data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) != '\\')
         strcat(data->Buffer, "\\");
@@ -875,7 +875,7 @@ const char* WINAPI ExecuteExpFullPath2(HWND msgParent, void* param) // full path
     CExecuteExpData* data = (CExecuteExpData*)param;
     if (data->FileNameUsed != NULL)
         *data->FileNameUsed = TRUE;
-    strcpy(data->Buffer, data->Name);
+    lstrcpyn(data->Buffer, data->Name, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -896,7 +896,7 @@ const char* WINAPI ExecuteExpFullPath2(HWND msgParent, void* param) // full path
 const char* WINAPI ExecuteExpWinDir2(HWND msgParent, void* param) // full path to the Windows directory without trailing '\\'
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetWindowsDirectory(data->Buffer, MAX_PATH);
+    GetWindowsDirectory(data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) == '\\')
         *(s - 1) = 0;
@@ -906,7 +906,7 @@ const char* WINAPI ExecuteExpWinDir2(HWND msgParent, void* param) // full path t
 const char* WINAPI ExecuteExpSysDir2(HWND msgParent, void* param) // full path to the System directory without trailing '\\'
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetSystemDirectory(data->Buffer, MAX_PATH);
+    GetSystemDirectory(data->Buffer, _countof(data->Buffer));
     char* s = data->Buffer + strlen(data->Buffer);
     if (s > data->Buffer && *(s - 1) == '\\')
         *(s - 1) = 0;
@@ -916,7 +916,7 @@ const char* WINAPI ExecuteExpSysDir2(HWND msgParent, void* param) // full path t
 const char* WINAPI ExecuteExpSalDir2(HWND msgParent, void* param) // full path to the Salamander directory without trailing '\\'
 {
     CExecuteExpData* data = (CExecuteExpData*)param;
-    GetModuleFileName(HInstance, data->Buffer, MAX_PATH);
+    GetModuleFileName(HInstance, data->Buffer, _countof(data->Buffer));
     char* s = strrchr(data->Buffer, '\\');
     if (s == NULL)
     {
@@ -942,7 +942,7 @@ struct CFileDataExpData
     const CFileData* FileData;
     BOOL IsDir;          // this is a file, not a directory
     DWORD ValidFileData; // mask of valid data in CFileData
-    char Path[MAX_PATH]; // path to the current panel (only for Make File List)
+    char Path[SAL_MAX_PATH_UTF8]; // path to the current panel (only for Make File List); UTF-8, can exceed MAX_PATH
     char Buffer[2000];
 };
 
@@ -1869,7 +1869,7 @@ BOOL ExpandMakeFileList(HWND msgParent, const char* varText, CPluginDataInterfac
     data.FileData = fData;
     data.IsDir = isDir;
     data.ValidFileData = validFileData;
-    strcpy(data.Path, path);
+    lstrcpyn(data.Path, path, _countof(data.Path));
     return ExpandVarString(msgParent, varText, buffer, bufferLen, MakeFileListExpArray, &data,
                            ignoreEnvVarNotFoundOrTooLong, NULL, NULL, detectMaxVarSizes,
                            maxVarSizes, maxVarSizesCount);

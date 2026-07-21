@@ -107,7 +107,7 @@ protected:
     int* PostCmd;              // post-cmd for context menu of a FS plugin
     void** PostCmdParam;       // post-cmd-parameter for context menu of a FS plugin
     BOOL* FromContextMenu;     // set to TRUE if the menu command was triggered by a context menu
-    char CurrentPath[MAX_PATH];
+    char CurrentPath[SAL_MAX_PATH_UTF8]; // panel path (UTF-8) can exceed MAX_PATH; see feature 027 (dump D1)
     TDirectArray<CDriveData>* Drives;
     CMenuPopup* MenuPopup;
     int FocusIndex; // what item from the Drives array should be focused

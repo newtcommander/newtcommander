@@ -11,8 +11,8 @@ Release testing of everything else.
 
 ## Phase 1: Setup
 
-- [ ] T001 Verify/extend the long-path test tree at `%LOCALAPPDATA%\Temp\salamander-test\010\long-paths\` (Unicode L1/L2/L3 present; add `edge-259`/`edge-261` boundary dirs and a recursive folder with long Unicode inner names for matrix tests); record layout in `specs/027-longpath-fileops-stability/audit/testdata.md`
-- [ ] T002 Baseline: Debug x64 build (`build.cmd`) green + locate and run the existing `saltests` suite (`src/` — find project, record invocation in `specs/027-longpath-fileops-stability/quickstart.md`); confirm all tests pass before any change
+- [X] T001 Verify/extend the long-path test tree at `%LOCALAPPDATA%\Temp\salamander-test\010\long-paths\` (Unicode L1/L2/L3 present; add `edge-259`/`edge-261` boundary dirs and a recursive folder with long Unicode inner names for matrix tests); record layout in `specs/027-longpath-fileops-stability/audit/testdata.md`
+- [X] T002 Baseline: Debug x64 build (`build.cmd`) green + locate and run the existing `saltests` suite (`src/` — find project, record invocation in `specs/027-longpath-fileops-stability/quickstart.md`); confirm all tests pass before any change
 
 ## Phase 2: Foundational
 
@@ -28,9 +28,9 @@ Release testing of everything else.
 
 **Independent Test**: In the L3 Unicode dir (~570-byte path): Alt+F1 opens the drive menu; F4 launches the editor or shows a bounded message; process alive in both. (Statically: no fixed `MAX_PATH` sink reachable from these two chains.)
 
-- [ ] T003 [P] [US2] Widen `CDrivesList::CurrentPath` to `SAL_MAX_PATH_UTF8` in `src/drivelst.h` (:110) and replace `lstrcpy` with a bounded copy in `src/drivelst.cpp` (:1069); audit every other writer/reader of `CurrentPath` in `src/drivelst.cpp` for size assumptions
-- [ ] T004 [P] [US2] Widen `CExecuteExpData::Buffer` to `SAL_MAX_PATH_UTF8` in `src/execute.cpp` (:580) and bound ALL callback writers (`ExecuteExpPath` :607, `ExecuteExpFullPath2` :794/:878, and every sibling `Execute*` callback writing `Buffer`) with `_snprintf_s(_TRUNCATE)`/explicit length checks
-- [ ] T005 [US2] Build Debug x64; verify no new warnings in `drivelst.cpp`/`execute.cpp`; run saltests
+- [X] T003 [P] [US2] Widen `CDrivesList::CurrentPath` to `SAL_MAX_PATH_UTF8` in `src/drivelst.h` (:110) and replace `lstrcpy` with a bounded copy in `src/drivelst.cpp` (:1069); audit every other writer/reader of `CurrentPath` in `src/drivelst.cpp` for size assumptions
+- [X] T004 [P] [US2] Widen `CExecuteExpData::Buffer` to `SAL_MAX_PATH_UTF8` in `src/execute.cpp` (:580) and bound ALL callback writers (`ExecuteExpPath` :607, `ExecuteExpFullPath2` :794/:878, and every sibling `Execute*` callback writing `Buffer`) with `_snprintf_s(_TRUNCATE)`/explicit length checks
+- [X] T005 [US2] Build Debug x64; verify no new warnings in `drivelst.cpp`/`execute.cpp`; run saltests
 
 **Checkpoint**: Both crash chains dead — MVP deliverable.
 
