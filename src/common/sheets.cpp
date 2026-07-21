@@ -24,6 +24,15 @@
 
 extern CWinLibHelp* WinLibHelp;
 
+// see sheets.h: optional theme hook (defaults to plain GetSysColor so other
+// consumers of this library keep their behavior)
+COLORREF (*SheetsGetSysColorHook)(int index) = NULL;
+
+static COLORREF SheetsGetSysColor(int index)
+{
+    return SheetsGetSysColorHook != NULL ? SheetsGetSysColorHook(index) : GetSysColor(index);
+}
+
 //
 // ****************************************************************************
 // CElasticLayout
@@ -575,7 +584,7 @@ CTPHCaptionWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             double stepW = (double)(r.right - r.left + 1) / TPH_STEPS;
             RECT r2 = r;
             r2.right = (long)(r2.left + stepW + 1);
-            COLORREF base = GetSysColor(COLOR_BTNFACE);
+            COLORREF base = SheetsGetSysColor(COLOR_BTNFACE);
             for (int i = 0; i <= TPH_STEPS; i++)
             {
 
@@ -615,9 +624,9 @@ CTPHCaptionWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
             int oldColor;
             if (devCaps == -1)
-                oldColor = SetTextColor(hdc, GetSysColor(COLOR_BTNTEXT));
+                oldColor = SetTextColor(hdc, SheetsGetSysColor(COLOR_BTNTEXT));
             else
-                oldColor = SetTextColor(hdc, GetSysColor(COLOR_CAPTIONTEXT));
+                oldColor = SetTextColor(hdc, SheetsGetSysColor(COLOR_CAPTIONTEXT));
             r.left += 8;
             DrawText(hdc, Text, (int)_tcslen(Text), &r, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_NOPREFIX);
             SetTextColor(hdc, oldColor);
@@ -929,7 +938,7 @@ CTreePropHolderDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        TreeView_SetBkColor(HTreeView, GetSysColor(COLOR_WINDOW));
+        TreeView_SetBkColor(HTreeView, SheetsGetSysColor(COLOR_WINDOW));
         break;
     }
     }

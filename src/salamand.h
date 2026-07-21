@@ -823,6 +823,9 @@ public:
         : CPropSheetPage(title, modul, resID, helpID, flags, icon, origin) {}
 
 protected:
+    // feature 028: central WM_CTLCOLOR* dark theming for all config pages
+    virtual INT_PTR DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
+
     virtual void NotifDlgJustCreated();
 };
 

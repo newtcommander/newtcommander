@@ -300,13 +300,19 @@ void CFindDialog::OnColorsChange()
     if (TBHeader != NULL)
         TBHeader->OnColorsChange();
     if (FoundFilesListView != NULL && FoundFilesListView->HWindow != NULL)
+    {
         ListView_SetImageList(FoundFilesListView->HWindow, HFindSymbolsImageList, LVSIL_SMALL);
+        ListView_SetBkColor(FoundFilesListView->HWindow, ThemeSysColor(COLOR_WINDOW));
+    }
+    // feature 028: open Find windows follow a live theme switch (both ways)
+    ThemeApplyToDialog(HWindow);
     if (MenuBar != NULL)
     {
         MenuBar->SetFont();
         MenuBarHeight = MenuBar->GetNeededHeight();
         LayoutControls();
     }
+    InvalidateRect(HWindow, NULL, TRUE);
 }
 
 //****************************************************************************

@@ -8,6 +8,12 @@
 class CPropertyDialog;
 class CTreePropHolderDlg;
 
+// Optional hook: the host application may point this at a theme-aware
+// GetSysColor replacement (Open Salamander feature 028 dark theme). When
+// NULL (default), plain GetSysColor is used, so other consumers of this
+// library (translator, tserver, ...) are unaffected.
+extern COLORREF (*SheetsGetSysColorHook)(int index);
+
 struct CElasticLayoutCtrl
 {
     HWND HCtrl; // handl prvku, ktery mame posouvat

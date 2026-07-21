@@ -251,11 +251,17 @@ BOOL CEditorMasks::Load(CEditorMasks& source)
 void CCommonDialog::NotifDlgJustCreated()
 {
     ArrangeHorizontalLines(HWindow);
+    ThemeApplyToDialog(HWindow); // feature 028: dark title bar + control theming
 }
 
 INT_PTR
 CCommonDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    // feature 028: central dark-theme WM_CTLCOLOR* handling for all dialogs
+    INT_PTR themeResult;
+    if (ThemeHandleCtlColor(uMsg, wParam, lParam, &themeResult))
+        return themeResult;
+
     switch (uMsg)
     {
     case WM_INITDIALOG:
@@ -333,6 +339,20 @@ CCommonDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 void CCommonPropSheetPage::NotifDlgJustCreated()
 {
     ArrangeHorizontalLines(HWindow);
+    // feature 028: theme the page and (idempotently) the sheet frame around it
+    ThemeApplyToDialog(HWindow);
+    ThemeSubclassPropSheetFrame(::GetParent(HWindow));
+}
+
+INT_PTR
+CCommonPropSheetPage::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    // feature 028: central dark-theme WM_CTLCOLOR* handling for config pages
+    INT_PTR themeResult;
+    if (ThemeHandleCtlColor(uMsg, wParam, lParam, &themeResult))
+        return themeResult;
+
+    return CPropSheetPage::DialogProc(uMsg, wParam, lParam);
 }
 
 //

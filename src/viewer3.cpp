@@ -702,6 +702,10 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         ReleaseViewerBrushs();
         CreateViewerBrushs();
         SetViewerFont();
+        // feature 028: live theme switch reaches open viewers through this
+        // broadcast; refresh the title bar and class background too
+        ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
+        ThemeApplyToTopLevel(HWindow);
         InvalidateRect(HWindow, NULL, TRUE);
         ConfigHasChanged();
         return 0;

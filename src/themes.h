@@ -67,5 +67,10 @@ void ThemeUpdateWindowClassBackground(HWND hWindow, int lightSysColor);
 // (Dark theme) and stores the brush into 'result'; FALSE in the Default theme
 BOOL ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result);
 
+// dark-themes a property-sheet frame window (the dialog holding the pages):
+// installs a subclass handling WM_CTLCOLOR*/WM_ERASEBKGND and themes its
+// children (tree, buttons); no-op in the Default theme for untouched frames
+void ThemeSubclassPropSheetFrame(HWND hFrame);
+
 // frees engine-owned GDI objects (process shutdown)
 void ReleaseThemeGraphics();

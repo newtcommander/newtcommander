@@ -32,6 +32,8 @@ static const char* THEME_DARKENED_PROP = "SalThemeDark";
 static BOOL ThemeHighContrast = FALSE;
 static BOOL ThemeHighContrastValid = FALSE;
 
+static void InitThemeDarkSysColors();
+
 void RefreshThemeHighContrastState()
 {
     HIGHCONTRAST hc;
@@ -40,6 +42,7 @@ void RefreshThemeHighContrastState()
     ThemeHighContrast = SystemParametersInfo(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) &&
                         (hc.dwFlags & HCF_HIGHCONTRASTON) != 0;
     ThemeHighContrastValid = TRUE;
+    InitThemeDarkSysColors(); // eager init: the viewer thread reads the LUT
 }
 
 BOOL IsDarkThemeActive()
@@ -216,6 +219,10 @@ void UpdateCurrentColorsForTheme()
     {
         CurrentColors = DarkColors;
         CurrentViewerColors = DarkViewerColors;
+        // warm up the brushes other threads (viewer) may ask for, so the
+        // lazy CreateSolidBrush always happens on the main thread
+        ThemeSysColorBrush(COLOR_BTNFACE);
+        ThemeSysColorBrush(COLOR_WINDOW);
     }
     else
     {
@@ -351,6 +358,61 @@ BOOL ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* resul
     }
     }
     return FALSE;
+}
+
+//
+// ****************************************************************************
+// Property-sheet frame subclass
+//
+
+static LRESULT CALLBACK ThemePropSheetFrameSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                        LPARAM lParam, UINT_PTR uIdSubclass,
+                                                        DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_CTLCOLORDLG:
+    case WM_CTLCOLORSTATIC:
+    case WM_CTLCOLORBTN:
+    case WM_CTLCOLOREDIT:
+    case WM_CTLCOLORLISTBOX:
+    case WM_CTLCOLORSCROLLBAR:
+    {
+        INT_PTR result;
+        if (ThemeHandleCtlColor(uMsg, wParam, lParam, &result))
+            return result;
+        break;
+    }
+
+    case WM_ERASEBKGND:
+    {
+        if (IsDarkThemeActive())
+        {
+            RECT r;
+            GetClientRect(hWnd, &r);
+            FillRect((HDC)wParam, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+            return TRUE;
+        }
+        break;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemePropSheetFrameSubclassProc, 1);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+void ThemeSubclassPropSheetFrame(HWND hFrame)
+{
+    if (hFrame == NULL)
+        return;
+    if (!IsDarkThemeActive() && GetPropA(hFrame, THEME_DARKENED_PROP) == NULL)
+        return; // strict Default-theme passthrough
+    SetWindowSubclass(hFrame, ThemePropSheetFrameSubclassProc, 1, 0); // idempotent
+    ThemeApplyToDialog(hFrame); // DWM title bar + tree/buttons/tab children
 }
 
 //

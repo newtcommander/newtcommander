@@ -270,6 +270,12 @@ unsigned ThreadViewerMessageLoopBody(void* parameter)
         //    CALL_STACK_MESSAGE1("MoresStanislav: ThreadViewerMessageLoopBody 4");
         view->SetObjectOrigin(ooAllocated); // switch from ooStatic because the window was created successfully
         data->Success = TRUE;
+        // feature 028: dark title bar + class background before the first show
+        if (IsDarkThemeActive())
+        {
+            ThemeUpdateWindowClassBackground(view->HWindow, COLOR_WINDOW);
+            ThemeApplyToTopLevel(view->HWindow);
+        }
         // show the window immediately so it does not annoyingly "pop up" later
         //    TRACE_I("MoresStanislav: ThreadViewerMessageLoopBody 5");
         //    CALL_STACK_MESSAGE1("MoresStanislav: ThreadViewerMessageLoopBody 5");

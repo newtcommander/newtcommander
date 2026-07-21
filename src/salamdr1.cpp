@@ -1881,6 +1881,10 @@ BOOL InitializeConstGraphics()
   strcpy(LogFont.lfFaceName, "MS Shell Dlg 2");
   */
 
+    // feature 028: the shared property-sheet library draws its caption/tree
+    // through this hook so it follows the application theme
+    SheetsGetSysColorHook = ThemeSysColor;
+
     // feature 028: these used to be system brushes (GetSysColorBrush); they are
     // now app-owned so the Dark theme can substitute its palette and a theme
     // switch can rebuild them (see RebuildThemeChromeBrushes)
