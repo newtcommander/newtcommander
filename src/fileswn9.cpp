@@ -178,6 +178,7 @@ BOOL CFilesWindow::ClipboardPaste(BOOL onlyLinks, BOOL onlyTest, const char* pas
         }
 
         BOOL ownRutine = FALSE; // are we able to do it ourselves?
+        BOOL haveHDrop = FALSE; // CF_HDROP present (feature 027: long-path paste takeover)
         IEnumFORMATETC* enumFormat;
         UINT cfIdList = RegisterClipboardFormat(CFSTR_SHELLIDLIST);
         UINT cfFileContent = RegisterClipboardFormat(CFSTR_FILECONTENTS);
@@ -193,7 +194,7 @@ BOOL CFilesWindow::ClipboardPaste(BOOL onlyLinks, BOOL onlyTest, const char* pas
                     files = TRUE;
                 }
                 if (formatEtc.cfFormat == CF_HDROP)
-                    ownRutine = files = TRUE;
+                    ownRutine = files = haveHDrop = TRUE;
             }
             enumFormat->Release();
         }
@@ -240,6 +241,55 @@ BOOL CFilesWindow::ClipboardPaste(BOOL onlyLinks, BOOL onlyTest, const char* pas
             }
         }
         filesOnClip = files && ourClipDataObject;
+
+        // feature 027: foreign CF_HDROP (Explorer & co., no SALCF_IDATAOBJECT marker)
+        // involving long paths -- the shell "paste" verb is MAX_PATH-bound, so run our
+        // own long-path-capable engine instead; pastes where both the target and all
+        // sources fit in MAX_PATH keep the legacy shell route unchanged
+        if (!ownRutine && !ourClipDataObject && haveHDrop && !onlyLinks && !onlyTest)
+        {
+            const char* tgtPath = pastePath != NULL ? pastePath : GetPath();
+            int longestSrc = 0;
+            if (SalGetHDropLongestPathLen(dataObj, &longestSrc))
+            {
+                BOOL longTgt = FALSE;
+                if ((int)strlen(tgtPath) >= MAX_PATH) // UTF-8 length >= MAX_PATH: check the exact WCHAR length
+                {
+                    WCHAR* w = SalU8ToWAlloc(tgtPath);
+                    if (w != NULL)
+                    {
+                        longTgt = (int)wcslen(w) >= MAX_PATH;
+                        free(w);
+                    }
+                }
+                if (longTgt || longestSrc >= MAX_PATH)
+                {
+                    DWORD dropEffect = 0;
+                    UINT cfPrefDrop = RegisterClipboardFormat(CFSTR_PREFERREDDROPEFFECT);
+                    if (OpenClipboard(HWindow))
+                    {
+                        HANDLE handle = GetClipboardData(cfPrefDrop);
+                        if (handle != NULL)
+                        {
+                            DWORD* effectPtr = (DWORD*)HANDLES(GlobalLock(handle));
+                            if (effectPtr != NULL)
+                            {
+                                dropEffect = *effectPtr;
+                                HANDLES(GlobalUnlock(handle));
+                            }
+                        }
+                        CloseClipboard();
+                    }
+                    else
+                        TRACE_E("OpenClipboard() has failed!");
+                    effect = (dropEffect & (DROPEFFECT_COPY | DROPEFFECT_MOVE));
+                    if (effect == 0)
+                        effect = DROPEFFECT_COPY; // no preferred effect: plain Paste means copy
+                    ownRutine = TRUE;
+                    ourClipDataObject = TRUE; // makes UseOwnRutine() route this drop through our engine
+                }
+            }
+        }
 
         if (ownRutine) // execute our own routine - copy or move
         {

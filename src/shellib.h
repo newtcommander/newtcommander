@@ -67,6 +67,11 @@ struct CDragDropOperData
 // Optionally stores the names in 'namesList' (if it is not NULL).
 BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList);
 
+// reads CF_HDROP from the data object and returns TRUE with *longestLen set to
+// the length in characters of the longest path it carries; FALSE when CF_HDROP
+// is missing or malformed (feature 027)
+BOOL SalGetHDropLongestPathLen(IDataObject* pDataObject, int* longestLen);
+
 // Retrieves the name for 'pidl' via GetDisplayNameOf(flags) (shortens the ID list by one element, obtains
 // the folder for the shortened ID list from the desktop, from this folder it calls GetDisplayNameOf for the last ID with the given 'flags'
 // on success, it returns TRUE and stores the name in 'name' (buffer of size 'nameSize');

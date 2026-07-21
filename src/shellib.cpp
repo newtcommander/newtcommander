@@ -5,6 +5,7 @@
 #include "precomp.h"
 
 #include "shellib.h"
+#include "salclip.h"
 #include "cfgdlg.h"
 #include "plugins.h"
 extern "C"
@@ -365,6 +366,43 @@ BOOL CImpDropTarget::TryCopyOrMove(BOOL copy, IDataObject* pDataObject, UINT CF_
     return ret;
 }
 
+BOOL SalGetHDropLongestPathLen(IDataObject* pDataObject, int* longestLen)
+{
+    if (longestLen != NULL)
+        *longestLen = 0;
+    if (pDataObject == NULL)
+        return FALSE;
+
+    FORMATETC formatEtc;
+    formatEtc.cfFormat = CF_HDROP;
+    formatEtc.ptd = NULL;
+    formatEtc.dwAspect = DVASPECT_CONTENT;
+    formatEtc.lindex = -1;
+    formatEtc.tymed = TYMED_HGLOBAL;
+
+    STGMEDIUM stgMedium;
+    stgMedium.tymed = TYMED_HGLOBAL;
+    stgMedium.hGlobal = NULL;
+    stgMedium.pUnkForRelease = NULL;
+
+    BOOL ret = FALSE;
+    if (pDataObject->GetData(&formatEtc, &stgMedium) == S_OK)
+    {
+        if (stgMedium.tymed == TYMED_HGLOBAL && stgMedium.hGlobal != NULL)
+        {
+            SIZE_T size = GlobalSize(stgMedium.hGlobal);
+            DROPFILES* data = (DROPFILES*)HANDLES(GlobalLock(stgMedium.hGlobal));
+            if (data != NULL)
+            {
+                ret = SalScanDropFiles(data, size, longestLen) > 0;
+                HANDLES(GlobalUnlock(stgMedium.hGlobal));
+            }
+        }
+        ReleaseStgMedium(&stgMedium);
+    }
+    return ret;
+}
+
 BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
 {
     CALL_STACK_MESSAGE1("IsSimpleSelection()");
@@ -442,8 +480,9 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                         if (data != NULL)
                         {
                             int prefixLen = -1;
-                            wchar_t prefixBuf[MAX_PATH];
+                            wchar_t prefixBuf[MAX_PATH]; // fast case; prefixes >= MAX_PATH go to the heap (feature 027)
                             prefixBuf[0] = 0;
+                            void* prefixHeap = NULL; // heap block when the common prefix does not fit prefixBuf
                             if (data->fWide)
                             {
                                 char mulbyteName[3 * MAX_PATH]; // UTF-8 needs up to 3 bytes per WCHAR (feature 004)
@@ -455,18 +494,27 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                     {
                                         if (namesList != NULL) // add the common path of all names to namesList
                                         {
-                                            // the path is stored as UTF-8 (feature 004); CP_ACP fallback for invalid UTF-16
-                                            if (SalWToU8(prefix, prefixLen, mulbyteName, 3 * MAX_PATH) == 0 &&
-                                                WideCharToMultiByte(CP_ACP, 0, prefix, prefixLen + 1, mulbyteName, MAX_PATH, NULL, NULL) == 0)
+                                            // the path is stored as UTF-8 (feature 004); CP_ACP fallback for invalid
+                                            // UTF-16; heap conversion so prefixes beyond MAX_PATH survive (feature 027)
+                                            char* prefixU8 = SalWToU8Alloc(prefix);
+                                            if (prefixU8 != NULL)
                                             {
-                                                DWORD err = GetLastError();
-                                                TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
-                                                mulbyteName[0] = 0;
+                                                if (strlen(prefixU8) < SAL_MAX_PATH_UTF8) // SrcPath is SAL-sized (feature 013)
+                                                    strcpy(namesList->SrcPath, prefixU8);
+                                                else
+                                                    namesList->SrcPath[0] = 0;
+                                                free(prefixU8);
                                             }
-                                            if (strlen(mulbyteName) < SAL_MAX_PATH_UTF8) // SrcPath is SAL-sized (feature 013); "" == conversion failed
-                                                strcpy(namesList->SrcPath, mulbyteName);
                                             else
-                                                namesList->SrcPath[0] = 0;
+                                            {
+                                                if (WideCharToMultiByte(CP_ACP, 0, prefix, prefixLen + 1, mulbyteName, MAX_PATH, NULL, NULL) == 0)
+                                                {
+                                                    DWORD err = GetLastError();
+                                                    TRACE_E("IsSimpleSelection(): WideCharToMultiByte: " << GetErrorText(err));
+                                                    mulbyteName[0] = 0;
+                                                }
+                                                lstrcpyn(namesList->SrcPath, mulbyteName, SAL_MAX_PATH_UTF8);
+                                            }
                                             if (prefixLen < 3)
                                                 SalPathAddBackslash(namesList->SrcPath, SAL_MAX_PATH_UTF8);
                                         }
@@ -499,8 +547,16 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                             if (prefixLen == -1)
                                             {
                                                 prefixLen = (int)(lastBackslash - fileW);
-                                                if (prefixLen >= MAX_PATH)
-                                                    prefixLen = MAX_PATH - 1;
+                                                if (prefixLen >= MAX_PATH) // long path: keep the exact prefix on the heap (feature 027)
+                                                {
+                                                    prefixHeap = malloc((prefixLen + 1) * sizeof(wchar_t));
+                                                    if (prefixHeap == NULL)
+                                                    {
+                                                        ret = FALSE;
+                                                        break;
+                                                    }
+                                                    prefix = (wchar_t*)prefixHeap;
+                                                }
                                                 memmove(prefix, fileW, prefixLen * sizeof(wchar_t));
                                                 prefix[prefixLen] = 0;
                                             }
@@ -571,10 +627,10 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                         {
                                             // legacy ANSI list: the path is stored as UTF-8 (feature 004)
                                             char* prefixU8 = LegacyAToU8Alloc(prefix, prefixLen == -1 ? 0 : prefixLen);
-                                            if (prefixU8 != NULL && strlen(prefixU8) < MAX_PATH)
+                                            if (prefixU8 != NULL && strlen(prefixU8) < SAL_MAX_PATH_UTF8)
                                                 strcpy(namesList->SrcPath, prefixU8);
                                             else
-                                                strcpy(namesList->SrcPath, prefix); // conversion failed: keep the original bytes
+                                                lstrcpyn(namesList->SrcPath, prefix, SAL_MAX_PATH_UTF8); // conversion failed: keep the original bytes
                                             if (prefixU8 != NULL)
                                                 free(prefixU8);
                                             if (prefixLen < 3)
@@ -608,8 +664,16 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                             if (prefixLen == -1)
                                             {
                                                 prefixLen = (int)(lastBackslash - fileA);
-                                                if (prefixLen >= MAX_PATH)
-                                                    prefixLen = MAX_PATH - 1;
+                                                if (prefixLen >= MAX_PATH) // long path: keep the exact prefix on the heap (feature 027)
+                                                {
+                                                    prefixHeap = malloc(prefixLen + 1);
+                                                    if (prefixHeap == NULL)
+                                                    {
+                                                        ret = FALSE;
+                                                        break;
+                                                    }
+                                                    prefix = (char*)prefixHeap;
+                                                }
                                                 memmove(prefix, fileA, prefixLen);
                                                 prefix[prefixLen] = 0;
                                             }
@@ -662,6 +726,8 @@ BOOL IsSimpleSelection(IDataObject* pDataObject, CDragDropOperData* namesList)
                                     fileA = FindNextString(fileA);
                                 }
                             }
+                            if (prefixHeap != NULL)
+                                free(prefixHeap);
                             HANDLES(GlobalUnlock(stgMedium.hGlobal));
                         }
                     }
@@ -1228,18 +1294,38 @@ STDMETHODIMP CImpDropTarget::Drop(IDataObject* pDataObject, DWORD grfKeyState,
             if (*pdwEffect == DROPEFFECT_COPY || *pdwEffect == DROPEFFECT_MOVE)
             {
                 BOOL success = FALSE;
+                BOOL tooLongTarget = FALSE;
                 if (SalShExtSharedMemView != NULL)
                 {
                     WaitForSingleObject(SalShExtSharedMemMutex, INFINITE);
                     if (SalShExtSharedMemView->DoDragDropFromSalamander)
                     {
-                        SalShExtSharedMemView->DropDone = TRUE;
-                        SalShExtSharedMemView->PasteDone = FALSE;
-                        lstrcpyn(SalShExtSharedMemView->TargetPath, CurDir, MAX_PATH); // disk path only, MAX_PATH is enough
-                        SalShExtSharedMemView->Operation = *pdwEffect == DROPEFFECT_COPY ? SALSHEXT_COPY : SALSHEXT_MOVE;
-                        success = TRUE;
+                        if ((int)strlen(CurDir) < MAX_PATH) // the shellext IPC contract caps the target path (feature 027)
+                        {
+                            SalShExtSharedMemView->DropDone = TRUE;
+                            SalShExtSharedMemView->PasteDone = FALSE;
+                            lstrcpyn(SalShExtSharedMemView->TargetPath, CurDir, MAX_PATH); // disk path only, bounded by the IPC contract
+                            SalShExtSharedMemView->Operation = *pdwEffect == DROPEFFECT_COPY ? SALSHEXT_COPY : SALSHEXT_MOVE;
+                            success = TRUE;
+                        }
+                        else
+                            tooLongTarget = TRUE; // refuse instead of truncating (wrong-target extraction)
                     }
                     ReleaseMutex(SalShExtSharedMemMutex);
+                }
+                if (tooLongTarget)
+                {
+                    SalMessageBox(OwnerWindow, LoadStr(IDS_TOOLONGPATH), LoadStr(IDS_ERRORTITLE),
+                                  MB_OK | MB_ICONEXCLAMATION);
+                    if (CurDirDropTarget != NULL)
+                    {
+                        CurDirDropTarget->DragLeave();
+                        CurDirDropTarget->Release();
+                        CurDirDropTarget = NULL;
+                    }
+                    operationDone = TRUE;
+                    ret = S_OK;
+                    *pdwEffect = DROPEFFECT_NONE;
                 }
                 if (success && CurDirDropTarget != NULL)
                 {
@@ -1308,15 +1394,27 @@ STDMETHODIMP CImpDropTarget::Drop(IDataObject* pDataObject, DWORD grfKeyState,
                         (*pdwEffect == DROPEFFECT_COPY || *pdwEffect == DROPEFFECT_MOVE) && // "always true"
                         SalShExtSharedMemView != NULL)
                     {
+                        BOOL fsTargetTooLong = FALSE;
                         WaitForSingleObject(SalShExtSharedMemMutex, INFINITE);
                         if (SalShExtSharedMemView->DoDragDropFromSalamander)
                         {
-                            SalShExtSharedMemView->DropDone = TRUE;
-                            SalShExtSharedMemView->PasteDone = FALSE;
-                            lstrcpyn(SalShExtSharedMemView->TargetPath, CurDir, 2 * MAX_PATH); // full filesystem path, requires 2 * MAX_PATH
-                            SalShExtSharedMemView->Operation = *pdwEffect == DROPEFFECT_COPY ? SALSHEXT_COPY : SALSHEXT_MOVE;
+                            if ((int)strlen(CurDir) < 2 * MAX_PATH) // the shellext IPC contract caps the target path (feature 027)
+                            {
+                                SalShExtSharedMemView->DropDone = TRUE;
+                                SalShExtSharedMemView->PasteDone = FALSE;
+                                lstrcpyn(SalShExtSharedMemView->TargetPath, CurDir, 2 * MAX_PATH); // full filesystem path, bounded by the IPC contract
+                                SalShExtSharedMemView->Operation = *pdwEffect == DROPEFFECT_COPY ? SALSHEXT_COPY : SALSHEXT_MOVE;
+                            }
+                            else
+                                fsTargetTooLong = TRUE; // refuse instead of truncating (wrong-target operation)
                         }
                         ReleaseMutex(SalShExtSharedMemMutex);
+                        if (fsTargetTooLong)
+                        {
+                            SalMessageBox(OwnerWindow, LoadStr(IDS_TOOLONGPATH), LoadStr(IDS_ERRORTITLE),
+                                          MB_OK | MB_ICONEXCLAMATION);
+                            *pdwEffect = DROPEFFECT_NONE;
+                        }
                     }
                 }
                 else // TgtType: idtttArchive, idtttArchiveOnWinPath, idtttPluginFS

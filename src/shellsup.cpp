@@ -11,6 +11,7 @@
 #include "mainwnd.h"
 #include "snooper.h"
 #include "shellib.h"
+#include "salclip.h"
 #include "pack.h"
 extern "C"
 {
@@ -735,6 +736,87 @@ void SetClipCutCopyInfo(HWND hwnd, BOOL copy, BOOL salObject)
             NOHANDLES(GlobalFree(effect2));
         }
     }
+}
+
+// feature 027: TRUE when any selected item's full name reaches MAX_PATH WCHARs --
+// the shell "copy"/"cut" verb route (ParseDisplayName) cannot represent such
+// paths and would silently place nothing on the clipboard
+static BOOL ClipboardSelectionNeedsLongPathData(CFilesWindow* panel, int* indexes, int count)
+{
+    const char* path = panel->GetPath();
+    int pathLen = (int)strlen(path);
+    BOOL pathHasBackslash = pathLen > 0 && path[pathLen - 1] == '\\';
+    int i;
+    for (i = 0; i < count; i++)
+    {
+        int idx = indexes[i];
+        CFileData* f = (idx < panel->Dirs->Count) ? &panel->Dirs->At(idx) : &panel->Files->At(idx - panel->Dirs->Count);
+        int u8Len = pathLen + (pathHasBackslash ? 0 : 1) + (int)f->NameLen;
+        if (u8Len < MAX_PATH)
+            continue; // the UTF-8 byte length bounds the WCHAR length from above
+        char* full = (char*)malloc(u8Len + 1);
+        if (full == NULL)
+            return FALSE; // low memory: keep the legacy route
+        sprintf(full, pathHasBackslash ? "%s%s" : "%s\\%s", path, f->Name);
+        WCHAR* w = SalU8ToWAlloc(full);
+        free(full);
+        if (w == NULL)
+            continue; // invalid UTF-8: the legacy route's CP_ACP handling applies
+        BOOL isLong = (int)wcslen(w) >= MAX_PATH;
+        free(w);
+        if (isLong)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+// feature 027: places the selection on the clipboard as a wide CF_HDROP block
+// built by Salamander itself (no shell verb); the DROPFILES format carries
+// paths of any length, so Ctrl+C/Ctrl+X works from long-path directories;
+// the caller adds CFSTR_PREFERREDDROPEFFECT + SALCF_IDATAOBJECT via
+// SetClipCutCopyInfo exactly as on the legacy route
+static BOOL PlaceLongPathSelectionOnClipboard(CFilesWindow* panel, int* indexes, int count)
+{
+    const char* path = panel->GetPath();
+    int pathLen = (int)strlen(path);
+    BOOL pathHasBackslash = pathLen > 0 && path[pathLen - 1] == '\\';
+    char** paths = (char**)calloc(count, sizeof(char*));
+    if (paths == NULL)
+        return FALSE;
+    BOOL ok = TRUE;
+    int i;
+    for (i = 0; i < count; i++)
+    {
+        int idx = indexes[i];
+        CFileData* f = (idx < panel->Dirs->Count) ? &panel->Dirs->At(idx) : &panel->Files->At(idx - panel->Dirs->Count);
+        paths[i] = (char*)malloc(pathLen + 1 + f->NameLen + 1);
+        if (paths[i] == NULL)
+        {
+            ok = FALSE;
+            break;
+        }
+        sprintf(paths[i], pathHasBackslash ? "%s%s" : "%s\\%s", path, f->Name);
+    }
+    HGLOBAL hDrop = ok ? SalBuildWideDropFiles(paths, count) : NULL;
+    for (i = 0; i < count; i++)
+        free(paths[i]);
+    free(paths);
+    if (hDrop == NULL)
+        return FALSE;
+
+    BOOL placed = FALSE;
+    if (OpenClipboard(panel->HWindow))
+    {
+        EmptyClipboard();
+        if (SetClipboardData(CF_HDROP, hDrop) != NULL)
+            placed = TRUE;
+        CloseClipboard();
+    }
+    else
+        TRACE_E("OpenClipboard() has failed!");
+    if (!placed)
+        GlobalFree(hDrop);
+    return placed;
 }
 
 //
@@ -1692,23 +1774,36 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
                 CTmpEnumData data;
                 data.Indexes = (count == 0) ? &index : indexes;
                 data.Panel = panel;
-                IContextMenu2* menu = CreateIContextMenu2(MainWindow->HWindow, panel->GetPath(), (count == 0) ? 1 : count,
-                                                          EnumFileNames, &data);
-                if (menu != NULL)
+                // feature 027: selections with full names beyond MAX_PATH cannot go through
+                // the shell "copy"/"cut" verb (its PIDL parser rejects them and nothing
+                // lands on the clipboard) -- build our own wide CF_HDROP instead;
+                // sub-MAX_PATH selections keep the legacy shell route unchanged
+                BOOL longPathClip = ClipboardSelectionNeedsLongPathData(panel, data.Indexes, (count == 0) ? 1 : count);
+                BOOL clipboardSet = FALSE;
+                IContextMenu2* menu = NULL;
+                if (longPathClip)
+                    clipboardSet = PlaceLongPathSelectionOnClipboard(panel, data.Indexes, (count == 0) ? 1 : count);
+                else
+                    menu = CreateIContextMenu2(MainWindow->HWindow, panel->GetPath(), (count == 0) ? 1 : count,
+                                               EnumFileNames, &data);
+                if (menu != NULL || clipboardSet)
                 {
-                    CShellExecuteWnd shellExecuteWnd;
-                    CMINVOKECOMMANDINFO ici;
-                    ici.cbSize = sizeof(CMINVOKECOMMANDINFO);
-                    ici.fMask = 0;
-                    ici.lpVerb = (action == saCopyToClipboard) ? "copy" : "cut";
-                    ici.hwnd = shellExecuteWnd.Create(MainWindow->HWindow, "SEW: ShellAction::copy_cut_clipboard verb=%s", ici.lpVerb);
-                    ici.lpParameters = NULL;
-                    ici.lpDirectory = panel->GetPath();
-                    ici.nShow = SW_SHOWNORMAL;
-                    ici.dwHotKey = 0;
-                    ici.hIcon = 0;
+                    if (menu != NULL)
+                    {
+                        CShellExecuteWnd shellExecuteWnd;
+                        CMINVOKECOMMANDINFO ici;
+                        ici.cbSize = sizeof(CMINVOKECOMMANDINFO);
+                        ici.fMask = 0;
+                        ici.lpVerb = (action == saCopyToClipboard) ? "copy" : "cut";
+                        ici.hwnd = shellExecuteWnd.Create(MainWindow->HWindow, "SEW: ShellAction::copy_cut_clipboard verb=%s", ici.lpVerb);
+                        ici.lpParameters = NULL;
+                        ici.lpDirectory = panel->GetPath();
+                        ici.nShow = SW_SHOWNORMAL;
+                        ici.dwHotKey = 0;
+                        ici.hIcon = 0;
 
-                    AuxInvokeAndRelease(menu, &ici);
+                        AuxInvokeAndRelease(menu, &ici);
+                    }
 
                     // clipboard change, verify it...
                     IdleRefreshStates = TRUE;  // force a check of the state variables on the next Idle

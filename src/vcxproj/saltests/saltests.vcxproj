@@ -77,6 +77,8 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\common\salclip.cpp">
+    </ClCompile>
     <ClCompile Include="..\..\common\salfileio.cpp">
     </ClCompile>
     <ClCompile Include="..\..\common\salpath.cpp">
@@ -87,6 +89,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\common\salclip.h">
+    </ClInclude>
     <ClInclude Include="..\..\common\salfileio.h">
     </ClInclude>
     <ClInclude Include="..\..\common\salpath.h">

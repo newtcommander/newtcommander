@@ -399,6 +399,9 @@
     <ClCompile Include="..\common\regexp.cpp">
       <Filter>common</Filter>
     </ClCompile>
+    <ClCompile Include="..\common\salclip.cpp">
+      <Filter>common</Filter>
+    </ClCompile>
     <ClCompile Include="..\common\salfileio.cpp">
       <Filter>common</Filter>
     </ClCompile>
@@ -717,6 +720,9 @@
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\common\regexp.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\salclip.h">
       <Filter>common</Filter>
     </ClInclude>
     <ClInclude Include="..\common\salfileio.h">

@@ -10,6 +10,7 @@
 #include "salunicode.h"
 #include "salpath.h"
 #include "salfileio.h"
+#include "salclip.h"
 
 static int g_checks = 0;
 static int g_failures = 0;
@@ -303,6 +304,89 @@ static void TestFileIO()
     CHECK(SalRemoveDirectory(base.Get()));
 }
 
+// UTF-8 "ěščř" (2 bytes per char)
+#define U8_ESCR "\xC4\x9B\xC5\xA1\xC4\x8D\xC5\x99"
+
+static void TestDropFiles()
+{
+    // --- build a wide CF_HDROP block from two >MAX_PATH Czech-diacritics paths
+    char longA[600];
+    char longB[600];
+    strcpy(longA, "C:\\salamander-test\\" U8_ESCR);
+    while (strlen(longA) < 560)
+        strcat(longA, "\\dir-" U8_ESCR);
+    strcpy(longB, longA);
+    strcat(longB, "\\soubor-" U8_ESCR ".txt");
+    const char* paths[2] = {longA, longB};
+
+    HGLOBAL h = SalBuildWideDropFiles(paths, 2);
+    CHECK(h != NULL);
+    if (h != NULL)
+    {
+        SIZE_T size = GlobalSize(h);
+        DROPFILES* df = (DROPFILES*)GlobalLock(h);
+        CHECK(df != NULL);
+        if (df != NULL)
+        {
+            CHECK(df->fWide);
+            CHECK(df->pFiles == sizeof(DROPFILES));
+
+            // scan reports both paths and the exact longest length
+            WCHAR* wideA = SalU8ToWAlloc(longA);
+            WCHAR* wideB = SalU8ToWAlloc(longB);
+            CHECK(wideA != NULL && wideB != NULL);
+            int longest = 0;
+            CHECK(SalScanDropFiles(df, size, &longest) == 2);
+            if (wideA != NULL && wideB != NULL)
+            {
+                CHECK(longest == (int)wcslen(wideB));
+                CHECK((int)wcslen(wideB) > MAX_PATH); // the scenario actually exceeds the legacy limit
+
+                // content round-trip: both wide strings are stored verbatim
+                const WCHAR* s = (const WCHAR*)((const BYTE*)df + df->pFiles);
+                CHECK(wcscmp(s, wideA) == 0);
+                s += wcslen(s) + 1;
+                CHECK(wcscmp(s, wideB) == 0);
+                s += wcslen(s) + 1;
+                CHECK(*s == 0); // double-NUL terminated
+
+                // malformed blocks are rejected, never over-read (exact content
+                // size -- GlobalSize may round the allocation up)
+                SIZE_T exactSize = sizeof(DROPFILES) +
+                                   (wcslen(wideA) + 1 + wcslen(wideB) + 1 + 1) * sizeof(WCHAR);
+                CHECK(SalScanDropFiles(df, sizeof(DROPFILES) - 1, NULL) == -1);         // truncated header
+                CHECK(SalScanDropFiles(df, exactSize - 2 * sizeof(WCHAR), NULL) == -1); // missing double-NUL
+            }
+            free(wideA);
+            free(wideB);
+
+            GlobalUnlock(h);
+        }
+        GlobalFree(h);
+    }
+
+    // --- ANSI (fWide=0) blocks are scanned too (foreign legacy producers)
+    {
+        const char list[] = "C:\\aa\0C:\\bbb\0";
+        BYTE block[sizeof(DROPFILES) + sizeof(list)];
+        memset(block, 0, sizeof(block));
+        DROPFILES* df = (DROPFILES*)block;
+        df->pFiles = sizeof(DROPFILES);
+        df->fWide = FALSE;
+        memcpy(block + sizeof(DROPFILES), list, sizeof(list));
+        int longest = 0;
+        CHECK(SalScanDropFiles(df, sizeof(block), &longest) == 2);
+        CHECK(longest == 6); // "C:\bbb"
+    }
+
+    // --- degenerate inputs
+    CHECK(SalBuildWideDropFiles(NULL, 1) == NULL);
+    CHECK(SalBuildWideDropFiles(paths, 0) == NULL);
+    const char* invalid[1] = {"\xC4"}; // invalid UTF-8: caller must fall back to the legacy route
+    CHECK(SalBuildWideDropFiles(invalid, 1) == NULL);
+    CHECK(SalScanDropFiles(NULL, 1000, NULL) == -1);
+}
+
 int main()
 {
     TestConversions();
@@ -311,6 +395,7 @@ int main()
     TestPathBuf();
     TestExtendedPaths();
     TestFileIO();
+    TestDropFiles();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;
