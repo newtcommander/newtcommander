@@ -1261,7 +1261,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             {
 */
                         char* s = f->Ext - 1;
-                        char buf[MAX_PATH];
+                        char buf[SAL_FIND_NAME_U8]; // long UTF-8 extension (feature 027)
                         char* st = buf;
                         while (*++s != 0)
                             *st++ = LowerCase[*s];
@@ -1539,7 +1539,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 {
   */
                                 char* s = f->Ext - 1;
-                                char buf[MAX_PATH];
+                                char buf[SAL_FIND_NAME_U8]; // long UTF-8 extension (feature 027)
                                 char* st = buf;
                                 while (*++s != 0)
                                     *st++ = LowerCase[*s];
@@ -2017,7 +2017,7 @@ CHANGE_AGAIN:
         {
             if (strlen(fsUserPart) >= MAX_PATH) // plugins do not support longer paths
             {
-                sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
+                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
                 SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                               MB_OK | MB_ICONEXCLAMATION);
                 if (newDir != NULL)
@@ -2113,7 +2113,7 @@ CHANGE_AGAIN:
             }
             else
             {
-                sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS));
+                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS));
                 SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                               MB_OK | MB_ICONEXCLAMATION);
                 if (newDir != NULL)
@@ -2191,7 +2191,7 @@ CHANGE_AGAIN:
                             strcpy(absFSPath, path);
                         else
                         {
-                            sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
+                            _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
                             SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                           MB_OK | MB_ICONEXCLAMATION);
                             success = FALSE;
@@ -2419,7 +2419,7 @@ CHANGE_AGAIN:
                                                                        FALSE, NULL, TRUE, &localFailReason, FALSE, TRUE);
                                         if (!ret && localFailReason == CHPPFR_SHORTERPATH)
                                         {
-                                            sprintf(errBuf, LoadStr(IDS_PATHINARCHIVENOTFOUND), end);
+                                            _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHINARCHIVENOTFOUND), end);
                                             SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                                           MB_OK | MB_ICONEXCLAMATION);
                                         }
@@ -2498,7 +2498,7 @@ CHANGE_AGAIN:
                                             }
                                             else
                                                 GetRootPath(CheckPathRootWithRetryMsgBox, copy);
-                                            sprintf(errBuf, LoadStr(IDS_NODISKINDRIVE), drive);
+                                            _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_NODISKINDRIVE), drive);
                                             int msgboxRes = (int)CDriveSelectErrDlg(HWindow, errBuf, copy).Execute();
                                             CheckPathRootWithRetryMsgBox[0] = 0;
                                             UpdateWindow(MainWindow->HWindow);
@@ -2522,7 +2522,7 @@ CHANGE_AGAIN:
             {
                 if (showErr)
                 {
-                    sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), showNewDirPathInErrBoxes && newDir != NULL ? newDir : path, text);
+                    _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), showNewDirPathInErrBoxes && newDir != NULL ? newDir : path, text);
                     SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                   MB_OK | MB_ICONEXCLAMATION);
                 }

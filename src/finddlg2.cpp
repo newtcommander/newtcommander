@@ -810,7 +810,7 @@ CFindManageDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 EDTLB_DISPINFO* dispInfo = (EDTLB_DISPINFO*)lParam;
                 if (dispInfo->ToDo == edtlbGetData)
                 {
-                    strcpy(dispInfo->Buffer, ((CFindOptionsItem*)dispInfo->ItemID)->ItemName);
+                    lstrcpyn(dispInfo->Buffer, ((CFindOptionsItem*)dispInfo->ItemID)->ItemName, MAX_PATH); // ItemName can exceed MAX_PATH; EDTLB_DISPINFO::Buffer is a fixed edit-list-box ABI (feature 027)
                     dispInfo->Bold = ((CFindOptionsItem*)dispInfo->ItemID)->AutoLoad;
                     SetWindowLongPtr(HWindow, DWLP_MSGRESULT, FALSE);
                     return TRUE;

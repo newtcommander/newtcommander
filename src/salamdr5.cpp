@@ -684,7 +684,7 @@ PARSE_AGAIN:
         int fsNameIndex;
         if (!Plugins.IsPluginFS(fsName, index, fsNameIndex))
         {
-            sprintf(errBuf, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS));
+            _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS)); // path may exceed the buffer (long paths, feature 027; sibling at :910 was already hardened)
             SalMessageBox(parent, errBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
             if (error != NULL)
                 *error = SPP_NOTPLUGINFS;

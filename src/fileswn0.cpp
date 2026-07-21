@@ -334,8 +334,12 @@ void CFilesWindow::FocusShortcutTarget(CFilesWindow* panel)
     BOOL mountPoint = FALSE;
     int repPointType;
     char junctionOrSymlinkTgt[MAX_PATH];
-    strcpy(junctionOrSymlinkTgt, fullName);
-    if (GetReparsePointDestination(junctionOrSymlinkTgt, junctionOrSymlinkTgt, MAX_PATH, &repPointType, FALSE))
+    // GetReparsePointDestination works with a MAX_PATH buffer (reparse targets are
+    // resolved via MAX_PATH APIs); a longer source path cannot be a reparse point we
+    // can resolve here, so bound the copy instead of overrunning (feature 027)
+    lstrcpyn(junctionOrSymlinkTgt, fullName, MAX_PATH);
+    if ((int)strlen(fullName) < MAX_PATH &&
+        GetReparsePointDestination(junctionOrSymlinkTgt, junctionOrSymlinkTgt, MAX_PATH, &repPointType, FALSE))
     {
         // MOUNT POINT: I can't get this path in the panel (e.g., \??\Volume{98c0ba30-71ff-11e1-9099-005056c00008}\)
         if (repPointType == 1 /* MOUNT POINT */)

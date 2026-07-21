@@ -1605,7 +1605,7 @@ HIMAGELIST
 CFilesWindow::CreateDragImage(int cursorX, int cursorY, int& dxHotspot, int& dyHotspot, int& imgWidth, int& imgHeight)
 {
     CALL_STACK_MESSAGE3("CFilesWindow::CreateDragImage(%d, %d, , , )", cursorX, cursorY);
-    char buff[MAX_PATH];
+    char buff[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
     int selCount = GetSelCount();
     int iconWidth = 0;
     int itemIndex = 0;
@@ -1939,7 +1939,7 @@ BOOL CFilesWindow::CopyFocusedNameToClipboard(CCopyFocusedNameModeEnum mode)
             SalPathAddBackslash(buff, 2 * MAX_PATH);
 
             CFileData* item = (FocusedIndex < Dirs->Count) ? &Dirs->At(FocusedIndex) : &Files->At(FocusedIndex - Dirs->Count);
-            char itemName[MAX_PATH];
+            char itemName[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
             AlterFileName(itemName, item->Name, -1, Configuration.FileNameFormat, 0, FocusedIndex < Dirs->Count);
 
             if (CopyUNCPathToClipboard(buff, itemName, FocusedIndex < Dirs->Count, MainWindow->HWindow))
@@ -1961,7 +1961,7 @@ BOOL CFilesWindow::CopyFocusedNameToClipboard(CCopyFocusedNameModeEnum mode)
     CFileData* file = (FocusedIndex < Dirs->Count) ? &Dirs->At(FocusedIndex) : &Files->At(FocusedIndex - Dirs->Count);
     if (Is(ptDisk) || Is(ptZIPArchive) || Is(ptPluginFS) && mode == cfnmShort)
     {
-        char fileName[MAX_PATH];
+        char fileName[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
         AlterFileName(fileName, file->Name, -1, Configuration.FileNameFormat, 0, FocusedIndex < Dirs->Count);
         int l = (int)strlen(buff);
         lstrcpyn(buff + l, fileName, 2 * MAX_PATH - l);

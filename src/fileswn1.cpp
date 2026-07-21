@@ -478,6 +478,16 @@ unsigned IconThreadThreadFBody(void* parameter)
                 if (window->Is(ptDisk))
                 {
                     int l = (int)strlen(window->GetPath());
+                    // shell icon APIs (SHGetFileInfo) are MAX_PATH-bound; for a longer
+                    // panel path skip icon reading (default icon) instead of overrunning
+                    // path[MAX_PATH+10] (feature 027)
+                    if (l >= MAX_PATH)
+                    {
+                        pathIsInvalid = TRUE;
+                        l = 0;
+                    }
+                    else
+                    {
                     memmove(path, window->GetPath(), l);
                     if (path[l - 1] != '\\')
                         path[l++] = '\\';
@@ -490,6 +500,7 @@ unsigned IconThreadThreadFBody(void* parameter)
                     if (pathIsInvalid)
                         TRACE_I("Path contains invalid components, shell cannot read icons from such paths! Path: " << path);
                     isGoogleDrivePath = ShellIconOverlays.IsGoogleDrivePath(path);
+                    }
                 }
 
                 BOOL readOnlyVisibleItems = window->InactWinOptimizedReading; // refreshes from the snooper in an inactive window: read only visible icons/thumbnails/overlays to save CPU time (we are in the background)
@@ -660,7 +671,7 @@ unsigned IconThreadThreadFBody(void* parameter)
                                 {
                                     fileData->IconOverlayDone = 1; // mark that this overlay was already retrieved so we don't repeat it in this cycle
 
-                                    char fileName[MAX_PATH];
+                                    char fileName[SAL_FIND_NAME_U8]; // long UTF-8 names (feature 027; was MAX_PATH)
                                     DWORD fileAttrs = fileData->Attr;
                                     memcpy(fileName, fileData->Name, fileData->NameLen + 1);
                                     int minPriority = 100;
@@ -2270,8 +2281,11 @@ void CFilesWindow::OpenActiveFolder()
                 {
                     lstrcpyn(dirName, WindowsDirectory, MAX_PATH);
                     SalPathAppend(dirName, "System32", MAX_PATH); // if Sysnative fit, System32 will fit as well
-                    memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);
-                    path = dirName;
+                    if (strlen(dirName) + strlen(path + len) < MAX_PATH) // feature 027: keep dirName bounded; Explorer is MAX_PATH anyway
+                    {
+                        memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);
+                        path = dirName;
+                    }
                     done = TRUE;
                 }
             }
@@ -2298,8 +2312,11 @@ void CFilesWindow::OpenActiveFolder()
                         {
                             lstrcpyn(dirName, WindowsDirectory, MAX_PATH);
                             SalPathAppend(dirName, "SysWOW64", MAX_PATH); // if System32 fit, SysWOW64 will fit as well
-                            memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);
-                            path = dirName;
+                            if (strlen(dirName) + strlen(path + len) < MAX_PATH) // feature 027: keep dirName bounded
+                            {
+                                memmove(dirName + strlen(dirName), path + len, strlen(path + len) + 1);
+                                path = dirName;
+                            }
                         }
                     }
                 }
@@ -2307,7 +2324,7 @@ void CFilesWindow::OpenActiveFolder()
         }
 #endif // _WIN64
 
-        char itemName[MAX_PATH];
+        char itemName[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
         itemName[0] = 0;
         if (FocusedIndex < Dirs->Count + Files->Count)
         {

@@ -1071,7 +1071,7 @@ CStaticText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (len > (int)wParam - 1)
             len = (int)wParam - 1;
         memcpy((char*)lParam, Text, len);
-        ((char*)lParam)[len + 1] = 0;
+        ((char*)lParam)[len] = 0; // was [len+1]: left the string unterminated and wrote 1 byte past a full buffer (feature 027)
         return len;
     }
 

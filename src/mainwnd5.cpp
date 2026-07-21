@@ -804,10 +804,10 @@ BOOL CompareDirsAux(HWND hWindow, CCmpDirProgressDialog* progressDlg,
         BOOL pathAppended = TRUE;
 
         char message[MAX_PATH + 200];
-        strcpy(message, leftPanel->GetPath());
+        lstrcpyn(message, leftPanel->GetPath(), sizeof(message));
         pathAppended &= SalPathAppend(message, leftSubDir, MAX_PATH + 200);
         progressDlg->SetSource(message);
-        strcpy(message, rightPanel->GetPath());
+        lstrcpyn(message, rightPanel->GetPath(), sizeof(message));
         pathAppended &= SalPathAppend(message, rightSubDir, MAX_PATH + 200);
         progressDlg->SetTarget(message);
 
@@ -993,12 +993,12 @@ BOOL CompareDirsAux(HWND hWindow, CCmpDirProgressDialog* progressDlg,
                             pathAppended = TRUE;
 
                             char leftFilePath[2 * MAX_PATH];
-                            strcpy(leftFilePath, leftPanel->GetPath());
+                            lstrcpyn(leftFilePath, leftPanel->GetPath(), sizeof(leftFilePath));
                             pathAppended &= SalPathAppend(leftFilePath, leftSubDir, 2 * MAX_PATH);
                             pathAppended &= SalPathAppend(leftFilePath, leftFile->Name, 2 * MAX_PATH);
 
                             char rightFilePath[2 * MAX_PATH];
-                            strcpy(rightFilePath, rightPanel->GetPath());
+                            lstrcpyn(rightFilePath, rightPanel->GetPath(), sizeof(rightFilePath));
                             pathAppended &= SalPathAppend(rightFilePath, rightSubDir, 2 * MAX_PATH);
                             pathAppended &= SalPathAppend(rightFilePath, rightFile->Name, 2 * MAX_PATH);
 
@@ -1363,8 +1363,8 @@ void CMainWindow::CompareDirectories(DWORD flags)
                                             {
                                                 char leftFilePath[MAX_PATH];
                                                 char rightFilePath[MAX_PATH];
-                                                strcpy(leftFilePath, LeftPanel->GetPath());
-                                                strcpy(rightFilePath, RightPanel->GetPath());
+                                                lstrcpyn(leftFilePath, LeftPanel->GetPath(), sizeof(leftFilePath));
+                                                lstrcpyn(rightFilePath, RightPanel->GetPath(), sizeof(rightFilePath));
                                                 BOOL pathAppended = TRUE;
                                                 pathAppended &= SalPathAppend(leftFilePath, leftFile->Name, MAX_PATH);
                                                 pathAppended &= SalPathAppend(rightFilePath, rightFile->Name, MAX_PATH);
@@ -1536,13 +1536,13 @@ void CMainWindow::CompareDirectories(DWORD flags)
 
                                     if (LeftPanel->Is(ptDisk))
                                     {
-                                        strcpy(leftSubDir, leftDir->Name);
+                                        lstrcpyn(leftSubDir, leftDir->Name, sizeof(leftSubDir));
                                     }
                                     else
                                     {
                                         if (LeftPanel->Is(ptZIPArchive))
                                         {
-                                            strcpy(leftSubDir, LeftPanel->GetZIPPath());
+                                            lstrcpyn(leftSubDir, LeftPanel->GetZIPPath(), sizeof(leftSubDir));
                                             BOOL pathAppended = SalPathAppend(leftSubDir, leftDir->Name, MAX_PATH);
                                             if (!pathAppended)
                                             {
@@ -1560,13 +1560,13 @@ void CMainWindow::CompareDirectories(DWORD flags)
 
                                     if (RightPanel->Is(ptDisk))
                                     {
-                                        strcpy(rightSubDir, rightDir->Name);
+                                        lstrcpyn(rightSubDir, rightDir->Name, sizeof(rightSubDir));
                                     }
                                     else
                                     {
                                         if (RightPanel->Is(ptZIPArchive))
                                         {
-                                            strcpy(rightSubDir, RightPanel->GetZIPPath());
+                                            lstrcpyn(rightSubDir, RightPanel->GetZIPPath(), sizeof(rightSubDir));
                                             BOOL pathAppended = SalPathAppend(rightSubDir, rightDir->Name, MAX_PATH);
                                             if (!pathAppended)
                                             {

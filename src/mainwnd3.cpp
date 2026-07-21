@@ -7025,11 +7025,9 @@ MENU_TEMPLATE_ITEM TaskBarIconMenu[] =
         CFileData* f;
         f = (index < GetActivePanel()->Dirs->Count) ? &GetActivePanel()->Dirs->At(index) : &GetActivePanel()->Files->At(index - GetActivePanel()->Dirs->Count);
 
-        char buff[MAX_PATH];
-        strcpy(buff, GetActivePanel()->GetPath());
-        if (buff[strlen(buff) - 1] != '\\')
-            strcat(buff, "\\");
-        strcat(buff, f->Name);
+        char buff[MAX_PATH]; // WinFile FMExt szName is MAX_PATH by ABI; bound instead of overrunning (feature 027)
+        lstrcpyn(buff, GetActivePanel()->GetPath(), _countof(buff));
+        SalPathAppend(buff, f->Name, _countof(buff));
         MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, buff, -1, fs->szName, sizeof(fs->szName) / 2);
         fs->szName[sizeof(fs->szName) / 2 - 1] = 0;
         fs->ftTime = f->LastWrite;

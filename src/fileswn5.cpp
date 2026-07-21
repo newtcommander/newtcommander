@@ -353,7 +353,7 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                     char subject[MAX_PATH + 100];
                     char expanded[200];
                     int count = GetSelCount();
-                    char path[MAX_PATH];
+                    char path[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
                     if (count > 1)
                     {
                         int totalCount = Dirs->Count + Files->Count;
@@ -2527,7 +2527,7 @@ void CFilesWindow::RenameFile(int specialIndex)
                             // the OLD name (rename became a no-op / "cannot rename").
                             // Keep the original baseline when the edit is only a
                             // canonical-equivalence (NFC/NFD) change, like ptDisk.
-                            strcpy(newName, SalNameEquivalent(editName, formatedFileName) ? formatedFileName : editName);
+                            lstrcpyn(newName, SalNameEquivalent(editName, formatedFileName) ? formatedFileName : editName, MAX_PATH); // plugin QuickRename ABI caps newName at MAX_PATH (feature 027; was unbounded strcpy)
                             ret = GetPluginFS()->QuickRename(GetPluginFS()->GetPluginFSName(), 2, HWindow, *f, isDir, newName, cancel);
                             if (ret || cancel)
                                 break; // not an error (cancel or success)

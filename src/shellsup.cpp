@@ -2591,9 +2591,9 @@ void ExecuteAssociation(HWND hWindow, const char* path, const char* name)
         if (Configuration.UseSalOpen)
         {
             // try to open the association via salopen.exe
-            char execName[MAX_PATH + 200]; // +200 is a reserve for longer names (silly Windows)
-            strcpy(execName, path);
-            if (SalPathAppend(execName, name, MAX_PATH + 200) && SalOpenExecute(hWindow, execName))
+            char execName[SAL_MAX_PATH_UTF8]; // long-path capable (feature 027; was MAX_PATH+200 with an unbounded strcpy)
+            lstrcpyn(execName, path, _countof(execName));
+            if (SalPathAppend(execName, name, _countof(execName)) && SalOpenExecute(hWindow, execName))
             {
                 if (ExecuteAssociationTlsIndex != TLS_OUT_OF_INDEXES) // a new call is possible now
                     TlsSetValue(ExecuteAssociationTlsIndex, (void*)0);

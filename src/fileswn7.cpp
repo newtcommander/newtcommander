@@ -398,7 +398,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
 
     //---  obtain the files and directories to work with
     char subject[MAX_PATH + 100]; // text for the Unpack dialog (which is being unpacked)
-    char path[MAX_PATH + 200];
+    char path[SAL_FIND_NAME_U8 + 200]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH+200)
     char expanded[200];
     CPanelTmpEnumData data;
     BOOL subDir;
@@ -749,7 +749,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                                                     &dirsCount, &filesCount);
                         if (dirsCount + filesCount > 0)
                         {
-                            char name[2 * MAX_PATH];
+                            char name[SAL_MAX_PATH_UTF8]; // archive disk path + in-archive path + name (feature 027; was 2*MAX_PATH)
                             strcpy(name, GetZIPArchive());
                             if (GetZIPPath()[0] != 0)
                             {
@@ -1295,7 +1295,7 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
 
     //---  obtain the files and directories to work with
     char subject[MAX_PATH + 100]; // text for the Unpack dialog (that is being unpacked)
-    char path[MAX_PATH];
+    char path[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
     char text[1000];
     BOOL nameByItem;
     CPanelTmpEnumData data;
@@ -1396,7 +1396,7 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
     char fileBuf[MAX_PATH];    // file we will pack into
     char fileBufAlt[MAX_PATH]; // alternative name shown in the Pack dialog combo box
 
-    if (nameByItem) // if only one item (file/directory) is selected, the archive inherits its name
+    if (nameByItem && strlen(path) + 1 < MAX_PATH) // feature 027: inherit the item name only when it fits the MAX_PATH archive-name buffer
     {
         char* ext = strrchr(path, '.');
         if (data.Indexes[0] < Dirs->Count || ext == NULL) // ".cvspass" is treated as an extension in Windows ...
@@ -1693,7 +1693,7 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
             else
                 lstrcpyn(pathAlt, target->GetPath(), MAX_PATH);
         }
-        char fileName[MAX_PATH];
+        char fileName[SAL_FIND_NAME_U8]; // AlterFileName copies a full name unbounded (feature 027; was MAX_PATH)
         AlterFileName(fileName, file->Name, -1, Configuration.FileNameFormat, 0, FALSE);
         if (Configuration.UseSubdirNameByArchiveForUnpack)
         {

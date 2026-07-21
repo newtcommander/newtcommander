@@ -1536,7 +1536,7 @@ BOOL CPathHistoryItem::Execute(CFilesWindow* panel)
                     {
                         if (failReason == CHPPFR_SHORTERPATH || failReason == CHPPFR_FILENAMEFOCUSED)
                         {
-                            sprintf(errBuf, LoadStr(IDS_PATHINARCHIVENOTFOUND), ArchivePathOrFSUserPart);
+                            _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHINARCHIVENOTFOUND), ArchivePathOrFSUserPart); // in-archive path may exceed the buffer (feature 027)
                             SalMessageBox(panel->HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                           MB_OK | MB_ICONEXCLAMATION);
                         }
@@ -2095,7 +2095,7 @@ void CPathHistory::SaveToRegistry(HKEY hKey, const char* name, BOOL onlyClear)
         {
             int index = 0;
             char buf[10];
-            char path[2 * MAX_PATH];
+            char path[SAL_MAX_PATH_UTF8]; // history paths are heap char* and long-path capable (feature 027; was 2*MAX_PATH)
             int i;
             for (i = 0; i < Paths.Count; i++)
             {
@@ -2104,7 +2104,7 @@ void CPathHistory::SaveToRegistry(HKEY hKey, const char* name, BOOL onlyClear)
                 {
                 case 0: // drive
                 {
-                    strcpy(path, item->PathOrArchiveOrFSName);
+                    lstrcpyn(path, item->PathOrArchiveOrFSName, _countof(path));
                     break;
                 }
 
@@ -2113,10 +2113,10 @@ void CPathHistory::SaveToRegistry(HKEY hKey, const char* name, BOOL onlyClear)
                 case 1: // archive
                 case 2: // FS
                 {
-                    strcpy(path, item->PathOrArchiveOrFSName);
-                    StrNCat(path, ":", 2 * MAX_PATH);
+                    lstrcpyn(path, item->PathOrArchiveOrFSName, _countof(path));
+                    StrNCat(path, ":", _countof(path));
                     if (item->ArchivePathOrFSUserPart != NULL)
-                        StrNCat(path, item->ArchivePathOrFSUserPart, 2 * MAX_PATH);
+                        StrNCat(path, item->ArchivePathOrFSUserPart, _countof(path));
                     break;
                 }
                 default:
@@ -2140,7 +2140,7 @@ void CPathHistory::LoadFromRegistry(HKEY hKey, const char* name)
     HKEY historyKey;
     if (OpenKey(hKey, name, historyKey))
     {
-        char path[2 * MAX_PATH];
+        char path[SAL_MAX_PATH_UTF8]; // long-path capable, mirrors the save side (feature 027; was 2*MAX_PATH)
         char fsName[MAX_PATH];
         const char* pathOrArchiveOrFSName = path;
         const char* archivePathOrFSUserPart = NULL;
@@ -2150,7 +2150,7 @@ void CPathHistory::LoadFromRegistry(HKEY hKey, const char* name)
         for (i = 0;; i++)
         {
             itoa(i + 1, buf, 10);
-            if (GetValue(historyKey, buf, REG_SZ, path, 2 * MAX_PATH))
+            if (GetValue(historyKey, buf, REG_SZ, path, _countof(path)))
             {
                 if (strlen(path) >= 2)
                 {
@@ -3531,7 +3531,7 @@ BOOL CFileHistory::FillPopupMenu(CMenuPopup* popup)
     CALL_STACK_MESSAGE1("CFileHistory::FillPopupMenu()");
 
     // add the menu items
-    char name[2 * MAX_PATH];
+    char name[SAL_MAX_PATH_UTF8]; // history FileName is a full long-path (feature 027; was 2*MAX_PATH)
     MENU_ITEM_INFO mii;
     mii.Mask = MENU_MASK_TYPE | MENU_MASK_ID | MENU_MASK_ICON | MENU_MASK_STRING;
     mii.Type = MENU_TYPE_STRING;
@@ -3542,7 +3542,7 @@ BOOL CFileHistory::FillPopupMenu(CMenuPopup* popup)
         CFileHistoryItem* item = Files[i];
 
         // separate the name from the path with '\t' character so it appears in a separate column
-        lstrcpy(name, item->FileName);
+        lstrcpyn(name, item->FileName, _countof(name) - 4); // FileName is a full long-path (feature 027); reserve room for the shift + \t
         char* ptr = strrchr(name, '\\');
         if (ptr == NULL)
             return FALSE;
@@ -3550,7 +3550,7 @@ BOOL CFileHistory::FillPopupMenu(CMenuPopup* popup)
         *(ptr + 1) = '\t';
         const char* text = "";
         // duplicate '&' so it is not rendered as an underline
-        DuplicateAmpersands(name, 2 * MAX_PATH);
+        DuplicateAmpersands(name, _countof(name));
 
         mii.HIcon = item->HIcon;
         switch (item->Type)
@@ -3567,7 +3567,8 @@ BOOL CFileHistory::FillPopupMenu(CMenuPopup* popup)
         default:
             TRACE_E("Unknown Type=" << item->Type);
         }
-        sprintf(name + lstrlen(name), "\t(%s)", text); // append the way the file is opened
+        int nameLen = lstrlen(name);
+        _snprintf_s(name + nameLen, _countof(name) - nameLen, _TRUNCATE, "\t(%s)", text); // append the way the file is opened (feature 027: bounded)
         mii.ID = i + 1;
         popup->InsertItem(-1, TRUE, &mii);
     }

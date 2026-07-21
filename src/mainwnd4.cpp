@@ -387,7 +387,7 @@ BOOL GetNextFileFromPanel(int index, char* path, char* name, void* param)
         {
             index = data->Window->GetCaretIndex();
             data->Index = NULL;
-            strcpy(path, data->Window->GetPath());
+            lstrcpyn(path, data->Window->GetPath(), MAX_PATH); // User Menu path buffer is MAX_PATH (feature 027)
             if (index < 0 || index >= data->Window->Dirs->Count + data->Window->Files->Count ||
                 index == 0 && upDir)
             {
@@ -396,7 +396,7 @@ BOOL GetNextFileFromPanel(int index, char* path, char* name, void* param)
             else // copy the name for others
             {
                 CFileData* f = &((index < data->Window->Dirs->Count) ? data->Window->Dirs->At(index) : data->Window->Files->At(index - data->Window->Dirs->Count));
-                strcpy(name, f->Name);
+                lstrcpyn(name, f->Name, MAX_PATH); // User Menu name buffer is MAX_PATH (feature 027)
             }
             return TRUE;
         }
@@ -408,8 +408,8 @@ BOOL GetNextFileFromPanel(int index, char* path, char* name, void* param)
     if (index >= 0 && index < data->Count)
     {
         CFileData* f = &((data->Index[index] < data->Window->Dirs->Count) ? data->Window->Dirs->At(data->Index[index]) : data->Window->Files->At(data->Index[index] - data->Window->Dirs->Count));
-        strcpy(path, data->Window->GetPath());
-        strcpy(name, f->Name);
+        lstrcpyn(path, data->Window->GetPath(), MAX_PATH); // User Menu path buffer is MAX_PATH (feature 027)
+        lstrcpyn(name, f->Name, MAX_PATH); // User Menu name buffer is MAX_PATH (feature 027)
         return TRUE;
     }
     else
@@ -503,6 +503,12 @@ BOOL ExpandCommand2(HWND parent,
             int l = (int)strlen(path);
             if (path[l - 1] == '\\')
                 l--;
+            if (l >= MAX_PATH) // User Menu paths are MAX_PATH-bound; refuse instead of overrunning fileName (feature 027)
+            {
+                SalMessageBox(parent, LoadStr(IDS_TOOLONGNAME), LoadStr(IDS_ERRORTITLE),
+                              MB_OK | MB_ICONEXCLAMATION);
+                goto EXIT;
+            }
             memcpy(fileName, path, l);
 
             char dosName[MAX_PATH];

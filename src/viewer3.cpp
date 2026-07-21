@@ -1590,8 +1590,8 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     }
                     if (attr != 0xFFFFFFFF)
                     {
-                        char text[300];
-                        sprintf(text, LoadStr(IDS_FILEALREADYEXIST), fileName);
+                        char text[MAX_PATH + 300]; // fileName can approach MAX_PATH (feature 027; was 300)
+                        _snprintf_s(text, _TRUNCATE, LoadStr(IDS_FILEALREADYEXIST), fileName);
                         int res = SalMessageBox(HWindow, text, LoadStr(IDS_VIEWERTITLE),
                                                 MB_YESNOCANCEL | MB_ICONQUESTION | MB_DEFBUTTON2);
                         if (res == IDNO)

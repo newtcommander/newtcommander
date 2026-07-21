@@ -94,10 +94,10 @@ Release testing of everything else.
 
 **Independent Test**: `audit/INVENTORY.md` covers the enumerated population with verdicts; static check reports zero unresolved CRASH sites.
 
-- [ ] T025 [US5] Run 8 parallel subsystem audit passes (A viewer, B engine/workers, C file-op UI, D navigation/notify/dirline, E core primitives, F mainwnd/persistence/history, G shell/clipboard/drag, H dialogs/find/drive/plugin-handoff) per `specs/014-longpath-systematic-sweep/audit/_BRIEF.md` methodology → `specs/027-longpath-fileops-stability/audit/A.md` … `H.md`
-- [ ] T026 [US5] Consolidate `specs/027-longpath-fileops-stability/audit/INVENTORY.md`: one verdict row per site (schema in data-model.md §1) + §External list (R8) + §Verification
-- [ ] T027 [US5] Fix ALL sites with CRASH verdict found by the audit (files as discovered; follow `_BRIEF.md` fix vocabulary — widen / heap on recursive routes / eliminate intermediate); update INVENTORY rows with resolution commits
-- [ ] T028 [US5] Static exhaustion check script `specs/027-longpath-fileops-stability/audit/check.ps1` (re-scans the inventoried sites, fails on unclassified/unresolved CRASH) + run to green
+- [X] T025 [US5] Run 8 parallel subsystem audit passes (A viewer, B engine/workers, C file-op UI, D navigation/notify/dirline, E core primitives, F mainwnd/persistence/history, G shell/clipboard/drag, H dialogs/find/drive/plugin-handoff) per `specs/014-longpath-systematic-sweep/audit/_BRIEF.md` methodology → `specs/027-longpath-fileops-stability/audit/A.md` … `H.md`
+- [X] T026 [US5] Consolidate `specs/027-longpath-fileops-stability/audit/INVENTORY.md`: one verdict row per site (schema in data-model.md §1) + §External list (R8) + §Verification
+- [X] T027 [US5] Fix ALL sites with CRASH verdict found by the audit (files as discovered; follow `_BRIEF.md` fix vocabulary — widen / heap on recursive routes / eliminate intermediate); update INVENTORY rows with resolution commits
+- [X] T028 [US5] Static exhaustion check script `specs/027-longpath-fileops-stability/audit/check.ps1` (re-scans the inventoried sites, fails on unclassified/unresolved CRASH) + run to green
 
 **Checkpoint**: The class is provably closed for the core app.
 

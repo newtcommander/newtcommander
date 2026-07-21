@@ -110,7 +110,7 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
         if (oneFile->Name[oneFile->NameLen - 1] <= ' ' || oneFile->Name[oneFile->NameLen - 1] == '.')
         {
             char textBuf[2 * MAX_PATH + 200];
-            sprintf(textBuf, LoadStr(IDS_RECYCLEBINERROR), oneFile->Name);
+            _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_RECYCLEBINERROR), oneFile->Name);
             SalMessageBox(MainWindow->HWindow, textBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             return FALSE; // quick dirty bloody hack - Recycle Bin simply cannot handle names ending with a space or dot (it deletes a different name created by trimming those characters, which we definitely do not want)
         }
@@ -713,7 +713,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                             }
                             else
                             {
-                                sprintf(textBuf, LoadStr(IDS_FILEERRORFORMAT), path, GetErrorText(err));
+                                _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), path, GetErrorText(err));
                                 SalMessageBox(HWindow, textBuf,
                                               (type == atCopy) ? LoadStr(IDS_ERRORCOPY) : LoadStr(IDS_ERRORMOVE),
                                               MB_OK | MB_ICONEXCLAMATION);
@@ -1000,7 +1000,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                     {
                         char format[300];
                         sprintf(format, LoadStr(type == atCopy ? IDS_COPYDLGTITLE : IDS_MOVEDLGTITLE), expanded);
-                        sprintf(subject, format, formatedFileName);
+                        _snprintf_s(subject, _TRUNCATE, format, formatedFileName);
                     }
                     else
                         sprintf(subject, LoadStr(type == atCopy ? IDS_COPYDLGTITLE : IDS_MOVEDLGTITLE), expanded);
@@ -1323,7 +1323,7 @@ void CFilesWindow::EmailFiles()
                         indexes[0] = GetCaretIndex();
 
                     CFileData* f;
-                    char path[MAX_PATH];
+                    char path[SAL_MAX_PATH_UTF8]; // holds GetPath()+name; long-path capable (feature 027; was MAX_PATH)
                     int l = (int)strlen(GetPath());
                     memmove(path, GetPath(), l);
                     if (path[l - 1] != '\\')
