@@ -4,6 +4,7 @@
 #include "precomp.h"
 
 #include <windows.h>
+#include <aclapi.h>
 
 #include "handles.h"
 #include "salunicode.h"
@@ -400,6 +401,55 @@ BOOL SalGetFileAttributesEx(const char* u8path, WIN32_FILE_ATTRIBUTE_DATA* data)
         return FALSE;
     }
     BOOL ret = GetFileAttributesExW(w, GetFileExInfoStandard, data);
+    SalFreeKeepLastError(w);
+    return ret;
+}
+
+DWORD SalGetNamedSecurityInfo(const char* u8path, SECURITY_INFORMATION si,
+                              PSID* owner, PSID* group, PACL* dacl, PACL* sacl,
+                              PSECURITY_DESCRIPTOR* sd)
+{
+    WCHAR* w = SalPathToWExtAlloc(u8path);
+    if (w == NULL)
+        return ERROR_INVALID_NAME;
+    DWORD ret = GetNamedSecurityInfoW(w, SE_FILE_OBJECT, si, owner, group, dacl, sacl, sd);
+    free(w);
+    return ret;
+}
+
+DWORD SalSetNamedSecurityInfo(const char* u8path, SECURITY_INFORMATION si,
+                              PSID owner, PSID group, PACL dacl, PACL sacl)
+{
+    WCHAR* w = SalPathToWExtAlloc(u8path);
+    if (w == NULL)
+        return ERROR_INVALID_NAME;
+    DWORD ret = SetNamedSecurityInfoW(w, SE_FILE_OBJECT, si, owner, group, dacl, sacl);
+    free(w);
+    return ret;
+}
+
+BOOL SalEncryptFile(const char* u8path)
+{
+    WCHAR* w = SalPathToWExtAlloc(u8path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = EncryptFileW(w);
+    SalFreeKeepLastError(w);
+    return ret;
+}
+
+BOOL SalDecryptFile(const char* u8path)
+{
+    WCHAR* w = SalPathToWExtAlloc(u8path);
+    if (w == NULL)
+    {
+        SetLastError(ERROR_INVALID_NAME);
+        return FALSE;
+    }
+    BOOL ret = DecryptFileW(w, 0);
     SalFreeKeepLastError(w);
     return ret;
 }

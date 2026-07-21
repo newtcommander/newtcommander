@@ -965,7 +965,7 @@ BOOL SalSplitWindowsPath(HWND parent, const char* title, const char* errorTitle,
                             invalidPath = TRUE;
                     }
                 }
-                if (invalidPath || !CreateDirectory(newDirs, NULL))
+                if (invalidPath || !SalCreateDirectory(newDirs, NULL)) // W-backed, long-path capable (feature 027; was ANSI CreateDirectory)
                 {
                     _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), newDirs); // long-path capable (feature 014)
                     SalMessageBox(parent, textBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
@@ -1443,8 +1443,8 @@ BOOL SalGetFileSize(HANDLE file, CQuadWord& size, DWORD& err)
 
 BOOL SalGetFileSize2(const char* fileName, CQuadWord& size, DWORD* err)
 {
-    HANDLE hFile = HANDLES_Q(CreateFile(fileName, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                        NULL, OPEN_EXISTING, 0, NULL));
+    HANDLE hFile = SalCreateFile(fileName, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                 NULL, OPEN_EXISTING, 0, NULL); // W-backed, long-path capable (feature 027)
     if (hFile != INVALID_HANDLE_VALUE)
     {
         DWORD dummyErr;

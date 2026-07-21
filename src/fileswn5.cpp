@@ -1949,7 +1949,7 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
     CALL_STACK_MESSAGE1("CFilesWindow::CreateDir()");
     BeginStopRefresh(); // snooper takes a break
 
-    char path[2 * MAX_PATH], nextFocus[MAX_PATH];
+    char path[SAL_MAX_PATH_UTF8], nextFocus[MAX_PATH]; // path is long-path capable (feature 027); nextFocus holds a single component
     path[0] = 0;
     nextFocus[0] = 0;
 
@@ -1960,7 +1960,7 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
     {
         CTruncatedString subject;
         subject.Set(LoadStr(IDS_CREATEDIRECTORY_TEXT), NULL);
-        CCopyMoveDialog dlg(HWindow, path, MAX_PATH, LoadStr(IDS_CREATEDIRECTORY_TITLE),
+        CCopyMoveDialog dlg(HWindow, path, SAL_MAX_PATH_UTF8, LoadStr(IDS_CREATEDIRECTORY_TITLE),
                             &subject, IDD_CREATEDIRDIALOG,
                             Configuration.CreateDirHistory, CREATEDIR_HISTORY_SIZE,
                             FALSE);
@@ -1983,9 +1983,9 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
 
             int errTextID;
             if (!SalGetFullName(path, &errTextID, Is(ptDisk) ? GetPath() : NULL, nextFocus) ||
-                strlen(path) >= PATH_MAX_PATH)
+                strlen(path) >= SAL_MAX_PATH_UTF8) // long-path capable (feature 027)
             {
-                if (strlen(path) >= PATH_MAX_PATH)
+                if (strlen(path) >= SAL_MAX_PATH_UTF8)
                     errTextID = IDS_TOOLONGPATH;
                 /* even if the string is empty we want an error message
         if (errTextID == IDS_EMPTYNAMENOTALLOWED)
@@ -2000,13 +2000,13 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
             }
             else
             {
-                char checkPath[MAX_PATH];
+                char checkPath[SAL_MAX_PATH_UTF8]; // long-path capable (feature 027)
                 GetRootPath(checkPath, path);
                 if (CheckPath(TRUE, checkPath) != ERROR_SUCCESS)
                     goto CREATE_AGAIN;
                 strcpy(checkPath, path);
                 CutDirectory(checkPath);
-                char newDir[MAX_PATH];
+                char newDir[SAL_MAX_PATH_UTF8]; // CheckAndCreateDirectory writes a full path here (feature 027)
                 if (!CheckAndCreateDirectory(checkPath, HWindow, FALSE, NULL, 0, newDir, TRUE, TRUE))
                     goto CREATE_AGAIN;
                 if (newDir[0] != 0)

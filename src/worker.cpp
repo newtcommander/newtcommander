@@ -1502,7 +1502,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
     }
     else // obtain the security info from the source
     {
-        *err = GetNamedSecurityInfo((char*)sourceNameSec, SE_FILE_OBJECT,
+        *err = SalGetNamedSecurityInfo(sourceNameSec,
                                     DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
                                     &srcOwner, &srcGroup, &srcDACL, NULL, &srcSD);
     }
@@ -1521,7 +1521,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
         {
             BOOL inheritedDACL = /*(srcSDControl & SE_DACL_AUTO_INHERITED) != 0 &&*/ (srcSDControl & SE_DACL_PROTECTED) == 0; // SE_DACL_AUTO_INHERITED unfortunately is not always set (for example Total Commander clears it after moving a file, so we ignore it)
             DWORD attr = SalGetFileAttributes(targetNameSec);
-            *err = SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+            *err = SalSetNamedSecurityInfo(targetNameSec,
                                         DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION |
                                             (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
                                         srcOwner, srcGroup, srcDACL, NULL);
@@ -1535,7 +1535,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                 PSID tgtGroup = NULL;
                 PACL tgtDACL = NULL;
                 PSECURITY_DESCRIPTOR tgtSD = NULL;
-                BOOL tgtRead = GetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+                BOOL tgtRead = SalGetNamedSecurityInfo(targetNameSec,
                                                     DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
                                                     &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
                 // if the owner of the target file is not the current user, try to set it ("take ownership") - only
@@ -1548,7 +1548,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                 {
                     if (HaveWriteOwnerRight &&
                         CurrentProcessTokenUserValid && CurrentProcessTokenUser->User.Sid != NULL &&
-                        SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION,
+                        SalSetNamedSecurityInfo(targetNameSec, OWNER_SECURITY_INFORMATION,
                                              CurrentProcessTokenUser->User.Sid, NULL, NULL, NULL) == ERROR_SUCCESS)
                     { // setting succeeded; we must retrieve 'tgtSD' again
                         ownerOfFile = TRUE;
@@ -1558,7 +1558,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                         tgtGroup = NULL;
                         tgtDACL = NULL;
                         tgtSD = NULL;
-                        tgtRead = GetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+                        tgtRead = SalGetNamedSecurityInfo(targetNameSec,
                                                        DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
                                                        &tgtOwner, &tgtGroup, &tgtDACL, NULL, &tgtSD) == ERROR_SUCCESS;
                     }
@@ -1584,24 +1584,24 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                     if (allowChPermDACL != NULL && InitializeAcl(allowChPermDACL, allowChPermDACLSize, ACL_REVISION) &&
                         AddAccessAllowedAce(allowChPermDACL, ACL_REVISION, READ_CONTROL | WRITE_DAC | WRITE_OWNER,
                                             CurrentProcessTokenUser->User.Sid) &&
-                        SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+                        SalSetNamedSecurityInfo(targetNameSec,
                                              DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
                                              NULL, NULL, allowChPermDACL, NULL) == ERROR_SUCCESS)
                     {
-                        ownerOK = SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+                        ownerOK = SalSetNamedSecurityInfo(targetNameSec,
                                                        OWNER_SECURITY_INFORMATION,
                                                        srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS;
-                        groupOK = SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT,
+                        groupOK = SalSetNamedSecurityInfo(targetNameSec,
                                                        GROUP_SECURITY_INFORMATION,
                                                        NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS;
-                        daclOK = SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
+                        daclOK = SalSetNamedSecurityInfo(targetNameSec, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
                                                       NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS;
                     }
                     if (allowChPermDACL != (PACL)buff3 && allowChPermDACL != NULL)
                         free(allowChPermDACL);
                 }
                 if (!ownerOK &&
-                    (SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION,
+                    (SalSetNamedSecurityInfo(targetNameSec, OWNER_SECURITY_INFORMATION,
                                           srcOwner, NULL, NULL, NULL) == ERROR_SUCCESS ||
                      tgtRead && (srcOwner == NULL && tgtOwner == NULL || // if the owner is already set, ignore a potential error while setting
                                  srcOwner != NULL && tgtOwner != NULL && EqualSid(srcOwner, tgtOwner))))
@@ -1609,7 +1609,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                     ownerOK = TRUE;
                 }
                 if (!groupOK &&
-                    (SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT, GROUP_SECURITY_INFORMATION,
+                    (SalSetNamedSecurityInfo(targetNameSec, GROUP_SECURITY_INFORMATION,
                                           NULL, srcGroup, NULL, NULL) == ERROR_SUCCESS ||
                      tgtRead && (srcGroup == NULL && tgtGroup == NULL || // if the group is already set, ignore a potential error while setting
                                  srcGroup != NULL && tgtGroup != NULL && EqualSid(srcGroup, tgtGroup))))
@@ -1617,7 +1617,7 @@ BOOL DoCopySecurity(const char* sourceName, const char* targetName, DWORD* err, 
                     groupOK = TRUE;
                 }
                 if (!daclOK && // the DACL must be set last because it depends on the owner (CREATOR OWNER is replaced with the real owner, etc.)
-                    SetNamedSecurityInfo((char*)targetNameSec, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
+                    SalSetNamedSecurityInfo(targetNameSec, DACL_SECURITY_INFORMATION | (inheritedDACL ? UNPROTECTED_DACL_SECURITY_INFORMATION : PROTECTED_DACL_SECURITY_INFORMATION),
                                          NULL, NULL, srcDACL, NULL) == ERROR_SUCCESS)
                 {
                     daclOK = TRUE;
@@ -1790,7 +1790,7 @@ DWORD MyEncryptFile(HWND hProgressDlg, char* fileName, DWORD attrs, DWORD finalA
             GetFileTime(file, &ftCreated, NULL /*&ftAccessed*/, &ftModified);
             HANDLES(CloseHandle(file));
 
-            if (!EncryptFile(fileNameCrFile))
+            if (!SalEncryptFile(fileNameCrFile))
                 retEnc = GetLastError();
 
             file = SalCreateFile(fileNameCrFile, GENERIC_WRITE,
@@ -1809,7 +1809,7 @@ DWORD MyEncryptFile(HWND hProgressDlg, char* fileName, DWORD attrs, DWORD finalA
     }
     else
     {
-        if (!EncryptFile(fileNameCrFile))
+        if (!SalEncryptFile(fileNameCrFile))
             retEnc = GetLastError();
     }
     if (attrsChange)
@@ -1849,7 +1849,7 @@ DWORD MyDecryptFile(char* fileName, DWORD attrs, BOOL preserveDate)
             GetFileTime(file, &ftCreated, NULL /*&ftAccessed*/, &ftModified);
             HANDLES(CloseHandle(file));
 
-            if (!DecryptFile(fileNameCrFile, 0))
+            if (!SalDecryptFile(fileNameCrFile))
                 ret = GetLastError();
 
             file = SalCreateFile(fileNameCrFile, GENERIC_WRITE,
@@ -1868,7 +1868,7 @@ DWORD MyDecryptFile(char* fileName, DWORD attrs, BOOL preserveDate)
     }
     else
     {
-        if (!DecryptFile(fileNameCrFile, 0))
+        if (!SalDecryptFile(fileNameCrFile))
             ret = GetLastError();
     }
     if (attrsChange)
@@ -3146,7 +3146,7 @@ void SetCompressAndEncryptedAttrs(const char* name, DWORD attr, HANDLE* out, BOO
             HANDLES(CloseHandle(*out)); // close the file; otherwise we cannot change its encrypted attribute
             if (attr & FILE_ATTRIBUTE_ENCRYPTED)
             {
-                if (!EncryptFile(name))
+                if (!SalEncryptFile(name))
                 {
                     err = GetLastError();
                     if (encryptionNotSupported != NULL)
@@ -3155,7 +3155,7 @@ void SetCompressAndEncryptedAttrs(const char* name, DWORD attr, HANDLE* out, BOO
             }
             else
             {
-                if (!DecryptFile(name, 0))
+                if (!SalDecryptFile(name))
                     err = GetLastError();
             }
             if (err != NO_ERROR)
@@ -7291,8 +7291,12 @@ CONVERT_AGAIN:
             }
             *(terminator + 1) = 0;
 
-            // find a name for the temporary file and let the system create it
-            char tmpFileName[MAX_PATH];
+            // find a name for the temporary file and let the system create it;
+            // buffer is SAL-sized (feature 027) though SalGetTempFileName still
+            // caps the *base* path at MAX_PATH -- in-place convert inside a
+            // >MAX_PATH directory degrades cleanly (returns an error, no crash),
+            // a documented external-limit case pending a temp-name ABI change
+            char tmpFileName[SAL_MAX_PATH_UTF8];
             BOOL tmpFileExists = FALSE;
             while (1)
             {

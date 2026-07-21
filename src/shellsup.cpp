@@ -475,7 +475,7 @@ const char* GetCurrentDir(POINTL& pt, void* param, DWORD* effect, BOOL rButton, 
         {
             if (panel->GetPath()[l - 1] != '\\')
                 panel->DropPath[l++] = '\\';
-            if (l + panel->Dirs->At(index).NameLen >= MAX_PATH)
+            if (l + panel->Dirs->At(index).NameLen >= SAL_MAX_PATH_UTF8) // long-path capable (feature 027; DropPath is SAL-sized)
             {
                 TRACE_E("GetCurrentDir(): too long file name!");
                 panel->SetDropTarget(-1); // hide the marker

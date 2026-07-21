@@ -1584,9 +1584,9 @@ BOOL CFilesWindow::BuildScriptDir(COperations* script, CActionType type, char* s
     }
     else
         st = sourceEnd;
-    if (st - sourcePath + strlen(dirName) >= MAX_PATH - 2) // -2 determined experimentally (longer paths cannot be listed)
-    {                                                      // data are on disk, which doesn't mean they can't exceed MAX_PATH
-        *sourceEnd = 0;                                    // restoring original sourcePath
+    if (st - sourcePath + strlen(dirName) >= SAL_MAX_PATH_UTF8 - 2) // long-path capable (feature 027; was MAX_PATH-2, which
+    {                                                               // rejected folder ops in long-path dirs even though the
+        *sourceEnd = 0;                                             // W-API enumeration below handles them)
         _snprintf_s(text, _TRUNCATE, LoadStr(IDS_NAMEISTOOLONG), dirName, sourcePath);
         BOOL skip = TRUE;
         if (!ErrTooLongSrcDirNameSkipAll)
@@ -1652,8 +1652,8 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
         }
         else
             s2 = mapName;
-        if (strlen(s2) + targetLen >= PATH_MAX_PATH)
-        {
+        if (strlen(s2) + targetLen >= SAL_MAX_PATH_UTF8) // long-path capable (feature 027; was PATH_MAX_PATH, which
+        {                                                // rejected copying a folder into a long-path target)
             *sourceEnd = 0; // restoring sourcePath
             *targetEnd = 0; // restoring targetPath
             _snprintf_s(text, _TRUNCATE, LoadStr(IDS_TOOLONGNAME2), targetPath, s2);

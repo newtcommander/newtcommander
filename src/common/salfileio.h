@@ -85,3 +85,19 @@ BOOL SalGetShortPathName(const char* u8path, char* buf, int bufSize);
 DWORD SalGetFileAttributes(const char* u8path);
 BOOL SalSetFileAttributes(const char* u8path, DWORD attributes);
 BOOL SalGetFileAttributesEx(const char* u8path, WIN32_FILE_ATTRIBUTE_DATA* data);
+
+// Get/SetNamedSecurityInfoW with a UTF-8 path (feature 027): the ANSI
+// variants fail on long/Unicode paths, silently dropping ACL/owner during
+// copy/move with "preserve permissions". Return a Win32 error code (as the
+// *NamedSecurityInfo APIs do), ERROR_INVALID_NAME for an unconvertible path.
+DWORD SalGetNamedSecurityInfo(const char* u8path, SECURITY_INFORMATION si,
+                              PSID* owner, PSID* group, PACL* dacl, PACL* sacl,
+                              PSECURITY_DESCRIPTOR* sd);
+DWORD SalSetNamedSecurityInfo(const char* u8path, SECURITY_INFORMATION si,
+                              PSID owner, PSID group, PACL dacl, PACL sacl);
+
+// EncryptFileW/DecryptFileW with a UTF-8 path (feature 027). The extended-
+// length \\?\ prefix is accepted by these APIs. Return the same BOOL as the
+// underlying API; on an unconvertible path they fail with ERROR_INVALID_NAME.
+BOOL SalEncryptFile(const char* u8path);
+BOOL SalDecryptFile(const char* u8path);

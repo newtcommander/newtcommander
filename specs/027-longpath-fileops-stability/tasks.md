@@ -60,15 +60,15 @@ Release testing of everything else.
 
 **Independent Test**: F5/F6 matrix {file, recursive folder} × {long→normal, normal→long, long→long}: folder operations no longer rejected with "too long"; new intermediate target dirs created with exact Unicode names; drag onto a subdirectory item composes targets ≥260.
 
-- [ ] T013 [P] [US3] Raise `BuildScriptDir` source gate to `SAL_MAX_PATH_UTF8` in `src/fileswn6.cpp` (:1587, stale `MAX_PATH - 2` reject; update stale comment)
-- [ ] T014 [P] [US3] Raise `BuildScriptDir` target gate to `SAL_MAX_PATH_UTF8` in `src/fileswn6.cpp` (:1655, `PATH_MAX_PATH` reject; constant itself untouched — plugin ABI)
-- [ ] T015 [P] [US3] Replace ANSI `CreateDirectory` with `SalCreateDirectory` in `src/salamdr5.cpp` (:968, intermediate target dirs); switch `SalGetFileSize2` ANSI `CreateFile` (:1446) to `SalCreateFile` after checking callers
-- [ ] T016 [P] [US3] F7 Create Directory long-path: widen dialog/aux buffers and `PATH_MAX_PATH` gate in `src/fileswn5.cpp` (:1963, :1986/:1988 `IDS_TOOLONGPATH` gate, `checkPath` :2003, `newDir` :2009) to `SAL_MAX_PATH_UTF8`
-- [ ] T017 [P] [US3] Copy-security route to wide APIs in `src/worker.cpp`: `GetNamedSecurityInfoA`/`SetNamedSecurityInfoA` → `W` via `SalPathToWExtAlloc` (:1505-1620 `DoCopySecurity`, :5644 `DoMoveFile`)
-- [ ] T018 [P] [US3] Encrypt/Decrypt route to wide APIs in `src/worker.cpp`: `EncryptFileA`/`DecryptFileA` → `W` (:1793/:1812/:3149, :1852/:1871/:3158); verify `\\?\` acceptance at runtime, degrade with clear bounded message if the API refuses
-- [ ] T019 [P] [US3] Widen `DoConvert` temp-name buffer `tmpFileName[MAX_PATH]` in `src/worker.cpp` (:7295)
-- [ ] T020 [P] [US3] Drag-onto-subdirectory target compose on heap + `SAL_MAX_PATH_UTF8` gate in `src/shellsup.cpp` `GetCurrentDir` (:477 `l + NameLen >= MAX_PATH` reject; archive variant :310 stays bounded)
-- [ ] T021 [US3] Build Debug x64 + saltests; add saltests case for gate arithmetic (source/target length thresholds) if expressible against linkable units
+- [X] T013 [P] [US3] Raise `BuildScriptDir` source gate to `SAL_MAX_PATH_UTF8` in `src/fileswn6.cpp` (:1587, stale `MAX_PATH - 2` reject; update stale comment)
+- [X] T014 [P] [US3] Raise `BuildScriptDir` target gate to `SAL_MAX_PATH_UTF8` in `src/fileswn6.cpp` (:1655, `PATH_MAX_PATH` reject; constant itself untouched — plugin ABI)
+- [X] T015 [P] [US3] Replace ANSI `CreateDirectory` with `SalCreateDirectory` in `src/salamdr5.cpp` (:968, intermediate target dirs); switch `SalGetFileSize2` ANSI `CreateFile` (:1446) to `SalCreateFile` after checking callers
+- [X] T016 [P] [US3] F7 Create Directory long-path: widen dialog/aux buffers and `PATH_MAX_PATH` gate in `src/fileswn5.cpp` (:1963, :1986/:1988 `IDS_TOOLONGPATH` gate, `checkPath` :2003, `newDir` :2009) to `SAL_MAX_PATH_UTF8`
+- [X] T017 [P] [US3] Copy-security route to wide APIs in `src/worker.cpp`: `GetNamedSecurityInfoA`/`SetNamedSecurityInfoA` → `W` via `SalPathToWExtAlloc` (:1505-1620 `DoCopySecurity`, :5644 `DoMoveFile`)
+- [X] T018 [P] [US3] Encrypt/Decrypt route to wide APIs in `src/worker.cpp`: `EncryptFileA`/`DecryptFileA` → `W` (:1793/:1812/:3149, :1852/:1871/:3158); verify `\\?\` acceptance at runtime, degrade with clear bounded message if the API refuses
+- [X] T019 [P] [US3] Widen `DoConvert` temp-name buffer `tmpFileName[MAX_PATH]` in `src/worker.cpp` (:7295)
+- [X] T020 [P] [US3] Drag-onto-subdirectory target compose on heap + `SAL_MAX_PATH_UTF8` gate in `src/shellsup.cpp` `GetCurrentDir` (:477 `l + NameLen >= MAX_PATH` reject; archive variant :310 stays bounded)
+- [X] T021 [US3] Build Debug x64 + saltests; add saltests case for gate arithmetic (source/target length thresholds) if expressible against linkable units
 
 **Checkpoint**: All three functional stories complete.
 
