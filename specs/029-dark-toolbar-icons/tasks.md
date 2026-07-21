@@ -13,7 +13,7 @@
 
 **Purpose**: Confirm a green starting point so regressions are attributable.
 
-- [ ] T001 Build baseline: run `build.cmd` (Debug x64) from repo root and run `%OPENSAL_BUILD_DIR%salamander\Debug_x64\saltests.exe`; record clean build + "0 failed" (482 checks) before any change
+- [X] T001 Build baseline: run `build.cmd` (Debug x64) from repo root and run `%OPENSAL_BUILD_DIR%salamander\Debug_x64\saltests.exe`; record clean build + "0 failed" (482 checks) before any change — DONE: build clean, saltests 482/0 (exe at build\salamander\Debug_x64\saltests\saltests.exe)
 
 ---
 
@@ -22,10 +22,10 @@
 **Purpose**: The shared pure color helper that both the existing bitmap
 transform and the new SVG adaptation use. Blocks all user stories.
 
-- [ ] T002 Add pure inline helper `ThemeDarkAdaptColor(int* r, int* g, int* b)` to `src/common/themes_palette.h` — exact math extracted from `ThemeAdjustBitmapForDarkMode` (src/themes.cpp:435-453): neutral (max−min<32 && max<140) → gray `220 − max*80/140`; saturated (max<120) → channels scaled by `170/max` clamped to 255; else unchanged. WinAPI-free (plain ints), English comments, UTF-8-BOM preserved
-- [ ] T003 Refactor `ThemeAdjustBitmapForDarkMode()` in `src/themes.cpp` to call `ThemeDarkAdaptColor()` per pixel — alpha un-premultiply/re-premultiply and transparent-key skip stay in place; behavior must be bit-identical
-- [ ] T004 [P] Add `TestDarkIconColorAdaptation()` to `src/saltests/saltests.cpp` and register it in `main()`: black→220; monotonic sweep over neutrals [0,140); neutrals ≥140 and white unchanged; dark saturated → max channel 170 with channel ratios preserved; bright saturated (e.g. 255,201,14) unchanged; every adapted neutral ≥3:1 contrast vs RGB(45,45,45) using the existing `ContrastRatio()` helper (SC-002); determinism (same input twice → same output)
-- [ ] T005 Build Debug x64 (`build.cmd`) and run saltests — all checks pass, check count increased; verifies T003 refactor broke nothing
+- [X] T002 Add pure inline helper `ThemeDarkAdaptColor(int* r, int* g, int* b)` to `src/common/themes_palette.h` — exact math extracted from `ThemeAdjustBitmapForDarkMode` (src/themes.cpp:435-453): neutral (max−min<32 && max<140) → gray `220 − max*80/140`; saturated (max<120) → channels scaled by `170/max` clamped to 255; else unchanged. WinAPI-free (plain ints), English comments, UTF-8-BOM preserved
+- [X] T003 Refactor `ThemeAdjustBitmapForDarkMode()` in `src/themes.cpp` to call `ThemeDarkAdaptColor()` per pixel — alpha un-premultiply/re-premultiply and transparent-key skip stay in place; behavior must be bit-identical
+- [X] T004 [P] Add `TestDarkIconColorAdaptation()` to `src/saltests/saltests.cpp` and register it in `main()`: black→220; monotonic sweep over neutrals [0,140); neutrals ≥140 and white unchanged; dark saturated → max channel 170 with channel ratios preserved; bright saturated (e.g. 255,201,14) unchanged; every adapted neutral ≥3:1 contrast vs RGB(45,45,45) using the existing `ContrastRatio()` helper (SC-002); determinism (same input twice → same output)
+- [X] T005 Build Debug x64 (`build.cmd`) and run saltests — all checks pass, check count increased; verifies T003 refactor broke nothing — DONE: 1075 checks, 0 failed
 
 **Checkpoint**: Shared color math proven by tests — story work can begin.
 

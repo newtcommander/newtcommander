@@ -526,6 +526,76 @@ static void TestDarkThemePalette()
     CHECK(Luminance(viewer[DV_VIEWER_BK_NORMAL]) < 0.1);
 }
 
+// ---------------------------------------------------------------------------
+// Feature 029: dark adaptation of toolbar glyph colors
+// (ThemeDarkAdaptColor in src/common/themes_palette.h; SC-002: adapted
+// neutral strokes must reach >= 3:1 contrast on the dark COLOR_BTNFACE)
+
+static void TestDarkIconColorAdaptation()
+{
+    const COLORREF darkBtnFace = RGB(45, 45, 45); // THEME_DARK_SYSCOLORS COLOR_BTNFACE
+    int r, g, b;
+
+    // pure black (typical outline) becomes the lightest adapted gray
+    r = g = b = 0;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 220 && g == 220 && b == 220);
+
+    // neutral sweep [0,140): output stays neutral, lands in (140,220],
+    // is monotonically non-increasing, and clears 3:1 on the dark toolbar
+    int prev = 220;
+    for (int v = 0; v < 140; v++)
+    {
+        r = g = b = v;
+        ThemeDarkAdaptColor(&r, &g, &b);
+        CHECK(r == g && g == b);
+        CHECK(r > 140 && r <= 220);
+        CHECK(r <= prev);
+        prev = r;
+        CHECK(ContrastRatio(RGB(r, g, b), darkBtnFace) >= 3.0);
+    }
+
+    // neutrals at/above 140 and white are left untouched
+    for (int v = 140; v <= 255; v += 5)
+    {
+        r = g = b = v;
+        ThemeDarkAdaptColor(&r, &g, &b);
+        CHECK(r == v && g == v && b == v);
+    }
+    r = g = b = 255;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 255 && g == 255 && b == 255);
+
+    // dark saturated color: max channel scales to 170, hue (ratios) kept
+    r = 100, g = 0, b = 0;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 170 && g == 0 && b == 0);
+    r = 60, g = 30, b = 0; // 2:1 red:green ratio must survive
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 170 && g == 85 && b == 0);
+    r = 0, g = 0, b = 100; // dark blue accent brightens toward the same hue
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 0 && g == 0 && b == 170);
+
+    // bright saturated accents are left untouched (colored icons stay colored)
+    r = 255, g = 201, b = 14; // folder yellow
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 255 && g == 201 && b == 14);
+    r = 0, g = 0, b = 255;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 0 && g == 0 && b == 255);
+    r = 200, g = 60, b = 60;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    CHECK(r == 200 && g == 60 && b == 60);
+
+    // deterministic: same input always produces the same output
+    int r2 = 17, g2 = 17, b2 = 17;
+    r = 17, g = 17, b = 17;
+    ThemeDarkAdaptColor(&r, &g, &b);
+    ThemeDarkAdaptColor(&r2, &g2, &b2);
+    CHECK(r == r2 && g == g2 && b == b2);
+}
+
 int main()
 {
     TestConversions();
@@ -536,6 +606,7 @@ int main()
     TestFileIO();
     TestDropFiles();
     TestDarkThemePalette();
+    TestDarkIconColorAdaptation();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;

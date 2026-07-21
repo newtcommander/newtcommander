@@ -432,25 +432,9 @@ void ThemeAdjustBitmapForDarkMode(HBITMAP hBitmap, COLORREF transparent)
                 b = min(255, MulDiv(b, 255, a));
             }
 
-            int maxc = max(r, max(g, b));
-            int minc = min(r, min(g, b));
-            if (maxc - minc < 32)
-            {
-                // neutral pixel: invert darkness so black outlines become the
-                // lightest ([0,140) maps monotonically onto (140,220])
-                if (maxc < 140)
-                {
-                    int v = 220 - MulDiv(maxc, 80, 140);
-                    r = g = b = v;
-                }
-            }
-            else if (maxc < 120)
-            {
-                // dark saturated color: brighten towards the same hue
-                r = min(255, MulDiv(r, 170, maxc));
-                g = min(255, MulDiv(g, 170, maxc));
-                b = min(255, MulDiv(b, 170, maxc));
-            }
+            // feature 029: shared per-color rules (also applied to SVG toolbar
+            // glyphs in svg.cpp and unit-tested from saltests)
+            ThemeDarkAdaptColor(&r, &g, &b);
 
             if (hasAlpha && a > 0 && a < 255)
             {

@@ -95,3 +95,45 @@
     ENTRY(VIEWER_BK_NORMAL, 30, 30, 30) \
     ENTRY(VIEWER_FG_SELECTED, 255, 255, 255) \
     ENTRY(VIEWER_BK_SELECTED, 38, 79, 120)
+
+// ---------------------------------------------------------------------------
+// Feature 029: dark adaptation of a single light-surface glyph color.
+// Pure math shared by ThemeAdjustBitmapForDarkMode (src/themes.cpp, legacy
+// raster glyphs) and the SVG toolbar glyph recolor (src/svg.cpp), and
+// unit-tested from src/saltests. Rules (identical to the 028 bitmap
+// transform, MulDiv-style round-to-nearest arithmetic):
+//   - neutral pixel (max-min < 32) darker than 140: invert its darkness so
+//     black outlines become the lightest; [0,140) maps monotonically onto
+//     (140,220]
+//   - saturated color with max channel < 120: brighten toward the same hue
+//     (max channel scales to 170)
+//   - anything already light/bright is left unchanged
+
+inline int ThemeDarkAdaptMulDivRound(int n, int num, int den)
+{
+    return (n * num + den / 2) / den;
+}
+
+inline void ThemeDarkAdaptColor(int* r, int* g, int* b)
+{
+    int maxc = *r > *g ? (*r > *b ? *r : *b) : (*g > *b ? *g : *b);
+    int minc = *r < *g ? (*r < *b ? *r : *b) : (*g < *b ? *g : *b);
+    if (maxc - minc < 32)
+    {
+        if (maxc < 140)
+        {
+            int v = 220 - ThemeDarkAdaptMulDivRound(maxc, 80, 140);
+            *r = *g = *b = v;
+        }
+    }
+    else if (maxc < 120)
+    {
+        // maxc >= 32 here (maxc - minc >= 32), no division by zero
+        int c = ThemeDarkAdaptMulDivRound(*r, 170, maxc);
+        *r = c > 255 ? 255 : c;
+        c = ThemeDarkAdaptMulDivRound(*g, 170, maxc);
+        *g = c > 255 ? 255 : c;
+        c = ThemeDarkAdaptMulDivRound(*b, 170, maxc);
+        *b = c > 255 ? 255 : c;
+    }
+}
