@@ -42,6 +42,7 @@ extern "C"
 #include "shiconov.h"
 #include "salmoncl.h"
 #include "jumplist.h"
+#include "themes_palette.h"
 #include "usermenu.h"
 #include "execute.h"
 #include "drivelst.h"
@@ -457,14 +458,30 @@ SALCOLOR ViewerColors[NUMBER_OF_VIEWERCOLORS] =
 SALCOLOR* CurrentViewerColors = ViewerColors;
 
 // feature 028: built-in Dark theme viewer palette; no SCF_DEFAULT flags
-// (UpdateDefaultColors must never resolve these to light system colors)
+// (UpdateDefaultColors must never resolve these to light system colors);
+// data lives in common/themes_palette.h (shared with saltests)
 SALCOLOR DarkViewerColors[NUMBER_OF_VIEWERCOLORS] =
     {
-        RGBF(220, 220, 220, 0), // VIEWER_FG_NORMAL
-        RGBF(30, 30, 30, 0),    // VIEWER_BK_NORMAL
-        RGBF(255, 255, 255, 0), // VIEWER_FG_SELECTED
-        RGBF(38, 79, 120, 0),   // VIEWER_BK_SELECTED
+#define THEME_VIEWER_ENTRY(name, r, g, b) RGBF(r, g, b, 0),
+        THEME_DARK_VIEWER_COLORS(THEME_VIEWER_ENTRY)
+#undef THEME_VIEWER_ENTRY
 };
+
+namespace
+{
+    // compile-time check: the palette list order matches the index defines
+    constexpr bool DarkViewerColorsOrderOk()
+    {
+#define THEME_VIEWER_INDEX(name, r, g, b) name,
+        const int order[] = {THEME_DARK_VIEWER_COLORS(THEME_VIEWER_INDEX)};
+#undef THEME_VIEWER_INDEX
+        for (int i = 0; i < (int)(sizeof(order) / sizeof(order[0])); i++)
+            if (order[i] != i)
+                return false;
+        return sizeof(order) / sizeof(order[0]) == NUMBER_OF_VIEWERCOLORS;
+    }
+    static_assert(DarkViewerColorsOrderOk(), "themes_palette.h viewer list must match consts.h indexes");
+} // namespace
 
 COLORREF SalamanderColors[NUMBER_OF_COLORS] =
     {
@@ -684,56 +701,26 @@ COLORREF NavigatorColors[NUMBER_OF_COLORS] =
 // otherwise overwrite the entries with light system colors
 COLORREF DarkColors[NUMBER_OF_COLORS] =
     {
-        // focus frame pens
-        RGBF(240, 240, 240, 0), // FOCUS_ACTIVE_NORMAL
-        RGBF(255, 160, 160, 0), // FOCUS_ACTIVE_SELECTED
-        RGBF(128, 128, 128, 0), // FOCUS_FG_INACTIVE_NORMAL
-        RGBF(200, 120, 120, 0), // FOCUS_FG_INACTIVE_SELECTED
-        RGBF(32, 32, 32, 0),    // FOCUS_BK_INACTIVE_NORMAL
-        RGBF(32, 32, 32, 0),    // FOCUS_BK_INACTIVE_SELECTED
-
-        // panel item text
-        RGBF(240, 240, 240, 0), // ITEM_FG_NORMAL
-        RGBF(255, 110, 110, 0), // ITEM_FG_SELECTED
-        RGBF(255, 255, 255, 0), // ITEM_FG_FOCUSED
-        RGBF(255, 128, 128, 0), // ITEM_FG_FOCSEL
-        RGBF(240, 240, 240, 0), // ITEM_FG_HIGHLIGHT
-
-        // panel item backgrounds
-        RGBF(32, 32, 32, 0), // ITEM_BK_NORMAL
-        RGBF(32, 32, 32, 0), // ITEM_BK_SELECTED
-        RGBF(58, 58, 58, 0), // ITEM_BK_FOCUSED
-        RGBF(58, 58, 58, 0), // ITEM_BK_FOCSEL
-        RGBF(48, 48, 48, 0), // ITEM_BK_HIGHLIGHT
-
-        // icon blend colors
-        RGBF(255, 128, 128, 0), // ICON_BLEND_SELECTED
-        RGBF(128, 128, 128, 0), // ICON_BLEND_FOCUSED
-        RGBF(255, 96, 96, 0),   // ICON_BLEND_FOCSEL
-
-        // progress bar
-        RGBF(130, 180, 255, 0), // PROGRESS_FG_NORMAL
-        RGBF(255, 255, 255, 0), // PROGRESS_FG_SELECTED
-        RGBF(32, 32, 32, 0),    // PROGRESS_BK_NORMAL
-        RGBF(38, 79, 120, 0),   // PROGRESS_BK_SELECTED
-
-        // hot items
-        RGBF(102, 178, 255, 0), // HOT_PANEL
-        RGBF(180, 210, 255, 0), // HOT_ACTIVE
-        RGBF(160, 190, 230, 0), // HOT_INACTIVE
-
-        // panel captions
-        RGBF(255, 255, 255, 0), // ACTIVE_CAPTION_FG
-        RGBF(38, 79, 120, 0),   // ACTIVE_CAPTION_BK
-        RGBF(170, 170, 170, 0), // INACTIVE_CAPTION_FG
-        RGBF(45, 45, 45, 0),    // INACTIVE_CAPTION_BK
-
-        // thumbnail frame pens
-        RGBF(96, 96, 96, 0),    // THUMBNAIL_FRAME_NORMAL
-        RGBF(240, 240, 240, 0), // THUMBNAIL_FRAME_FOCUSED
-        RGBF(255, 110, 110, 0), // THUMBNAIL_FRAME_SELECTED
-        RGBF(200, 80, 80, 0),   // THUMBNAIL_FRAME_FOCSEL
+#define THEME_PANEL_ENTRY(name, r, g, b) RGBF(r, g, b, 0),
+        THEME_DARK_PANEL_COLORS(THEME_PANEL_ENTRY)
+#undef THEME_PANEL_ENTRY
 };
+
+namespace
+{
+    // compile-time check: the palette list order matches the index defines
+    constexpr bool DarkColorsOrderOk()
+    {
+#define THEME_PANEL_INDEX(name, r, g, b) name,
+        const int order[] = {THEME_DARK_PANEL_COLORS(THEME_PANEL_INDEX)};
+#undef THEME_PANEL_INDEX
+        for (int i = 0; i < (int)(sizeof(order) / sizeof(order[0])); i++)
+            if (order[i] != i)
+                return false;
+        return sizeof(order) / sizeof(order[0]) == NUMBER_OF_COLORS;
+    }
+    static_assert(DarkColorsOrderOk(), "themes_palette.h panel list must match consts.h indexes");
+} // namespace
 
 COLORREF CustomColors[NUMBER_OF_CUSTOMCOLORS] =
     {

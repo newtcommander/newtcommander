@@ -13,6 +13,7 @@
 #include "fileswnd.h"
 #include "mainwnd.h"
 #include "themes.h"
+#include "themes_palette.h"
 
 #pragma comment(lib, "Dwmapi.lib")
 
@@ -70,33 +71,9 @@ static void InitThemeDarkSysColors()
     for (i = 0; i < THEME_SYSCOLOR_COUNT; i++)
         ThemeDarkSysColors[i] = CLR_INVALID; // unmapped -> GetSysColor fallback
 
-    ThemeDarkSysColors[COLOR_SCROLLBAR] = RGB(45, 45, 45);
-    ThemeDarkSysColors[COLOR_ACTIVECAPTION] = RGB(38, 79, 120);
-    ThemeDarkSysColors[COLOR_INACTIVECAPTION] = RGB(45, 45, 45);
-    ThemeDarkSysColors[COLOR_MENU] = RGB(45, 45, 45);
-    ThemeDarkSysColors[COLOR_WINDOW] = RGB(32, 32, 32);
-    ThemeDarkSysColors[COLOR_WINDOWFRAME] = RGB(85, 85, 85);
-    ThemeDarkSysColors[COLOR_MENUTEXT] = RGB(240, 240, 240);
-    ThemeDarkSysColors[COLOR_WINDOWTEXT] = RGB(240, 240, 240);
-    ThemeDarkSysColors[COLOR_CAPTIONTEXT] = RGB(255, 255, 255);
-    ThemeDarkSysColors[COLOR_APPWORKSPACE] = RGB(38, 38, 38);
-    ThemeDarkSysColors[COLOR_HIGHLIGHT] = RGB(38, 79, 120);
-    ThemeDarkSysColors[COLOR_HIGHLIGHTTEXT] = RGB(255, 255, 255);
-    ThemeDarkSysColors[COLOR_BTNFACE] = RGB(45, 45, 45);
-    ThemeDarkSysColors[COLOR_BTNSHADOW] = RGB(26, 26, 26);
-    ThemeDarkSysColors[COLOR_GRAYTEXT] = RGB(150, 150, 150);
-    ThemeDarkSysColors[COLOR_BTNTEXT] = RGB(240, 240, 240);
-    ThemeDarkSysColors[COLOR_INACTIVECAPTIONTEXT] = RGB(170, 170, 170);
-    ThemeDarkSysColors[COLOR_BTNHIGHLIGHT] = RGB(70, 70, 70);
-    ThemeDarkSysColors[COLOR_3DDKSHADOW] = RGB(16, 16, 16);
-    ThemeDarkSysColors[COLOR_3DLIGHT] = RGB(58, 58, 58);
-    ThemeDarkSysColors[COLOR_INFOTEXT] = RGB(240, 240, 240);
-    ThemeDarkSysColors[COLOR_INFOBK] = RGB(50, 50, 50);
-    ThemeDarkSysColors[COLOR_HOTLIGHT] = RGB(102, 178, 255);
-    ThemeDarkSysColors[COLOR_GRADIENTACTIVECAPTION] = RGB(38, 79, 120);
-    ThemeDarkSysColors[COLOR_GRADIENTINACTIVECAPTION] = RGB(45, 45, 45);
-    ThemeDarkSysColors[COLOR_MENUHILIGHT] = RGB(38, 79, 120);
-    ThemeDarkSysColors[COLOR_MENUBAR] = RGB(45, 45, 45);
+#define THEME_SET_ENTRY(idx, r, g, b) ThemeDarkSysColors[idx] = RGB(r, g, b);
+    THEME_DARK_SYSCOLORS(THEME_SET_ENTRY)
+#undef THEME_SET_ENTRY
 
     ThemeDarkSysColorsValid = TRUE;
 }
@@ -410,9 +387,9 @@ void ThemeSubclassPropSheetFrame(HWND hFrame)
     if (hFrame == NULL)
         return;
     if (!IsDarkThemeActive() && GetPropA(hFrame, THEME_DARKENED_PROP) == NULL)
-        return; // strict Default-theme passthrough
+        return;                                                       // strict Default-theme passthrough
     SetWindowSubclass(hFrame, ThemePropSheetFrameSubclassProc, 1, 0); // idempotent
-    ThemeApplyToDialog(hFrame); // DWM title bar + tree/buttons/tab children
+    ThemeApplyToDialog(hFrame);                                       // DWM title bar + tree/buttons/tab children
 }
 
 //

@@ -165,7 +165,7 @@ protected:
 class CTPHGripWindow : public CWindow
 {
 public:
-    CTPHGripWindow(HWND hDlg, int ctrlID) : CWindow(hDlg, ctrlID) {};
+    CTPHGripWindow(HWND hDlg, int ctrlID) : CWindow(hDlg, ctrlID){};
 
 protected:
     virtual LRESULT WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -242,5 +242,5 @@ protected:
     friend class CTreePropHolderDlg;
 
     // pouze pro forwarding zprav z CTreePropHolderDlg
-    virtual void DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam) {};
+    virtual void DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam){};
 };

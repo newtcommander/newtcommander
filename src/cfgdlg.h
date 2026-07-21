@@ -420,7 +420,6 @@ struct CConfiguration
     BOOL EnableCustomIconOverlays;    // TRUE = icon overlays are used (see ShellIconOverlays)
     char* DisabledCustomIconOverlays; // allocated list of disabled icon overlay handlers (separator is ';', escape - sequence for ';' is ';;')
 
-
     CConfiguration();
     ~CConfiguration();
 

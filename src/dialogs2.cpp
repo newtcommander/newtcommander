@@ -554,7 +554,7 @@ void CSelectDialog::Validate(CTransferInfo& ti)
         if (ti.Type == ttDataFromWindow)
         {
             char buf[MAX_PATH];
-            strcpy(buf, Mask); // backup
+            strcpy(buf, Mask);                        // backup
             SalGetWindowTextU8(hWnd, Mask, MAX_PATH); // mask matched against UTF-8 names (feature 005)
             CMaskGroup mask(Mask);
             int errorPos;

@@ -7,10 +7,13 @@
 
 #include "precomp.h"
 
+#include <math.h>
+
 #include "salunicode.h"
 #include "salpath.h"
 #include "salfileio.h"
 #include "salclip.h"
+#include "themes_palette.h"
 
 static int g_checks = 0;
 static int g_failures = 0;
@@ -406,6 +409,123 @@ static void TestDropFiles()
     CHECK(SalScanDropFiles(NULL, 1000, NULL) == -1);
 }
 
+// ---------------------------------------------------------------------------
+// Feature 028: Dark theme palette tests (src/common/themes_palette.h)
+// WCAG 2.x contrast: standard text >= 4.5:1, disabled/secondary >= 3:1 (SC-005)
+
+static double SrgbChannel(int c)
+{
+    double s = c / 255.0;
+    return s <= 0.03928 ? s / 12.92 : pow((s + 0.055) / 1.055, 2.4);
+}
+
+static double Luminance(COLORREF c)
+{
+    return 0.2126 * SrgbChannel(GetRValue(c)) +
+           0.7152 * SrgbChannel(GetGValue(c)) +
+           0.0722 * SrgbChannel(GetBValue(c));
+}
+
+static double ContrastRatio(COLORREF a, COLORREF b)
+{
+    double la = Luminance(a) + 0.05;
+    double lb = Luminance(b) + 0.05;
+    return la > lb ? la / lb : lb / la;
+}
+
+// positional views of the palette data (order = list order in the header)
+enum DarkPanelIdx
+{
+#define TP_ENUM(name, r, g, b) DP_##name,
+    THEME_DARK_PANEL_COLORS(TP_ENUM)
+#undef TP_ENUM
+        DP_COUNT
+};
+
+enum DarkViewerIdx
+{
+#define TV_ENUM(name, r, g, b) DV_##name,
+    THEME_DARK_VIEWER_COLORS(TV_ENUM)
+#undef TV_ENUM
+        DV_COUNT
+};
+
+static void TestDarkThemePalette()
+{
+    // --- chrome palette: build the LUT the app uses
+    COLORREF chrome[64];
+    BOOL chromeSet[64] = {0};
+    for (int i = 0; i < 64; i++)
+        chrome[i] = 0;
+#define TC_FILL(idx, r, g, b) \
+    chrome[idx] = RGB(r, g, b); \
+    chromeSet[idx] = TRUE;
+    THEME_DARK_SYSCOLORS(TC_FILL)
+#undef TC_FILL
+
+    // every COLOR_* index the application draws with must be mapped
+    // (COLOR_3DFACE==COLOR_BTNFACE and COLOR_3DSHADOW==COLOR_BTNSHADOW share values)
+    const int drawnIndexes[] = {
+        COLOR_WINDOW, COLOR_WINDOWTEXT, COLOR_WINDOWFRAME, COLOR_BTNFACE,
+        COLOR_BTNTEXT, COLOR_BTNSHADOW, COLOR_BTNHIGHLIGHT, COLOR_3DLIGHT,
+        COLOR_3DDKSHADOW, COLOR_HIGHLIGHT, COLOR_HIGHLIGHTTEXT, COLOR_GRAYTEXT,
+        COLOR_HOTLIGHT, COLOR_INFOTEXT, COLOR_INFOBK, COLOR_CAPTIONTEXT,
+        COLOR_ACTIVECAPTION, COLOR_INACTIVECAPTION, COLOR_INACTIVECAPTIONTEXT,
+        COLOR_SCROLLBAR, COLOR_MENU, COLOR_MENUTEXT, COLOR_3DFACE, COLOR_3DSHADOW};
+    for (int i = 0; i < (int)(sizeof(drawnIndexes) / sizeof(drawnIndexes[0])); i++)
+        CHECK(chromeSet[drawnIndexes[i]]);
+
+    // chrome text/background pairs (>= 4.5:1; disabled text >= 3:1)
+    CHECK(ContrastRatio(chrome[COLOR_WINDOWTEXT], chrome[COLOR_WINDOW]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_BTNTEXT], chrome[COLOR_BTNFACE]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_MENUTEXT], chrome[COLOR_MENU]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_HIGHLIGHTTEXT], chrome[COLOR_HIGHLIGHT]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_INFOTEXT], chrome[COLOR_INFOBK]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_CAPTIONTEXT], chrome[COLOR_ACTIVECAPTION]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_INACTIVECAPTIONTEXT], chrome[COLOR_INACTIVECAPTION]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_HOTLIGHT], chrome[COLOR_WINDOW]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_HOTLIGHT], chrome[COLOR_BTNFACE]) >= 4.5);
+    CHECK(ContrastRatio(chrome[COLOR_GRAYTEXT], chrome[COLOR_BTNFACE]) >= 3.0);
+    CHECK(ContrastRatio(chrome[COLOR_GRAYTEXT], chrome[COLOR_WINDOW]) >= 3.0);
+
+    // --- panel palette: exact index count (positional integrity vs consts.h
+    // is additionally static_assert-ed inside the application build)
+    CHECK(DP_COUNT == 34);
+    CHECK(DV_COUNT == 4);
+
+    COLORREF panel[DP_COUNT];
+#define TP_FILL(name, r, g, b) panel[DP_##name] = RGB(r, g, b);
+    THEME_DARK_PANEL_COLORS(TP_FILL)
+#undef TP_FILL
+
+    // panel item text over its backgrounds (all item states, SC-005)
+    CHECK(ContrastRatio(panel[DP_ITEM_FG_NORMAL], panel[DP_ITEM_BK_NORMAL]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_ITEM_FG_SELECTED], panel[DP_ITEM_BK_SELECTED]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_ITEM_FG_FOCUSED], panel[DP_ITEM_BK_FOCUSED]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_ITEM_FG_FOCSEL], panel[DP_ITEM_BK_FOCSEL]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_ITEM_FG_HIGHLIGHT], panel[DP_ITEM_BK_HIGHLIGHT]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_HOT_PANEL], panel[DP_ITEM_BK_NORMAL]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_ACTIVE_CAPTION_FG], panel[DP_ACTIVE_CAPTION_BK]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_INACTIVE_CAPTION_FG], panel[DP_INACTIVE_CAPTION_BK]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_HOT_ACTIVE], panel[DP_ACTIVE_CAPTION_BK]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_HOT_INACTIVE], panel[DP_INACTIVE_CAPTION_BK]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_PROGRESS_FG_NORMAL], panel[DP_PROGRESS_BK_NORMAL]) >= 4.5);
+    CHECK(ContrastRatio(panel[DP_PROGRESS_FG_SELECTED], panel[DP_PROGRESS_BK_SELECTED]) >= 4.5);
+
+    COLORREF viewer[DV_COUNT];
+#define TV_FILL(name, r, g, b) viewer[DV_##name] = RGB(r, g, b);
+    THEME_DARK_VIEWER_COLORS(TV_FILL)
+#undef TV_FILL
+    CHECK(ContrastRatio(viewer[DV_VIEWER_FG_NORMAL], viewer[DV_VIEWER_BK_NORMAL]) >= 4.5);
+    CHECK(ContrastRatio(viewer[DV_VIEWER_FG_SELECTED], viewer[DV_VIEWER_BK_SELECTED]) >= 4.5);
+
+    // all surfaces are truly dark (backgrounds darker than mid-gray)
+    CHECK(Luminance(chrome[COLOR_WINDOW]) < 0.1);
+    CHECK(Luminance(chrome[COLOR_BTNFACE]) < 0.1);
+    CHECK(Luminance(panel[DP_ITEM_BK_NORMAL]) < 0.1);
+    CHECK(Luminance(viewer[DV_VIEWER_BK_NORMAL]) < 0.1);
+}
+
 int main()
 {
     TestConversions();
@@ -415,6 +535,7 @@ int main()
     TestExtendedPaths();
     TestFileIO();
     TestDropFiles();
+    TestDarkThemePalette();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;

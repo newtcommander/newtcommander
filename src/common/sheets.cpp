@@ -26,7 +26,8 @@ extern CWinLibHelp* WinLibHelp;
 
 // see sheets.h: optional theme hook (defaults to plain GetSysColor so other
 // consumers of this library keep their behavior)
-COLORREF (*SheetsGetSysColorHook)(int index) = NULL;
+COLORREF (*SheetsGetSysColorHook)
+(int index) = NULL;
 
 static COLORREF SheetsGetSysColor(int index)
 {

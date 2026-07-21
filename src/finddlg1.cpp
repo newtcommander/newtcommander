@@ -3862,8 +3862,8 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
     }
 
     case WM_NOTIFYFORMAT:
-    { // feature 004: ask the common controls for Unicode notifications so the
-      // results list view can render UTF-8 names (converted in LVN_GETDISPINFOW)
+    {   // feature 004: ask the common controls for Unicode notifications so the
+        // results list view can render UTF-8 names (converted in LVN_GETDISPINFOW)
         if (lParam == NF_QUERY)
             return NFR_UNICODE;
         break;

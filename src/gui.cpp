@@ -2084,7 +2084,10 @@ CButton::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             tmpBitmap.CreateBmp(hdc, ClientRect.right, ClientRect.bottom);
             HDC hMemDC = tmpBitmap.HMemDC;
 
-            if (IsAppThemed())
+            // feature 028: the visual-style button parts are light-only, so the
+            // Dark theme uses the classic branch below (its pens/brushes already
+            // come from the dark palette)
+            if (IsAppThemed() && !IsDarkThemeActive())
             {
                 // if running under the XP theme, use it
                 HTHEME hTheme = OpenThemeData(HWindow, L"Button");
@@ -3793,7 +3796,50 @@ HIMAGELIST CreateCheckboxImagelist(int itemSize)
     RECT r = {0, 0, itemSize, itemSize};
 
     BOOL fallBack = TRUE;
-    if (IsAppThemed())
+    if (IsDarkThemeActive())
+    {
+        // feature 028: the visual-style checkbox parts are light-only; draw
+        // flat dark glyphs (box + check mark) from the dark palette instead
+        HPEN hFramePen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_WINDOWFRAME)));
+        HPEN hCheckPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_WINDOWTEXT)));
+        RECT box = r;
+        InflateRect(&box, -1, -1);
+        int i;
+        for (i = 0; i <= 1; i++) // 0 = unchecked, 1 = checked
+        {
+            HBITMAP hOldBmp = (HBITMAP)SelectObject(hMemDC, hBitmap);
+            FillRect(hMemDC, &r, ThemeSysColorBrush(COLOR_WINDOW));
+            HPEN hOldPen = (HPEN)SelectObject(hMemDC, hFramePen);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hMemDC, HANDLES(GetStockObject(NULL_BRUSH)));
+            Rectangle(hMemDC, box.left, box.top, box.right, box.bottom);
+            if (i == 1)
+            {
+                SelectObject(hMemDC, hCheckPen);
+                int w = box.right - box.left;
+                int h = box.bottom - box.top;
+                POINT check[3];
+                check[0].x = box.left + w / 4;
+                check[0].y = box.top + h / 2;
+                check[1].x = box.left + w * 2 / 5;
+                check[1].y = box.top + h * 7 / 10;
+                check[2].x = box.left + w * 3 / 4;
+                check[2].y = box.top + h / 4;
+                Polyline(hMemDC, check, 3);
+                check[0].y++;
+                check[1].y++;
+                check[2].y++;
+                Polyline(hMemDC, check, 3); // 2px stroke for legibility
+            }
+            SelectObject(hMemDC, hOldBrush);
+            SelectObject(hMemDC, hOldPen);
+            SelectObject(hMemDC, hOldBmp);
+            ImageList_Add(hIL, hBitmap, NULL);
+        }
+        HANDLES(DeleteObject(hFramePen));
+        HANDLES(DeleteObject(hCheckPen));
+        fallBack = FALSE;
+    }
+    else if (IsAppThemed())
     {
         HTHEME hTheme = OpenThemeData(NULL, L"BUTTON");
         if (hTheme != NULL)

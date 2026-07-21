@@ -1679,7 +1679,7 @@ BOOL CViewerWindow::GetOffsetOrXAbs(__int64 x, __int64* offset, __int64* offsetX
                         int nW;
                         stepBytes = ViewerDecodeChar(p, avail, ContentEncoding, w, &nW);
                         if (stepBytes == 0)
-                            break; // code point split at the window end -> re-Prepare from 'off'
+                            break;     // code point split at the window end -> re-Prepare from 'off'
                         stepCols = nW; // 1, or 2 for a surrogate pair
                     }
                     if (!getXFromOffset && x >= colStart && x < colStart + stepCols)

@@ -277,7 +277,7 @@ CConfiguration::CConfiguration()
     MinBeepWhenDone = TRUE;
     UseRecycleBin = 1;
     ThemeMode = THEME_MODE_DEFAULT; // feature 028
-    FileNameFormat = 4; // as on the disk
+    FileNameFormat = 4;             // as on the disk
     SizeFormat = SIZE_FORMAT_BYTES;
     RecycleMasks.SetMasksString("*.txt;*.doc");
     LastFocusedPage = 0;
