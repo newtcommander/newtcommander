@@ -72,5 +72,12 @@ BOOL ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* resul
 // children (tree, buttons); no-op in the Default theme for untouched frames
 void ThemeSubclassPropSheetFrame(HWND hFrame);
 
+// Dark-theme transform of a legacy (light-background) glyph bitmap: pixels in
+// the 'transparent' key color are left alone; dark neutral pixels (black
+// outlines, gray shading) are remapped to light ones and dark saturated
+// colors are brightened, so the glyphs stay legible on dark surfaces.
+// No-op in the Default theme. Call while the bitmap is NOT selected in a DC.
+void ThemeAdjustBitmapForDarkMode(HBITMAP hBitmap, COLORREF transparent);
+
 // frees engine-owned GDI objects (process shutdown)
 void ReleaseThemeGraphics();

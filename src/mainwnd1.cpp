@@ -775,6 +775,13 @@ void CMainWindow::ToggleToolBarGrips()
 
     Configuration.GripsVisible = !Configuration.GripsVisible;
 
+    RebuildRebarBands();
+}
+
+void CMainWindow::RebuildRebarBands()
+{
+    CALL_STACK_MESSAGE1("CMainWindow::RebuildRebarBands()");
+
     LockWindowUpdate(HWindow);
 
     // menu
@@ -907,7 +914,7 @@ BOOL CMainWindow::InsertMenuBand()
     rbbi.cx = Configuration.MenuWidth;
     if (Configuration.MenuBreak)
         rbbi.fStyle |= RBBS_BREAK;
-    if (Configuration.GripsVisible)
+    if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
         rbbi.fStyle |= RBBS_GRIPPERALWAYS;
     else
     {
@@ -977,7 +984,7 @@ BOOL CMainWindow::InsertTopToolbarBand()
     rbbi.cx = Configuration.TopToolbarWidth;
     if (Configuration.TopToolbarBreak)
         rbbi.fStyle |= RBBS_BREAK;
-    if (Configuration.GripsVisible)
+    if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
         rbbi.fStyle |= RBBS_GRIPPERALWAYS;
     else
     {
@@ -1013,7 +1020,7 @@ BOOL CMainWindow::InsertPluginsBarBand()
     rbbi.cx = Configuration.PluginsBarWidth;
     if (Configuration.PluginsBarBreak)
         rbbi.fStyle |= RBBS_BREAK;
-    if (Configuration.GripsVisible)
+    if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
         rbbi.fStyle |= RBBS_GRIPPERALWAYS;
     else
     {
@@ -1049,7 +1056,7 @@ BOOL CMainWindow::InsertUMToolbarBand()
     rbbi.cx = Configuration.UserMenuToolbarWidth;
     if (Configuration.UserMenuToolbarBreak)
         rbbi.fStyle |= RBBS_BREAK;
-    if (Configuration.GripsVisible)
+    if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
         rbbi.fStyle |= RBBS_GRIPPERALWAYS;
     else
     {
@@ -1086,7 +1093,7 @@ BOOL CMainWindow::InsertHPToolbarBand()
     rbbi.cx = Configuration.HotPathsBarWidth;
     if (Configuration.HotPathsBarBreak)
         rbbi.fStyle |= RBBS_BREAK;
-    if (Configuration.GripsVisible)
+    if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
         rbbi.fStyle |= RBBS_GRIPPERALWAYS;
     else
     {
@@ -1131,7 +1138,7 @@ BOOL CMainWindow::InsertDriveBarBand(BOOL twoDriveBars)
     {
         if (Configuration.DriveBarBreak)
             rbbi.fStyle |= RBBS_BREAK;
-        if (Configuration.GripsVisible)
+        if (Configuration.GripsVisible && !IsDarkThemeActive()) // feature 028: classic grips are light-only
             rbbi.fStyle |= RBBS_GRIPPERALWAYS;
         else
             rbbi.fStyle |= RBBS_NOGRIPPER;
@@ -3206,6 +3213,16 @@ void CMainWindow::OnColorsChanged(BOOL reloadUMIcons)
     {
         RightPanel->OnColorsChanged();
     }
+
+    // feature 028: theme the whole child tree (dark scrollbars of panels and
+    // edit-list windows, combo boxes of the command line, ...) and swap the
+    // universal window-class background so container gaps do not stay light;
+    // both calls are strict no-ops while the Default theme has been active
+    // since startup
+    if (LeftPanel != NULL && LeftPanel->HWindow != NULL)
+        ThemeUpdateWindowClassBackground(LeftPanel->HWindow, COLOR_WINDOW);
+    if (HWindow != NULL)
+        ThemeApplyToDialog(HWindow);
 }
 
 void CMainWindow::StartAnimate()

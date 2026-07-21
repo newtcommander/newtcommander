@@ -4,6 +4,8 @@
 
 #include "precomp.h"
 
+#include <uxtheme.h>
+
 #include "viewer.h"
 #include "codetbl.h"
 
@@ -270,11 +272,13 @@ unsigned ThreadViewerMessageLoopBody(void* parameter)
         //    CALL_STACK_MESSAGE1("MoresStanislav: ThreadViewerMessageLoopBody 4");
         view->SetObjectOrigin(ooAllocated); // switch from ooStatic because the window was created successfully
         data->Success = TRUE;
-        // feature 028: dark title bar + class background before the first show
+        // feature 028: dark title bar + class background + scrollbars before
+        // the first show
         if (IsDarkThemeActive())
         {
             ThemeUpdateWindowClassBackground(view->HWindow, COLOR_WINDOW);
             ThemeApplyToTopLevel(view->HWindow);
+            SetWindowTheme(view->HWindow, L"DarkMode_Explorer", NULL);
         }
         // show the window immediately so it does not annoyingly "pop up" later
         //    TRACE_I("MoresStanislav: ThreadViewerMessageLoopBody 5");

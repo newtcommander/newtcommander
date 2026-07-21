@@ -280,6 +280,15 @@ static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
     {
         SetWindowTheme(hChild, dark ? L"DarkMode_ItemsView" : NULL, NULL);
     }
+    else
+    {
+        // custom windows with standard (non-client) scrollbars - panels,
+        // viewers, edit-list boxes: the DarkMode_Explorer theme darkens the
+        // scrollbars without touching the self-painted client area
+        DWORD style = (DWORD)GetWindowLongPtr(hChild, GWL_STYLE);
+        if (style & (WS_VSCROLL | WS_HSCROLL))
+            SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
+    }
     InvalidateRect(hChild, NULL, TRUE);
     return TRUE;
 }
@@ -335,6 +344,107 @@ BOOL ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* resul
     }
     }
     return FALSE;
+}
+
+//
+// ****************************************************************************
+// ThemeAdjustBitmapForDarkMode
+//
+
+void ThemeAdjustBitmapForDarkMode(HBITMAP hBitmap, COLORREF transparent)
+{
+    if (!IsDarkThemeActive() || hBitmap == NULL)
+        return;
+
+    BITMAP bmp;
+    if (GetObject(hBitmap, sizeof(bmp), &bmp) == 0 || bmp.bmWidth <= 0 || bmp.bmHeight <= 0)
+        return;
+
+    int width = bmp.bmWidth;
+    int height = bmp.bmHeight;
+    DWORD* pixels = (DWORD*)malloc((size_t)width * height * sizeof(DWORD));
+    if (pixels == NULL)
+        return;
+
+    BITMAPINFO bi;
+    memset(&bi, 0, sizeof(bi));
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = width;
+    bi.bmiHeader.biHeight = -height; // top-down
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+
+    HDC hDC = HANDLES(GetDC(NULL));
+    if (GetDIBits(hDC, hBitmap, 0, height, pixels, &bi, DIB_RGB_COLORS) == height)
+    {
+        int count = width * height;
+        int i;
+
+        // legacy 24bpp sources come back with a zero alpha byte everywhere;
+        // PNG (alpha) sources have at least one non-zero alpha byte
+        BOOL hasAlpha = FALSE;
+        for (i = 0; i < count; i++)
+        {
+            if ((pixels[i] & 0xFF000000) != 0)
+            {
+                hasAlpha = TRUE;
+                break;
+            }
+        }
+
+        for (i = 0; i < count; i++)
+        {
+            DWORD px = pixels[i];
+            int a = (int)(px >> 24);
+            if (hasAlpha && a == 0)
+                continue; // fully transparent
+            int r = (int)((px >> 16) & 0xFF);
+            int g = (int)((px >> 8) & 0xFF);
+            int b = (int)(px & 0xFF);
+            if (!hasAlpha && RGB(r, g, b) == transparent)
+                continue; // mask key color must survive untouched
+
+            // un-premultiply partially transparent PNG pixels
+            if (hasAlpha && a > 0 && a < 255)
+            {
+                r = min(255, MulDiv(r, 255, a));
+                g = min(255, MulDiv(g, 255, a));
+                b = min(255, MulDiv(b, 255, a));
+            }
+
+            int maxc = max(r, max(g, b));
+            int minc = min(r, min(g, b));
+            if (maxc - minc < 32)
+            {
+                // neutral pixel: invert darkness so black outlines become the
+                // lightest ([0,140) maps monotonically onto (140,220])
+                if (maxc < 140)
+                {
+                    int v = 220 - MulDiv(maxc, 80, 140);
+                    r = g = b = v;
+                }
+            }
+            else if (maxc < 120)
+            {
+                // dark saturated color: brighten towards the same hue
+                r = min(255, MulDiv(r, 170, maxc));
+                g = min(255, MulDiv(g, 170, maxc));
+                b = min(255, MulDiv(b, 170, maxc));
+            }
+
+            if (hasAlpha && a > 0 && a < 255)
+            {
+                r = MulDiv(r, a, 255);
+                g = MulDiv(g, a, 255);
+                b = MulDiv(b, a, 255);
+            }
+            pixels[i] = ((DWORD)a << 24) | ((DWORD)r << 16) | ((DWORD)g << 8) | (DWORD)b;
+        }
+        SetDIBits(hDC, hBitmap, 0, height, pixels, &bi, DIB_RGB_COLORS);
+    }
+    HANDLES(ReleaseDC(NULL, hDC));
+    free(pixels);
 }
 
 //
@@ -418,7 +528,12 @@ void SetThemeMode(DWORD mode)
 
     if (MainWindow != NULL && MainWindow->HWindow != NULL)
     {
-        ThemeApplyToTopLevel(MainWindow->HWindow);
+        // rebar band grippers are classic-drawn (light-only): re-insert the
+        // bands so the gripper style matches the new theme
+        if (MainWindow->HTopRebar != NULL)
+            MainWindow->RebuildRebarBands();
+        // DWM title bar + per-child theming (scrollbars, combos, ...)
+        ThemeApplyToDialog(MainWindow->HWindow);
         // let DWM redraw the frame with the new caption color
         SetWindowPos(MainWindow->HWindow, NULL, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);

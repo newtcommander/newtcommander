@@ -2597,13 +2597,20 @@ BOOL InitializeGraphics(BOOL colorsOnly)
         return FALSE;
     }
 
+    // feature 028: in the Dark theme BTNSHADOW/BTNHILIGHT are bevel colors
+    // (nearly black) - glyphs remapped to them would vanish on dark surfaces,
+    // so the Dark theme uses explicit light glyph shades instead
+    BOOL darkGlyphs = IsDarkThemeActive();
+    COLORREF glyphShadow = darkGlyphs ? ThemeSysColor(COLOR_GRAYTEXT) : GetSysColor(COLOR_BTNSHADOW);
+    COLORREF glyphHilight = darkGlyphs ? RGB(200, 200, 200) : GetSysColor(COLOR_BTNHILIGHT);
+
     COLORMAP clrMap[3];
     clrMap[0].from = RGB(255, 0, 255);
     clrMap[0].to = ThemeSysColor(COLOR_BTNFACE);
     clrMap[1].from = RGB(255, 255, 255);
-    clrMap[1].to = ThemeSysColor(COLOR_BTNHILIGHT);
+    clrMap[1].to = glyphHilight;
     clrMap[2].from = RGB(128, 128, 128);
-    clrMap[2].to = ThemeSysColor(COLOR_BTNSHADOW);
+    clrMap[2].to = glyphShadow;
     HHeaderSort = HANDLES(CreateMappedBitmap(HInstance, IDB_HEADER, 0, clrMap, 3));
     if (HHeaderSort == NULL)
     {
@@ -2612,7 +2619,7 @@ BOOL InitializeGraphics(BOOL colorsOnly)
     }
 
     clrMap[0].from = RGB(128, 128, 128); // seda -> COLOR_BTNSHADOW
-    clrMap[0].to = ThemeSysColor(COLOR_BTNSHADOW);
+    clrMap[0].to = glyphShadow;
     clrMap[1].from = RGB(0, 0, 0); // cerna -> COLOR_BTNTEXT
     clrMap[1].to = ThemeSysColor(COLOR_BTNTEXT);
     clrMap[2].from = RGB(255, 255, 255); // bila -> pruhledna
@@ -2622,7 +2629,9 @@ BOOL InitializeGraphics(BOOL colorsOnly)
     if (GetCurrentBPP() > 8)
     {
         clrMap[2].from = RGB(255, 255, 255); // bila -> svetle sedivou (at to tak nerve)
-        clrMap[2].to = RGB(235, 235, 235);
+        // feature 028: in the Dark theme the key-cap interior must stay dark,
+        // otherwise the glyphs render as solid light squares
+        clrMap[2].to = darkGlyphs ? RGB(60, 60, 60) : RGB(235, 235, 235);
         remapWhite = TRUE;
     }
     HBITMAP hHotBottomTB = HANDLES(CreateMappedBitmap(HInstance, IDB_BOTTOMTOOLBAR, 0, clrMap, remapWhite ? 3 : 2));

@@ -4,6 +4,8 @@
 
 #include "precomp.h"
 
+#include <uxtheme.h>
+
 #include "cfgdlg.h"
 #include "viewer.h"
 #include "dialogs.h"
@@ -703,9 +705,10 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         CreateViewerBrushs();
         SetViewerFont();
         // feature 028: live theme switch reaches open viewers through this
-        // broadcast; refresh the title bar and class background too
+        // broadcast; refresh the title bar, class background and scrollbars
         ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
         ThemeApplyToTopLevel(HWindow);
+        SetWindowTheme(HWindow, IsDarkThemeActive() ? L"DarkMode_Explorer" : NULL, NULL);
         InvalidateRect(HWindow, NULL, TRUE);
         ConfigHasChanged();
         return 0;

@@ -357,7 +357,7 @@ DWORD TopToolBarButtons[] =
         // [019] Help buttons (Help Contents / What is This?) removed from the
         // default toolbar; program help is not built.
 
-                TBBE_TERMINATOR // terminator - musi zde byt !
+        TBBE_TERMINATOR // terminator - musi zde byt !
 };
 
 DWORD LeftToolBarButtons[] =
@@ -763,6 +763,11 @@ BOOL CreateToolbarBitmaps(HINSTANCE hInstance, int resID, COLORREF transparent, 
         TRACE_E("LoadBitmap failed on redID " << resID);
         goto exitus;
     }
+
+    // feature 028: legacy glyphs are designed for light surfaces; remap dark
+    // outlines/shading to light ones before compositing (SVG overlays and
+    // shell icons are rendered later and are not affected)
+    ThemeAdjustBitmapForDarkMode(hSource, transparent);
 
     hDC = HANDLES(GetDC(NULL));
     // vytahnu rozmery bitmapy
@@ -1215,18 +1220,18 @@ CBottomTBData BottomTBData[btbsCount][12] =
     {
         // btbdNormal
         {
-            {TBBE_TERMINATOR},          // F1 [019] help removed
-            {TBBE_QUICK_RENAME},        // F2
-            {TBBE_VIEW},                // F3
-            {TBBE_EDIT},                // F4
-            {TBBE_COPY},                // F5
-            {TBBE_MOVE},                // F6
-            {TBBE_CREATE_DIR},          // F7
-            {TBBE_DELETE},              // F8
-            {TBBE_USER_MENU},           // F9
-            {TBBE_MENU},                // F10
-            {NIB3(TBBE_CONNECT_NET)},   // F11
-            {TBBE_DISCONNECT_NET},      // F12
+            {TBBE_TERMINATOR},        // F1 [019] help removed
+            {TBBE_QUICK_RENAME},      // F2
+            {TBBE_VIEW},              // F3
+            {TBBE_EDIT},              // F4
+            {TBBE_COPY},              // F5
+            {TBBE_MOVE},              // F6
+            {TBBE_CREATE_DIR},        // F7
+            {TBBE_DELETE},            // F8
+            {TBBE_USER_MENU},         // F9
+            {TBBE_MENU},              // F10
+            {NIB3(TBBE_CONNECT_NET)}, // F11
+            {TBBE_DISCONNECT_NET},    // F12
         },
         // btbdAlt,
         {
@@ -1260,18 +1265,18 @@ CBottomTBData BottomTBData[btbsCount][12] =
         },
         // btbdShift
         {
-            {TBBE_TERMINATOR},         // F1 [019] help removed
-            {TBBE_TERMINATOR},         // F2
-            {NIB3(TBBE_OPEN_ACTIVE)},  // F3
-            {TBBE_EDITNEW},            // F4
-            {TBBE_TERMINATOR},         // F5
-            {TBBE_TERMINATOR},         // F6
-            {TBBE_CHANGEDIR},          // F7
-            {TBBE_DELETE},             // F8
-            {TBBE_HOTPATHS},           // F9
-            {TBBE_CONTEXTMENU},        // F10
-            {TBBE_TERMINATOR},         // F11
-            {TBBE_TERMINATOR},         // F12
+            {TBBE_TERMINATOR},        // F1 [019] help removed
+            {TBBE_TERMINATOR},        // F2
+            {NIB3(TBBE_OPEN_ACTIVE)}, // F3
+            {TBBE_EDITNEW},           // F4
+            {TBBE_TERMINATOR},        // F5
+            {TBBE_TERMINATOR},        // F6
+            {TBBE_CHANGEDIR},         // F7
+            {TBBE_DELETE},            // F8
+            {TBBE_HOTPATHS},          // F9
+            {TBBE_CONTEXTMENU},       // F10
+            {TBBE_TERMINATOR},        // F11
+            {TBBE_TERMINATOR},        // F12
         },
         // btbdCtrlShift
         {
@@ -1305,18 +1310,18 @@ CBottomTBData BottomTBData[btbsCount][12] =
         },
         // btbsMenu,
         {
-            {TBBE_TERMINATOR},          // F1 [019] help removed
-            {TBBE_TERMINATOR},          // F2
-            {TBBE_TERMINATOR},          // F3
-            {TBBE_TERMINATOR},          // F4
-            {TBBE_TERMINATOR},          // F5
-            {TBBE_TERMINATOR},          // F6
-            {TBBE_TERMINATOR},          // F7
-            {TBBE_TERMINATOR},          // F8
-            {TBBE_TERMINATOR},          // F9
-            {TBBE_MENU},                // F10
-            {TBBE_TERMINATOR},          // F11
-            {TBBE_TERMINATOR},          // F12
+            {TBBE_TERMINATOR}, // F1 [019] help removed
+            {TBBE_TERMINATOR}, // F2
+            {TBBE_TERMINATOR}, // F3
+            {TBBE_TERMINATOR}, // F4
+            {TBBE_TERMINATOR}, // F5
+            {TBBE_TERMINATOR}, // F6
+            {TBBE_TERMINATOR}, // F7
+            {TBBE_TERMINATOR}, // F8
+            {TBBE_TERMINATOR}, // F9
+            {TBBE_MENU},       // F10
+            {TBBE_TERMINATOR}, // F11
+            {TBBE_TERMINATOR}, // F12
         },
 };
 

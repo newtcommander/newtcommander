@@ -597,7 +597,7 @@ void CEditListBox::OnDrawItem(LPARAM lParam)
             if (Flags & ELB_SHOWICON)
                 itemRect.left += IconSizes[ICONSIZE_16];
 
-            FillRect(lpdis->hDC, &itemRect, (HBRUSH)(UINT_PTR)(bkColor + 1));
+            FillRect(lpdis->hDC, &itemRect, ThemeSysColorBrush(bkColor));
             INT_PTR itemID = (INT_PTR)SendMessage(HWindow, LB_GETITEMDATA, lpdis->itemID, 0);
             if (itemID == -1)
             {

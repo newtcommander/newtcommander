@@ -179,7 +179,7 @@ void CMenuBar::DrawItem(HDC hDC, int index, int x)
 
     int bkColor = (HotIndex == index && !Closing) ? COLOR_HIGHLIGHT : COLOR_BTNFACE;
     int textColor = (HotIndex == index && !Closing) ? COLOR_HIGHLIGHTTEXT : COLOR_BTNTEXT;
-    FillRect(hDC, &r, (HBRUSH)(UINT_PTR)(bkColor + 1));
+    FillRect(hDC, &r, ThemeSysColorBrush(bkColor));
 
     r.top += MENUBAR_TB_MARGIN - 1;
     r.left += MENUBAR_LR_MARGIN;

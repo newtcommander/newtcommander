@@ -1572,7 +1572,7 @@ CInnerText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             HFONT oldFont = (HFONT)SelectObject(dc, EnvFont);
             RECT r;
             GetClientRect(HWindow, &r);
-            FillRect(dc, &r, (HBRUSH)(UINT_PTR)(sysBkColor + 1));
+            FillRect(dc, &r, ThemeSysColorBrush(sysBkColor));
             int oldBkMode = SetBkMode(dc, TRANSPARENT);
             r.right -= TXEL_SPACE - 1; // bold fonts make the text overflow - hence this correction
 

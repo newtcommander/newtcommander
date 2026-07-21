@@ -589,6 +589,11 @@ public:
 
     void ToggleToolBarGrips();
 
+    // feature 028: re-inserts all rebar bands so their gripper style follows
+    // the current state (grips are suppressed in the Dark theme - the classic
+    // rebar draws them with light system colors)
+    void RebuildRebarBands();
+
     BOOL InsertMenuBand();
     BOOL CreateAndInsertWorkerBand();
     BOOL InsertTopToolbarBand();
