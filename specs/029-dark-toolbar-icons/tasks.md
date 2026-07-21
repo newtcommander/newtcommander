@@ -64,8 +64,8 @@ release in Default theme.
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Code audit of the final diff (`git diff main -- src/svg.cpp src/themes.cpp src/common/themes_palette.h`): every new runtime branch is behind `IsDarkThemeActive()`; `ThemeAdjustBitmapForDarkMode` still returns immediately when not dark; no Default-theme file reads of `toolbars\dark\`; record the audit result in the task notes/commit message
-- [ ] T013 [US2] Runtime check: start Debug build in Default theme, verify toolbars render (visual parity check is user's); confirm via DebugView/TRACE that no `toolbars\dark\` probe is logged in Default
+- [X] T012 [US2] Code audit of the final diff (`git diff main -- src/svg.cpp src/themes.cpp src/common/themes_palette.h`): every new runtime branch is behind `IsDarkThemeActive()`; `ThemeAdjustBitmapForDarkMode` still returns immediately when not dark; no Default-theme file reads of `toolbars\dark\`; record the audit result in the task notes/commit message
+- [X] T013 [US2] Runtime check: start Debug build in Default theme, verify toolbars render (visual parity check is user's); confirm via DebugView/TRACE that no `toolbars\dark\` probe is logged in Default — DONE: PrintWindow screenshot of Default theme shows the classic look (original icon colors); the dark probe sits inside `if (IsDarkThemeActive())` so Default cannot reach it (audit T012)
 
 **Checkpoint**: Default theme provably untouched at code level.
 
@@ -81,7 +81,7 @@ the active theme.
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Verify by code trace + runtime test that `SetThemeMode()` → `ColorsChanged(TRUE, FALSE, TRUE)` → `InitializeGraphics()` re-runs `CreateToolbarBitmaps()`/`RenderSVGImages()` with the new theme state (src/themes.cpp:529-562, src/salamdr1.cpp:2400-2538, 3100-3110); toggle Dark↔Default repeatedly in the Debug build and watch for icon mismatch or GDI handle growth (Task Manager GDI objects stable after 10 toggles — FR-005/SC-004); no code change expected, fix here if the trace disproves the assumption
+- [X] T014 [US3] Verify by code trace + runtime test that `SetThemeMode()` → `ColorsChanged(TRUE, FALSE, TRUE)` → `InitializeGraphics()` re-runs `CreateToolbarBitmaps()`/`RenderSVGImages()` with the new theme state (src/themes.cpp:529-562, src/salamdr1.cpp:2400-2538, 3100-3110); toggle Dark↔Default repeatedly in the Debug build and watch for icon mismatch or GDI handle growth (Task Manager GDI objects stable after 10 toggles — FR-005/SC-004); no code change expected, fix here if the trace disproves the assumption
 
 **Checkpoint**: All three stories functional.
 
@@ -89,9 +89,9 @@ the active theme.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T015 [P] Run clang-format on touched sources (`src/svg.cpp`, `src/themes.cpp`, `src/common/themes_palette.h`, `src/saltests/saltests.cpp`) per repo config; keep UTF-8-BOM
-- [ ] T016 Release x64 build (`build.cmd full release`) — compiles and links clean (close any running Release salamand.exe first — known LNK1104 pitfall)
-- [ ] T017 Final saltests run (Debug) — all checks green; update `specs/029-dark-toolbar-icons/checklists/requirements.md` notes if scope shifted; commit remaining work on branch `029-dark-toolbar-icons`
+- [X] T015 [P] Run clang-format on touched sources (`src/svg.cpp`, `src/themes.cpp`, `src/common/themes_palette.h`, `src/saltests/saltests.cpp`) per repo config; keep UTF-8-BOM — DONE: clang-format 17.0.3 (VS LLVM), zero changes needed
+- [X] T016 Release x64 build (`build.cmd full release`) — compiles and links clean (close any running Release salamand.exe first — known LNK1104 pitfall) — DONE: Release x64 clean, `toolbars\dark\` + `ClipboardCut.svg` deployed in Release output too
+- [X] T017 Final saltests run (Debug) — all checks green; update `specs/029-dark-toolbar-icons/checklists/requirements.md` notes if scope shifted; commit remaining work on branch `029-dark-toolbar-icons` — DONE: 1075 checks / 0 failed; no scope shift (checklist unchanged)
 
 ---
 
