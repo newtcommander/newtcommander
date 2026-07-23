@@ -214,7 +214,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "UnISO" /* do not translate! */, "iso;isz;nrg;bin;img;pdi;cdi;cif;ncd;c2d;dmg");
 
-    salamander->SetPluginHomePageURL("www.altap.cz");
+    salamander->SetPluginHomePageURL("www.newtcommander.org");
 
     return &PluginInterface;
 }

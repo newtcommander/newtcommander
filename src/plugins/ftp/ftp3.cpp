@@ -623,10 +623,8 @@ CConfiguration::~CConfiguration()
 
 BOOL CConfiguration::InitWithSalamanderGeneral()
 {
-    // allocated through SalamanderGeneral, therefore it has to be here
-    FTPServerList.AddServer("ALTAP",
-                            "ftp.altap.cz",
-                            "/pub/altap/salamand");
+    // feature 032: the historical default "ALTAP" bookmark (ftp.altap.cz) was removed;
+    // the default server list starts empty
 
     // description of the string in the array: "visible,ID,nameStrID,nameStr,descrStrID,descrStr,colType,emptyValue,leftAlignment,fixedWidth,width"
     const char* unix1Columns[] = {"1,name,0,\\0,0,\\0,1,\\0",    // name

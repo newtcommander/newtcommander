@@ -231,7 +231,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "TAR" /* neprekladat! */, "tar;tgz;taz;tbz;gz;bz;bz2;z;rpm;cpio;deb");
 
-    salamander->SetPluginHomePageURL("www.altap.cz");
+    salamander->SetPluginHomePageURL("www.newtcommander.org");
 
     return &PluginInterface;
 }

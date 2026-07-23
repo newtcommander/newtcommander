@@ -126,7 +126,7 @@ CPluginInterfaceAbstract*
         NULL);
 
     // Setup plugin home page.
-    salamander->SetPluginHomePageURL("www.altap.cz");
+    salamander->SetPluginHomePageURL("www.newtcommander.org");
 
     return &g_oAutomationPlugin;
 }

@@ -15,10 +15,10 @@
 
 #include "spl_vers.h" // get version & build numbers
 
-#define VERSINFO_COPYRIGHT   _T("Copyright © 2000-2023 Open Salamander Authors")
-#define VERSINFO_COMPANY     _T("Open Salamander")
+#define VERSINFO_COPYRIGHT   _T("Copyright © 2000-2026 Open Salamander Authors, © 2026 Newt Commander Authors")
+#define VERSINFO_COMPANY     _T("Newt Commander Project")
 
-#define VERSINFO_DESCRIPTION "Picture Viewer for Open Salamander"
+#define VERSINFO_DESCRIPTION "Picture Viewer for Newt Commander"
 
 #ifdef _LANG
 # ifndef VERSINFO_INTERNAL
@@ -31,7 +31,7 @@
 #endif
 
 // for SLG translators
-#define VERSINFO_SLG_WEB     "www.altap.cz"
+#define VERSINFO_SLG_WEB     "www.newtcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __PICTVIEW_VERSINFO_RH2

@@ -16,8 +16,69 @@
 #include <ppl.h>
 
 #include "svg.h"
+#include "themes.h"
 
 #include "versinfo.rh2"
+
+// Newt Commander brand palette (feature 032, see tools/brand/README.md);
+// the wordmark is drawn with GDI so no font has to be installed/shipped
+#define NC_COLOR_NAVY RGB(0x0A, 0x14, 0x24)          // brand navy background
+#define NC_COLOR_TEXT_DARKBG RGB(0xEA, 0xF2, 0xFB)   // "Newt" + regular text on dark background
+#define NC_COLOR_ORANGE_DARKBG RGB(0xF9, 0x73, 0x16) // "Commander" on dark background
+#define NC_COLOR_MUTED_DARKBG RGB(0x8F, 0xA6, 0xC4)  // version/tagline on dark background
+#define NC_COLOR_TEXT_LIGHTBG RGB(0x0A, 0x14, 0x24)  // "Newt" + regular text on light background
+#define NC_COLOR_ORANGE_LIGHTBG RGB(0xEA, 0x6A, 0x0B) // "Commander" on light background
+#define NC_COLOR_MUTED_LIGHTBG RGB(0x5D, 0x82, 0xB8)  // version/tagline on light background
+
+// draws the "Newt Commander" wordmark into 'r' (left-aligned, vertically centered);
+// shrinks the font until both parts fit the rect width
+static void NCDrawWordmark(HDC hDC, const RECT* r, COLORREF newtClr, COLORREF commanderClr)
+{
+    const char* part1 = "Newt ";
+    const char* part2 = "Commander";
+    int rectW = r->right - r->left;
+    int rectH = r->bottom - r->top;
+
+    LOGFONT lf;
+    memset(&lf, 0, sizeof(lf));
+    lf.lfWeight = FW_BOLD;
+    lf.lfCharSet = DEFAULT_CHARSET;
+    lf.lfQuality = CLEARTYPE_QUALITY;
+    lf.lfPitchAndFamily = VARIABLE_PITCH | FF_SWISS;
+    strcpy(lf.lfFaceName, "Segoe UI");
+
+    int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+    SIZE s1, s2;
+    HFONT hFont = NULL;
+    HFONT hOldFont = NULL;
+    int height = MulDiv(rectH, 55, 100);
+    for (;;)
+    {
+        lf.lfHeight = -height;
+        hFont = HANDLES(CreateFontIndirect(&lf));
+        HFONT hPrev = (HFONT)SelectObject(hDC, hFont);
+        if (hOldFont == NULL)
+            hOldFont = hPrev;
+        GetTextExtentPoint32(hDC, part1, (int)strlen(part1), &s1);
+        GetTextExtentPoint32(hDC, part2, (int)strlen(part2), &s2);
+        if (s1.cx + s2.cx <= rectW || height <= 10)
+            break;
+        SelectObject(hDC, hOldFont);
+        HANDLES(DeleteObject(hFont));
+        height = MulDiv(height, 9, 10);
+    }
+
+    int y = r->top + (rectH - s1.cy) / 2;
+    COLORREF oldClr = SetTextColor(hDC, newtClr);
+    TextOut(hDC, r->left, y, part1, (int)strlen(part1));
+    SetTextColor(hDC, commanderClr);
+    TextOut(hDC, r->left + s1.cx, y, part2, (int)strlen(part2));
+
+    SetTextColor(hDC, oldClr);
+    SetBkMode(hDC, oldBkMode);
+    SelectObject(hDC, hOldFont);
+    HANDLES(DeleteObject(hFont));
+}
 
 void GetDlgItemRectAndDestroy(HWND hWindow, int resID, RECT* r)
 {
@@ -142,40 +203,41 @@ BOOL CSplashScreen::PrepareBitmap()
     r.right = Width;
     r.bottom = Height;
 
-    // paint the background white
-    SetBkColor(hDC, RGB(255, 255, 255));
+    // the splash always uses the brand dark look (theme configuration may not be
+    // loaded yet this early during startup)
+    SetBkColor(hDC, NC_COLOR_NAVY);
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
-    CSVGSprite svgText;
     CSVGSprite svgGrad;
     CSVGSprite svgHand;
     concurrency::parallel_invoke(
         [&]
-        { svgText.Load(IDB_LOGO_TEXT, OpenSalR.right - OpenSalR.left, OpenSalR.bottom - OpenSalR.top, SVGSTATE_ORIGINAL); },
-        [&]
         { svgGrad.Load(IDB_LOGO_GRAD, Width, -1, SVGSTATE_ORIGINAL); },
         [&]
-        { svgHand.Load(IDB_LOGO_HAND, -1, Height, SVGSTATE_ORIGINAL); });
+        // the icon tile sits above the accent line so the texts below stay clear of it
+        { svgHand.Load(IDB_LOGO_HAND, -1, GradientY - 12, SVGSTATE_ORIGINAL); });
 
-    SIZE textSize, gradSize, handSize;
-    svgText.GetSize(&textSize);
+    SIZE gradSize, handSize;
     svgGrad.GetSize(&gradSize);
     svgHand.GetSize(&handSize);
 
-    svgText.AlphaBlend(hDC, OpenSalR.left, OpenSalR.top, textSize.cx, textSize.cy, SVGSTATE_ORIGINAL);
-    svgGrad.AlphaBlend(hDC, 0, GradientY, gradSize.cx, Height - GradientY, SVGSTATE_ORIGINAL);
-    svgHand.AlphaBlend(hDC, Width - handSize.cx, 0, handSize.cx, handSize.cy, SVGSTATE_ORIGINAL);
+    // thin brand accent line (blue -> orange) instead of the old full gradient area
+    svgGrad.AlphaBlend(hDC, 0, GradientY, gradSize.cx, max(2, gradSize.cy), SVGSTATE_ORIGINAL);
+    svgHand.AlphaBlend(hDC, Width - handSize.cx - 8, 6, handSize.cx, handSize.cy, SVGSTATE_ORIGINAL);
+
+    // product wordmark drawn with GDI (no font dependency, see NCDrawWordmark)
+    NCDrawWordmark(hDC, &OpenSalR, NC_COLOR_TEXT_DARKBG, NC_COLOR_ORANGE_DARKBG);
 
     // fixed texts
     PaintText(SALAMANDER_TEXT_VERSION,
               VersionR.left,
               VersionR.top,
-              FALSE, RGB(128, 128, 128));
+              FALSE, NC_COLOR_MUTED_DARKBG);
 
     PaintText(VERSINFO_COPYRIGHT,
               CopyrightR.left,
               CopyrightR.top,
-              TRUE, RGB(255, 255, 255));
+              TRUE, NC_COLOR_TEXT_DARKBG);
 
     // backup of the bitmap without text
     BitBlt(OriginalBitmap->HMemDC, 0, 0, Width, Height, Bitmap->HMemDC, 0, 0, SRCCOPY);
@@ -320,7 +382,8 @@ HWND GetSplashScreenHandle()
 CAboutDialog::CAboutDialog(HWND parent)
     : CCommonDialog(HLanguage, IDD_ABOUT, parent)
 {
-    HGradientBkBrush = HANDLES(CreateSolidBrush(RGB(221, 151, 4))); // must be the yellow from res\logoline.png
+    // must match the dialog background painted in AboutAndEvalDlgCreateBkgnd
+    HGradientBkBrush = HANDLES(CreateSolidBrush(IsDarkThemeActive() ? NC_COLOR_NAVY : RGB(255, 255, 255)));
     BackgroundBitmap = NULL;
 }
 
@@ -368,29 +431,31 @@ AboutAndEvalDlgCreateBkgnd(HWND hWindow)
 
     hDC = bitmap->HMemDC;
 
-    // paint the background white
-    SetBkColor(hDC, RGB(255, 255, 255));
+    // theme-aware background (feature 032: About follows the application theme)
+    BOOL dark = IsDarkThemeActive();
+    SetBkColor(hDC, dark ? NC_COLOR_NAVY : RGB(255, 255, 255));
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
-    CSVGSprite svgText;
     CSVGSprite svgGrad;
     CSVGSprite svgHand;
     concurrency::parallel_invoke(
-        [&]
-        { svgText.Load(IDB_LOGO_TEXT, opensalR.right - opensalR.left, opensalR.bottom - opensalR.top, SVGSTATE_ORIGINAL); },
         [&]
         { svgGrad.Load(IDB_ABOUT_GRAD, r.right - r.left, -1, SVGSTATE_ORIGINAL); },
         [&]
         { svgHand.Load(IDB_LOGO_HAND, logoR.right - logoR.left, logoR.bottom - logoR.top, SVGSTATE_ORIGINAL); });
 
-    SIZE textSize, gradSize, handSize;
-    svgText.GetSize(&textSize);
+    SIZE gradSize, handSize;
     svgGrad.GetSize(&gradSize);
     svgHand.GetSize(&handSize);
 
-    svgText.AlphaBlend(hDC, opensalR.left, opensalR.top, textSize.cx, textSize.cy, SVGSTATE_ORIGINAL);
-    svgGrad.AlphaBlend(hDC, 0, gradR.top, gradSize.cx, r.bottom - r.top - gradR.top, SVGSTATE_ORIGINAL);
+    // thin brand accent line (blue -> orange) at the position of the old gradient area
+    svgGrad.AlphaBlend(hDC, 0, gradR.top, gradSize.cx, max(2, gradSize.cy), SVGSTATE_ORIGINAL);
     svgHand.AlphaBlend(hDC, r.right - r.left - handSize.cx, 0, handSize.cx, handSize.cy, SVGSTATE_ORIGINAL);
+
+    // product wordmark drawn with GDI (no font dependency)
+    NCDrawWordmark(hDC, &opensalR,
+                   dark ? NC_COLOR_TEXT_DARKBG : NC_COLOR_TEXT_LIGHTBG,
+                   dark ? NC_COLOR_ORANGE_DARKBG : NC_COLOR_ORANGE_LIGHTBG);
 
     return bitmap;
 }
@@ -432,17 +497,18 @@ CAboutDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HDC hdcStatic = (HDC)wParam;
         HWND hwndStatic = (HWND)lParam;
         int resID = GetWindowLong(hwndStatic, GWL_ID);
-        COLORREF textClr = RGB(70, 70, 70);
+        BOOL dark = IsDarkThemeActive();
+        COLORREF textClr = dark ? NC_COLOR_TEXT_DARKBG : RGB(70, 70, 70);
         switch (resID)
         {
         case IDC_STATIC_6:
         case IDC_STATIC_7:
         case IDC_STATIC_8:
-            textClr = RGB(128, 128, 128);
+            textClr = dark ? NC_COLOR_MUTED_DARKBG : RGB(128, 128, 128);
             break;
         }
         SetTextColor(hdcStatic, textClr);
-        SetBkColor(hdcStatic, RGB(255, 255, 255));
+        SetBkColor(hdcStatic, dark ? NC_COLOR_NAVY : RGB(255, 255, 255));
         return (BOOL)(UINT_PTR)GetStockObject(NULL_BRUSH);
     }
 

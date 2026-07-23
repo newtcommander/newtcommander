@@ -175,7 +175,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    "ZIP" /* neprekladat! */, "zip;pk3;pk4;jar");
 
     // register the plugin home page URL
-    salamander->SetPluginHomePageURL("www.altap.cz");
+    salamander->SetPluginHomePageURL("www.newtcommander.org");
 
     return &PluginInterface;
 }

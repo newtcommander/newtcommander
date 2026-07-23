@@ -308,7 +308,7 @@ HINSTANCE LoadSLG(const char* slgName)
         }
     }
     if (hSLG == NULL)
-        MessageBox(NULL, "Internal error: cannot load any language file. Please contact us at support@altap.cz.", APP_NAME, MB_OK | MB_ICONEXCLAMATION | MB_SETFOREGROUND);
+        MessageBox(NULL, "Internal error: cannot load any language file. please report it at github.com/newtcommander/newtcommander/issues.", APP_NAME, MB_OK | MB_ICONEXCLAMATION | MB_SETFOREGROUND);
     return hSLG;
 }
 

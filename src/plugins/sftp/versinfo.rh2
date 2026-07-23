@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Open Salamander Authors
+﻿// SPDX-FileCopyrightText: 2026 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 // WARNING: cannot be replaced by "#pragma once" because it is included from .rc file and it seems resource compiler does not support "#pragma once"
@@ -18,10 +18,10 @@
 
 #include "spl_vers.h" // retrieve version and build numbers
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2026 Open Salamander Authors"
-#define VERSINFO_COMPANY     "Open Salamander"
+#define VERSINFO_COPYRIGHT   "Copyright © 2026 Newt Commander Authors"
+#define VERSINFO_COMPANY     "Newt Commander Project"
 
-#define VERSINFO_DESCRIPTION "SFTP Client for Open Salamander"
+#define VERSINFO_DESCRIPTION "SFTP Client for Newt Commander"
 
 #ifdef _LANG
 #define VERSINFO_INTERNAL    "ENGLISH"
@@ -32,7 +32,7 @@
 #endif
 
 // for SLG translators
-#define VERSINFO_SLG_WEB     "www.altap.cz"
+#define VERSINFO_SLG_WEB     "www.newtcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __SFTP_VERSINFO_RH2

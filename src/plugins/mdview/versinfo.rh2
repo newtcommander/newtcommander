@@ -1,4 +1,4 @@
-//****************************************************************************
+﻿//****************************************************************************
 //
 // Copyright (c) 2026 Open Salamander Authors
 //
@@ -18,10 +18,10 @@
 
 #include "spl_vers.h"
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2026 Open Salamander Authors"
-#define VERSINFO_COMPANY     "Open Salamander"
+#define VERSINFO_COPYRIGHT   "Copyright © 2026 Newt Commander Authors"
+#define VERSINFO_COMPANY     "Newt Commander Project"
 
-#define VERSINFO_DESCRIPTION "Markdown viewer plugin for Open Salamander"
+#define VERSINFO_DESCRIPTION "Markdown viewer plugin for Newt Commander"
 
 #ifdef _LANG
 #define VERSINFO_INTERNAL    "ENGLISH"
@@ -31,7 +31,7 @@
 #define VERSINFO_ORIGINAL    VERSINFO_INTERNAL ".SPL"
 #endif
 
-#define VERSINFO_SLG_WEB     "www.altap.cz"
+#define VERSINFO_SLG_WEB     "www.newtcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __MDVIEW_VERSINFO_RH2

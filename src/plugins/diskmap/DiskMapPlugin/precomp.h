@@ -10,7 +10,7 @@
 
 #ifndef OPENSAL_VERSION // version built for Salamander distribution will not be backward compatible with version 5.0 (unnecessary complication)
 #define SALSDK_COMPATIBLE_WITH_VER 103
-#define REQUIRE_COMPATIBLE_SAL_VERSION "This plugin requires Open Salamander 5.0 or later."
+#define REQUIRE_COMPATIBLE_SAL_VERSION "This plugin requires Newt Commander 0.1.0 or later."
 #endif // OPENSAL_VERSION
 
 //#define TIMINGTEST

@@ -2892,8 +2892,7 @@ BOOL CZipPack::LoadDefaults()
       lstrcpy(Options.SfxSettings.Text, LoadStr(IDS_DEFAULTTEXT));
       lstrcpy(Options.SfxSettings.Title, LoadStr(IDS_DEFSFXTITLE));
       lstrcpy(Options.About, "Version 1.0 beta, Personal Edition\r\n\r\n"
-                                  "Coded by Lukas Cerman\r\n"
-                                  "E-mail: lukas.cerman@altap.cz\r\n\r\n"
+                                  "Coded by Lukas Cerman\r\n\r\n"
                                   "ATTENTION: This selfextractor edition is licenced only for "
                                   "personal use and may not be used in business or for programs "
                                   "distribution.");

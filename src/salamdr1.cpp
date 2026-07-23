@@ -83,7 +83,7 @@ void X64StressTestAlloc()
     // kontrola uspechu
     void* testNew = new char; // new jede pres alloc, ale radeji take overime
     if (testNew <= (LPVOID)(UINT_PTR)0x00000000ffffffff)
-        MessageBox(NULL, "new address <= 0x00000000ffffffff!\nPlease contact jan.rysavy@altap.cz with this information.", "X64_STRESS_TEST", MB_OK | MB_ICONEXCLAMATION);
+        MessageBox(NULL, "new address <= 0x00000000ffffffff!\nPlease report this information at github.com/newtcommander/newtcommander/issues.", "X64_STRESS_TEST", MB_OK | MB_ICONEXCLAMATION);
     delete testNew;
 }
 

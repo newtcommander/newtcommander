@@ -1,17 +1,26 @@
-# Open Salamander — Project Context
+# Newt Commander — Project Context
 
 ## What Is This?
 
-Open Salamander is a two-panel file manager for Windows, open-sourced
-under GPLv2 in 2023. It is a pure WinAPI C++ application — no MFC,
-no Qt, no cross-platform frameworks.
+Newt Commander is a two-panel file manager for Windows, derived from
+Open Salamander (open-sourced under GPLv2 in 2023). It is a pure
+WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 
-## Current Phase
+## Product Identity (since feature 032)
 
-**Phase 1: Build system analysis** — mapping the project architecture,
-dependencies, and compiler options. No code changes yet.
-
-Future phases: fix existing features, add new ones.
+- **Product name**: Newt Commander, version **0.1.0** (internal build 184)
+- **Binary**: `newtcommander.exe` (set via `<TargetName>` in `salamand.vcxproj`)
+- **Registry root**: `HKCU\Software\Newt Commander\0.1` — never reads or
+  writes Open Salamander/Altap registry keys (no config import)
+- **Websites**: https://newtcommander.org · repo github.com/newtcommander/newtcommander
+- **Copyright rule**: years up to 2026 → "Open Salamander Authors",
+  2026 onward → "Newt Commander Authors" (sftp+mdview plugins are solely
+  Newt Commander Authors)
+- **IMPORTANT**: source files, functions, classes, project/solution names
+  (`salamand.sln`, `salamand.vcxproj`, `SALAMANDER_*` constants) deliberately
+  keep their upstream names — rename only user/OS-visible identity
+- **Brand assets**: `tools/brand/` (icon SVGs + `gen_icons.py` regenerates
+  `src/res/*.ico` in place)
 
 ## Technology
 
@@ -126,10 +135,12 @@ Property sheets: `plugins/shared/vcxproj/plugin_base.props` + debug/release vari
 
 ## Constitution
 
-Project principles are in `.specify/memory/constitution.md`:
-build reproducibility, backward compatibility, incremental
-modernization, Windows platform commitment, plugin architecture
-preservation.
+Project principles are in `.specify/memory/constitution.md`
+("Newt Commander Constitution", v2.0.0): build reproducibility,
+backward compatibility (baseline Newt Commander 0.1.0 — the break
+with Open Salamander 5.0 is deliberate and one-time, see feature
+032), incremental modernization, Windows platform commitment,
+plugin architecture preservation, UI consistency.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

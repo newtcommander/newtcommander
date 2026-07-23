@@ -396,7 +396,7 @@ namespace Fx
 
     void WINAPI CFxPluginInterface::GetPluginHomePageUrl(CFxString& url) const
     {
-        url = TEXT("www.altap.cz");
+        url = TEXT("www.newtcommander.org");
     }
 
     bool WINAPI CFxPluginInterface::NeedsWinLib() const

@@ -6,7 +6,9 @@ Newt Commander is a fast, keyboard-friendly two-panel file manager for Windows. 
 
 Newt Commander explores what happens when a mature, quarter-century-old C++ codebase meets the new era of agentic programming. Development follows Spec-Driven Development principles built on [GitHub SpecKit](https://github.com/github/spec-kit): every change begins as a written specification that is clarified, planned, and decomposed into tasks before any code is touched. The implementation itself is carried out by a combination of agentic coding frameworks using the best models available at the time — currently Anthropic Fable 5.
 
-> **A note on naming**: the rebrand is currently at the project level. The built application — window titles, binary names (`salamand.exe`), and the installer — still carries the Open Salamander name and branding.
+> **A note on naming**: since version 0.1.0 the application itself carries the Newt Commander identity — the binary is `newtcommander.exe`, the window titles, About dialog, and icons use the new name and visual style, and configuration lives under its own registry root (`HKCU\Software\Newt Commander`), fully separate from any Open Salamander installation. Source files, internal identifiers, and the solution name (`salamand.sln`) intentionally keep their upstream names. The installer and HTML help are not yet rebranded.
+
+**Website**: [newtcommander.org](https://newtcommander.org) · **Issues**: [github.com/newtcommander/newtcommander/issues](https://github.com/newtcommander/newtcommander/issues)
 
 ## Building
 

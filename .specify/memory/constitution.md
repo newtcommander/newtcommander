@@ -1,24 +1,28 @@
 <!--
 Sync Impact Report
 ===================
-Version change: 1.0.0 → 1.1.0 (added principle VI. UI Consistency)
-Modified principles: N/A
-Added sections:
-  - Core Principle VI. UI Consistency
+Version change: 1.1.0 → 2.0.0 (project rebranded to Newt Commander; principle II
+redefined in a backward-incompatible way — compatibility baseline re-anchored from
+Open Salamander 5.0 to Newt Commander 0.1.0 per feature 032)
+Modified principles:
+  - II. Backward Compatibility — baseline is now Newt Commander 0.1.0; the break
+    with Open Salamander 5.0 (registry, IPC names, shell-extension identity,
+    binary name) is recorded as a deliberate, documented, one-time decision
+Added sections: N/A
 Removed sections: N/A
 Templates requiring updates:
   - .specify/templates/plan-template.md — ✅ no update needed (generic Constitution Check gate)
   - .specify/templates/spec-template.md — ✅ no update needed (generic structure)
   - .specify/templates/tasks-template.md — ✅ no update needed (generic structure)
-  - .specify/templates/commands/*.md — ✅ no command files exist
 Follow-up TODOs: none
 
 Prior history:
   - 0.0.0 → 1.0.0 (initial adoption): Core Principles (5), Technical
     Constraints, Development Workflow, Governance
+  - 1.0.0 → 1.1.0: added principle VI. UI Consistency
 -->
 
-# Open Salamander Constitution
+# Newt Commander Constitution
 
 ## Core Principles
 
@@ -37,15 +41,29 @@ reliable build. Without reproducible builds, all subsequent work
 
 ### II. Backward Compatibility
 
-Existing Open Salamander 5.0 functionality MUST NOT regress unless
-explicitly deprecated with documented justification. User-facing
-behavior changes MUST be opt-in or gated behind version checks.
-Plugin API changes MUST maintain binary compatibility or provide a
-clear migration path with a deprecation cycle of at least one
-minor release.
+The compatibility baseline is **Newt Commander 0.1.0**. Existing
+Newt Commander functionality MUST NOT regress unless explicitly
+deprecated with documented justification. User-facing behavior
+changes MUST be opt-in or gated behind version checks. Plugin API
+changes MUST maintain binary compatibility or provide a clear
+migration path with a deprecation cycle of at least one minor
+release.
 
-**Rationale**: Open Salamander has an established user base. Trust
-is maintained by preserving the behavior users depend on.
+Newt Commander is deliberately NOT compatible with the upstream
+Open Salamander product identity: it uses its own binary name
+(`newtcommander.exe`), registry root (`HKCU\Software\Newt
+Commander`), inter-process object names, and shell-extension
+identity, and it never reads or writes Open Salamander
+configuration. This break with Open Salamander 5.0 was made once,
+by design, in feature 032 (`specs/032-newt-commander-rebrand/`)
+and MUST NOT be reintroduced piecemeal. The plugin ABI (version
+104) was carried over unchanged.
+
+**Rationale**: From version 0.1.0 on, all modifications,
+extensions, and new functionality are developed as the open-source
+application Newt Commander. Trust is maintained by preserving the
+behavior Newt Commander users depend on; identity separation
+protects both products' users from cross-corruption of settings.
 
 ### III. Incremental Modernization
 
@@ -63,14 +81,14 @@ feature delivery.
 
 ### IV. Windows Platform Commitment
 
-Open Salamander is a pure WinAPI application. All features MUST
+Newt Commander is a pure WinAPI application. All features MUST
 target Windows 11 and newer. No cross-platform abstraction layers
 (Qt, wxWidgets, etc.) are permitted. Third-party dependencies MUST
 be Windows-compatible and MUST NOT introduce licensing conflicts
 with GPLv2. Visual Studio 2022 with the C++ Desktop workload is
 the required toolchain.
 
-**Rationale**: Salamander's value proposition is deep Windows
+**Rationale**: Newt Commander's value proposition is deep Windows
 integration. Abstracting the platform would dilute this strength
 and add complexity with no user benefit.
 
