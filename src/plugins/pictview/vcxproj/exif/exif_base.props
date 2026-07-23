@@ -25,6 +25,12 @@
       <ModuleDefinitionFile>..\..\exif\exif.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
+      <!-- Windows SDK 10.0.26100 defines "inline float __ucrt_int_to_float()" in
+           corecrt_math.h for C translation units; MSVC emits it as a plain external
+           in every C TU that includes math.h, so linking >= 2 such TUs fails with
+           LNK2005. The duplicates are byte-identical UCRT helpers - keep the first
+           and silence the benign LNK4006 that /FORCE:MULTIPLE downgrades it to. -->
+      <AdditionalOptions>/FORCE:MULTIPLE /IGNORE:4006 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WINVER=0x0601;%(PreprocessorDefinitions)</PreprocessorDefinitions>
