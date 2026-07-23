@@ -196,6 +196,64 @@ loops gain one pointer comparison per byte (identical to the existing
 `GetCommonFileTypeStr` idiom). Listing/painting cost for ordinary names is
 unchanged — satisfies FR-008 / SC-001 (≤ 1 s listing).
 
+## R2b — Implementation-time review results (T010/T011 closure)
+
+Verdicts recorded while executing the fix (all sites re-examined in code):
+
+| Site | Verdict | Evidence |
+|------|---------|----------|
+| `fileswn3.cpp:631-636` ext-lowercase into `nameU8` | **HARDENED** | writes up to `len-1` ext bytes + 4-byte DWORD terminator into the 780-byte buffer; safe for OS-capped names (≤ 765 B) but only 11 B margin — widened to `3*MAX_PATH + 4` |
+| `fileswn3.cpp:1182-1186, 1443-1447` ext loops into `fileName` | SAFE | `fileName` is the `ReadDirectory` local `char fileName[SAL_MAX_PATH_UTF8 + 4]` (98 KB, line 97) |
+| `fileswn3.cpp:1264, 1542` ext loops into `buf[SAL_FIND_NAME_U8]` | SAFE | ext ≤ 764 + 4 ≤ 780 (feature 027 sizing) |
+| `fileswn3.cpp:1212-1219, 1473-1480` `NameAndData` | SAFE | heap-allocated with exact computed size |
+| `drivelst.cpp:869` `root[MAX_PATH+4]` + `GetRootPath` | SAFE (BOUNDED) | `GetRootPath` truncates UNC roots to `MAX_PATH-2` (`salamdr1.cpp:1556`); + `"*.*"` ≤ 263 ≤ 264 |
+| `fileswn2.cpp:3909-3917` Type-column width ext loop | SAFE | `buf[TRANSFER_BUFFER_MAX=1024]` ≥ 768 |
+| icon reader thread + overlays | SAFE (guarded) | `fileswn1.cpp:484,740,774`, `shiconov.cpp:806-811` skip over-long full paths (lose icon, no overrun) |
+| `fileswn5.cpp` `temporarySelected/dosName/newName/nextFocus[MAX_PATH]` | OUT OF PAINT PATH | quick-rename/selection-restore routes; not reachable by listing; deferred to the §Bounded backlog with the 027 leftovers |
+
+**Key bound discovered**: `CSalamanderDirectory::AddFile` (`zip.cpp:5829`)
+rejects plugin/archive entries with `NameLen > MAX_PATH - 5` (= 255 bytes),
+so plugin-supplied names can never exceed the disk component bound — the
+`nameFits` guards added at the fixed sites are defense-in-depth.
+
+## R2c — Second defect found while verifying the fix: mojibake in Icons/Thumbnails/Tiles labels
+
+With the crash fixed, live testing exposed a follow-on defect previously
+masked by the crash: `SplitText` and `TruncateSringToFitWidth`
+(`fileswn4.cpp`) split/ellipsize the UTF-8 name at **byte** indices. A cut
+landing inside a multi-byte sequence produced invalid UTF-8, forcing the
+wide-drawing code into its documented byte-wise fallback → mojibake labels
+(observed live in Icons/Thumbnails view of the repro directory; screenshot
+in validation-results.md).
+
+Fixed by snapping every cut index back to a UTF-8 sequence boundary
+(`SnapToU8Boundary`, `fileswn4.cpp`) in: `SplitText` line-1 ellipsis, line-2
+ellipsis, line-2 full-fit (also gained the previously missing caller-buffer
+cap), first-line space split, first-line full-fit cap, and
+`TruncateSringToFitWidth` (incl. the 2-char degenerate case). Two latent
+`DrawItemAlpDx[-1]` OOB reads in the ellipsis width math were fixed by the
+same restructure. Byte-wise *measurement* of multi-byte text (ANSI metrics)
+still over-estimates widths — a cosmetic centering offset in icon-mode
+labels, documented as a known limitation (proper fix = wide-unit
+measurement, deferred).
+
+## R7 — Pre-existing build blocker fixed en route: exif.dll LNK2005
+
+`build.cmd` failed on this machine (both configs) in
+`plugins\pictview\...\exif.dll`: `LNK2005 __ucrt_int_to_float already
+defined`. Root cause: Windows SDK **10.0.26100** newly defines
+`inline float __ucrt_int_to_float(...)` in `corecrt_math.h` for C
+translation units (SDK 22621 does not have it), and MSVC emits plain
+`inline` C functions as **non-COMDAT externals** in every C TU including
+`math.h` — libexif has 27 such TUs. Neither `/std:c17` nor `/Gy` changes
+the emission (verified with `dumpbin /symbols`: `External | __ucrt_int_to_float`,
+no selectany). The user's earlier Release builds passed only because a
+pre-SDK-update `exif.dll` already existed (incremental skip). Fix:
+`/FORCE:MULTIPLE /IGNORE:4006` on the exif link (`exif_base.props`) — the
+duplicates are byte-identical UCRT helpers, keeping the first is safe; the
+rationale is in a comment at the site. Unrelated to the 031 defect class but
+required for the "builds clean" verification gate.
+
 ## R6 — Historic context used (features 004, 005, 010–015, 027)
 
 - Internal contract: names are UTF-8 in `char*` plumbing; convert at OS
