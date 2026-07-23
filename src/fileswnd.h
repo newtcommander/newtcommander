@@ -1725,10 +1725,11 @@ void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
 BOOL CopyUNCPathToClipboard(const char* path, const char* name, BOOL isDir, HWND hMessageParent, int nestingLevel = 0);
 
 // From the file/directory 'f' creates three lines of text and fills out0/out0Len to out2/out2Len;
-// 'validFileData' specifies which parts of 'f' are valid
+// 'validFileData' specifies which parts of 'f' are valid; 'out0Size' is the byte capacity of
+// 'out0' -- it must be at least SAL_FIND_NAME_U8 + 4 to hold any legal UTF-8 name (feature 031)
 void GetTileTexts(CFileData* f, int isDir,
                   HDC hDC, int maxTextWidth, int* widthNeeded,
-                  char* out0, int* out0Len,
+                  char* out0, int out0Size, int* out0Len,
                   char* out1, int* out1Len,
                   char* out2, int* out2Len,
                   DWORD validFileData,

@@ -2067,17 +2067,21 @@ int CFilesBox::GetIndex(int x, int y, BOOL nearest, RECT* labelRect)
             int maxTextWidth = ItemWidth - TILE_LEFT_MARGIN - IconSizes[ICONSIZE_48] - TILE_LEFT_MARGIN - 4;
             int widthNeeded = 0;
 
-            char buff[3 * 512]; // destination buffer for strings
+            // name region sized for a worst-case UTF-8 component (feature 031);
+            // ATTENTION: keep the layout in sync with the vmTiles draw path
+            char buff[(SAL_FIND_NAME_U8 + 4) + 2 * 512]; // destination buffer for strings
+            static_assert(sizeof(buff) >= (SAL_FIND_NAME_U8 + 4) + 2 * 512,
+                          "031: name region must hold a worst-case UTF-8 name component");
             char* out0 = buff;
             int out0Len;
-            char* out1 = buff + 512;
+            char* out1 = buff + (SAL_FIND_NAME_U8 + 4);
             int out1Len;
-            char* out2 = buff + 1024;
+            char* out2 = buff + (SAL_FIND_NAME_U8 + 4) + 512;
             int out2Len;
             HDC hDC = ItemBitmap.HMemDC;
             HFONT hOldFont = (HFONT)SelectObject(hDC, Font);
             GetTileTexts(f, isDir, hDC, maxTextWidth, &widthNeeded,
-                         out0, &out0Len, out1, &out1Len, out2, &out2Len,
+                         out0, SAL_FIND_NAME_U8 + 4, &out0Len, out1, &out1Len, out2, &out2Len,
                          Parent->ValidFileData, &Parent->PluginData,
                          Parent->Is(ptDisk));
             SelectObject(hDC, hOldFont);

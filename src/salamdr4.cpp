@@ -1345,7 +1345,11 @@ void WINAPI InternalGetSize()
 // helper globals for InternalGetType()
 char* InternalGetTypeAux1;
 char* InternalGetTypeAux2;
-char InternalGetTypeAux3[MAX_PATH + 4]; // extension in lowercase, aligned to DWORDs
+// worst-case UTF-8 name component + DWORD terminator (feature 031; the former
+// MAX_PATH+4 size let a long multi-byte extension overwrite adjacent globals)
+char InternalGetTypeAux3[SAL_FIND_NAME_U8 + 4]; // extension in lowercase, aligned to DWORDs
+static_assert(sizeof(InternalGetTypeAux3) >= SAL_FIND_NAME_U8 + 4,
+              "031: buffer must hold a worst-case UTF-8 name component");
 
 void WINAPI InternalGetType()
 {
@@ -1362,7 +1366,10 @@ void WINAPI InternalGetType()
             {
                 InternalGetTypeAux1 = InternalGetTypeAux3;
                 InternalGetTypeAux2 = TransferFileData->Ext;
-                while (*InternalGetTypeAux2 != 0)
+                // bounded: an over-long extension just misses the association
+                // lookup and falls back to the common file type (feature 031)
+                char* auxEnd = InternalGetTypeAux3 + sizeof(InternalGetTypeAux3) - sizeof(DWORD);
+                while (InternalGetTypeAux1 < auxEnd && *InternalGetTypeAux2 != 0)
                     *InternalGetTypeAux1++ = LowerCase[*InternalGetTypeAux2++];
                 *((DWORD*)InternalGetTypeAux1) = 0;
                 if (!Associations.GetIndex(InternalGetTypeAux3, TransferAssocIndex))

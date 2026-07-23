@@ -131,9 +131,13 @@ void CFilesWindow::DrawIcon(HDC hDC, CFileData* f, BOOL isDir, BOOL isItemUpDir,
                             const RECT* overlayRect, DWORD drawFlags)
 {
     BOOL drawSimpleSymbol = FALSE;
-    int symbolIndex;                   // index in the Symbols bitmap...
-    DWORD iconState = 0;               // flags for drawing the icon
-    char lowerExtension[MAX_PATH + 4]; // extension in lowercase, DWORD aligned
+    int symbolIndex;     // index in the Symbols bitmap...
+    DWORD iconState = 0; // flags for drawing the icon
+    // a legal-length component (255 chars) can be up to 3*255 UTF-8 bytes, so
+    // MAX_PATH-sized buffers overflow on multi-byte names (feature 031)
+    char lowerExtension[SAL_FIND_NAME_U8 + 4]; // extension in lowercase, DWORD aligned
+    static_assert(sizeof(lowerExtension) >= SAL_FIND_NAME_U8 + 4,
+                  "031: buffer must hold a worst-case UTF-8 name component");
 
     if (!(drawFlags & DRAWFLAG_NO_STATE))
     {
@@ -165,9 +169,11 @@ void CFilesWindow::DrawIcon(HDC hDC, CFileData* f, BOOL isDir, BOOL isItemUpDir,
 
     if (!isDir)
     {
-        // convert extension characters to lowercase
+        // convert extension characters to lowercase (bounded: an over-long
+        // extension just misses the association lookup, feature 031)
         char *dstExt = lowerExtension, *srcExt = f->Ext;
-        while (*srcExt != 0)
+        char* dstExtEnd = lowerExtension + sizeof(lowerExtension) - sizeof(DWORD);
+        while (dstExt < dstExtEnd && *srcExt != 0)
             *dstExt++ = LowerCase[*srcExt++];
         *((DWORD*)dstExt) = 0;
 
@@ -217,17 +223,29 @@ void CFilesWindow::DrawIcon(HDC hDC, CFileData* f, BOOL isDir, BOOL isItemUpDir,
         {
             CIconList* iconList = NULL;
             int iconListIndex = -1; // close it if not set
-            char fileName[MAX_PATH + 4];
+            // worst-case UTF-8 name component + DWORD terminator (feature 031;
+            // a 215-char diacritics name is 330 bytes and smashed the former
+            // MAX_PATH+4 buffer here -- the dump-confirmed listing crash)
+            char fileName[SAL_FIND_NAME_U8 + 4];
+            static_assert(sizeof(fileName) >= SAL_FIND_NAME_U8 + 4,
+                          "031: buffer must hold a worst-case UTF-8 name component");
+            // plugin-supplied names may exceed the disk component bound; such
+            // items fall back to the simple symbol instead of overflowing
+            BOOL nameFits = f->NameLen + sizeof(DWORD) <= sizeof(fileName);
 
             if (GetPluginIconsType() != pitFromPlugin || !Is(ptPluginFS))
             {
                 if (isDir) // it's a directory
                 {
                     int icon;
-                    memmove(fileName, f->Name, f->NameLen);
-                    *(DWORD*)(fileName + f->NameLen) = 0;
+                    if (nameFits)
+                    {
+                        memmove(fileName, f->Name, f->NameLen);
+                        *(DWORD*)(fileName + f->NameLen) = 0;
+                    }
 
-                    if (!IconCache->GetIndex(fileName, icon, NULL, NULL) ||                             // the icon-thread isn't loading it
+                    if (!nameFits ||
+                        !IconCache->GetIndex(fileName, icon, NULL, NULL) ||                             // the icon-thread isn't loading it
                         IconCache->At(icon).GetFlag() != 1 && IconCache->At(icon).GetFlag() != 2 ||     // neither new nor old icon is loaded
                         !IconCache->GetIcon(IconCache->At(icon).GetIndex(), &iconList, &iconListIndex)) // failed to obtain its icon
                     {                                                                                   // we will display a simple symbol
@@ -252,9 +270,13 @@ void CFilesWindow::DrawIcon(HDC hDC, CFileData* f, BOOL isDir, BOOL isItemUpDir,
                         if (exceptions || Associations[index].GetIndex(iconSize) < 0) // dynamic icon (from the file) or a loaded static icon
                         {                                                             // icon in the file
                             int icon;
-                            memmove(fileName, f->Name, f->NameLen);
-                            *(DWORD*)(fileName + f->NameLen) = 0;
-                            if (!IconCache->GetIndex(fileName, icon, NULL, NULL) ||                         // the icon-thread isn't loading it
+                            if (nameFits)
+                            {
+                                memmove(fileName, f->Name, f->NameLen);
+                                *(DWORD*)(fileName + f->NameLen) = 0;
+                            }
+                            if (!nameFits ||
+                                !IconCache->GetIndex(fileName, icon, NULL, NULL) ||                         // the icon-thread isn't loading it
                                 IconCache->At(icon).GetFlag() != 1 && IconCache->At(icon).GetFlag() != 2 || // neither new nor old icon is loaded
                                 !IconCache->GetIcon(IconCache->At(icon).GetIndex(),
                                                     &iconList, &iconListIndex)) // failed to obtain loaded icon
@@ -1062,6 +1084,16 @@ void CFilesWindow::DrawBriefDetailedItem(HDC hTgtDC, int itemIndex, RECT* itemRe
 // out2Width
 //
 
+// snaps a byte index inside an UTF-8 string back to the start of the
+// sequence it points into, so cuts never produce invalid UTF-8 that would
+// force the drawing code into the byte-wise (mojibake) fallback (feature 031)
+static int SnapToU8Boundary(const char* text, int index)
+{
+    while (index > 0 && ((unsigned char)text[index] & 0xC0) == 0x80)
+        index--;
+    return index;
+}
+
 void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
                char* out1, int* out1Len, int* out1Width,
                char* out2, int* out2Len, int* out2Width)
@@ -1098,8 +1130,8 @@ void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
             // (the space is omitted to save room)
             if (lastSpaceIndex > 0)
             {
-                *out1Len = min(*out1Len, lastSpaceIndex);
-                *out1Width = DrawItemAlpDx[lastSpaceIndex - 1];
+                *out1Len = SnapToU8Boundary(text, min(*out1Len, lastSpaceIndex)); // (feature 031)
+                *out1Width = *out1Len > 0 ? DrawItemAlpDx[*out1Len - 1] : 0;
                 memmove(out1, text, *out1Len);
             }
             else
@@ -1120,11 +1152,15 @@ void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
             while (DrawItemAlpDx[backTrackIndex] + TextEllipsisWidth > maxW && backTrackIndex > 0)
                 backTrackIndex--;
 
-            *out1Len = min(*out1Len, backTrackIndex + 3);
-            *out1Width = DrawItemAlpDx[backTrackIndex - 1] + TextEllipsisWidth;
-            memmove(out1, text, *out1Len - 3);
-            if (*out1Len >= 3)
-                memmove(out1 + *out1Len - 3, "...", 3);
+            // cut at an UTF-8 sequence boundary (feature 031)
+            int keep1 = min(*out1Len, backTrackIndex + 3) - 3;
+            if (keep1 < 0)
+                keep1 = 0;
+            keep1 = SnapToU8Boundary(text, keep1);
+            *out1Len = keep1 + 3;
+            *out1Width = (keep1 > 0 ? DrawItemAlpDx[keep1 - 1] : 0) + TextEllipsisWidth;
+            memmove(out1, text, keep1);
+            memmove(out1 + keep1, "...", 3);
 
             // look for a space where we can continue to the next line
             while (index < textLen)
@@ -1161,18 +1197,24 @@ void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
                        backTrackIndex > oldIndex)
                     backTrackIndex--;
 
-                *out2Len = min(*out2Len, backTrackIndex - oldIndex + 3);
-                *out2Width = DrawItemAlpDx[backTrackIndex - 1] - offsetX + TextEllipsisWidth;
-                memmove(out2, text + oldIndex, *out2Len - 3);
-                if (*out2Len >= 3)
-                    memmove(out2 + *out2Len - 3, "...", 3);
+                // cut at an UTF-8 sequence boundary (feature 031)
+                int keep2 = min(*out2Len, backTrackIndex - oldIndex + 3) - 3;
+                if (keep2 < 0)
+                    keep2 = 0;
+                keep2 = SnapToU8Boundary(text + oldIndex, keep2);
+                *out2Len = keep2 + 3;
+                *out2Width = (keep2 > 0 ? DrawItemAlpDx[oldIndex + keep2 - 1] - offsetX : 0) + TextEllipsisWidth;
+                memmove(out2, text + oldIndex, keep2);
+                memmove(out2 + keep2, "...", 3);
             }
             else
             {
-                // the second line fit completely
-                memmove(out2, text + oldIndex, index - oldIndex);
-                *out2Len = index - oldIndex;
-                *out2Width = DrawItemAlpDx[index - 1] - offsetX;
+                // the second line fit completely (bounded by the caller's
+                // buffer, cut at an UTF-8 sequence boundary -- feature 031)
+                int keepF = SnapToU8Boundary(text + oldIndex, min(*out2Len, index - oldIndex));
+                memmove(out2, text + oldIndex, keepF);
+                *out2Len = keepF;
+                *out2Width = keepF > 0 ? DrawItemAlpDx[oldIndex + keepF - 1] - offsetX : 0;
             }
         }
         else
@@ -1184,8 +1226,9 @@ void SplitText(HDC hDC, const char* text, int textLen, int* maxWidth,
     }
     else
     {
-        // the first line will contain everything
-        *out1Len = min(*out1Len, textLen);
+        // the first line will contain everything (bounded by the caller's
+        // buffer, cut at an UTF-8 sequence boundary -- feature 031)
+        *out1Len = SnapToU8Boundary(text, min(*out1Len, textLen));
         *out1Width = sz.cx;
         memmove(out1, text, *out1Len);
 
@@ -1303,11 +1346,18 @@ void CFilesWindow::DrawIconThumbnailItem(HDC hTgtDC, int itemIndex, RECT* itemRe
             if (Is(ptDisk) && !isDir)
             {
                 int icon;
-                char fileName[MAX_PATH + 4];
-                memmove(fileName, f->Name, f->NameLen);
-                *(DWORD*)(fileName + f->NameLen) = 0;
+                // worst-case UTF-8 name component + DWORD terminator (feature 031)
+                char fileName[SAL_FIND_NAME_U8 + 4];
+                static_assert(sizeof(fileName) >= SAL_FIND_NAME_U8 + 4,
+                              "031: buffer must hold a worst-case UTF-8 name component");
+                BOOL nameFits = f->NameLen + sizeof(DWORD) <= sizeof(fileName);
+                if (nameFits)
+                {
+                    memmove(fileName, f->Name, f->NameLen);
+                    *(DWORD*)(fileName + f->NameLen) = 0;
+                }
 
-                if (IconCache->GetIndex(fileName, icon, NULL, NULL))
+                if (nameFits && IconCache->GetIndex(fileName, icon, NULL, NULL))
                 {
                     DWORD flag = IconCache->At(icon).GetFlag();
                     if (flag == 5 || flag == 6) // o.k. || old version
@@ -1636,6 +1686,7 @@ void TruncateSringToFitWidth(HDC hDC, char* buffer, int* bufferLen, int maxTextW
         // search from the end for the character after which we can copy "..." and it fits in the column
         while (fitChars > 0 && DrawItemAlpDx[fitChars - 1] + TextEllipsisWidth > maxTextWidth)
             fitChars--;
+        fitChars = SnapToU8Boundary(buffer, fitChars); // never cut a UTF-8 sequence (feature 031)
         // copy part of the original string to another buffer
         if (fitChars > 0)
         {
@@ -1645,6 +1696,8 @@ void TruncateSringToFitWidth(HDC hDC, char* buffer, int* bufferLen, int maxTextW
         }
         else
         {
+            if ((unsigned char)buffer[0] >= 0x80)
+                buffer[0] = '.'; // don't emit a torn UTF-8 sequence (feature 031)
             buffer[1] = '.';
             *bufferLen = 2;
         }
@@ -1658,16 +1711,26 @@ void TruncateSringToFitWidth(HDC hDC, char* buffer, int* bufferLen, int maxTextW
 
 void GetTileTexts(CFileData* f, int isDir,
                   HDC hDC, int maxTextWidth, int* widthNeeded,
-                  char* out0, int* out0Len,
+                  char* out0, int out0Size, int* out0Len,
                   char* out1, int* out1Len,
                   char* out2, int* out2Len, DWORD validFileData,
                   CPluginDataInterfaceEncapsulation* pluginData,
                   BOOL isDisk)
 {
-    // format the name to the user-defined form
-    AlterFileName(out0, f->Name, -1, Configuration.FileNameFormat, 0, isDir != 0);
+    // format the name to the user-defined form; an over-long name is copied
+    // bounded, cut at a UTF-8 sequence boundary (defense, feature 031)
+    if ((int)f->NameLen < out0Size)
+        AlterFileName(out0, f->Name, -1, Configuration.FileNameFormat, 0, isDir != 0);
+    else
+    {
+        int copyLen = out0Size - 1;
+        while (copyLen > 0 && ((unsigned char)f->Name[copyLen] & 0xC0) == 0x80)
+            copyLen--; // never cut inside a UTF-8 sequence
+        memcpy(out0, f->Name, copyLen);
+        out0[copyLen] = 0;
+    }
     // 1st line: NAME
-    *out0Len = f->NameLen;
+    *out0Len = (int)strlen(out0);
     // the string may be longer than available space and may need to be shortened with "..."
     *widthNeeded = 0;
     TruncateSringToFitWidth(hDC, out0, out0Len, maxTextWidth, widthNeeded);
@@ -1915,8 +1978,10 @@ void CFilesWindow::DrawTileItem(HDC hTgtDC, int itemIndex, RECT* itemRect, DWORD
         int out1Len;
         char* out2 = DrawItemBuff + 512;
         int out2Len;
+        static_assert(TRANSFER_BUFFER_MAX >= SAL_FIND_NAME_U8 + 4,
+                      "031: name region must hold a worst-case UTF-8 name component");
         GetTileTexts(f, isDir ? (isItemUpDir ? 2 /* UP-DIR */ : 1) : 0, hDC, maxTextWidth, &widthNeeded,
-                     out0, &out0Len, out1, &out1Len, out2, &out2Len,
+                     out0, TRANSFER_BUFFER_MAX, &out0Len, out1, &out1Len, out2, &out2Len,
                      ValidFileData, &PluginData, Is(ptDisk));
 
         // UTF-8 -> UTF-16 conversion buffer for wide GDI drawing of the tile lines

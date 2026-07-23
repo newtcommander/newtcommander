@@ -329,6 +329,166 @@ static void TestFileIO()
 // UTF-8 "ěščř" (2 bytes per char)
 #define U8_ESCR "\xC4\x9B\xC5\xA1\xC4\x8D\xC5\x99"
 
+// ---------------------------------------------------------------------------
+// Feature 031: byte-length invariants of legal-length name components.
+// The defect class: a component's CHARACTER count is legal (<= 255) but its
+// UTF-8 BYTE length exceeds legacy MAX_PATH-sized buffers. The reported crash
+// was a 215-char Czech-diacritics directory name = 330 UTF-8 bytes smashing
+// a char[MAX_PATH + 4] in the panel paint path.
+
+// the user's exact repro-name unit (43 chars):
+// "ýášřtščýáíf buaweýáh čáíhšáífšfhčíáéfšh dnf"
+static const WCHAR REPRO_UNIT_W[] =
+    L"\x00FD\x00E1\x0161\x0159t\x0161\x010D\x00FD\x00E1\x00ED"
+    L"f "
+    L"buawe\x00FD\x00E1h "
+    L"\x010D\x00E1\x00EDh\x0161\x00E1\x00ED"
+    L"f\x0161"
+    L"fh\x010D\x00ED\x00E1\x00E9"
+    L"f\x0161h dnf";
+
+// builds the full 215-char repro name (5x the unit) into 'w' (>= 216 WCHARs)
+static void BuildReproNameW(WCHAR* w)
+{
+    w[0] = 0;
+    for (int i = 0; i < 5; i++)
+        wcscat(w, REPRO_UNIT_W);
+}
+
+static void TestLongComponentNames()
+{
+    // the repro-name unit is exactly 43 chars, the full name 215 chars
+    CHECK(wcslen(REPRO_UNIT_W) == 43);
+    WCHAR reproW[256];
+    BuildReproNameW(reproW);
+    CHECK(wcslen(reproW) == 215);
+
+    // 215 diacritics chars -> 330 UTF-8 bytes: legal component length whose
+    // byte length exceeds the legacy MAX_PATH+4 buffers (the defect class),
+    // yet fits the established SAL_FIND_NAME_U8 bound with the DWORD
+    // terminator used by the paint path
+    char* u8 = SalWToU8Alloc(reproW);
+    CHECK(u8 != NULL);
+    if (u8 != NULL)
+    {
+        size_t len = strlen(u8);
+        CHECK(len == 330);
+        CHECK(len > MAX_PATH + 4);              // overflows the pre-031 buffers
+        CHECK(len + 4 <= SAL_FIND_NAME_U8 + 4); // fits the 031 buffers incl. DWORD terminator
+        WCHAR* back = SalU8ToWAlloc(u8);        // byte-exact round trip
+        CHECK(back != NULL && wcscmp(back, reproW) == 0);
+        free(back);
+        free(u8);
+    }
+
+    // worst case: 255 x U+4E2D (3-byte UTF-8) = 765 bytes; DWORD-terminated
+    // copies need 769 bytes and must fit SAL_FIND_NAME_U8 + 4
+    WCHAR w255[256];
+    for (int i = 0; i < 255; i++)
+        w255[i] = 0x4E2D;
+    w255[255] = 0;
+    u8 = SalWToU8Alloc(w255);
+    CHECK(u8 != NULL);
+    if (u8 != NULL)
+    {
+        CHECK(strlen(u8) == 3 * 255);
+        CHECK(strlen(u8) + 4 <= SAL_FIND_NAME_U8 + 4);
+        free(u8);
+    }
+
+    // 255 UTF-16 units of surrogate pairs (127 pairs = 254 units): 4 UTF-8
+    // bytes per pair -> 508 bytes, inside the same bound
+    WCHAR wsurr[256];
+    for (int i = 0; i < 127; i++)
+    {
+        wsurr[2 * i] = 0xD83D;     // U+1F4C1 high surrogate
+        wsurr[2 * i + 1] = 0xDCC1; // U+1F4C1 low surrogate
+    }
+    wsurr[254] = 0;
+    u8 = SalWToU8Alloc(wsurr);
+    CHECK(u8 != NULL);
+    if (u8 != NULL)
+    {
+        CHECK(strlen(u8) == 4 * 127);
+        CHECK(strlen(u8) + 4 <= SAL_FIND_NAME_U8 + 4);
+        free(u8);
+    }
+
+    // SalConvertFindDataW: a maximum-length component converts completely and
+    // round-trips byte-exactly into the enumeration-sized buffer
+    WIN32_FIND_DATAW fdw;
+    memset(&fdw, 0, sizeof(fdw));
+    wcscpy(fdw.cFileName, w255); // 255 chars, the OS component maximum
+    char nameU8[SAL_FIND_NAME_U8];
+    char dosNameU8[3 * 14 + 2];
+    SalConvertFindDataW(&fdw, NULL, nameU8, sizeof(nameU8), dosNameU8, sizeof(dosNameU8));
+    CHECK(strlen(nameU8) == 3 * 255);
+    WCHAR* back = SalU8ToWAlloc(nameU8);
+    CHECK(back != NULL && wcscmp(back, w255) == 0);
+    free(back);
+    CHECK(dosNameU8[0] == 0); // empty alternate name stays empty
+
+    // the repro name converts through the same route
+    wcscpy(fdw.cFileName, reproW);
+    SalConvertFindDataW(&fdw, NULL, nameU8, sizeof(nameU8), NULL, 0);
+    CHECK(strlen(nameU8) == 330);
+
+    // fail-safe: a too-small target yields an EMPTY string -- never a
+    // silently truncated name that could act as a different identity
+    char tooSmall[64];
+    SalConvertFindDataW(&fdw, NULL, tooSmall, sizeof(tooSmall), NULL, 0);
+    CHECK(tooSmall[0] == 0);
+
+    // on-disk: create the exact repro directory name, enumerate its parent,
+    // and require the byte-exact 330-byte name back (the crash scenario data)
+    char tmp[MAX_PATH];
+    DWORD n = GetTempPathA(sizeof(tmp), tmp);
+    if (n == 0 || n >= sizeof(tmp))
+    {
+        printf("skipping TestLongComponentNames disk part (no temp path)\n");
+        return;
+    }
+    CSalPathBuf base;
+    CHECK(base.Set(tmp));
+    CHECK(base.AppendComponent("saltests-deep"));
+    CHECK(SalCreateDirectory(base.Get(), NULL) || GetLastError() == ERROR_ALREADY_EXISTS);
+    char* reproU8 = SalWToU8Alloc(reproW);
+    CHECK(reproU8 != NULL);
+    if (reproU8 != NULL)
+    {
+        CSalPathBuf dir(base);
+        CHECK(dir.AppendComponent(reproU8));
+        CHECK(SalCreateDirectory(dir.Get(), NULL) || GetLastError() == ERROR_ALREADY_EXISTS);
+
+        CSalPathBuf pattern(base);
+        CHECK(pattern.AppendComponent("*"));
+        WIN32_FIND_DATAW fd;
+        HANDLE find = SalFindFirstFile(pattern.Get(), &fd);
+        CHECK(find != INVALID_HANDLE_VALUE);
+        BOOL seen = FALSE;
+        if (find != INVALID_HANDLE_VALUE)
+        {
+            do
+            {
+                if (wcscmp(fd.cFileName, reproW) == 0)
+                {
+                    seen = TRUE;
+                    char foundU8[SAL_FIND_NAME_U8];
+                    SalConvertFindDataW(&fd, NULL, foundU8, sizeof(foundU8), NULL, 0);
+                    CHECK(strlen(foundU8) == 330);
+                    CHECK(strcmp(foundU8, reproU8) == 0);
+                }
+            } while (SalFindNextFile(find, &fd));
+            FindClose(find);
+        }
+        CHECK(seen);
+
+        CHECK(SalRemoveDirectory(dir.Get()));
+        free(reproU8);
+    }
+    CHECK(SalRemoveDirectory(base.Get()));
+}
+
 static void TestDropFiles()
 {
     // --- build a wide CF_HDROP block from two >MAX_PATH Czech-diacritics paths
@@ -605,6 +765,7 @@ int main()
     TestExtendedPaths();
     TestFileIO();
     TestDropFiles();
+    TestLongComponentNames();
     TestDarkThemePalette();
     TestDarkIconColorAdaptation();
 

@@ -296,9 +296,10 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
 
         BOOL isUpDir = FALSE;
         WIN32_FIND_DATAW fileDataW;
-        WIN32_FIND_DATA fileData;   // legacy-shaped view (attributes/times only, no names)
-        char nameU8[3 * MAX_PATH];  // UTF-8 of cFileName (single component, worst case 3 B per WCHAR)
-        char dosNameU8[3 * 14 + 2]; // UTF-8 of cAlternateFileName (8.3 name)
+        WIN32_FIND_DATA fileData;      // legacy-shaped view (attributes/times only, no names)
+        char nameU8[3 * MAX_PATH + 4]; // UTF-8 of cFileName (single component, worst case 3 B per WCHAR);
+                                       // +4: the extension-lowercase pass below DWORD-terminates in place (feature 031)
+        char dosNameU8[3 * 14 + 2];    // UTF-8 of cAlternateFileName (8.3 name)
         HANDLE search;
         search = SalFindFirstFile(fileName, &fileDataW);
         if (search == INVALID_HANDLE_VALUE)

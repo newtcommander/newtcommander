@@ -699,14 +699,22 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (file != NULL && !isDir &&                                   // jde o soubor
                 (!Is(ptPluginFS) || GetPluginIconsType() != pitFromPlugin)) // nejde o ikonu z plug-inu
             {
-                char buf[MAX_PATH + 4]; // pripona malymi pismeny
+                // worst-case UTF-8 name component + DWORD terminator (feature 031)
+                char buf[SAL_FIND_NAME_U8 + 4]; // pripona malymi pismeny
+                static_assert(sizeof(buf) >= SAL_FIND_NAME_U8 + 4,
+                              "031: buffer must hold a worst-case UTF-8 name component");
                 char *s1 = buf, *s2 = file->Ext;
-                while (*s2 != 0)
+                char* s1End = buf + sizeof(buf) - sizeof(DWORD); // bounded copy (feature 031)
+                while (s1 < s1End && *s2 != 0)
                     *s1++ = LowerCase[*s2++];
                 *((DWORD*)s1) = 0;
                 int index;
                 CIconSizeEnum iconSize = IconCache->GetIconSize();
-                if (Associations.GetIndex(buf, index) &&             // pripona ma ikonku (asociaci)
+                // plugin-supplied names may exceed the disk component bound;
+                // skip the icon propagation instead of overflowing (feature 031)
+                BOOL nameFits = file->NameLen + sizeof(DWORD) <= sizeof(buf);
+                if (nameFits &&
+                    Associations.GetIndex(buf, index) &&             // pripona ma ikonku (asociaci)
                     (Associations[index].GetIndex(iconSize) == -1 || // jde o ikonku, ktera se nacita
                      Associations[index].GetIndex(iconSize) == -3))
                 {
