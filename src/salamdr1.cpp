@@ -105,7 +105,7 @@ int MyEntryPoint()
         ret = WinMainCRTStartup();
     }
     else
-        MessageBox(NULL, "Open Salamander Bug Reporter (salmon.exe) initialization has failed. Please reinstall Open Salamander.",
+        MessageBox(NULL, "Newt Commander Bug Reporter (salmon.exe) initialization has failed. Please reinstall Newt Commander.",
                    SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONSTOP);
 
     // sem uz mi debugger nechodi, sestreli nas v RTL (testovano pod VC 2008 s nasim RTL)
@@ -213,8 +213,8 @@ const char* SALCF_FAKE_REALPATH = "SalFakeRealPath";
 const char* SALCF_FAKE_SRCTYPE = "SalFakeSrcType";
 const char* SALCF_FAKE_SRCFSPATH = "SalFakeSrcFSPath";
 
-const char* MAINWINDOW_NAME = "Open Salamander";
-const char* CMAINWINDOW_CLASSNAME = "SalamanderMainWindowVer25";
+const char* MAINWINDOW_NAME = "Newt Commander";
+const char* CMAINWINDOW_CLASSNAME = "NewtCommanderMainWindowVer01";
 const char* SAVEBITS_CLASSNAME = "SalamanderSaveBits";
 const char* SHELLEXECUTE_CLASSNAME = "SalamanderShellExecute";
 
@@ -3955,7 +3955,7 @@ FIND_NEW_SLG_FILE:
         if (slgDialog.GetLanguagesCount() == 0)
         {
             MessageBox(NULL, "Unable to find any language file (.SLG) in subdirectory LANG.\n"
-                             "Please reinstall Open Salamander.",
+                             "Please reinstall Newt Commander.",
                        SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
             goto EXIT_1a;
         }
@@ -4016,7 +4016,7 @@ FIND_NEW_SLG_FILE:
             HANDLES(FreeLibrary(HLanguage));
         if (!newSLGFile) // zapamatovany .SLG soubor prestal nejspis existovat, zkusime najit jiny
         {
-            sprintf(errorText, "File %s was not found or is not valid language file.\nOpen Salamander "
+            sprintf(errorText, "File %s was not found or is not valid language file.\nNewt Commander "
                                "will try to search for some other language file (.SLG).",
                     path);
             MessageBox(NULL, errorText, SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
@@ -4026,9 +4026,9 @@ FIND_NEW_SLG_FILE:
         else // nemelo by vubec nastat - .SLG soubor jiz byl otestovan
         {
             sprintf(errorText, "File %s was not found or is not valid language file.\n"
-                               "Please run Open Salamander again and try to choose some other language file.",
+                               "Please run Newt Commander again and try to choose some other language file.",
                     path);
-            MessageBox(NULL, errorText, "Open Salamander", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, errorText, "Newt Commander", MB_OK | MB_ICONERROR);
             goto EXIT_1a;
         }
     }
@@ -4636,7 +4636,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                                         HWND hParent = NULL;
                                         if (MainWindow != NULL)
                                             hParent = MainWindow->HWindow;
-                                        MessageBox(hParent, "_CrtCheckMemory failed. Look to the Trace Server for details.", "Open Salamander", MB_OK | MB_ICONERROR);
+                                        MessageBox(hParent, "_CrtCheckMemory failed. Look to the Trace Server for details.", "Newt Commander", MB_OK | MB_ICONERROR);
                                     }
                                     LastCrtCheckMemoryTime = GetTickCount();
                                 }

@@ -1853,7 +1853,7 @@ void SetThreadNameInVCAndTrace(const char* name)
 BOOL GetOurPathInRoamingAPPDATA(char* buf)
 {
     return SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0 /* SHGFP_TYPE_CURRENT */, buf) == S_OK &&
-           SalPathAppend(buf, "Open Salamander", MAX_PATH);
+           SalPathAppend(buf, "Newt Commander", MAX_PATH);
 }
 
 BOOL CreateOurPathInRoamingAPPDATA(char* buf)
@@ -1863,7 +1863,7 @@ BOOL CreateOurPathInRoamingAPPDATA(char* buf)
         buf[0] = 0;
     if (SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0 /* SHGFP_TYPE_CURRENT */, path) == S_OK)
     {
-        if (SalPathAppend(path, "Open Salamander", MAX_PATH))
+        if (SalPathAppend(path, "Newt Commander", MAX_PATH))
         {
             CreateDirectory(path, NULL); // if it fails (e.g. already exists), we do not care...
             if (buf != NULL)

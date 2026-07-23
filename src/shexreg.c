@@ -27,19 +27,23 @@
 //const char *SALSHEXT_SHAREDMEMMUTEXNAME = "SalExten_SharedMemMutex3";// salamext.dll (since version 2.52 beta 1)
 //const char *SALSHEXT_SHAREDMEMNAME = "SalExten_SharedMem3";          // salamext.dll (since version 2.52 beta 1)
 //const char *SALSHEXT_DOPASTEEVENTNAME = "SalExten_DoPasteEvent3";    // salamext.dll (since version 2.52 beta 1, used only on Vista+)
-const char* SALSHEXT_SHAREDMEMMUTEXNAME = "SalExten_SharedMemMutex4"; // salextx86.dll and salextx64.dll (since version 3.0 beta 1)
-const char* SALSHEXT_SHAREDMEMNAME = "SalExten_SharedMem4";           // salextx86.dll and salextx64.dll (since version 3.0 beta 1)
-const char* SALSHEXT_DOPASTEEVENTNAME = "SalExten_DoPasteEvent4";     // salextx86.dll and salextx64.dll (since version 3.0 beta 1, used only on Vista+)
+//const char* SALSHEXT_SHAREDMEMMUTEXNAME = "SalExten_SharedMemMutex4"; // salextx86.dll and salextx64.dll (since version 3.0 beta 1)
+//const char* SALSHEXT_SHAREDMEMNAME = "SalExten_SharedMem4";           // salextx86.dll and salextx64.dll (since version 3.0 beta 1)
+//const char* SALSHEXT_DOPASTEEVENTNAME = "SalExten_DoPasteEvent4";     // salextx86.dll and salextx64.dll (since version 3.0 beta 1, used only on Vista+)
+const char* SALSHEXT_SHAREDMEMMUTEXNAME = "NCExten_SharedMemMutex1"; // Newt Commander 0.1.0 (feature 032: disjoint from Open Salamander)
+const char* SALSHEXT_SHAREDMEMNAME = "NCExten_SharedMem1";           // Newt Commander 0.1.0
+const char* SALSHEXT_DOPASTEEVENTNAME = "NCExten_DoPasteEvent1";     // Newt Commander 0.1.0
 
 //const char *SHEXREG_OPENSALAMANDER = "ServantSalamander";                                // salshext.dll (Sal 2.5 beta 1)
 //const char *SHEXREG_OPENSALAMANDER_DESCR = "Shell Extension for Servant Salamander";     // salshext.dll (Sal 2.5 beta 1)
 //const char *SHEXREG_OPENSALAMANDER = "ServantSalamander25";                              // salexten.dll - 2.5 beta 2 through RC1
 //const char *SHEXREG_OPENSALAMANDER_DESCR = "Shell Extension for Servant Salamander 2.5"; // salexten.dll - 2.5 beta 2 through RC1
 //const char* SHEXREG_OPENSALAMANDER = "AltapSalamanderVer" SALSHEXT_SHAREDNAMESAPPENDIX;  // salexten.dll - until 4.0
-const char* SHEXREG_OPENSALAMANDER = "OpenSalamanderVer" SALSHEXT_SHAREDNAMESAPPENDIX;
+//const char* SHEXREG_OPENSALAMANDER = "OpenSalamanderVer" SALSHEXT_SHAREDNAMESAPPENDIX;   // salextx86.dll and salextx64.dll - Open Salamander 5.0
+const char* SHEXREG_OPENSALAMANDER = "NewtCommanderVer" SALSHEXT_SHAREDNAMESAPPENDIX;
 #ifdef INSIDE_SALAMANDER
 #include "versinfo.rh2"
-const char* SHEXREG_OPENSALAMANDER_DESCR = "Shell Extension (%s) for Open Salamander " VERSINFO_VERSION;
+const char* SHEXREG_OPENSALAMANDER_DESCR = "Shell Extension (%s) for Newt Commander " VERSINFO_VERSION;
 #endif // INSIDE_SALAMANDER
 
 #ifdef ENABLE_SH_MENU_EXT

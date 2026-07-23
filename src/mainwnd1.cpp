@@ -24,7 +24,7 @@
 
 #include "versinfo.rh2"
 
-const char* SALAMANDER_TEXT_VERSION = "Open Salamander " VERSINFO_VERSION;
+const char* SALAMANDER_TEXT_VERSION = "Newt Commander " VERSINFO_VERSION;
 
 //****************************************************************************
 //

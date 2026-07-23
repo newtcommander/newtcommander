@@ -453,9 +453,16 @@ CMainDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (CompressParams.Result)
                 {
-                    // start the upload thread
-                    UploadingIndex = 0;
-                    Uploading = StartUploadIndex(UploadingIndex);
+                    // uploading is disabled in Newt Commander (feature 032): the compressed
+                    // report stays on disk; show it to the user so they can attach it to
+                    // a GitHub issue, then finish exactly like the old upload-success path
+                    ShowChilds(dteDialog, TRUE);
+                    MessageBox(HWindow, LoadStr(IDS_SALMON_UPLOADSUCCESS, HLanguage), LoadStr(IDS_SALMON_TITLE, HLanguage), MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
+                    CleanBugReportsDirectory(TRUE); // delete the raw reports, keep the .7Z archives
+                    OpenFolder(NULL, BugReportPath);
+                    if (IsDlgButtonChecked(HWindow, IDC_SALMON_RESTART) == BST_CHECKED)
+                        RestartSalamander(HWindow);
+                    PostQuitMessage(0);
                 }
                 else
                 {

@@ -648,12 +648,12 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
         {
             if (ConfigurationExist[i])
             {
-                // detect whether this is "Open Salamander", "Altap Salamander", or the old "Servant Salamander"
+                // detect the product family the configuration root belongs to
+                BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                BOOL altapSalamander = StrIStr(SalamanderConfigurationRoots[i], "Altap Salamander") != NULL;
-                const char* name = openSalamander    ? "Open Salamander %s"
-                                   : altapSalamander ? "Altap Salamander %s"
-                                                     : "Servant Salamander %s";
+                const char* name = newtCommander     ? "Newt Commander %s"
+                                   : openSalamander  ? "Open Salamander %s"
+                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
                 SendDlgItemMessage(HWindow, IDC_IMPORTCONFIG, CB_ADDSTRING, 0, (LPARAM)buff);
                 if (selIndex == 0)
@@ -680,12 +680,12 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 lvi.iSubItem = 0;
                 lvi.state = 0;
 
-                // detect whether this is "Open Salamander", "Altap Salamander", or the old "Servant Salamander"
+                // detect the product family the configuration root belongs to
+                BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                BOOL altapSalamander = StrIStr(SalamanderConfigurationRoots[i], "Altap Salamander") != NULL;
-                const char* name = openSalamander    ? "Open Salamander %s"
-                                   : altapSalamander ? "Altap Salamander %s"
-                                                     : "Servant Salamander %s";
+                const char* name = newtCommander     ? "Newt Commander %s"
+                                   : openSalamander  ? "Open Salamander %s"
+                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
                 lvi.pszText = buff;
                 ListView_InsertItem(hListView, &lvi);
@@ -1083,7 +1083,7 @@ CLanguageSelectorDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (PluginName != NULL && LOWORD(wParam) == IDCANCEL)
             return 0;
         if (LOWORD(wParam) == IDB_GETMORELANGS)
-            ShellExecute(HWindow, "open", "https://forum.altap.cz/viewforum.php?f=23", NULL, NULL, SW_SHOWNORMAL);
+            ShellExecute(HWindow, "open", "https://github.com/newtcommander/newtcommander", NULL, NULL, SW_SHOWNORMAL);
         if (LOWORD(wParam) == IDB_REFRESHLANGS)
         {
             ListView_DeleteAllItems(HListView);
@@ -1095,7 +1095,7 @@ CLanguageSelectorDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (GetLanguagesCount() == 0) // should not happen because this dialog is loaded from the .slg module (that .slg cannot be deleted)
             {
                 MessageBox(HWindow, "Unable to find any language file (.SLG) in subdirectory LANG.\n"
-                                    "Please reinstall Open Salamander.",
+                                    "Please reinstall Newt Commander.",
                            SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
                 TRACE_E("CLanguageSelectorDialog: unexpected situation (no language file): calling ExitProcess(667).");
                 //          ExitProcess(667);

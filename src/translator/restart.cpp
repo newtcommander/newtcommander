@@ -48,7 +48,7 @@ BOOL KillSalamandersAux(const char* path)
     {
         while (Process32Next(snapshot, &entry) == TRUE)
         {
-            if (_stricmp(entry.szExeFile, "salamand.exe") == 0)
+            if (_stricmp(entry.szExeFile, "newtcommander.exe") == 0)
             {
                 HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION + PROCESS_VM_READ + PROCESS_TERMINATE, FALSE, entry.th32ProcessID);
 

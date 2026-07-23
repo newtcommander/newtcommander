@@ -21,17 +21,15 @@
 #define VERSINFO_xstr(s) VERSINFO_str(s)
 #define VERSINFO_str(s) #s
 
-#define VERSINFO_SALAMANDER_MAJOR 5
-#define VERSINFO_SALAMANDER_MINORA 0
+// Newt Commander versioning (feature 032): semantic version MAJOR.MINORA.MINORB,
+// always three components ("0.1.0"), unlike the historical Salamander scheme
+// where MINORB were hundredths appended without a dot (2.53) and a zero was dropped (5.0)
+#define VERSINFO_SALAMANDER_MAJOR 0
+#define VERSINFO_SALAMANDER_MINORA 1
 #define VERSINFO_SALAMANDER_MINORB 0
 
-#if (VERSINFO_SALAMANDER_MINORB == 0) // nulu na setinach nepiseme 2.50 -> 2.5
-#define VERSINFO_SALAMANDER_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) VERSINFO_BETAVERSION_TXT
-#define VERSINFO_SAL_SHORT_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) VERSINFO_BETAVERSIONSHORT_TXT
-#else
-#define VERSINFO_SALAMANDER_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORB) VERSINFO_BETAVERSION_TXT
+#define VERSINFO_SALAMANDER_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORB) VERSINFO_BETAVERSION_TXT
 #define VERSINFO_SAL_SHORT_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORB) VERSINFO_BETAVERSIONSHORT_TXT
-#endif
 
 #ifdef VERSINFO_MAJOR      // je definovane jen pokud se pouziva z pluginu
 #if (VERSINFO_MINORB == 0) // nulu na setinach nepiseme 2.50 -> 2.5
@@ -96,7 +94,8 @@
 // 181 - 4.0 (SDK)
 // 182 - 4.0 (CB182)
 // 183 - 5.0
-// 184 - 5.0 development (UTF-8 names + long paths, feature 004)
+// 184 - 5.0 development (UTF-8 names + long paths, feature 004);
+//       carried over unchanged into Newt Commander 0.1.0 (feature 032 rebrand)
 
 // ! DULEZITE: nova cisla buildu je nutne zapsat do vetve "default", a pak
 //             teprve do vedlejsi vetve (kompletni seznam je jen v "default" vetvi)
@@ -198,6 +197,6 @@
 //         third-party migration guide: doc\plugin-vnext-migration.md
 
 #define LAST_VERSION_OF_SALAMANDER 104
-#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Open Salamander 5.0 build 184 (" SAL_VER_PLATFORM ") or later."
+#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Newt Commander 0.1.0 build 184 (" SAL_VER_PLATFORM ") or later."
 
 #endif // __SPL_VERS_H

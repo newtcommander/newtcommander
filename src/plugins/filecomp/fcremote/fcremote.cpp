@@ -62,10 +62,10 @@ LoadStr(int resID)
         ret = "Cannot send message to File Comparator plugin.";
         break;
     case IDS_LAUNCHSAL:
-        ret = "Unable to launch Open Salamander.";
+        ret = "Unable to launch Newt Commander.";
         break;
     case IDS_MSGERR2:
-        ret = "Cannot send message to File Comparator plugin. Ensure 'Load plugin on Open Salamander start' option is set in File Comparator configuration.";
+        ret = "Cannot send message to File Comparator plugin. Ensure 'Load plugin on Newt Commander start' option is set in File Comparator configuration.";
         break;
     default:
         ret = "ERROR LOADING STRING";
@@ -231,7 +231,7 @@ int RemoteCompareFiles(HINSTANCE hInstance, LPTSTR lpCmdLine)
                 PathRemoveFileSpec(sal); // fcremote.exe
                 PathRemoveFileSpec(sal); // filecomp
                 PathRemoveFileSpec(sal); // plugins
-                PathAppend(sal, "salamand.exe");
+                PathAppend(sal, "newtcommander.exe");
 
                 STARTUPINFO si;
                 PROCESS_INFORMATION pi;

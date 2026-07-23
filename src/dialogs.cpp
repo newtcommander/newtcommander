@@ -2070,15 +2070,7 @@ CBetaExpiredDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         hl = new CHyperLink(HWindow, IDC_BETAEXPIREDURL);
         if (hl != NULL)
         {
-            // if the environment is Czech or Slovak, we will automatically show the Czech version of the web
-            BOOL english = LanguageID != 0x405 /* Czech */ && LanguageID != 0x41B /* Slovak */;
-
-            const char* url =
-#ifndef THIS_IS_EAP_VERSION
-                english ? "https://www.altap.cz/salamander/downloads/beta" : "https://www.altap.cz/cz/salamander/downloads/beta";
-#else  // THIS_IS_EAP_VERSION
-                english ? "https://www.altap.cz/salamander/downloads/eap" : "https://www.altap.cz/cz/salamander/downloads/eap";
-#endif // THIS_IS_EAP_VERSION
+            const char* url = "https://github.com/newtcommander/newtcommander/releases";
 
             SetDlgItemText(HWindow, IDC_BETAEXPIREDURL, url + 8);
             hl->SetActionOpen(url);

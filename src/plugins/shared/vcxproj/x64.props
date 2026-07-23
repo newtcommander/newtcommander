@@ -5,7 +5,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
     <ShortPlatform>x64</ShortPlatform>
-    <SalPath>$(OPENSAL_BUILD_DIR)salamander\$(Configuration)_$(ShortPlatform)\salamand.exe</SalPath>
+    <SalPath>$(OPENSAL_BUILD_DIR)salamander\$(Configuration)_$(ShortPlatform)\newtcommander.exe</SalPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

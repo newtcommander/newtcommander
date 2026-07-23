@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 96 96">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="200" viewBox="0 0 900 200">
+  <g transform="translate(20,28) scale(1.5)">
   <defs>
     <radialGradient id="nc-bg" cx="0.5" cy="0.3" r="1"><stop offset="0" stop-color="#1B3054"></stop><stop offset="1" stop-color="#070E1A"></stop></radialGradient>
     <linearGradient id="nc-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6FA5FF"></stop><stop offset="1" stop-color="#2E6BE0"></stop></linearGradient>
@@ -19,4 +20,7 @@
     <rect x="59" y="45.5" width="16" height="5" rx="2.5"></rect>
     <rect x="59" y="60" width="16" height="5" rx="2.5"></rect>
   </g>
+</g>
+  <text x="200" y="105" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="64" letter-spacing="-1.5"><tspan fill="#0A1424">Newt </tspan><tspan fill="#EA6A0B">Commander</tspan></text>
+  <text x="203" y="145" font-family="Archivo, Arial, sans-serif" font-weight="600" font-size="19" letter-spacing="9" fill="#5D82B8">TWO-PANE FILE MANAGER</text>
 </svg>

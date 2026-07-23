@@ -40,8 +40,8 @@ CTwain::CTwain()
     AppIdentity.ProtocolMajor = TWON_PROTOCOLMAJOR;
     AppIdentity.ProtocolMinor = TWON_PROTOCOLMINOR;
     AppIdentity.SupportedGroups = DG_IMAGE | DG_CONTROL;
-    strcpy(AppIdentity.Manufacturer, "Open Salamander");
-    strcpy(AppIdentity.ProductFamily, "Open Salamander plugin");
+    strcpy(AppIdentity.Manufacturer, "Newt Commander");
+    strcpy(AppIdentity.ProductFamily, "Newt Commander plugin");
     strcpy(AppIdentity.ProductName, PLUGIN_NAME_EN);
 
     memset(&SrcIdentity, 0, sizeof(SrcIdentity));

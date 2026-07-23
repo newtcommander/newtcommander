@@ -27,13 +27,13 @@ BOOL FirstInstance_3_or_later = FALSE;
 
 // POZOR: pri zmene je potreba upravit salbreak.exe, proste posli mi prosim info ... dik, Petr
 
-const char* AS_PROCESSLIST_NAME = "AltapSalamander3bProcessList";                               // sdilena pamet CProcessList
-const char* AS_PROCESSLIST_MUTEX_NAME = "AltapSalamander3bProcessListMutex";                    // synchronizace pro pristup do sdilene pameti
-const char* AS_PROCESSLIST_EVENT_NAME = "AltapSalamander3bProcessListEvent";                    // odpaleni udalosti (co se ma delat je ulozeno ve sdilene pameti)
-const char* AS_PROCESSLIST_EVENT_PROCESSED_NAME = "AltapSalamander3bProcessListEventProcessed"; // odpalena udalost byla zpracovana
+const char* AS_PROCESSLIST_NAME = "NewtCommander01ProcessList";                               // sdilena pamet CProcessList
+const char* AS_PROCESSLIST_MUTEX_NAME = "NewtCommander01ProcessListMutex";                    // synchronizace pro pristup do sdilene pameti
+const char* AS_PROCESSLIST_EVENT_NAME = "NewtCommander01ProcessListEvent";                    // odpaleni udalosti (co se ma delat je ulozeno ve sdilene pameti)
+const char* AS_PROCESSLIST_EVENT_PROCESSED_NAME = "NewtCommander01ProcessListEventProcessed"; // odpalena udalost byla zpracovana
 
-const char* FIRST_SALAMANDER_MUTEX_NAME = "AltapSalamanderFirstInstance";     // zavedeno od AS 2.52 beta 1
-const char* LOADSAVE_REGISTRY_MUTEX_NAME = "AltapSalamanderLoadSaveRegistry"; // zavedeno od AS 2.52 beta 1
+const char* FIRST_SALAMANDER_MUTEX_NAME = "NewtCommanderFirstInstance";     // zavedeno od AS 2.52 beta 1
+const char* LOADSAVE_REGISTRY_MUTEX_NAME = "NewtCommanderLoadSaveRegistry"; // zavedeno od AS 2.52 beta 1
 
 // cesta, kam ulozimi bug report a minidump; pozdeji je salmon zabali do 7z a uploadne na server
 char BugReportPath[MAX_PATH] = "";

@@ -1,12 +1,12 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
-    name="Open.Salamander.BugReporter"
+    name="NewtCommander.BugReporter"
     processorArchitecture="*"
     type="win32"
     version="1.0.3.0">
 </assemblyIdentity>
-<description>Open Salamander Bug Reporter</description>
+<description>Newt Commander Bug Reporter</description>
 <dependency>
     <dependentAssembly>
         <assemblyIdentity

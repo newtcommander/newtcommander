@@ -2093,7 +2093,9 @@ int GetWMCommandFromSalCmd(int salCmd);
 //******************************************************************************
 
 // pocet polozek v poli SalamanderConfigurationRoots
-#define SALCFG_ROOTS_COUNT 83
+// feature 032: single Newt Commander root; the legacy Open/Altap/Servant Salamander
+// import chain was removed on purpose (no backward compatibility with Open Salamander)
+#define SALCFG_ROOTS_COUNT 1
 
 // id hlavniho threadu (platne az po vstupu do WinMain())
 extern DWORD MainThreadID;

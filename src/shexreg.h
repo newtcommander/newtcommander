@@ -56,9 +56,11 @@
 // salextx86.dll + salextx64.dll (Salamander 3.07) class id:       c78b614d-f3ea-11d2-94a1-00e0292a01e3
 // salextx86.dll + salextx64.dll (Salamander 3.08) class id:       c78b614e-f3ea-11d2-94a1-00e0292a01e3
 // salextx86.dll + salextx64.dll (Salamander 4.0) class id:        c78b614f-f3ea-11d2-94a1-00e0292a01e3
+// salextx86.dll + salextx64.dll (Open Salamander 5.0) class id:   c78b614f-f3ea-11d2-94a1-00e0292a01e3 (unchanged)
+// salextx86.dll + salextx64.dll (Newt Commander 0.1.0) class id:  a6d5a8e2-d69f-4e03-8396-781909e7a3ae (feature 032: brand-new CLSID so both products' shell integration can coexist)
 //
 
-DEFINE_GUID(CLSID_ShellExtension, 0xc78b614fL, 0xf3ea, 0x11d2, 0x94, 0xa1, 0x00, 0xe0, 0x29, 0x2a, 0x01, 0xe3);
+DEFINE_GUID(CLSID_ShellExtension, 0xa6d5a8e2L, 0xd69f, 0x4e03, 0x83, 0x96, 0x78, 0x19, 0x09, 0xe7, 0xa3, 0xae);
 
 //
 // suffix appended to keep the shell-extension registry name unique (SHEXREG_OPENSALAMANDER)
@@ -103,8 +105,9 @@ DEFINE_GUID(CLSID_ShellExtension, 0xc78b614fL, 0xf3ea, 0x11d2, 0x94, 0xa1, 0x00,
 // Altap Salamander 4.0 beta 1               - 400B1_2 (second attempt to ship "4.0 beta 1")
 // Altap Salamander 4.0                      - 400
 // Open Salamander 5.0                       - 500
+// Newt Commander 0.1.0                      - 010
 
-#define SALSHEXT_SHAREDNAMESAPPENDIX "500"
+#define SALSHEXT_SHAREDNAMESAPPENDIX "010"
 
 #ifdef ENABLE_SH_MENU_EXT
 
