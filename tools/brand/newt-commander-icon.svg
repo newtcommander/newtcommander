@@ -1,19 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 256 256">
   <defs>
-    <radialGradient id="navySq" cx="0.5" cy="0.25" r="1"><stop offset="0" stop-color="#1B3054"></stop><stop offset="1" stop-color="#070E1A"></stop></radialGradient>
     <linearGradient id="orangeFold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB35C"></stop><stop offset="0.55" stop-color="#F97316"></stop><stop offset="1" stop-color="#EA6A0B"></stop></linearGradient>
     <linearGradient id="orangeBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D96A15"></stop><stop offset="1" stop-color="#B85306"></stop></linearGradient>
     <linearGradient id="innerBottom" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#B85306" stop-opacity="0"></stop><stop offset="1" stop-color="#8A3E04" stop-opacity="0.45"></stop></linearGradient>
     <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
     <filter id="soft" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#02060D" flood-opacity="0.55"></feDropShadow></filter>
-    <clipPath id="tileClip"><rect x="0" y="0" width="256" height="256" rx="56"></rect></clipPath>
   </defs>
-  <g clip-path="url(#tileClip)">
-    <rect x="0" y="0" width="256" height="256" fill="#02060D"></rect>
-    <rect x="0" y="-6" width="256" height="256" rx="56" fill="url(#navySq)"></rect>
-    <rect x="0" y="0" width="256" height="125" fill="#FFFFFF" opacity="0.06"></rect>
-  </g>
-  <g transform="translate(128 132) scale(1.16) translate(-128 -132)">
+  <g transform="translate(128 133) scale(1.28 1.38) translate(-128 -133)">
     <g filter="url(#soft)">
       <rect x="56" y="74" width="92" height="50" rx="16" fill="url(#orangeBack)"></rect>
       <rect x="56" y="74" width="92" height="22" rx="11" fill="#FFFFFF" opacity="0.22"></rect>

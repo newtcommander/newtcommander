@@ -18,3 +18,6 @@ Thumbs.db
 /src/plugins/automation/generated/salamander_h.h
 /src/plugins/automation/generated/salamander_i.c
 /src/plugins/automation/generated/salamander_p.c
+# Direct MSBuild outputs when OPENSAL_BUILD_DIR is unset (setup/remove built individually)
+/src/vcxproj/setup/setup/Debug_x64/
+/src/vcxproj/setup/remove/Debug_x64/

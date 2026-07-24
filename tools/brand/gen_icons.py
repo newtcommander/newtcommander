@@ -1,10 +1,12 @@
-"""Pack the Newt Commander folder-tile icon rasters into the shipped .ico files.
+"""Pack the Newt Commander folder icon rasters into the shipped .ico files.
 
-The master artwork (newt-commander-icon.svg, feature 033) uses SVG filter
-effects that cannot be reproduced procedurally, so the committed PNG renders
-in tools/brand/png/ are the authoritative rasters. This script only PACKS
-them (and derives the red/green/blue window-icon variants by hue-remapping
-the saturated orange folder pixels) — it does not draw anything.
+The master artwork (newt-commander-icon.svg, revised in feature 034: the
+orange folder with documents alone on a transparent background — the 033
+navy tile is gone) uses SVG filter effects that cannot be reproduced
+procedurally, so the committed PNG renders in tools/brand/png/ are the
+authoritative rasters. This script only PACKS them (and derives the
+red/green/blue window-icon variants by hue-remapping the saturated orange
+folder pixels) — it does not draw anything.
 
 Usage (from anywhere; paths are resolved relative to this file):
 

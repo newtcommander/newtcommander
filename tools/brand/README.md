@@ -1,9 +1,10 @@
 # Newt Commander Brand Assets
 
-Source of truth for the Newt Commander visual identity — the **folder-tile
-icon** (feature 033: orange folder with documents on a dark navy rounded
-tile) plus the wordmark/accent elements established by feature 032 — and the
-packer that turns it into the checked-in runtime assets.
+Source of truth for the Newt Commander visual identity — the **folder icon**
+(feature 034: orange folder with peeking documents alone on a transparent
+background; the 033 dark navy tile was dropped in this revision) plus the
+wordmark/accent elements established by feature 032 — and the packer that
+turns it into the checked-in runtime assets.
 
 ## Files
 
@@ -49,8 +50,8 @@ lightness/saturation/alpha — papers and the cream pill stay neutral.
 over. It must stay inside what `src/common/dep/nanosvg` actually renders:
 
 - **No `filter`/`feDropShadow`, no `clip-path`/`mask`** (unsupported; the
-  master's soft shadow is deliberately dropped, its clipped tile fill is
-  rebuilt from plain rounded rects).
+  master's soft drop shadow is deliberately dropped — since feature 034 the
+  design has no tile background, so nothing else needs rebuilding).
 - **`width`/`height` attributes MUST equal the viewBox size** — a mismatch
   makes nanosvg scale shapes but not gradient transforms (gradients then
   sample wrong; this bug made the 032 tile render its plate gradients flat).
@@ -61,10 +62,10 @@ over. It must stay inside what `src/common/dep/nanosvg` actually renders:
 
 ## Palette (icon)
 
-Tile edge `#02060D` · tile radial `#1B3054→#070E1A` · sheen white 6 % ·
-folder `#FFB35C→#F97316→#EA6A0B` (back pocket `#D96A15→#B85306`, inner
-shade to `#8A3E04` 45 %) · papers `#EAF2FB` / `#FDFEFF` · text lines
-`#93C5FD` · cream pill `#FFD9AE`, dot `#FFC98F`.
+Transparent background (no tile since feature 034) · folder
+`#FFB35C→#F97316→#EA6A0B` (back pocket `#D96A15→#B85306`, inner shade to
+`#8A3E04` 45 %, gloss white 50→0 %) · papers `#EAF2FB` / `#FDFEFF` · text
+lines `#93C5FD` · cream pill `#FFD9AE`, dot `#FFC98F`.
 
 Wordmark colors (GDI-drawn, no font shipped, unchanged since 032): dark bg
 `Newt #EAF2FB` + `Commander #F97316`, tagline `#8FA6C4`; light bg

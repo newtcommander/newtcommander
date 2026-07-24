@@ -1,21 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
-    <radialGradient id="nc-bg" gradientUnits="userSpaceOnUse" cx="128" cy="64" r="256"><stop offset="0" stop-color="#1B3054"></stop><stop offset="1" stop-color="#070E1A"></stop></radialGradient>
     <linearGradient id="nc-fold" gradientUnits="userSpaceOnUse" x1="0" y1="104" x2="0" y2="192"><stop offset="0" stop-color="#FFB35C"></stop><stop offset="0.55" stop-color="#F97316"></stop><stop offset="1" stop-color="#EA6A0B"></stop></linearGradient>
     <linearGradient id="nc-back" gradientUnits="userSpaceOnUse" x1="0" y1="74" x2="0" y2="124"><stop offset="0" stop-color="#D96A15"></stop><stop offset="1" stop-color="#B85306"></stop></linearGradient>
     <linearGradient id="nc-shade" gradientUnits="userSpaceOnUse" x1="0" y1="104" x2="0" y2="192"><stop offset="0.55" stop-color="#B85306" stop-opacity="0"></stop><stop offset="1" stop-color="#8A3E04" stop-opacity="0.45"></stop></linearGradient>
     <linearGradient id="nc-gloss" gradientUnits="userSpaceOnUse" x1="0" y1="104" x2="0" y2="148"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
   </defs>
-  <!-- nanosvg-safe variant of newt-commander-icon.svg (no filter/clipPath).
-       Constraints of the bundled nanosvg (src/common/dep/nanosvg): width/height
-       MUST equal the viewBox size (a mismatch scales shapes but not gradient
-       transforms) and gradients use userSpaceOnUse coordinates. Tile = dark
-       edge rect + inset radial disc (6 px bottom lip keeps the extruded look
-       the master gets from its clipped, up-shifted fill). -->
-  <rect x="0" y="0" width="256" height="256" rx="56" fill="#02060D"></rect>
-  <rect x="2" y="2" width="252" height="248" rx="54" fill="url(#nc-bg)"></rect>
-  <rect x="2" y="2" width="252" height="123" rx="54" fill="#FFFFFF" opacity="0.06"></rect>
-  <g transform="translate(128 132) scale(1.16) translate(-128 -132)">
+  <!-- nanosvg-safe variant of newt-commander-icon.svg (feature 034: tile-less
+       folder, transparent background; the master's feDropShadow is dropped —
+       nanosvg has no filter support). Constraints of the bundled nanosvg
+       (src/common/dep/nanosvg): width/height MUST equal the viewBox size
+       (a mismatch scales shapes but not gradient transforms) and gradients
+       use userSpaceOnUse coordinates in the folder's local space. -->
+  <g transform="translate(128 133) scale(1.28 1.38) translate(-128 -133)">
     <rect x="56" y="74" width="92" height="50" rx="16" fill="url(#nc-back)"></rect>
     <rect x="56" y="74" width="92" height="22" rx="11" fill="#FFFFFF" opacity="0.22"></rect>
     <g transform="rotate(4 128 110)"><rect x="84" y="72" width="96" height="60" rx="9" fill="#EAF2FB"></rect></g>
