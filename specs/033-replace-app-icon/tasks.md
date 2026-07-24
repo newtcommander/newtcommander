@@ -21,9 +21,9 @@ independently verifiable increment.
 **Purpose**: `temp/` is gitignored — the approved artwork must live in
 `tools/brand/` before anything can consume it.
 
-- [ ] T001 [P] Replace master icon: copy `temp/icon/newt-commander-icon.svg`
+- [X] T001 [P] Replace master icon: copy `temp/icon/newt-commander-icon.svg`
       over `tools/brand/newt-commander-icon.svg`
-- [ ] T002 [P] Adopt raster set: create `tools/brand/png/` and copy all nine
+- [X] T002 [P] Adopt raster set: create `tools/brand/png/` and copy all nine
       `temp/icon/png/newt-commander-icon-{16,24,32,48,64,128,256,512,1024}.png`
       into it; sanity-check each is square RGBA at its nominal size
 
@@ -35,18 +35,18 @@ independently verifiable increment.
 procedurally; it must become a PNG→ICO packer before any ICO can be
 regenerated (research R1). US2 does not depend on this phase.
 
-- [ ] T003 Rewrite `tools/brand/gen_icons.py`: delete the procedural
+- [X] T003 Rewrite `tools/brand/gen_icons.py`: delete the procedural
       "Split Disc" renderer (draw_icon/variants/palette constants), add
       loading of `tools/brand/png/newt-commander-icon-<size>.png` sources,
       keep the `write_ico` packer convention (32-bpp; BMP entries ≤ 64 px,
       PNG entries ≥ 128 px); paths default relative to the script so the
       documented invocation is `python tools\brand\gen_icons.py`
-- [ ] T004 Add hue-remap recolor helper to `tools/brand/gen_icons.py`:
+- [X] T004 Add hue-remap recolor helper to `tools/brand/gen_icons.py`:
       pixels with HSV hue in the orange band (≈15°–50°) AND saturation
       above ≈0.45 get hue replaced by a target (red/green/blue), keeping
       S/V and alpha (research R3; exact band/threshold tuned on the
       16/32 px sources)
-- [ ] T005 Add `--verify` mode to `tools/brand/gen_icons.py`: structurally
+- [X] T005 Add `--verify` mode to `tools/brand/gen_icons.py`: structurally
       check every emitted ICO (entry count, exact dimensions, 32-bpp,
       BMP/PNG encoding rule) against the data-model table and exit non-zero
       on mismatch
@@ -63,10 +63,10 @@ window caption, and Alt+Tab.
 **Independent Test**: build, then check the exe icon in Explorer at all
 four view sizes and the running app's taskbar/caption/Alt+Tab icons.
 
-- [ ] T006 [US1] Emit `src/res/salamand.ico` (16,24,32,48,64,128,256 px,
+- [X] T006 [US1] Emit `src/res/salamand.ico` (16,24,32,48,64,128,256 px,
       from the raster set verbatim) in `tools/brand/gen_icons.py` main()
       and regenerate the file
-- [ ] T007 [US1] Verify US1: `python tools\brand\gen_icons.py --verify`
+- [X] T007 [US1] Verify US1: `python tools\brand\gen_icons.py --verify`
       passes for salamand.ico; `build.cmd` succeeds; visually confirm the
       new icon on `newtcommander.exe` in Explorer, taskbar, window caption,
       and Alt+Tab (fresh output path — icon cache note in quickstart.md)
@@ -85,14 +85,14 @@ confirmed `logo.cpp` scales the square tile by aspect).
 light and dark theme, compare the tile against
 `tools/brand/png/newt-commander-icon-256.png`.
 
-- [ ] T008 [US2] Hand-author nanosvg-safe `tools/brand/logo.svg` from the
+- [X] T008 [US2] Hand-author nanosvg-safe `tools/brand/logo.svg` from the
       new master: no `filter`/`feDropShadow`, no `clip-path`/`mask`; tile
       built from plain rounded rects (edge + inset radial-gradient fill);
       keep linear/radial gradients and the `rotate(±4°)` document
       transforms; element whitelist per data-model.md validation rules
-- [ ] T009 [US2] Copy `tools/brand/logo.svg` over `src/res/logo.svg`
+- [X] T009 [US2] Copy `tools/brand/logo.svg` over `src/res/logo.svg`
       (`IDB_LOGO_HAND` RCDATA — file name and ID unchanged)
-- [ ] T010 [US2] Verify US2: `build.cmd`; capture splash screen and Help →
+- [X] T010 [US2] Verify US2: `build.cmd`; capture splash screen and Help →
       About screenshots in light and dark themes (headless `-l`/`-r` +
       `WM_COMMAND` smoke); side-by-side compare with the 256 px master
       render (soft shadow absence is acceptable per spec edge case)
@@ -109,12 +109,12 @@ now as recolored variants of the new design.
 **Independent Test**: cycle all four options in Configuration → Main Window
 and check window + taskbar icon after each.
 
-- [ ] T011 [US3] Emit `src/res/sal_r.ico`, `sal_g.ico`, `sal_b.ico`
+- [X] T011 [US3] Emit `src/res/sal_r.ico`, `sal_g.ico`, `sal_b.ico`
       (16+32 px) in `tools/brand/gen_icons.py` main() using the T004
       hue-remap (red ≈0°, green ≈130°, blue ≈215°); regenerate the three
       files and tune band/threshold until the folder recolors cleanly while
       papers/cream pill stay neutral at both sizes
-- [ ] T012 [US3] Verify US3: `--verify` passes for sal_r/g/b.ico; in the
+- [X] T012 [US3] Verify US3: `--verify` passes for sal_r/g/b.ico; in the
       running app cycle Configuration → Main Window icon options and
       confirm all four variants apply and are distinguishable at taskbar
       size (screenshot)
@@ -131,11 +131,11 @@ original Open Salamander icon.
 **Independent Test**: inspect the built `salmon.exe`, `setup.exe`, and
 `remove.exe` icons in Explorer.
 
-- [ ] T013 [US4] Emit `src/salmon/res/salmon.ico`,
+- [X] T013 [US4] Emit `src/salmon/res/salmon.ico`,
       `src/setup/res/setup.ico`, and `src/setup/remove/icon1.ico` (full
       16–256 px set each, research R4) in `tools/brand/gen_icons.py`
       main() and regenerate the three files
-- [ ] T014 [US4] Verify US4: `--verify` passes for all three; build the
+- [X] T014 [US4] Verify US4: `--verify` passes for all three; build the
       salmon and setup projects and confirm the new icon on their
       executables in Explorer
 
@@ -145,11 +145,11 @@ original Open Salamander icon.
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T015 [P] Update `tools/brand/README.md`: new artwork description,
+- [X] T015 [P] Update `tools/brand/README.md`: new artwork description,
       PNG source-of-truth pipeline (packer, not rasterizer), per-file size
       table, hue-remap variants, new palette; note that `logo.svg` is
       hand-maintained and `--verify` exists
-- [ ] T016 Full validation sweep per quickstart.md: regenerate everything
+- [X] T016 Full validation sweep per quickstart.md: regenerate everything
       idempotently (SC-005), `--verify` all six ICOs, `build.cmd` clean,
       SC-001..SC-006 evidence (screenshots + checks) recorded in
       `specs/033-replace-app-icon/validation-results.md`; audit that no
