@@ -81,8 +81,8 @@
 
 **Independent Test**: Perform a swap end-to-end using only the README.
 
-- [ ] T018 [US4] Rewrite `tools/brand/README.md` as the asset guide per `contracts/asset-layout.md`: replaceable-file table (path, where it appears, format/size), the 3-step swap procedure, validation/error behavior, explicit non-replaceable list (wordmark, gradient strips); drop all obsolete nanosvg/hue-remap/png/-set content
-- [ ] T019 [US4] Guide dry run (quickstart §4): following README only — swap `icon-master.png` + `about.png` with test images (overrides deleted), regenerate, rebuild, confirm new artwork in all six identity surfaces + About + splash; break-test missing `icon-master.png` → `error:` naming the file, exit ≠ 0; restore original assets, regenerate, rebuild, re-verify
+- [X] T018 [US4] Rewrite `tools/brand/README.md` as the asset guide per `contracts/asset-layout.md`: replaceable-file table (path, where it appears, format/size), the 3-step swap procedure, validation/error behavior, explicit non-replaceable list (wordmark, gradient strips); drop all obsolete nanosvg/hue-remap/png/-set content
+- [X] T019 [US4] Guide dry run (quickstart §4): following README only — swap `icon-master.png` + `about.png` with test images (overrides deleted), regenerate, rebuild, confirm new artwork in all six identity surfaces + About + splash; break-test missing `icon-master.png` → `error:` naming the file, exit ≠ 0; restore original assets, regenerate, rebuild, re-verify
 
 **Checkpoint**: "No AI needed" is demonstrated, not assumed.
 
@@ -90,8 +90,8 @@
 
 ## Phase 7: Polish & Cross-Cutting
 
-- [ ] T020 [P] Stale-reference sweep: repo-wide grep for `logo.svg`, `IDB_LOGO_HAND`, `sal_r`, `sal_g`, `sal_b`, `IDI_SALAMANDER_RED|GREEN|BLUE`, `IDC_TITLEBAR_ICON_INDEX`, `IDS_SALAMANDERICON_(RED|GREEN|BLUE)`, `ORANGE_BAND`, `newt-commander-icon-` must return no live hits (specs/ history excluded); update the CLAUDE.md "Brand assets" bullet to the new layout; clang-format touched C++ sources
-- [ ] T021 Write `specs/035-manual-brand-assets/validation-results.md` mapping SC-001…SC-006 to the evidence gathered in T004/T009/T013/T017/T019 (repo convention from features 033/034)
+- [X] T020 [P] Stale-reference sweep: repo-wide grep for `logo.svg`, `IDB_LOGO_HAND`, `sal_r`, `sal_g`, `sal_b`, `IDI_SALAMANDER_RED|GREEN|BLUE`, `IDC_TITLEBAR_ICON_INDEX`, `IDS_SALAMANDERICON_(RED|GREEN|BLUE)`, `ORANGE_BAND`, `newt-commander-icon-` must return no live hits (specs/ history excluded); update the CLAUDE.md "Brand assets" bullet to the new layout; clang-format touched C++ sources
+- [X] T021 Write `specs/035-manual-brand-assets/validation-results.md` mapping SC-001…SC-006 to the evidence gathered in T004/T009/T013/T017/T019 (repo convention from features 033/034)
 
 ---
 

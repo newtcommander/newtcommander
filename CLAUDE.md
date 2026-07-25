@@ -19,8 +19,11 @@ WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 - **IMPORTANT**: source files, functions, classes, project/solution names
   (`salamand.sln`, `salamand.vcxproj`, `SALAMANDER_*` constants) deliberately
   keep their upstream names — rename only user/OS-visible identity
-- **Brand assets**: `tools/brand/` (icon SVGs + `gen_icons.py` regenerates
-  `src/res/*.ico` in place)
+- **Brand assets**: `tools/brand/` — hand-swappable sources (feature 035):
+  `icon-master.png` (+ optional `icon-<N>.png` overrides) → all shipped
+  `.ico`; `about.png` → `src/res/logo.png` (About + splash artwork);
+  `python tools/brand/gen_icons.py` regenerates everything, see
+  `tools/brand/README.md`
 
 ## Technology
 

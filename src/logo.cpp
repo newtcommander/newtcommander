@@ -23,11 +23,11 @@
 
 // Newt Commander brand palette (feature 032, see tools/brand/README.md);
 // the wordmark is drawn with GDI so no font has to be installed/shipped
-#define NC_COLOR_NAVY RGB(0x0A, 0x14, 0x24)          // brand navy background
-#define NC_COLOR_TEXT_DARKBG RGB(0xEA, 0xF2, 0xFB)   // "Newt" + regular text on dark background
-#define NC_COLOR_ORANGE_DARKBG RGB(0xF9, 0x73, 0x16) // "Commander" on dark background
-#define NC_COLOR_MUTED_DARKBG RGB(0x8F, 0xA6, 0xC4)  // version/tagline on dark background
-#define NC_COLOR_TEXT_LIGHTBG RGB(0x0A, 0x14, 0x24)  // "Newt" + regular text on light background
+#define NC_COLOR_NAVY RGB(0x0A, 0x14, 0x24)           // brand navy background
+#define NC_COLOR_TEXT_DARKBG RGB(0xEA, 0xF2, 0xFB)    // "Newt" + regular text on dark background
+#define NC_COLOR_ORANGE_DARKBG RGB(0xF9, 0x73, 0x16)  // "Commander" on dark background
+#define NC_COLOR_MUTED_DARKBG RGB(0x8F, 0xA6, 0xC4)   // version/tagline on dark background
+#define NC_COLOR_TEXT_LIGHTBG RGB(0x0A, 0x14, 0x24)   // "Newt" + regular text on light background
 #define NC_COLOR_ORANGE_LIGHTBG RGB(0xEA, 0x6A, 0x0B) // "Commander" on light background
 #define NC_COLOR_MUTED_LIGHTBG RGB(0x5D, 0x82, 0xB8)  // version/tagline on light background
 
