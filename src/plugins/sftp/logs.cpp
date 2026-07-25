@@ -211,6 +211,9 @@ static void LogsShowSelected(HWND hwnd)
 
 static INT_PTR CALLBACK LogsProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     switch (msg)
     {
     case WM_INITDIALOG:

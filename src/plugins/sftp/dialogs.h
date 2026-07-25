@@ -16,6 +16,12 @@ void SetDlgItemTextU8(HWND hwnd, int id, const char* text);
 int GetDlgItemTextU8(HWND hwnd, int id, char* buf, int bufSize);
 int ListBoxAddStringU8(HWND lb, const char* text);
 
+// Dark-theme touchpoints shared by every raw dialog proc in this plugin
+// (feature 036): call first in the proc; WM_INITDIALOG themes the dialog and
+// returns FALSE (continue init), WM_CTLCOLOR* returns TRUE with '*result' set
+// while the Dark theme is active.
+BOOL SFTPThemeDlgMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, INT_PTR* result);
+
 // Connect / bookmarks dialog. Fills 'result' with the chosen connection.
 // Returns TRUE if the user pressed Connect, FALSE on Cancel. When
 // 'organizeMode' is TRUE, the dialog only manages bookmarks (no connect).

@@ -70,6 +70,25 @@ int ListBoxAddStringU8(HWND lb, const char* text)
 }
 
 // ---------------------------------------------------------------------------
+// dark-theme touchpoints (feature 036)
+// ---------------------------------------------------------------------------
+
+// Shared theme handling for all raw dialog procs in this plugin: themes the
+// dialog on WM_INITDIALOG (and lets the proc continue with its own init) and
+// colors the WM_CTLCOLOR* family while the Dark theme is active. Returns TRUE
+// when the message is fully answered by the theme layer ('*result' holds the
+// dialog-proc return value).
+BOOL SFTPThemeDlgMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, INT_PTR* result)
+{
+    if (msg == WM_INITDIALOG)
+    {
+        SalamanderGeneral->ThemeApplyToDialog(hwnd);
+        return FALSE; // theming done, the dialog continues its own init
+    }
+    return SalamanderGeneral->ThemeHandleCtlColor(msg, wParam, lParam, result);
+}
+
+// ---------------------------------------------------------------------------
 // password / passphrase prompt
 // ---------------------------------------------------------------------------
 
@@ -82,6 +101,10 @@ struct CPasswordPromptData
 
 static INT_PTR CALLBACK PasswordPromptProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CPasswordPromptData* d = (CPasswordPromptData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -135,6 +158,10 @@ struct CHostKeyData
 
 static INT_PTR CALLBACK HostKeyProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CHostKeyData* d = (CHostKeyData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -221,6 +248,10 @@ struct CRenameData
 
 static INT_PTR CALLBACK RenameProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CRenameData* d = (CRenameData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -269,6 +300,10 @@ struct CSymlinkData
 
 static INT_PTR CALLBACK SymlinkProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CSymlinkData* d = (CSymlinkData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -369,6 +404,10 @@ static unsigned long ChmodControlsToMode(HWND hwnd)
 
 static INT_PTR CALLBACK ChmodProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CChmodData* d = (CChmodData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -497,6 +536,10 @@ static void OwnerGroupSyncEnable(HWND hwnd)
 
 static INT_PTR CALLBACK OwnerGroupProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     COwnerGroupData* d = (COwnerGroupData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
@@ -577,6 +620,10 @@ BOOL ShowOwnerGroupDialog(HWND parent, const char* targetLabel, BOOL hasDir,
 
 static INT_PTR CALLBACK ConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     switch (msg)
     {
     case WM_INITDIALOG:
@@ -928,6 +975,10 @@ static void BrowseForKey(HWND hwnd)
 
 static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (SFTPThemeDlgMsg(hwnd, msg, wParam, lParam, &themeResult))
+        return themeResult;
     CConnectData* d = (CConnectData*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg)
     {
