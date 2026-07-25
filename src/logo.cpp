@@ -16,6 +16,7 @@
 #include <ppl.h>
 
 #include "svg.h"
+#include "pngimage.h"
 #include "themes.h"
 
 #include "versinfo.rh2"
@@ -209,21 +210,21 @@ BOOL CSplashScreen::PrepareBitmap()
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
     CSVGSprite svgGrad;
-    CSVGSprite svgHand;
+    CPngImage pngLogo; // hand-swappable PNG artwork (feature 035, src/res/logo.png)
     concurrency::parallel_invoke(
         [&]
         { svgGrad.Load(IDB_LOGO_GRAD, Width, -1, SVGSTATE_ORIGINAL); },
         [&]
-        // the icon tile sits above the accent line so the texts below stay clear of it
-        { svgHand.Load(IDB_LOGO_HAND, -1, GradientY - 12, SVGSTATE_ORIGINAL); });
+        // the artwork sits above the accent line so the texts below stay clear of it
+        { pngLogo.Load(IDB_LOGO_IMAGE, -1, GradientY - 12); });
 
-    SIZE gradSize, handSize;
+    SIZE gradSize, logoSize;
     svgGrad.GetSize(&gradSize);
-    svgHand.GetSize(&handSize);
+    pngLogo.GetSize(&logoSize);
 
     // thin brand accent line (blue -> orange) instead of the old full gradient area
     svgGrad.AlphaBlend(hDC, 0, GradientY, gradSize.cx, max(2, gradSize.cy), SVGSTATE_ORIGINAL);
-    svgHand.AlphaBlend(hDC, Width - handSize.cx - 8, 6, handSize.cx, handSize.cy, SVGSTATE_ORIGINAL);
+    pngLogo.AlphaBlend(hDC, Width - logoSize.cx - 8, 6, logoSize.cx, logoSize.cy);
 
     // product wordmark drawn with GDI (no font dependency, see NCDrawWordmark)
     NCDrawWordmark(hDC, &OpenSalR, NC_COLOR_TEXT_DARKBG, NC_COLOR_ORANGE_DARKBG);
@@ -234,9 +235,16 @@ BOOL CSplashScreen::PrepareBitmap()
               VersionR.top,
               FALSE, NC_COLOR_MUTED_DARKBG);
 
-    PaintText(VERSINFO_COPYRIGHT,
+    // the copyright has two authorship parts; a single line does not fit the
+    // splash width, so each part gets its own line (feature 035)
+    PaintText(VERSINFO_COPYRIGHT1,
               CopyrightR.left,
               CopyrightR.top,
+              TRUE, NC_COLOR_TEXT_DARKBG);
+
+    PaintText(VERSINFO_COPYRIGHT2,
+              Copyright2R.left,
+              Copyright2R.top,
               TRUE, NC_COLOR_TEXT_DARKBG);
 
     // backup of the bitmap without text
@@ -295,6 +303,7 @@ CSplashScreen::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         GetDlgItemRectAndDestroy(HWindow, IDC_SPLASH_OPENSAL, &OpenSalR);
         GetDlgItemRectAndDestroy(HWindow, IDC_SPLASH_VERSION, &VersionR);
         GetDlgItemRectAndDestroy(HWindow, IDC_SPLASH_COPYRIGHT, &CopyrightR);
+        GetDlgItemRectAndDestroy(HWindow, IDC_SPLASH_COPYRIGHT2, &Copyright2R);
         GetDlgItemRectAndDestroy(HWindow, IDC_SPLASH_STATUS, &StatusR);
 
         GradientY = VersionR.bottom + 5;
@@ -437,20 +446,20 @@ AboutAndEvalDlgCreateBkgnd(HWND hWindow)
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
     CSVGSprite svgGrad;
-    CSVGSprite svgHand;
+    CPngImage pngLogo; // hand-swappable PNG artwork (feature 035, src/res/logo.png)
     concurrency::parallel_invoke(
         [&]
         { svgGrad.Load(IDB_ABOUT_GRAD, r.right - r.left, -1, SVGSTATE_ORIGINAL); },
         [&]
-        { svgHand.Load(IDB_LOGO_HAND, logoR.right - logoR.left, logoR.bottom - logoR.top, SVGSTATE_ORIGINAL); });
+        { pngLogo.Load(IDB_LOGO_IMAGE, logoR.right - logoR.left, logoR.bottom - logoR.top); });
 
-    SIZE gradSize, handSize;
+    SIZE gradSize, logoSize;
     svgGrad.GetSize(&gradSize);
-    svgHand.GetSize(&handSize);
+    pngLogo.GetSize(&logoSize);
 
     // thin brand accent line (blue -> orange) at the position of the old gradient area
     svgGrad.AlphaBlend(hDC, 0, gradR.top, gradSize.cx, max(2, gradSize.cy), SVGSTATE_ORIGINAL);
-    svgHand.AlphaBlend(hDC, r.right - r.left - handSize.cx, 0, handSize.cx, handSize.cy, SVGSTATE_ORIGINAL);
+    pngLogo.AlphaBlend(hDC, r.right - r.left - logoSize.cx, 0, logoSize.cx, logoSize.cy);
 
     // product wordmark drawn with GDI (no font dependency)
     NCDrawWordmark(hDC, &opensalR,

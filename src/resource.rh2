@@ -355,7 +355,7 @@
 //#define IDB_WORKER         1001        // worker bitmap
 #define IDB_THROBBER       1001
 #define IDB_MENUITEMS      1003
-#define IDB_LOGO_HAND      1004
+#define IDB_LOGO_IMAGE     1004
 #define IDB_LOGO_GRAD      1005
 #define IDB_LOGO_TEXT      1006
 

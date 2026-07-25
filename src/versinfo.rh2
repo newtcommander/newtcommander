@@ -17,6 +17,11 @@
 #define VERSINFO_VERSION     VERSINFO_SALAMANDER_VERSION
 
 #define VERSINFO_COPYRIGHT   "Copyright © 1997-2026 Open Salamander Authors, © 2026 Newt Commander Authors"
+// display split for the splash screen (feature 035); invariant:
+// VERSINFO_COPYRIGHT1 + ", " + VERSINFO_COPYRIGHT2 == VERSINFO_COPYRIGHT
+// (the copyright-year rule updates all three defines together)
+#define VERSINFO_COPYRIGHT1  "Copyright © 1997-2026 Open Salamander Authors"
+#define VERSINFO_COPYRIGHT2  "© 2026 Newt Commander Authors"
 #define VERSINFO_COMPANY     "Newt Commander Project"
 
 #define VERSINFO_DESCRIPTION "Newt Commander, File Manager"

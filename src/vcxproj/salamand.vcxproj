@@ -425,6 +425,8 @@
     </ClCompile>
     <ClCompile Include="..\keyboard.cpp">
     </ClCompile>
+    <ClCompile Include="..\pngimage.cpp">
+    </ClCompile>
     <ClCompile Include="..\logo.cpp">
     </ClCompile>
     <ClCompile Include="..\mainwnd1.cpp">
@@ -856,6 +858,8 @@
     <ClInclude Include="..\sort.h">
     </ClInclude>
     <ClInclude Include="..\stswnd.h">
+    </ClInclude>
+    <ClInclude Include="..\pngimage.h">
     </ClInclude>
     <ClInclude Include="..\svg.h">
     </ClInclude>

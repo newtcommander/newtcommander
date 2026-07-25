@@ -51,10 +51,10 @@
 
 **Independent Test**: Quickstart §3 About/splash checks + §4 artwork swap dry run.
 
-- [ ] T010 [P] [US2] Create `src/pngimage.h` + `src/pngimage.cpp`: `CPngImage` with `Load(int resID, int maxWidth, int maxHeight)` (WIC: resource memory stream → decode → `32bppPBGRA` convert → Fant-scaler to aspect-fit target → top-down premultiplied DIB), `GetSize()`, `AlphaBlend(HDC, x, y, w, h)`; add both files to `src/vcxproj/salamand.vcxproj`(+`.filters`) and ensure `windowscodecs.lib` is linked
-- [ ] T011 [P] [US2] Resource swap: in `src/resource.rh2` replace `IDB_LOGO_HAND` with `IDB_LOGO_IMAGE`; in `src/salamand.rc2` replace the `logo.svg` RCDATA line with `IDB_LOGO_IMAGE RCDATA "res\\logo.png"`; `git rm src/res/logo.svg`; register `src/res/logo.png` in `salamand.vcxproj`(+`.filters`) resource items
-- [ ] T012 [US2] Rework `src/logo.cpp`: splash `PrepareBitmap()` and `AboutAndEvalDlgCreateBkgnd()` load `CPngImage` (`IDB_LOGO_IMAGE`) instead of `svgHand`/`IDB_LOGO_HAND`, preserving current placement rects and aspect-fit; gradient strips (`IDB_LOGO_GRAD`/`IDB_ABOUT_GRAD`) stay SVG
-- [ ] T013 [US2] Build and run-verify: About artwork (light + dark theme) and splash artwork render undistorted from PNG; extreme-aspect test image scales without overlapping texts (edge case)
+- [X] T010 [P] [US2] Create `src/pngimage.h` + `src/pngimage.cpp`: `CPngImage` with `Load(int resID, int maxWidth, int maxHeight)` (WIC: resource memory stream → decode → `32bppPBGRA` convert → Fant-scaler to aspect-fit target → top-down premultiplied DIB), `GetSize()`, `AlphaBlend(HDC, x, y, w, h)`; add both files to `src/vcxproj/salamand.vcxproj`(+`.filters`) and ensure `windowscodecs.lib` is linked
+- [X] T011 [P] [US2] Resource swap: in `src/resource.rh2` replace `IDB_LOGO_HAND` with `IDB_LOGO_IMAGE`; in `src/salamand.rc2` replace the `logo.svg` RCDATA line with `IDB_LOGO_IMAGE RCDATA "res\\logo.png"`; `git rm src/res/logo.svg`; register `src/res/logo.png` in `salamand.vcxproj`(+`.filters`) resource items
+- [X] T012 [US2] Rework `src/logo.cpp`: splash `PrepareBitmap()` and `AboutAndEvalDlgCreateBkgnd()` load `CPngImage` (`IDB_LOGO_IMAGE`) instead of `svgHand`/`IDB_LOGO_HAND`, preserving current placement rects and aspect-fit; gradient strips (`IDB_LOGO_GRAD`/`IDB_ABOUT_GRAD`) stay SVG
+- [X] T013 [US2] Build and run-verify: About artwork (light + dark theme) and splash artwork render undistorted from PNG; extreme-aspect test image scales without overlapping texts (edge case)
 
 **Checkpoint**: Artwork swap is a one-file operation with zero renderer knowledge.
 
@@ -66,10 +66,10 @@
 
 **Independent Test**: Quickstart §3 splash checks + exe file-properties check.
 
-- [ ] T014 [P] [US3] Add `VERSINFO_COPYRIGHT1` and `VERSINFO_COPYRIGHT2` to `src/versinfo.rh2` with a comment stating the invariant `COPYRIGHT1 + ", " + COPYRIGHT2 == VERSINFO_COPYRIGHT` (year rule updates all three together); leave `VERSINFO_COPYRIGHT` unchanged
-- [ ] T015 [P] [US3] `src/salamand.rc` `IDD_SPLASH`: keep copyright line 1 at (8,73), add `LTEXT "",IDC_SPLASH_COPYRIGHT2,8,83,237,8`, move `IDC_SPLASH_STATUS` to (8,93), grow dialog height 94 → 104; define `IDC_SPLASH_COPYRIGHT2` in `src/salamand.rh`
-- [ ] T016 [US3] `src/logo.cpp` `CSplashScreen`: add `Copyright2R` member (mainwnd.h/cfgdlg.h — wherever `CopyrightR` is declared), fetch it via `GetDlgItemRectAndDestroy`, paint `VERSINFO_COPYRIGHT1` and `VERSINFO_COPYRIGHT2` bold on the two lines instead of the single `VERSINFO_COPYRIGHT`
-- [ ] T017 [US3] Build and run-verify: both splash lines fully visible, status text below, no overlap with artwork/gradient; `newtcommander.exe` Properties → Details → Copyright still the full single-line string
+- [X] T014 [P] [US3] Add `VERSINFO_COPYRIGHT1` and `VERSINFO_COPYRIGHT2` to `src/versinfo.rh2` with a comment stating the invariant `COPYRIGHT1 + ", " + COPYRIGHT2 == VERSINFO_COPYRIGHT` (year rule updates all three together); leave `VERSINFO_COPYRIGHT` unchanged
+- [X] T015 [P] [US3] `src/salamand.rc` `IDD_SPLASH`: keep copyright line 1 at (8,73), add `LTEXT "",IDC_SPLASH_COPYRIGHT2,8,83,237,8`, move `IDC_SPLASH_STATUS` to (8,93), grow dialog height 94 → 104; define `IDC_SPLASH_COPYRIGHT2` in `src/salamand.rh`
+- [X] T016 [US3] `src/logo.cpp` `CSplashScreen`: add `Copyright2R` member (mainwnd.h/cfgdlg.h — wherever `CopyrightR` is declared), fetch it via `GetDlgItemRectAndDestroy`, paint `VERSINFO_COPYRIGHT1` and `VERSINFO_COPYRIGHT2` bold on the two lines instead of the single `VERSINFO_COPYRIGHT`
+- [X] T017 [US3] Build and run-verify: both splash lines fully visible, status text below, no overlap with artwork/gradient; `newtcommander.exe` Properties → Details → Copyright still the full single-line string
 
 **Checkpoint**: All three functional stories verifiable independently.
 

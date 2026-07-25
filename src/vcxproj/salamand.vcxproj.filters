@@ -165,6 +165,9 @@
     <ClCompile Include="..\logo.cpp">
       <Filter>cpp</Filter>
     </ClCompile>
+    <ClCompile Include="..\pngimage.cpp">
+      <Filter>cpp</Filter>
+    </ClCompile>
     <ClCompile Include="..\mainwnd1.cpp">
       <Filter>cpp</Filter>
     </ClCompile>
@@ -777,6 +780,9 @@
       <Filter>crypt</Filter>
     </ClInclude>
     <ClInclude Include="..\common\heap.h">
+      <Filter>h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\pngimage.h">
       <Filter>h</Filter>
     </ClInclude>
     <ClInclude Include="..\svg.h">

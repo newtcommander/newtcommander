@@ -837,6 +837,7 @@ protected:
     RECT OpenSalR;
     RECT VersionR;
     RECT CopyrightR;
+    RECT Copyright2R; // second copyright line (feature 035)
     RECT StatusR;
     int GradientY;
     int Width;
