@@ -13,7 +13,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Record SHA-256 baselines of the 4 shipped ICOs (`src/res/salamand.ico`, `src/salmon/res/salmon.ico`, `src/setup/res/setup.ico`, `src/setup/remove/icon1.ico`) into the scratchpad for the T004 bit-identity check; confirm `python -c "import PIL"` works on this machine
+- [X] T001 Record SHA-256 baselines of the 4 shipped ICOs (`src/res/salamand.ico`, `src/salmon/res/salmon.ico`, `src/setup/res/setup.ico`, `src/setup/remove/icon1.ico`) into the scratchpad for the T004 bit-identity check; confirm `python -c "import PIL"` works on this machine
 
 ---
 
@@ -21,9 +21,9 @@
 
 **Purpose**: The new source-asset layout and the reworked packer are prerequisites for both the icon story and the artwork story.
 
-- [ ] T002 Migrate `tools/brand/` source layout: `git mv` `png/newt-commander-icon-{16,24,32,48,64,128,256}.png` → `tools/brand/icon-<N>.png`, `png/newt-commander-icon-1024.png` → `tools/brand/icon-master.png`, `png/newt-commander-icon-512.png` → `tools/brand/about.png`; remove the emptied `png/` directory and delete `tools/brand/logo.svg`
-- [ ] T003 Rewrite `tools/brand/gen_icons.py` per `contracts/gen-icons-cli.md`: master+override input model with Lanczos downscale, 4 ICO targets only (drop `sal_r/g/b`, `recolor()`, `ORANGE_BAND`/`SAT_THRESHOLD`/`HUE_*`, `STATE_SIZES`), copy `about.png` → `src/res/logo.png`, input validation with file-naming error messages, `--verify` extended to check `logo.png`
-- [ ] T004 Run `python tools/brand/gen_icons.py` then `--verify`: the 4 ICOs must be bit-identical to the T001 baselines (same source pixels, same encoder), `src/res/logo.png` must exist and be PNG-signed
+- [X] T002 Migrate `tools/brand/` source layout: `git mv` `png/newt-commander-icon-{16,24,32,48,64,128,256}.png` → `tools/brand/icon-<N>.png`, `png/newt-commander-icon-1024.png` → `tools/brand/icon-master.png`, `png/newt-commander-icon-512.png` → `tools/brand/about.png`; remove the emptied `png/` directory and delete `tools/brand/logo.svg`
+- [X] T003 Rewrite `tools/brand/gen_icons.py` per `contracts/gen-icons-cli.md`: master+override input model with Lanczos downscale, 4 ICO targets only (drop `sal_r/g/b`, `recolor()`, `ORANGE_BAND`/`SAT_THRESHOLD`/`HUE_*`, `STATE_SIZES`), copy `about.png` → `src/res/logo.png`, input validation with file-naming error messages, `--verify` extended to check `logo.png`
+- [X] T004 Run `python tools/brand/gen_icons.py` then `--verify`: the 4 ICOs must be bit-identical to the T001 baselines (same source pixels, same encoder), `src/res/logo.png` must exist and be PNG-signed
 
 **Checkpoint**: New asset pipeline works and reproduces today's shipped icons exactly.
 

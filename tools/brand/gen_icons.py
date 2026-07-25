@@ -1,26 +1,29 @@
-"""Pack the Newt Commander folder icon rasters into the shipped .ico files.
+"""Regenerate the shipped Newt Commander brand assets from hand-swappable sources.
 
-The master artwork (newt-commander-icon.svg, revised in feature 034: the
-orange folder with documents alone on a transparent background — the 033
-navy tile is gone) uses SVG filter effects that cannot be reproduced
-procedurally, so the committed PNG renders in tools/brand/png/ are the
-authoritative rasters. This script only PACKS them (and derives the
-red/green/blue window-icon variants by hue-remapping the saturated orange
-folder pixels) — it does not draw anything.
+Feature 035: every graphic is replaceable by swapping a file here and
+re-running this script — no source-code or project-file edits.
+
+Inputs (all in tools/brand/):
+
+    icon-master.png   REQUIRED  square PNG, edge >= 256 px (1024 recommended);
+                                every icon size is derived from it (Lanczos)
+    icon-<N>.png      OPTIONAL  N in {16, 24, 32, 48, 64, 128, 256}; must be
+                                exactly NxN; overrides the master-derived
+                                rendering for that one size
+    about.png         REQUIRED  artwork drawn in the About dialog and on the
+                                splash screen (copied verbatim to
+                                src/res/logo.png; alpha supported; scaled to
+                                fit at draw time, aspect preserved)
 
 Usage (from anywhere; paths are resolved relative to this file):
 
-    python tools/brand/gen_icons.py            # regenerate all shipped ICOs
+    python tools/brand/gen_icons.py            # regenerate all shipped assets
     python tools/brand/gen_icons.py --verify   # structural check, no writes
 
 ICO packing convention (kept from feature 032): 32-bpp; BMP-encoded entries
 for sizes <= 64 px, PNG-encoded entries for sizes >= 128 px.
-
-src/res/logo.svg (About/splash tile, IDB_LOGO_HAND) is NOT generated here —
-it is a hand-maintained nanosvg-safe copy of tools/brand/logo.svg.
 """
 
-import colorsys
 import io
 import struct
 import sys
@@ -30,59 +33,73 @@ from PIL import Image
 
 BRAND_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BRAND_DIR.parent.parent
-PNG_DIR = BRAND_DIR / "png"
 
-# Hue-remap tuning (see specs/033-replace-app-icon/research.md R3): only
-# pixels inside the orange hue band AND above the saturation threshold are
-# recolored, so the pale cream pill/dot and the papers stay neutral.
-ORANGE_BAND = (15.0, 50.0)  # degrees
-SAT_THRESHOLD = 0.45
+MASTER = BRAND_DIR / "icon-master.png"
+ABOUT = BRAND_DIR / "about.png"
 
-# Target hues for the main-window icon color variants (degrees).
-HUE_RED = 0.0
-HUE_GREEN = 142.0
-HUE_BLUE = 213.0
+ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
+MASTER_MIN_EDGE = 256
 
-FULL_SIZES = (16, 24, 32, 48, 64, 128, 256)
-STATE_SIZES = (16, 32)
+# Shipped ICO outputs (repo-relative); all pack the full size set.
+ICO_TARGETS = (
+    "src/res/salamand.ico",
+    "src/salmon/res/salmon.ico",
+    "src/setup/res/setup.ico",
+    "src/setup/remove/icon1.ico",
+)
 
-# Shipped outputs: repo-relative path -> (sizes, hue-remap target or None).
-TARGETS = {
-    "src/res/salamand.ico": (FULL_SIZES, None),
-    "src/res/sal_r.ico": (STATE_SIZES, HUE_RED),
-    "src/res/sal_g.ico": (STATE_SIZES, HUE_GREEN),
-    "src/res/sal_b.ico": (STATE_SIZES, HUE_BLUE),
-    "src/salmon/res/salmon.ico": (FULL_SIZES, None),
-    "src/setup/res/setup.ico": (FULL_SIZES, None),
-    "src/setup/remove/icon1.ico": (FULL_SIZES, None),
-}
+LOGO_PNG = "src/res/logo.png"
+
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
-def load_src(size):
-    """Load the authoritative raster for one size."""
-    path = PNG_DIR / f"newt-commander-icon-{size}.png"
-    img = Image.open(path).convert("RGBA")
-    if img.size != (size, size):
-        raise SystemExit(f"error: {path} is {img.size}, expected {size}x{size}")
-    return img
+def fail(msg):
+    sys.exit(f"error: {msg}")
 
 
-def recolor(img, target_hue):
-    """Return a copy with saturated orange-band pixels remapped to target_hue."""
-    out = img.copy()
-    px = out.load()
-    w, h = out.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            hue, light, sat = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
-            deg = hue * 360.0
-            if ORANGE_BAND[0] <= deg <= ORANGE_BAND[1] and sat >= SAT_THRESHOLD:
-                nr, ng, nb = colorsys.hls_to_rgb(target_hue / 360.0, light, sat)
-                px[x, y] = (round(nr * 255), round(ng * 255), round(nb * 255), a)
-    return out
+def load_png(path):
+    """Open a PNG as RGBA or fail with a message naming the file."""
+    try:
+        img = Image.open(path)
+        if img.format != "PNG":
+            fail(f"{path} is {img.format}, expected PNG")
+        return img.convert("RGBA")
+    except FileNotFoundError:
+        fail(f"{path} is missing")
+    except Image.UnidentifiedImageError:
+        fail(f"{path} cannot be decoded as PNG")
+
+
+def load_sources():
+    """Validate ALL inputs up front; nothing is written if any input is bad."""
+    master = load_png(MASTER)
+    w, h = master.size
+    if w != h:
+        fail(f"{MASTER} is {w}x{h}, expected a square image")
+    if w < MASTER_MIN_EDGE:
+        fail(f"{MASTER} is {w}x{h}, expected edge >= {MASTER_MIN_EDGE} px")
+
+    overrides = {}
+    for size in ICON_SIZES:
+        path = BRAND_DIR / f"icon-{size}.png"
+        if not path.exists():
+            continue
+        img = load_png(path)
+        if img.size != (size, size):
+            fail(f"{path} is {img.size[0]}x{img.size[1]}, expected exactly {size}x{size}")
+        overrides[size] = img
+
+    if not ABOUT.exists():
+        fail(f"{ABOUT} is missing")
+    load_png(ABOUT)  # decodability check only; the file is copied verbatim
+
+    return master, overrides
+
+
+def frame_for(size, master, overrides):
+    if size in overrides:
+        return overrides[size]
+    return master.resize((size, size), Image.LANCZOS)
 
 
 def write_ico(path, frames):
@@ -95,7 +112,7 @@ def write_ico(path, frames):
             img.save(buf, "PNG")
             data = buf.getvalue()
         else:
-            bgra = img.convert("RGBA").tobytes("raw", "BGRA")
+            bgra = img.tobytes("raw", "BGRA")
             # rows bottom-up
             stride = w * 4
             pix = b"".join(bgra[(h - 1 - r) * stride:(h - r) * stride] for r in range(h))
@@ -119,28 +136,30 @@ def write_ico(path, frames):
 
 
 def generate():
-    for rel, (sizes, hue) in TARGETS.items():
-        frames = [load_src(s) for s in sizes]
-        if hue is not None:
-            frames = [recolor(f, hue) for f in frames]
+    master, overrides = load_sources()
+    frames = [frame_for(s, master, overrides) for s in ICON_SIZES]
+    for rel in ICO_TARGETS:
         out = REPO_ROOT / rel
         out.parent.mkdir(parents=True, exist_ok=True)
         write_ico(out, frames)
-        print(f"OK: wrote {rel} ({', '.join(str(s) for s in sizes)} px)")
+        print(f"OK: wrote {rel} ({', '.join(str(s) for s in ICON_SIZES)} px)")
+    logo = REPO_ROOT / LOGO_PNG
+    logo.write_bytes(ABOUT.read_bytes())
+    print(f"OK: wrote {LOGO_PNG} (copy of {ABOUT.name})")
 
 
 def verify():
-    """Structural check of every shipped ICO against the TARGETS table."""
+    """Structural check of every shipped asset, no writes."""
     failures = 0
-    for rel, (sizes, _hue) in TARGETS.items():
+    for rel in ICO_TARGETS:
         path = REPO_ROOT / rel
         problems = []
         try:
             data = path.read_bytes()
             count = struct.unpack("<H", data[4:6])[0]
-            if count != len(sizes):
-                problems.append(f"{count} entries, expected {len(sizes)}")
-            for i, size in enumerate(sizes[:count]):
+            if count != len(ICON_SIZES):
+                problems.append(f"{count} entries, expected {len(ICON_SIZES)}")
+            for i, size in enumerate(ICON_SIZES[:count]):
                 off = 6 + 16 * i
                 w, h, _cc, _res, _planes, bpp, length, imgoff = struct.unpack(
                     "<BBBBHHII", data[off:off + 16])
@@ -151,7 +170,7 @@ def verify():
                     problems.append(f"entry {i}: {bpp} bpp, expected 32")
                 payload = data[imgoff:imgoff + length]
                 if size >= 128:
-                    if payload[:8] != b"\x89PNG\r\n\x1a\n":
+                    if payload[:8] != PNG_MAGIC:
                         problems.append(f"entry {i}: expected PNG encoding")
                 else:
                     bi_size, bi_w, bi_h, _p, bi_bpp = struct.unpack(
@@ -165,6 +184,16 @@ def verify():
         status = "OK" if not problems else "FAIL: " + "; ".join(problems)
         print(f"{rel}: {status}")
         failures += bool(problems)
+
+    logo = REPO_ROOT / LOGO_PNG
+    if not logo.exists():
+        print(f"{LOGO_PNG}: FAIL: missing file")
+        failures += 1
+    elif logo.read_bytes()[:8] != PNG_MAGIC:
+        print(f"{LOGO_PNG}: FAIL: not a PNG")
+        failures += 1
+    else:
+        print(f"{LOGO_PNG}: OK")
     return failures == 0
 
 
