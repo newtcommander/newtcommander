@@ -45,7 +45,8 @@ std::string WToUtf8(const std::wstring& w)
 void HexColor(std::string& o, COLORREF c)
 {
     char b[8];
-    sprintf_s(b, "#%02x%02x%02x", GetRValue(c), GetGValue(c), GetBValue(c));
+    // no GetGValue: its (WORD) cast trips /RTCc (SmallerTypeCheck) in debug
+    sprintf_s(b, "#%02x%02x%02x", (unsigned)(c & 0xFF), (unsigned)((c >> 8) & 0xFF), (unsigned)((c >> 16) & 0xFF));
     o += b;
 }
 

@@ -10,6 +10,7 @@
 #include "htmlgen.h"
 #include "webview.h"
 #include "viewer.h"
+#include "darkmenu.h"
 
 CWindowQueue ViewerWindowQueue("MDView Viewers");
 CThreadQueue ThreadQueue("MDView Viewers");
@@ -127,6 +128,7 @@ void ReleaseViewer()
         DestroyAcceleratorTable(ViewerAccels);
         ViewerAccels = NULL;
     }
+    DarkMenuReleaseFont();
     ReleaseWinLib(DLLInstance);
 }
 
@@ -372,6 +374,7 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
     Name = NULL;
     Web = NULL;
     HSchemeMenu = NULL;
+    BgBrush = NULL;
     Theme = MdThemeById(g_scheme);
     if (Theme == NULL)
         Theme = MdThemeDefault(false);
@@ -381,6 +384,7 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
     RemoteAllowed = false;
     RenderPending = false;
     SourceMode = false;
+    DarkMenus = false;
     EnumFilesSourceUID = enumFilesSourceUID;
     EnumFilesCurrentIndex = enumFilesCurrentIndex;
 }
@@ -392,6 +396,11 @@ CViewerWindow::~CViewerWindow()
         Web->Destroy();
         delete Web;
         Web = NULL;
+    }
+    if (BgBrush != NULL)
+    {
+        DeleteObject(BgBrush);
+        BgBrush = NULL;
     }
     free(Name);
 }
@@ -471,6 +480,8 @@ void CViewerWindow::BuildMenu()
     AppendMenuA(bar, MF_POPUP, (UINT_PTR)help, LoadStr(IDS_MENU_HELP));
 
     SetMenu(HWindow, bar);
+    if (DarkMenus)
+        DarkMenuApply(bar); // owner-drawn dark rendering (feature 037)
     RefreshSchemeChecks();
 }
 
@@ -514,6 +525,11 @@ void CViewerWindow::UpdateTitle()
 void CViewerWindow::RebuildHtml()
 {
     Theme = EffectiveTheme();
+    if (BgBrush != NULL)
+        DeleteObject(BgBrush);
+    BgBrush = CreateSolidBrush(Theme->docBg);
+    if (Web != NULL)
+        Web->SetBackgroundColor(Theme->docBg);
     std::string srcUtf8 = WToUtf8Str(DecodedText);
     std::wstring findTerm = FindText[0] ? std::wstring(FindText) : std::wstring();
     if (SourceMode)
@@ -791,6 +807,14 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
+        // first-paint background: the shared class brush is white; the brush
+        // must exist before ShowWindow so no white frame is ever visible
+        Theme = EffectiveTheme();
+        BgBrush = CreateSolidBrush(Theme->docBg);
+
+        // app-theme snapshot: menus follow the theme active at creation
+        // (reopen adopts, 036 convention)
+        DarkMenus = SalamanderGeneral->IsDarkThemeActive() != FALSE;
         BuildMenu();
         ViewerWindowQueue.Add(new CWindowQueueItem(HWindow));
 
@@ -821,12 +845,43 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         cb.OnZoomChanged = [this](int pct)
         { g_zoom = pct; UpdateTitle(); };
         Web->Create(HWindow, UserDataFolder(), cb);
+        Web->SetBackgroundColor(Theme->docBg); // applied when the controller is ready
         break;
     }
 
     case WM_APP + 1: // engine unavailable / failed -> fall back to text viewer
         EngineFailed();
         return 0;
+
+    case WM_ERASEBKGND:
+        if (BgBrush != NULL)
+        {
+            RECT r;
+            GetClientRect(HWindow, &r);
+            FillRect((HDC)wParam, &r, BgBrush);
+            return 1;
+        }
+        break;
+
+    case WM_MEASUREITEM:
+        if (DarkMenus && wParam == 0 && DarkMenuMeasureItem((MEASUREITEMSTRUCT*)lParam))
+            return TRUE;
+        break;
+
+    case WM_DRAWITEM:
+        if (DarkMenus && wParam == 0 && DarkMenuDrawItem((const DRAWITEMSTRUCT*)lParam))
+            return TRUE;
+        break;
+
+    case WM_MENUCHAR:
+        if (DarkMenus)
+        {
+            // owner-drawn items lose automatic '&' mnemonic matching
+            LRESULT r = DarkMenuHandleMenuChar((HMENU)lParam, wParam);
+            if (HIWORD(r) != MNC_IGNORE)
+                return r;
+        }
+        break;
 
     case WM_SIZE:
     {
@@ -918,6 +973,8 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             g_wndPlacement.length = sizeof(WINDOWPLACEMENT);
             GetWindowPlacement(HWindow, &g_wndPlacement);
         }
+        if (DarkMenus)
+            DarkMenuRelease(GetMenu(HWindow)); // free owner-draw paint data
         if (Web != NULL)
             Web->Destroy();
         ViewerWindowQueue.Remove(HWindow);

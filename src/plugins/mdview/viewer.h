@@ -20,6 +20,9 @@ public:
 
     HMENU HSchemeMenu; // the "Color Scheme" submenu (for radio/checkmark updates)
 
+    HBRUSH BgBrush; // scheme docBg fill for WM_ERASEBKGND - the shared winliblt
+                    // class brush is white and would flash before WebView2 paints
+
     const MdTheme* Theme;
     MdHtmlResult Html;        // current generated document (served by the host)
     std::wstring DecodedText; // decoded source (UTF-16); kept for re-render/find
@@ -31,6 +34,8 @@ public:
     bool RemoteAllowed;       // per-document remote-image consent (D2)
     bool RenderPending;       // set before the controller is ready
     bool SourceMode;          // "View Source" (Ctrl+U): raw text instead of rendered
+    bool DarkMenus;           // IsDarkThemeActive() snapshot at creation; owner-drawn
+                              // dark menu when set (036 convention: reopen adopts)
 
     int EnumFilesSourceUID;
     int EnumFilesCurrentIndex;

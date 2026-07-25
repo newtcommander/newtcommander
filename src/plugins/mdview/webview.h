@@ -37,6 +37,10 @@ public:
     void SetZoomPercent(int pct);
     void Focus(); // move keyboard focus into the rendered content
 
+    // Sets the surface color shown before/between navigations (kills the white
+    // flash on open). Callable before the controller exists; applied on ready.
+    void SetBackgroundColor(COLORREF color);
+
     // Sets the document served by the interceptor (does not navigate).
     void SetDocument(const MdHtmlResult* doc, const std::wstring& docDir);
     // (Re)loads the current document; optional same-document '#fragment'.

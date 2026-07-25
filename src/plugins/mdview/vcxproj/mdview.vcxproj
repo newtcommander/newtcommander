@@ -145,6 +145,8 @@
     </ClCompile>
     <ClCompile Include="..\viewer.cpp">
     </ClCompile>
+    <ClCompile Include="..\darkmenu.cpp">
+    </ClCompile>
     <ClCompile Include="..\precomp.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -184,6 +186,8 @@
     <ClInclude Include="..\webview.h">
     </ClInclude>
     <ClInclude Include="..\viewer.h">
+    </ClInclude>
+    <ClInclude Include="..\darkmenu.h">
     </ClInclude>
     <ClInclude Include="..\precomp.h">
     </ClInclude>

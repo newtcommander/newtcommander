@@ -143,6 +143,8 @@ struct CMdWebHostImpl
     EventRegistrationToken navTok{}, newWinTok{}, resTok{}, procTok{}, accelTok{}, zoomTok{}, navDoneTok{};
     bool ready = false;
     bool comInit = false;
+    COREWEBVIEW2_COLOR bgColor{}; // surface color before/between navigations
+    bool bgColorSet = false;
     const MdHtmlResult* doc = nullptr;
     std::wstring docDir;
     std::wstring userDataFolder;
@@ -210,6 +212,18 @@ static void ServeRequest(CMdWebHostImpl* impl, ICoreWebView2WebResourceRequested
     }
     // default-deny: nothing else is ever served (invariant 3 / FR-052)
     MakeAndSetResponse(impl, args, NULL, 0, 403, L"Forbidden", L"");
+}
+
+// Pushes the stored background color to the controller. Runtimes without
+// ICoreWebView2Controller2 keep the white default; the viewer's WM_ERASEBKGND
+// fill still prevents the host-window flash there.
+static void ApplyBackgroundColor(CMdWebHostImpl* impl)
+{
+    if (!impl->bgColorSet || !impl->controller)
+        return;
+    ComPtr<ICoreWebView2Controller2> ctl2;
+    if (SUCCEEDED(impl->controller.As(&ctl2)) && ctl2)
+        ctl2->put_DefaultBackgroundColor(impl->bgColor);
 }
 
 static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* ctl)
@@ -365,6 +379,7 @@ static void ApplyControllerReady(CMdWebHostImpl* impl, ICoreWebView2Controller* 
     GetClientRect(impl->parent, &rc);
     ctl->put_Bounds(rc);
     ctl->put_ZoomFactor(impl->pendingZoom / 100.0);
+    ApplyBackgroundColor(impl); // must precede visibility: no white blip
     ctl->put_IsVisible(TRUE);
     ctl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
 
@@ -454,6 +469,14 @@ void CMdWebHost::SetZoomPercent(int pct)
 {
     p->pendingZoom = pct;
     if (p->controller) p->controller->put_ZoomFactor(pct / 100.0);
+}
+
+void CMdWebHost::SetBackgroundColor(COLORREF color)
+{
+    // no GetGValue/GetBValue: their (WORD) cast trips /RTCc in debug builds
+    p->bgColor = {0xFF, (BYTE)(color & 0xFF), (BYTE)((color >> 8) & 0xFF), (BYTE)((color >> 16) & 0xFF)};
+    p->bgColorSet = true;
+    ApplyBackgroundColor(p);
 }
 
 void CMdWebHost::SetDocument(const MdHtmlResult* doc, const std::wstring& docDir)
