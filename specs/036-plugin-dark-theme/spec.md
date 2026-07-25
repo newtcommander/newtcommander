@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: User description: "Cilem upravy bude aplikace tmaveho stylu viz Options->Themes->Dark i na polozky, okna a pop-up okna pluginu tak, aby byl vzhled konzistentni. Nyni kdyz napr. pouzivam SFTP plugin v tmavem rezimu, tak se zobrazi svetly. Cela aplikace tedy i pluginy museji prebirat nastaveni barevneho tematu."
 
+## Clarifications
+
+### Session 2026-07-25
+
+- Q: What is the delivery scope of feature 036? → A: Everything in this one feature: the theme mechanism in the plugin interface plus dark styling of all 18 plugins in the default distribution, delivered incrementally via the prioritized user stories (SFTP first).
+- Q: What happens to plugin windows already open at the moment of a theme switch? → A: Reopen is sufficient — newly opened windows always match the new theme; already-open windows keep their previous consistent appearance and adopt the theme when closed and reopened. Immediate live repaint is not required.
+- Q: How does the Dark theme treat the content area of viewer plugins? → A: Text/document content (markdown, database tables, text listings) renders dark — light text on a dark background, like modern editors. Images and binary data are never recolored.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Plugin dialogs follow the Dark theme (Priority: P1)
@@ -68,10 +76,11 @@ is dark and readable.
    **Then** it renders in the dark appearance consistent with the core
    application.
 2. **Given** the Dark theme is active, **When** a plugin viewer window
-   displays its content (image, text, rendered document), **Then** the
-   window chrome and controls are dark while the content itself remains
-   faithful (e.g. a photo is not recolored; a document view may follow the
-   theme where it already supports it).
+   displays text or document content (markdown, database tables, text
+   listings), **Then** both the window chrome and the content area render
+   dark — light text on a dark background; **When** it displays an image
+   or binary data, **Then** that content is shown faithfully without
+   recoloring while the surrounding chrome stays dark.
 3. **Given** the Dark theme is active, **When** the user opens a plugin's
    configuration dialog (from the plugin's menu or Plugin Manager), **Then**
    it renders dark like the application's own configuration dialog.
@@ -82,9 +91,10 @@ is dark and readable.
 
 The user switches between Default and Dark themes while the application is
 running. Plugin windows opened after the switch always match the newly
-selected theme. Plugin windows that are already open adopt the new theme
-immediately where the surface supports it, and at the latest when the
-window is closed and reopened — the application never needs a restart.
+selected theme. Plugin windows that are already open keep their previous
+consistent appearance and adopt the new theme when closed and reopened
+(clarified 2026-07-25: live repaint of open windows is not required) — the
+application never needs a restart.
 
 **Why this priority**: Matches the no-restart behavior the core application
 already provides (feature 028); without it the feature feels broken right
@@ -102,18 +112,17 @@ corruption at the moment of switching.
    then opens a plugin window, **Then** the newly opened window matches the
    newly selected theme in 100% of cases.
 2. **Given** a plugin window is open during a theme switch, **When** the
-   switch happens, **Then** the window either updates to the new theme or
-   keeps its previous consistent appearance until reopened — it must not
-   crash, garble, or end up half-switched within one surface.
+   switch happens, **Then** the window keeps its previous consistent
+   appearance until reopened — it must not crash, garble, or end up
+   half-switched within one surface.
 
 ---
 
 ### Edge Cases
 
 - What happens to a plugin window that is open at the moment of a theme
-  switch? It updates immediately where supported, otherwise stays fully in
-  the old appearance until reopened — never a mix of both themes within one
-  window.
+  switch? It stays fully in the old appearance until reopened (clarified
+  2026-07-25) — never a mix of both themes within one window.
 - What about third-party or legacy plugins that do not use the theme
   mechanism? They MUST continue to load and function exactly as today
   (light appearance in dark mode is acceptable for them); the feature must
@@ -121,9 +130,10 @@ corruption at the moment of switching.
 - What about operating-system-drawn elements inside plugin flows (common
   Open/Save dialogs, shell context menus, system message boxes)? Out of
   scope — the same boundary feature 028 established for the core.
-- What about content areas of viewer plugins (a photograph in the picture
-  viewer, archive contents listing)? Window chrome and controls follow the
-  theme; the displayed content itself is not artificially recolored.
+- What about content areas of viewer plugins? Text/document content
+  (markdown, tables, listings) renders dark like the rest of the theme; a
+  photograph in the picture viewer or other image/binary content is never
+  artificially recolored — only its surrounding chrome is dark.
 - What if a plugin surface mixes themed and unthemed elements after the
   change (e.g. a dark dialog with one light control)? This counts as a
   defect — each surface must be audited as a whole.
@@ -149,9 +159,10 @@ corruption at the moment of switching.
   to Dark.
 - **FR-005**: A theme switch MUST NOT require an application restart:
   plugin windows opened after the switch MUST match the new theme; plugin
-  windows already open MUST adopt the new theme at the latest when
-  reopened, and MUST NOT crash or render a mixed appearance at the moment
-  of the switch.
+  windows already open keep their previous consistent appearance and MUST
+  adopt the new theme when reopened; they MUST NOT crash or render a mixed
+  appearance at the moment of the switch. Immediate live repaint of open
+  plugin windows is not required (clarified 2026-07-25).
 - **FR-006**: Plugins that do not use the theme mechanism (e.g. older
   third-party plugins) MUST continue to load and function unchanged; the
   feature MUST NOT break binary compatibility of the existing plugin
@@ -162,8 +173,10 @@ corruption at the moment of switching.
   Plugin Manager) MUST follow the active theme like the application's own
   configuration dialog.
 - **FR-009**: Viewer-type plugin windows MUST theme their chrome and
-  controls while leaving displayed content faithful (no recoloring of
-  images or user data).
+  controls; text/document content areas (markdown, database tables, text
+  listings) MUST also render dark — light text on a dark background —
+  while images and binary data are displayed faithfully without recoloring
+  (clarified 2026-07-25).
 
 ## Success Criteria *(mandatory)*
 
@@ -196,9 +209,9 @@ corruption at the moment of switching.
 - Third-party plugins without theme support showing light surfaces in dark
   mode is acceptable; forcing them dark without their cooperation is not
   required.
-- Already-open plugin windows adopting the new theme only on reopen is an
-  acceptable minimum (immediate update is preferred where the surface
-  supports it) — consistent with the no-restart rule.
+- Already-open plugin windows adopt the new theme on reopen; immediate
+  live repaint is explicitly not required (clarified 2026-07-25) —
+  consistent with the no-restart rule.
 - The existing plugin interface may be extended (new capability), but not
   changed incompatibly — existing compiled plugins keep loading (project
   constitution, plugin ABI preservation).

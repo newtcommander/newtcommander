@@ -34,8 +34,10 @@
 - Validation pass 1 (2026-07-25): all items pass. The spec builds directly
   on feature 028 (which delivered the Dark theme for the core and
   explicitly left plugin-internal UI out of scope) and closes that gap.
-  Reasonable defaults recorded in Assumptions: scope = default-shipped
-  plugin set, 028 palette reused, OS-drawn UI stays out of scope,
-  unthemed third-party plugins stay light, open windows may adopt on
-  reopen, plugin interface extended compatibly.
-- Ready for `/speckit.clarify` (optional) or `/speckit.plan`.
+- Clarification session 2026-07-25 (3 questions): full scope stays in 036
+  (mechanism + all 18 shipped plugins, incremental via story priorities);
+  already-open plugin windows adopt the theme on reopen only (no live
+  repaint required); viewer text/document content renders dark while
+  images/binary data are never recolored. Spec updated accordingly,
+  checklist still passes.
+- Ready for `/speckit.plan`.
