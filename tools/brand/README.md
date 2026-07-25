@@ -63,7 +63,6 @@ files are committed.
 | File | Purpose |
 |------|---------|
 | `newt-commander-icon.svg` | Master vector of the current folder icon (feature 034) — the PNG renders were exported from it |
-| `newt-commander-lockup-dark.svg` / `-light.svg` | Horizontal logo lockups (live Archivo text) |
 | `gradient-band.svg` | Source of the shipped accent strips |
 
 ## Technical notes
