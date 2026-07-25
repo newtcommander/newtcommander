@@ -258,6 +258,73 @@ void ThemeUpdateRebarStyle(HWND hRebar)
 // Dialog theming
 //
 
+// Classic (unthemed) text controls render a DISABLED label with a two-pass
+// etched emboss: COLOR_3DHILIGHT offset by 1px under COLOR_GRAYTEXT. On a
+// dark background the near-white highlight makes the text look corroded.
+// This subclass repaints the disabled label flat (theme gray on theme
+// background); enabled controls and the Default theme pass through.
+static LRESULT CALLBACK ThemeFlatDisabledTextSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                          LPARAM lParam, UINT_PTR uIdSubclass,
+                                                          DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        if (!IsDarkThemeActive() || IsWindowEnabled(hWnd))
+            break; // normal drawing
+
+        DWORD style = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE);
+        DWORD type = style & SS_TYPEMASK;
+        if (type != SS_LEFT && type != SS_CENTER && type != SS_RIGHT &&
+            type != SS_SIMPLE && type != SS_LEFTNOWORDWRAP)
+            break; // icons/bitmaps/frames/owner-draw keep their own drawing
+
+        PAINTSTRUCT ps;
+        HDC hDC = BeginPaint(hWnd, &ps);
+        RECT r;
+        GetClientRect(hWnd, &r);
+        FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+        WCHAR text[512];
+        int len = GetWindowTextW(hWnd, text, _countof(text));
+        if (len > 0)
+        {
+            HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+            HFONT hOldFont = hFont != NULL ? (HFONT)SelectObject(hDC, hFont) : NULL;
+            int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+            COLORREF oldClr = SetTextColor(hDC, ThemeSysColor(COLOR_GRAYTEXT));
+            UINT dt = DT_EXPANDTABS;
+            if (type == SS_CENTER)
+                dt |= DT_CENTER;
+            else if (type == SS_RIGHT)
+                dt |= DT_RIGHT;
+            if (type == SS_SIMPLE || type == SS_LEFTNOWORDWRAP)
+                dt |= DT_SINGLELINE;
+            else
+                dt |= DT_WORDBREAK;
+            if (style & SS_NOPREFIX)
+                dt |= DT_NOPREFIX;
+            if (style & SS_CENTERIMAGE)
+                dt |= DT_VCENTER | DT_SINGLELINE;
+            DrawTextW(hDC, text, len, &r, dt);
+            SetTextColor(hDC, oldClr);
+            SetBkMode(hDC, oldBkMode);
+            if (hOldFont != NULL)
+                SelectObject(hDC, hOldFont);
+        }
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemeFlatDisabledTextSubclassProc, 2);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
 {
     BOOL dark = (BOOL)lParam;
@@ -265,12 +332,33 @@ static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
     if (GetClassNameA(hChild, className, _countof(className)) == 0)
         return TRUE;
 
-    if (_stricmp(className, "Button") == 0 ||
-        _stricmp(className, "Edit") == 0 ||
-        _stricmp(className, "ListBox") == 0 ||
-        _stricmp(className, "ScrollBar") == 0)
+    if (_stricmp(className, "Button") == 0)
+    {
+        // the DarkMode_Explorer Button theme renders push buttons and
+        // checkboxes with light label text, but radio buttons and group
+        // boxes keep the theme's black text (unreadable on the dark
+        // background) - strip those to classic drawing, which honors the
+        // WM_CTLCOLORSTATIC text color from ThemeHandleCtlColor
+        DWORD type = (DWORD)GetWindowLongPtr(hChild, GWL_STYLE) & BS_TYPEMASK;
+        if (type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON || type == BS_GROUPBOX)
+            SetWindowTheme(hChild, dark ? L"" : NULL, dark ? L"" : NULL);
+        else
+            SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
+    }
+    else if (_stricmp(className, "Edit") == 0 ||
+             _stricmp(className, "ListBox") == 0 ||
+             _stricmp(className, "ScrollBar") == 0)
     {
         SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
+    }
+    else if (_stricmp(className, "Static") == 0)
+    {
+        // flat repaint of disabled labels (see the subclass above); the
+        // subclass is inert while the control is enabled or Default is active
+        if (dark)
+            SetWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2, 0);
+        else
+            RemoveWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2);
     }
     else if (_stricmp(className, "ComboBox") == 0 ||
              _stricmp(className, "ComboBoxEx32") == 0)

@@ -50,6 +50,28 @@ plugin compiles with the change).
 - Switched back to Dark the same way; app closed cleanly, `Theme Mode` = 1
   persisted.
 
+## Post-audit fixes (user feedback 2026-07-25)
+
+1. **Radio buttons black-on-dark** (reported on SFTP Connect): the
+   `DarkMode_Explorer` Button theme paints radio-button and group-box label
+   text with its own black color (only push buttons and checkboxes get
+   light text). Fix in `themes.cpp/ThemeApplyChildEnumProc`: radios and
+   group boxes are stripped to classic drawing in Dark
+   (`SetWindowTheme(hwnd, L"", L"")`), which honors the
+   `ThemeHandleCtlColor` text color. Verified live: SFTP Connect radio
+   labels light and readable (`fix-sftp-radios.png`, real screen pixels).
+2. **Disabled labels "corroded"** (reported on FTP): classic disabled
+   statics draw an etched emboss (offset `COLOR_3DHILIGHT` under
+   `COLOR_GRAYTEXT`) that looks corroded on dark. Fix: a
+   `SetWindowSubclass` on Static controls (installed by
+   `ThemeApplyToDialog` in Dark) repaints DISABLED text statics flat
+   (theme gray on theme background); enabled statics and the Default theme
+   pass through untouched. Verified live: FTP Connect "User name:" /
+   "Password:" disabled rows flat gray (`fix-ftp-disabled.png`).
+
+Both fixes live in the shared theme engine, so they apply to the core and
+every plugin at once.
+
 ## Known limitations (accepted, recorded)
 
 1. **Native Win32 menu bars** on plugin frame windows (diskmap, mdview,
