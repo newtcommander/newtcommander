@@ -5,11 +5,19 @@
 **Status**: Draft
 **Input**: User description: "Uprav zdrojova data pro kompilaci projektu tak, abych mohl jednoduse rucne vymenit ikonu aplikace. Abych mohl vymenit - ikonu aplikace, ktera se zobrazuje male v okne vlevo nahore, ikonu exe souboru a pak obrazky, ktere se zobrazuji v pop upech about app a v splash screenu. Proste abych nemusel kazdou zmenu grafiky resit s AI. Dale drobnost, v splash screenu se zobrazuje copyright text, je moc dlouhy, zobrazuje se pouze v jedne radce a nevejde se na ni. Copyright ma dve casti - puvodni Open Salamader Authors a New Commander Authors, dej to pod sebe na dve radky."
 
+## Clarifications
+
+### Session 2026-07-25
+
+- Q: In what format is the replacement About/splash artwork supplied? → A: A single raster (PNG) file; the application scales it at draw time. The hand-authored, renderer-constrained vector file is retired for this purpose.
+- Q: What does the icon source set look like? → A: One master PNG (e.g. 1024×1024) from which all icon sizes are derived automatically, plus optional per-size override images that take precedence when pixel-level tuning of small sizes is wanted.
+- Q: What happens to the red/green/blue main-window icon variants (Configuration → Appearance)? → A: The feature is removed entirely — the variants are no longer offered, generated, or shipped; existing configurations that selected one fall back to the default icon.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Replace the application icon by swapping image files (Priority: P1)
 
-The project maintainer has new icon artwork (e.g. exported from a design tool as standard raster images). They drop the new images into one designated, documented location in the repository, run one documented regeneration step, rebuild the application, and the new icon appears everywhere the application icon is shown: the small icon in the top-left corner of the main window, the taskbar, and the `.exe` file icon in Windows Explorer. No source-code, resource-script, or project-file edits are needed, and no AI assistance is required.
+The project maintainer has new icon artwork (e.g. exported from a design tool as a standard raster image). They drop one master image — optionally accompanied by hand-tuned versions of specific small sizes — into one designated, documented location in the repository, run one documented regeneration step, rebuild the application, and the new icon appears everywhere the application icon is shown: the small icon in the top-left corner of the main window, the taskbar, and the `.exe` file icon in Windows Explorer. No source-code, resource-script, or project-file edits are needed, and no AI assistance is required.
 
 **Why this priority**: This is the core request — the maintainer wants graphics changes to be a self-service file swap instead of an engineering task. The application icon is the most visible and most frequently iterated brand asset.
 
@@ -17,9 +25,10 @@ The project maintainer has new icon artwork (e.g. exported from a design tool as
 
 **Acceptance Scenarios**:
 
-1. **Given** a set of replacement icon images in the required sizes, **When** the maintainer places them in the designated location and runs the single documented regeneration step, **Then** all shipped icon files are regenerated from the new artwork with no manual edits to any other file.
-2. **Given** the regenerated icons, **When** the application is rebuilt and started, **Then** the new icon is shown in the main window's top-left corner, in the taskbar, and as the `.exe` file icon in Explorer.
-3. **Given** the icon swap, **When** the crash reporter, installer, or uninstaller is displayed, **Then** their icons also reflect the new artwork (they are part of the same regenerated set).
+1. **Given** a single replacement master icon image, **When** the maintainer places it in the designated location and runs the single documented regeneration step, **Then** all shipped icon files in all required sizes are regenerated from the new artwork with no manual edits to any other file.
+2. **Given** a master image plus a hand-tuned image for one specific small size, **When** the regeneration step runs, **Then** the hand-tuned image is used for that size and the master-derived rendering is used for all others.
+3. **Given** the regenerated icons, **When** the application is rebuilt and started, **Then** the new icon is shown in the main window's top-left corner, in the taskbar, and as the `.exe` file icon in Explorer.
+4. **Given** the icon swap, **When** the crash reporter, installer, or uninstaller is displayed, **Then** their icons also reflect the new artwork (they are part of the same regenerated set).
 
 ---
 
@@ -33,7 +42,7 @@ The maintainer wants to change the picture drawn in the About dialog and on the 
 
 **Acceptance Scenarios**:
 
-1. **Given** a replacement artwork image in a documented common format, **When** the maintainer swaps the designated file and rebuilds, **Then** the About dialog shows the new artwork.
+1. **Given** a replacement artwork image in the documented raster (PNG) format, **When** the maintainer swaps the designated file and rebuilds, **Then** the About dialog shows the new artwork.
 2. **Given** the same swap, **When** the application starts, **Then** the splash screen shows the new artwork.
 3. **Given** replacement artwork with a different aspect ratio than the original, **When** it is displayed in the About dialog and splash screen, **Then** it is scaled to fit its reserved area without distortion.
 
@@ -72,20 +81,21 @@ The maintainer (or any future contributor) opens a single document in the reposi
 
 ### Edge Cases
 
-- What happens when a required icon size is missing from the replacement image set? The regeneration step must stop with a clear message naming the missing size — it must not silently produce an incomplete or broken icon set.
-- What happens when a replacement image has the wrong format or dimensions? The regeneration step must reject it with a message identifying the offending file and the expected properties.
+- What happens when the master icon image is missing or smaller than the largest required size? The regeneration step must stop with a clear message naming the problem — it must not silently produce an incomplete or broken icon set.
+- What happens when a per-size override image has the wrong format or dimensions for its size? The regeneration step must reject it with a message identifying the offending file and the expected properties.
 - What happens when the replacement About/splash artwork has an extreme aspect ratio (very wide or very tall)? It is scaled to fit its reserved area, preserving aspect ratio, without overlapping neighbouring texts.
-- What happens to the alternative-color main-window icon variants (red/green/blue, selectable in configuration) after a swap? They must remain selectable and be derived from the new artwork; if the new artwork contains no colors eligible for automatic recoloring, the variants fall back to the base artwork rather than breaking.
+- What happens when a user's saved configuration references a removed alternative-color icon variant? The application starts normally and uses the default icon; no error is shown and the setting no longer appears in the configuration dialog.
 - What happens if a future copyright string is longer? Each of the two splash lines must independently fit the splash width at the default splash size (the split point follows the two authorship parts).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: All shipped application-identity icons (main window/title-bar icon, `.exe` file icon, crash-reporter icon, installer icon, uninstaller icon) MUST be regenerable from one designated, replaceable set of source images via a single documented step, with no edits to source code, resource scripts, or project files.
+- **FR-001**: All shipped application-identity icons (main window/title-bar icon, `.exe` file icon, crash-reporter icon, installer icon, uninstaller icon) MUST be regenerable from one designated master image via a single documented step, with all required sizes derived automatically and no edits to source code, resource scripts, or project files.
+- **FR-001a**: The regeneration step MUST accept optional per-size override images that take precedence over the master-derived rendering for their size, so small sizes can be pixel-tuned by hand when desired.
 - **FR-002**: After regeneration and rebuild, the replaced artwork MUST appear in the main window's top-left corner, in the taskbar, and as the `.exe` file icon in Windows Explorer.
-- **FR-003**: The alternative-color main-window icon variants offered in the configuration dialog MUST remain functional after an icon swap, derived automatically from the new artwork; when automatic derivation is not applicable they MUST fall back to the base artwork.
-- **FR-004**: The artwork displayed in the About dialog MUST be replaceable by swapping a single designated image file in a documented common image format; the maintainer MUST NOT need any knowledge of internal rendering constraints.
+- **FR-003**: The alternative-color (red/green/blue) main-window icon variants MUST be removed: no longer offered in the configuration dialog and no longer generated or shipped. An existing user configuration that has a colored variant selected MUST silently fall back to the default icon.
+- **FR-004**: The artwork displayed in the About dialog MUST be replaceable by swapping a single designated raster image file (PNG); the maintainer MUST NOT need any knowledge of internal rendering constraints.
 - **FR-005**: The artwork displayed on the splash screen MUST be replaceable the same way; About and splash share the one designated artwork file.
 - **FR-006**: Replacement About/splash artwork MUST be displayed scaled to its reserved area with aspect ratio preserved (no distortion), regardless of the replacement image's proportions.
 - **FR-007**: The regeneration step MUST validate its inputs (file presence, required sizes, supported formats) and fail with a message that names the problem and the offending file instead of producing broken or partial assets.
@@ -96,9 +106,8 @@ The maintainer (or any future contributor) opens a single document in the reposi
 
 ### Key Entities
 
-- **Icon source set**: The replaceable raster images (one per required size) that are the single source for every shipped application-identity icon.
+- **Icon source set**: One replaceable master raster image (source for every shipped application-identity icon) plus optional per-size override images that win over the master for their size.
 - **About/splash artwork**: The single replaceable image drawn in the About dialog and on the splash screen.
-- **Derived icon variants**: The alternative-color main-window icons produced automatically from the icon source set.
 - **Asset guide**: The one repository document describing every replaceable asset and the replacement procedure.
 
 ## Success Criteria *(mandatory)*
@@ -115,9 +124,9 @@ The maintainer (or any future contributor) opens a single document in the reposi
 ## Assumptions
 
 - The person performing a swap is a project maintainer able to run a rebuild and one documented command; they can export raster images at the required sizes from their design tool.
-- Replacement About/splash artwork may be supplied as a common raster image; the current need to hand-author artwork within undocumented vector-renderer limitations is removed by this feature.
+- Replacement About/splash artwork is supplied as a single raster (PNG) image scaled by the application at draw time (clarified 2026-07-25); the current need to hand-author artwork within undocumented vector-renderer limitations is removed by this feature.
 - The About dialog and the splash screen intentionally share one artwork file (they show the same logo today); per-surface artwork is out of scope.
-- The alternative-color icon variants continue to be derived automatically (as today); supplying hand-made per-color variants is out of scope.
+- The alternative-color main-window icon variants are removed as a product feature (clarified 2026-07-25); this is a deliberate, user-visible simplification accepted by the maintainer.
 - The copyright split point is the boundary between the two authorship parts ("…Open Salamander Authors," / "© 2026 Newt Commander Authors"); the stored version-info string itself is not modified.
 - Out of scope: redesigning any artwork, toolbar/panel icons, plugin icons, file-type icons, and installer visuals beyond the already-shipped installer/uninstaller icons.
 - The GDI-drawn "Newt Commander" wordmark and the accent gradient line are not part of this feature's replaceable-asset set; they remain as-is unless a future feature addresses them.

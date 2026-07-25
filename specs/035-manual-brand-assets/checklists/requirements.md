@@ -33,8 +33,10 @@
 
 - Validation pass 1 (2026-07-25): all items pass. The spec names concrete
   product surfaces (window icon, exe icon, About, splash) and file-swap
-  workflows without prescribing tools, formats beyond "common raster
-  image", or code structure. No clarifications outstanding — reasonable
-  defaults are recorded in the Assumptions section (shared About/splash
-  artwork, auto-derived color variants, copyright split point).
-- Ready for `/speckit.clarify` (optional) or `/speckit.plan`.
+  workflows without prescribing tools or code structure.
+- Clarification session 2026-07-25 (3 questions): About/splash artwork is
+  a single PNG scaled at draw time; icon source is one master PNG with
+  optional per-size overrides; the red/green/blue window-icon variants
+  are removed as a product feature. Spec updated accordingly, checklist
+  still passes.
+- Ready for `/speckit.plan`.
