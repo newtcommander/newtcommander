@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -332,8 +332,8 @@ CSplitBarWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         GetClientRect(HWindow, &r);
         if (Tracking && HDitheredBrush)
         {
-            COLORREF oldBk = SetBkColor(dc, GetSysColor(COLOR_BTNFACE));
-            COLORREF oldText = SetTextColor(dc, GetSysColor(COLOR_3DDKSHADOW));
+            COLORREF oldBk = SetBkColor(dc, SG->GetThemeSysColor(COLOR_BTNFACE));
+            COLORREF oldText = SetTextColor(dc, SG->GetThemeSysColor(COLOR_3DDKSHADOW));
             FillRect(dc, &r, HDitheredBrush);
             SetBkColor(dc, oldBk);
             SetTextColor(dc, oldText);
@@ -396,8 +396,8 @@ CToolTipWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         GetClientRect(HWindow, &r);
         FillRect(hDC, &r, (HBRUSH)(COLOR_INFOBK + 1));
         HFONT hOldFont = (HFONT)SelectObject(hDC, EnvFont);
-        COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_INFOTEXT));
-        COLORREF oldBkColor = SetBkColor(hDC, GetSysColor(COLOR_INFOBK));
+        COLORREF oldTextColor = SetTextColor(hDC, SG->GetThemeSysColor(COLOR_INFOTEXT));
+        COLORREF oldBkColor = SetBkColor(hDC, SG->GetThemeSysColor(COLOR_INFOBK));
         ExtTextOut(hDC, 2, 1, ETO_OPAQUE, &r, Text, TextLen, NULL);
         SetBkColor(hDC, oldBkColor);
         SetTextColor(hDC, oldTextColor);
@@ -511,9 +511,9 @@ CComboBoxEdit::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 CComboBox::CComboBox()
 {
     CALL_STACK_MESSAGE1("CComboBox::CComboBox()");
-    BtnFacePen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNFACE));
-    BtnShadowPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW));
-    BtnHilightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNHIGHLIGHT));
+    BtnFacePen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNFACE));
+    BtnShadowPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNSHADOW));
+    BtnHilightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNHIGHLIGHT));
     Tracking = FALSE;
 }
 
@@ -537,9 +537,9 @@ void CComboBox::ChangeColors()
         DeleteObject(BtnShadowPen);
     if (BtnHilightPen)
         DeleteObject(BtnHilightPen);
-    BtnFacePen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNFACE));
-    BtnShadowPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW));
-    BtnHilightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNHIGHLIGHT));
+    BtnFacePen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNFACE));
+    BtnShadowPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNSHADOW));
+    BtnHilightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNHIGHLIGHT));
 }
 
 LRESULT
@@ -575,8 +575,8 @@ CComboBox::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_CTLCOLORSTATIC:
     {
-        SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
-        SetTextColor((HDC)wParam, GetSysColor(COLOR_WINDOWTEXT));
+        SetBkColor((HDC)wParam, SG->GetThemeSysColor(COLOR_WINDOW));
+        SetTextColor((HDC)wParam, SG->GetThemeSysColor(COLOR_WINDOWTEXT));
         return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
     }
 
@@ -828,7 +828,7 @@ CRebar::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 // draw our own text
                 HDC hdc = GetDC(HWindow);
                 HFONT oldFont = (HFONT)SelectObject(hdc, (HFONT)EnvFont);
-                SetBkColor(hdc, GetSysColor(COLOR_BTNFACE));
+                SetBkColor(hdc, SG->GetThemeSysColor(COLOR_BTNFACE));
                 DrawText(hdc, text, -1, &r, DT_SINGLELINE | DT_TOP);
 
                 // line under the text
@@ -851,8 +851,8 @@ CRebar::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_CTLCOLORSTATIC:
     {
-        //SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
-        SetTextColor((HDC)wParam, GetSysColor(COLOR_WINDOWTEXT));
+        //SetBkColor((HDC)wParam, SG->GetThemeSysColor(COLOR_WINDOW));
+        SetTextColor((HDC)wParam, SG->GetThemeSysColor(COLOR_WINDOWTEXT));
         //return 0;
         return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
     }

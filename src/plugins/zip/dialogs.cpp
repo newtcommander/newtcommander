@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -31,6 +31,19 @@
 WNDPROC OrigTextControlProc;
 WNDPROC OrigCBEditCtrlProc;
 WNDPROC OrigSmallIconProc;
+
+// Shared theme handling for all raw dialog procs in this plugin: themes the
+// dialog on WM_INITDIALOG (and lets the proc continue with its own init) and
+// colors the WM_CTLCOLOR* family while the Dark theme is active (feature 036).
+BOOL ZIPThemeDlgMsg(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result)
+{
+    if (uMsg == WM_INITDIALOG)
+    {
+        SalamanderGeneral->ThemeApplyToDialog(hDlg);
+        return FALSE; // theming done, the dialog continues its own init
+    }
+    return SalamanderGeneral->ThemeHandleCtlColor(uMsg, wParam, lParam, result);
+}
 
 TIndirectArray2<CSfxLang>* SfxLanguages = NULL;
 CSfxLang* DefLanguage = NULL;
@@ -190,6 +203,10 @@ void CPackDialog::SubClassComboBox(DWORD wID, bool subclass)
 
 INT_PTR WINAPI PackDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("PackDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CPackDialog* dlg = NULL;
 
@@ -784,6 +801,10 @@ INT_PTR PackDialog(HWND parent, CZipPack* packObject, CConfiguration* config,
 
 INT_PTR WINAPI ConfigDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ConfigDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CConfigDialog* dlg = NULL;
 
@@ -1041,6 +1062,10 @@ BOOL CConfigDialog::OnDefault(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 
 INT_PTR WINAPI PasswordDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("PasswordDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CPasswordDialog* dlg = NULL;
@@ -1137,6 +1162,10 @@ INT_PTR PasswordDialog(HWND parent, const char* file, char* password)
 
 INT_PTR WINAPI LowDiskSpaceDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("LowDiskSpaceDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CLowDiskSpaceDialog* dlg = NULL;
@@ -1244,6 +1273,10 @@ INT_PTR LowDiskSpaceDialog(HWND parent, const char* text, const char* path,
 
 INT_PTR WINAPI ChangeDiskDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ChangeDiskDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CChangeDiskDialog* dlg = NULL;
@@ -1317,6 +1350,10 @@ INT_PTR ChangeDiskDialog(HWND parent, const char* text)
 
 INT_PTR WINAPI ChangeDiskDlgProc2(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ChangeDiskDlgProc2(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CChangeDiskDialog2* dlg = NULL;
@@ -1478,6 +1515,10 @@ INT_PTR ChangeDiskDialog2(HWND parent, /*int volNum,*/ char* fileName)
 
 INT_PTR WINAPI ChangeDiskDlgProc3(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ChangeDiskDlgProc3(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CChangeDiskDialog3* dlg = NULL;
@@ -1725,6 +1766,10 @@ INT_PTR ChangeDiskDialog3(HWND parent, int volNum, bool last, char* fileName, un
 
 INT_PTR WINAPI OverwriteDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("OverwriteDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static COverwriteDialog* dlg = NULL;
@@ -1812,6 +1857,10 @@ INT_PTR OverwriteDialog(HWND parent, const char* file, const char* attr)
 
 INT_PTR WINAPI OverwriteDlgProc2(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("OverwriteDlgProc2(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static COverwriteDialog2* dlg = NULL;
@@ -1897,6 +1946,10 @@ INT_PTR OverwriteDialog2(HWND parent, const char* file, const char* attr)
 
 INT_PTR WINAPI RenFavDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("RenFavDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CRenFavDialog* dlg = NULL;
 
@@ -1988,6 +2041,10 @@ BOOL CRenFavDialog::OnOK(WORD wNotifyCode, WORD wID, HWND hwndCtl)
 
 INT_PTR WINAPI CreateSFXDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("CreateSFXDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CCreateSFXDialog* dlg = NULL;

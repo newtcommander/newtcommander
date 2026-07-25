@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -296,6 +296,7 @@ BOOL InitViewer()
         return FALSE;
     SetWinLibStrings("Invalid number!", PLUGIN_NAME);
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SalGeneral); // feature 036: dark theme for WinLib dialogs
     return TRUE;
 }
 
@@ -657,6 +658,7 @@ unsigned WINAPI ViewerThreadBody(void* param)
                                  window) != NULL)
             {
                 CALL_STACK_MESSAGE1("ViewerThreadBody::ShowWindow");
+                SalGeneral->ThemeApplyToTopLevel(window->HWindow); // feature 036: dark title bar
                 // NOTE: icons obtained without LR_SHARED must be destroyed in WM_DESTROY.
                 SendMessage(window->HWindow, WM_SETICON, ICON_BIG,
                             (LPARAM)LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_MAIN)));

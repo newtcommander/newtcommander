@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -24,8 +24,8 @@ void CRendererWindow::PaintTopMargin(HDC hDC, HRGN hUpdateRgn, const RECT* clipR
 
     char textBuffer[10000];
 
-    COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_BTNTEXT));
-    COLORREF normalBkColor = GetSysColor(COLOR_BTNFACE);
+    COLORREF oldTextColor = SetTextColor(hDC, SalGeneral->GetThemeSysColor(COLOR_BTNTEXT));
+    COLORREF normalBkColor = SalGeneral->GetThemeSysColor(COLOR_BTNFACE);
     COLORREF selectionBkColor = RGB(182, 190, 210);
     COLORREF oldBkColor = SetBkColor(hDC, normalBkColor);
     HPEN hOldPen = (HPEN)SelectObject(hDC, HGrayPen);
@@ -129,7 +129,7 @@ void CRendererWindow::PaintTopMargin(HDC hDC, HRGN hUpdateRgn, const RECT* clipR
         r.left = x;
         r.right = Width;
         r.bottom++;
-        SetBkColor(hDC, GetSysColor(COLOR_WINDOW));
+        SetBkColor(hDC, SalGeneral->GetThemeSysColor(COLOR_WINDOW));
         ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
     }
 
@@ -140,8 +140,8 @@ void CRendererWindow::PaintTopMargin(HDC hDC, HRGN hUpdateRgn, const RECT* clipR
 
 void CRendererWindow::PaintBody(HDC hDC, HRGN hUpdateRgn, const RECT* clipRect, BOOL selChangeOnly)
 {
-    COLORREF oldTextColor = SetTextColor(hDC, GetSysColor(COLOR_BTNTEXT));
-    COLORREF normalBkColor = GetSysColor(COLOR_WINDOW);
+    COLORREF oldTextColor = SetTextColor(hDC, SalGeneral->GetThemeSysColor(COLOR_BTNTEXT));
+    COLORREF normalBkColor = SalGeneral->GetThemeSysColor(COLOR_WINDOW);
     COLORREF selectionBkColor = RGB(182, 190, 210);
     COLORREF oldBkColor = SetBkColor(hDC, normalBkColor);
     HPEN hOldPen = (HPEN)GetCurrentObject(hDC, OBJ_PEN);
@@ -177,7 +177,7 @@ void CRendererWindow::PaintBody(HDC hDC, HRGN hUpdateRgn, const RECT* clipRect, 
                     }
                     else
                     {
-                        oldBkColor2 = SetBkColor(hDC, GetSysColor(COLOR_BTNFACE));
+                        oldBkColor2 = SetBkColor(hDC, SalGeneral->GetThemeSysColor(COLOR_BTNFACE));
                         SelectObject(hDC, HGrayPen);
                     }
                     SelectClipRgn(hDC, hUpdateRgn);

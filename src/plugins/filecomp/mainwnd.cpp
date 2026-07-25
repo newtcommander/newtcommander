@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -97,7 +97,7 @@ BOOL CMainWindow::Init()
     }
     COLORMAP cm;
     cm.from = 0x00FF00FF;
-    cm.to = GetSysColor(COLOR_BTNFACE);
+    cm.to = SG->GetThemeSysColor(COLOR_BTNFACE);
     HToolbar = CreateToolbarEx(HWindow,
                                WS_VISIBLE | WS_CHILD |
                                    WS_CLIPCHILDREN | WS_CLIPSIBLINGS |

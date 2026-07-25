@@ -94,6 +94,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
     if (!InitializeWinLib("Folders" /* do not translate */, DLLInstance))
         return NULL;
     SetWinLibStrings("Invalid number!", LoadStr(IDS_PLUGINNAME));
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     // set the basic plugin information
     salamander->SetBasicPluginData(LoadStr(IDS_PLUGINNAME),

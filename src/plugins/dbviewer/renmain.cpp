@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -670,10 +670,10 @@ void CRendererWindow::CreateGraphics()
     SelectObject(hDC, oldFont);
     ReleaseDC(NULL, hDC);
 
-    HGrayPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW));
-    HLtGrayPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNFACE));
-    HSelectionPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_ACTIVECAPTION));
-    HBlackPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNTEXT));
+    HGrayPen = CreatePen(PS_SOLID, 0, SalGeneral->GetThemeSysColor(COLOR_BTNSHADOW));
+    HLtGrayPen = CreatePen(PS_SOLID, 0, SalGeneral->GetThemeSysColor(COLOR_BTNFACE));
+    HSelectionPen = CreatePen(PS_SOLID, 0, SalGeneral->GetThemeSysColor(COLOR_ACTIVECAPTION));
+    HBlackPen = CreatePen(PS_SOLID, 0, SalGeneral->GetThemeSysColor(COLOR_BTNTEXT));
 }
 
 void CRendererWindow::ReleaseGraphics()

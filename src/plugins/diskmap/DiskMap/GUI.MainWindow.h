@@ -106,7 +106,7 @@ protected:
     HWND DoCreate(int left, int top, int width, int height, BOOL isTopmost)
     {
         HMENU hMenu = LoadMenu(CWindow::s_hResInstance, MAKEINTRESOURCE(IDC_ZAREVAKDISKMAP));
-        return MyCreateWindow(
+        HWND hWnd = MyCreateWindow(
             isTopmost ? WS_EX_TOPMOST : 0,
             szMainWindowWindowClass,
             CZResourceString::GetString(IDS_DISKMAP_TITLE),
@@ -114,6 +114,12 @@ protected:
             left, top,     //X,Y
             width, height, //Width, Height
             hMenu);
+#ifdef SALAMANDER
+        extern CSalamanderGeneralAbstract* SalamanderGeneral; // defined in DiskMapPlugin.cpp
+        if (hWnd != NULL)
+            SalamanderGeneral->ThemeApplyToTopLevel(hWnd); // feature 036: dark title bar
+#endif
+        return hWnd;
     }
 
     void DoPaint(PAINTSTRUCT* pps)

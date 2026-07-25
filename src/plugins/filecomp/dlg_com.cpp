@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -160,18 +160,18 @@ COLORREF
 GetScrollbarColor()
 {
     CALL_STACK_MESSAGE_NONE
-    if (GetSysColor(COLOR_BTNFACE) != GetSysColor(COLOR_3DHILIGHT))
+    if (SG->GetThemeSysColor(COLOR_BTNFACE) != SG->GetThemeSysColor(COLOR_3DHILIGHT))
     {
-        return GetAverageColor(GetSysColor(COLOR_SCROLLBAR), 1,
-                               GetSysColor(COLOR_SCROLLBAR) == GetSysColor(COLOR_3DHILIGHT) &&
-                                       GetSysColor(COLOR_SCROLLBAR) == GetSysColor(COLOR_WINDOW)
-                                   ? GetSysColor(COLOR_BTNFACE)
-                                   : GetSysColor(COLOR_3DHILIGHT),
+        return GetAverageColor(SG->GetThemeSysColor(COLOR_SCROLLBAR), 1,
+                               SG->GetThemeSysColor(COLOR_SCROLLBAR) == SG->GetThemeSysColor(COLOR_3DHILIGHT) &&
+                                       SG->GetThemeSysColor(COLOR_SCROLLBAR) == SG->GetThemeSysColor(COLOR_WINDOW)
+                                   ? SG->GetThemeSysColor(COLOR_BTNFACE)
+                                   : SG->GetThemeSysColor(COLOR_3DHILIGHT),
                                1);
     }
     else
     {
-        return GetSysColor(COLOR_BTNFACE);
+        return SG->GetThemeSysColor(COLOR_BTNFACE);
     }
 }
 
@@ -201,7 +201,7 @@ void UpdateDefaultColors(SALCOLOR* colors, HPALETTE& palette)
     CALL_STACK_MESSAGE1("UpdateDefaultColors(, )");
     // text colors in the column with line numbers
     if (GetFValue(colors[LINENUM_FG_NORMAL]) & SCF_DEFAULT)
-        SetRGBPart(&colors[LINENUM_FG_NORMAL], GetSysColor(COLOR_WINDOWTEXT));
+        SetRGBPart(&colors[LINENUM_FG_NORMAL], SG->GetThemeSysColor(COLOR_WINDOWTEXT));
     //if (GetFValue(colors[LINENUM_FG_FOCUSED]) & SCF_DEFAULT)
     //  SetRGBPart(&colors[LINENUM_FG_FOCUSED], GetCOLORREF(colors[LINENUM_FG_NORMAL]));
 
@@ -224,19 +224,19 @@ void UpdateDefaultColors(SALCOLOR* colors, HPALETTE& palette)
     if (GetFValue(colors[LINENUM_BK_RIGHT_CHANGE]) & SCF_DEFAULT)
         SetRGBPart(&colors[LINENUM_BK_RIGHT_CHANGE], GetCOLORREF(colors[LINENUM_BK_NORMAL]));
     if (GetFValue(colors[LINENUM_BK_LEFT_CHANGE_FOCUSED]) & SCF_DEFAULT)
-        SetRGBPart(&colors[LINENUM_BK_LEFT_CHANGE_FOCUSED], GetSysColor(COLOR_BTNFACE));
+        SetRGBPart(&colors[LINENUM_BK_LEFT_CHANGE_FOCUSED], SG->GetThemeSysColor(COLOR_BTNFACE));
     //GetAverageColor(GetCOLORREF(colors[LINENUM_BK_LEFT_CHANGE]), 9,
     //                GetCOLORREF(colors[LINENUM_FG_LEFT_CHANGE]), 1));
     if (GetFValue(colors[LINENUM_BK_RIGHT_CHANGE_FOCUSED]) & SCF_DEFAULT)
-        SetRGBPart(&colors[LINENUM_BK_RIGHT_CHANGE_FOCUSED], GetSysColor(COLOR_BTNFACE));
+        SetRGBPart(&colors[LINENUM_BK_RIGHT_CHANGE_FOCUSED], SG->GetThemeSysColor(COLOR_BTNFACE));
     //GetAverageColor(GetCOLORREF(colors[LINENUM_BK_RIGHT_CHANGE]), 9,
     //                GetCOLORREF(colors[LINENUM_FG_RIGHT_CHANGE]), 1));
 
     // frame color around the selected change in the column with line numbers
     if (GetFValue(colors[LINENUM_LEFT_BORDER]) & SCF_DEFAULT)
-        SetRGBPart(&colors[LINENUM_LEFT_BORDER], GetSysColor(COLOR_BTNSHADOW));
+        SetRGBPart(&colors[LINENUM_LEFT_BORDER], SG->GetThemeSysColor(COLOR_BTNSHADOW));
     if (GetFValue(colors[LINENUM_RIGHT_BORDER]) & SCF_DEFAULT)
-        SetRGBPart(&colors[LINENUM_RIGHT_BORDER], GetSysColor(COLOR_BTNSHADOW));
+        SetRGBPart(&colors[LINENUM_RIGHT_BORDER], SG->GetThemeSysColor(COLOR_BTNSHADOW));
 
     // text colors of the displayed file contents
     if (GetFValue(colors[TEXT_FG_NORMAL]) & SCF_DEFAULT)
@@ -274,11 +274,11 @@ void UpdateDefaultColors(SALCOLOR* colors, HPALETTE& palette)
   if (GetFValue(colors[TEXT_BK_RIGHT_CHANGE]) & SCF_DEFAULT)
     SetRGBPart(&colors[TEXT_BK_RIGHT_CHANGE], GetCOLORREF(colors[TEXT_BK_NORMAL]));
   if (GetFValue(colors[TEXT_BK_LEFT_CHANGE_FOCUSED]) & SCF_DEFAULT)
-    SetRGBPart(&colors[TEXT_BK_LEFT_CHANGE_FOCUSED], //GetAverageColor(GetSysColor(COLOR_WINDOW), 9, GetSysColor(COLOR_WINDOWTEXT), 1));
+    SetRGBPart(&colors[TEXT_BK_LEFT_CHANGE_FOCUSED], //GetAverageColor(SG->GetThemeSysColor(COLOR_WINDOW), 9, SG->GetThemeSysColor(COLOR_WINDOWTEXT), 1));
       GetAverageColor(GetCOLORREF(colors[TEXT_BK_NORMAL]), 9, 
                       GetCOLORREF(colors[TEXT_FG_NORMAL]), 1));
   if (GetFValue(colors[TEXT_BK_RIGHT_CHANGE_FOCUSED]) & SCF_DEFAULT)
-    SetRGBPart(&colors[TEXT_BK_RIGHT_CHANGE_FOCUSED], //GetAverageColor(GetSysColor(COLOR_WINDOW), 9, GetSysColor(COLOR_WINDOWTEXT), 1));
+    SetRGBPart(&colors[TEXT_BK_RIGHT_CHANGE_FOCUSED], //GetAverageColor(SG->GetThemeSysColor(COLOR_WINDOW), 9, SG->GetThemeSysColor(COLOR_WINDOWTEXT), 1));
       GetAverageColor(GetCOLORREF(colors[TEXT_BK_NORMAL]), 9, 
                       GetCOLORREF(colors[TEXT_FG_NORMAL]), 1));
                       */
@@ -340,9 +340,9 @@ void UpdateDefaultColors(SALCOLOR* colors, HPALETTE& palette)
 
     // frame color around the selected change
     if (GetFValue(colors[TEXT_LEFT_BORDER]) & SCF_DEFAULT)
-        SetRGBPart(&colors[TEXT_LEFT_BORDER], GetSysColor(COLOR_BTNSHADOW));
+        SetRGBPart(&colors[TEXT_LEFT_BORDER], SG->GetThemeSysColor(COLOR_BTNSHADOW));
     if (GetFValue(colors[TEXT_RIGHT_BORDER]) & SCF_DEFAULT)
-        SetRGBPart(&colors[TEXT_RIGHT_BORDER], GetSysColor(COLOR_BTNSHADOW));
+        SetRGBPart(&colors[TEXT_RIGHT_BORDER], SG->GetThemeSysColor(COLOR_BTNSHADOW));
 
     // color of the selected text block
     if (GetFValue(colors[TEXT_FG_SELECTION]) & SCF_DEFAULT)
@@ -432,6 +432,7 @@ BOOL InitDialogs()
         return FALSE;
     SetWinLibStrings(LoadStr(IDS_INVALIDNUMBER), LoadStr(IDS_PLUGINNAME));
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SG); // feature 036: dark theme for WinLib dialogs
     if (!CWindow::RegisterUniversalClass(
             CS_DBLCLKS, 0, 0, DLLInstance,
             LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_FCICO)),

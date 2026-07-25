@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -1520,6 +1520,7 @@ BOOL InitViewer(HWND hParentWnd)
     }
     SetWinLibStrings(_T("Invalid number!"), LoadStr(IDS_PLUGINNAME));
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     INITCOMMONCONTROLSEX initCtrls;
     initCtrls.dwSize = sizeof(INITCOMMONCONTROLSEX);
@@ -1700,6 +1701,7 @@ unsigned WINAPI ViewerThreadBody(void *param)
                          DLLInstance,
                          window) != NULL)
     {
+      SalamanderGeneral->ThemeApplyToTopLevel(window->HWindow); // feature 036: dark title bar
       // WARNING! icons obtained here must be destroyed in WM_DESTROY
       SendMessage(window->HWindow, WM_SETICON, ICON_BIG,
                   (LPARAM)LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_WINDOW_ICON)));
@@ -1828,6 +1830,7 @@ CViewerThread::Body()
             {
                 CALL_STACK_MESSAGE1("ViewerThreadBody::ShowWindow");
 
+                SalamanderGeneral->ThemeApplyToTopLevel(window->HWindow); // feature 036: dark title bar
                 // WARNING! icons obtained here must be destroyed in WM_DESTROY
                 SendMessage(window->HWindow, WM_SETICON, ICON_BIG,
                             (LPARAM)LoadIcon(DLLInstance, MAKEINTRESOURCE(IDI_WINDOW_ICON)));

@@ -332,6 +332,7 @@ namespace Fx
             }
 
             SetupWinLibHelp(&CFxPluginInterface::WinLibHtmlHelpCallback);
+            SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
         }
 
         // Setup help file name.

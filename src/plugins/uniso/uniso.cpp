@@ -203,6 +203,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
     if (!InitializeWinLib("UnISO" /* do not translate! */, DLLInstance))
         return NULL;
     SetWinLibStrings("Invalid number!", LoadStr(IDS_PLUGINNAME));
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     // set up the basic plugin information
     salamander->SetBasicPluginData(LoadStr(IDS_PLUGINNAME),
@@ -937,7 +938,7 @@ BOOL CPluginInterfaceForViewer::ViewFile(const char* name, int left, int top, in
         // using it, it will delete it
         vData.Size = sizeof(vData);
         vData.FileName = tempFileName;
-        vData.Mode = 0; // text mode
+        vData.Mode = 0;                                                            // text mode
         _snprintf_s(caption, _TRUNCATE, "%s - %s", name, LoadStr(IDS_PLUGINNAME)); // 'name' is a UTF-8 path, may be long
         vData.Caption = caption;
         vData.WholeCaption = TRUE;

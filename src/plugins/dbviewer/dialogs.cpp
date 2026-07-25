@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -780,7 +780,7 @@ CColumnsDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 
     case WM_SYSCOLORCHANGE:
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, SalGeneral->GetThemeSysColor(COLOR_WINDOW));
         break;
 
     case WM_SIZE:

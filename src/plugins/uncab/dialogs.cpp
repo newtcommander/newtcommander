@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -15,6 +15,19 @@
 
 WNDPROC OrigTextControlProc;
 
+// Shared theme handling for all raw dialog procs in this plugin: themes the
+// dialog on WM_INITDIALOG (and lets the proc continue with its own init) and
+// colors the WM_CTLCOLOR* family while the Dark theme is active (feature 036).
+static BOOL CABThemeDlgMsg(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result)
+{
+    if (uMsg == WM_INITDIALOG)
+    {
+        SalamanderGeneral->ThemeApplyToDialog(hDlg);
+        return FALSE; // theming done, the dialog continues its own init
+    }
+    return SalamanderGeneral->ThemeHandleCtlColor(uMsg, wParam, lParam, result);
+}
+
 LRESULT CALLBACK TextControlProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     CALL_STACK_MESSAGE4("TextControlProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
@@ -29,7 +42,7 @@ LRESULT CALLBACK TextControlProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
         GetClientRect(hWnd, &r);
         BeginPaint(hWnd, &ps);
-        HBRUSH DialogBrush = CreateSolidBrush(GetSysColor(COLOR_BTNFACE));
+        HBRUSH DialogBrush = CreateSolidBrush(SalamanderGeneral->GetThemeSysColor(COLOR_BTNFACE)); // feature 036
         if (DialogBrush)
         {
             FillRect(ps.hdc, &r, DialogBrush);
@@ -37,7 +50,7 @@ LRESULT CALLBACK TextControlProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
         }
         HFONT hCurrentFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
         HFONT hOldFont = (HFONT)SelectObject(ps.hdc, hCurrentFont);
-        SetTextColor(ps.hdc, GetSysColor(COLOR_BTNTEXT));
+        SetTextColor(ps.hdc, SalamanderGeneral->GetThemeSysColor(COLOR_BTNTEXT)); // feature 036
         int prevBkMode = SetBkMode(ps.hdc, TRANSPARENT);
         int len = GetWindowText(hWnd, txt, MAX_PATH);
         DrawText(ps.hdc, txt, lstrlen(txt), &r, DT_SINGLELINE | /*DT_VCENTER*/ DT_BOTTOM | DT_NOPREFIX | DT_PATH_ELLIPSIS);
@@ -79,6 +92,10 @@ void CDlgRoot::SubClassStatic(DWORD wID, BOOL subclass)
 
 INT_PTR WINAPI NextVolumeDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (CABThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("NextVolumeDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CNextVolumeDialog* dlg = NULL;
@@ -270,6 +287,10 @@ INT_PTR NextVolumeDialog(HWND parent, char* volumeName, char* volumePath, char* 
 
 INT_PTR WINAPI ContinuedFileDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (CABThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ContinuedFileDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CContinuedFileDialog* dlg = NULL;
@@ -377,6 +398,10 @@ INT_PTR ContinuedFileDialog(HWND parent, const char* file)
 
 INT_PTR WINAPI ConfigDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (CABThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ConfigDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CConfigDialog* dlg = NULL;
 
@@ -467,6 +492,10 @@ INT_PTR ConfigDialog(HWND parent)
 
 INT_PTR WINAPI AttentionDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (CABThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("AttentionDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CAttentionDialog* dlg = NULL;

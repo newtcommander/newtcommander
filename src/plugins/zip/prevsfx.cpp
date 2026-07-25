@@ -24,6 +24,10 @@
 #include "common.h"
 #include "prevsfx.h"
 
+// feature 036: dark-theme touchpoints, defined in dialogs.cpp (dialogs.h is not
+// includable here - it needs types this translation unit does not know)
+BOOL ZIPThemeDlgMsg(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result);
+
 WNDPROC OrigLinkControlProc;
 
 #define PGC_FONT RGB(0, 0, 192)
@@ -97,6 +101,10 @@ INT_PTR WINAPI SfxPreviewDlgProc(HWND dlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 {
     CALL_STACK_MESSAGE4("SfxPreviewDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(dlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     static bool processingCommand = false;
     static bool aboutShowed = false;
     static int dlgWinWidth;

@@ -729,6 +729,7 @@ CFilecompThread::Body()
             TRACE_E("Nepodarilo se vytvorit MainWindow, GetLastError() = " << GetLastError());
             break;
         }
+        SG->ThemeApplyToTopLevel(wnd); // feature 036: dark title bar
         dialogBox = FALSE;
     }
 LBODYFINAL:

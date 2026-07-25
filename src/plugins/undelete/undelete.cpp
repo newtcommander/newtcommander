@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 // ****************************************************************************
@@ -251,6 +251,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
     }
     InitializeWinLib("Undelete" /* DO NOT TRANSLATE! */, DLLInstance);
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     InitIconOverlays();
 

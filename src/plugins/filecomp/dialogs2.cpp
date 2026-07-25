@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -649,10 +649,10 @@ CPreviewWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 //   HBitmap = NULL;
 //   HCopyBitmap = NULL;
 //   AllocateBitmap();
-//   WndFramePen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_WINDOWFRAME));
-//   BtnShadowPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW));
-//   BtnHilightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNHIGHLIGHT));
-//   Btn3DLightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_3DLIGHT));
+//   WndFramePen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_WINDOWFRAME));
+//   BtnShadowPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNSHADOW));
+//   BtnHilightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNHIGHLIGHT));
+//   Btn3DLightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_3DLIGHT));
 // }
 //
 // CButton::~CButton()
@@ -731,10 +731,10 @@ CPreviewWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 //   if (BtnShadowPen != NULL) DeleteObject(BtnShadowPen);
 //   if (BtnHilightPen != NULL) DeleteObject(BtnHilightPen);
 //   if (Btn3DLightPen != NULL) DeleteObject(Btn3DLightPen);
-//   WndFramePen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_WINDOWFRAME));
-//   BtnShadowPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNSHADOW));
-//   BtnHilightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_BTNHIGHLIGHT));
-//   Btn3DLightPen = CreatePen(PS_SOLID, 0, GetSysColor(COLOR_3DLIGHT));
+//   WndFramePen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_WINDOWFRAME));
+//   BtnShadowPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNSHADOW));
+//   BtnHilightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_BTNHIGHLIGHT));
+//   Btn3DLightPen = CreatePen(PS_SOLID, 0, SG->GetThemeSysColor(COLOR_3DLIGHT));
 //   RePaint();
 // }
 //
@@ -927,7 +927,7 @@ CPreviewWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 //           r.right++;
 //           r.bottom++;
 //         }
-//         int oldColor = SetTextColor(dc, GetSysColor(COLOR_BTNFACE));
+//         int oldColor = SetTextColor(dc, SG->GetThemeSysColor(COLOR_BTNFACE));
 //         int oldBkColor = SetBkColor(dc, RGB(0, 0, 0));
 //         DrawFocusRect(dc, &r);
 //         SetTextColor(dc, oldBkColor);
@@ -1106,7 +1106,7 @@ CPreviewWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 //
 //   HFONT hOldFont = (HFONT)SelectObject(hdc, hFont);
 //   int oldBkMode = SetBkMode(hdc, TRANSPARENT);
-//   int oldTextColor = SetTextColor(hdc, GetSysColor(COLOR_BTNTEXT));
+//   int oldTextColor = SetTextColor(hdc, SG->GetThemeSysColor(COLOR_BTNTEXT));
 //   RECT r2 = r;
 //   r2.top --;
 //   DrawText(hdc, buff, -1, &r2, DT_CENTER | DT_VCENTER | DT_SINGLELINE);

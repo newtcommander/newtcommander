@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -40,6 +40,10 @@ CFavoriteSfx LastUsedSfxSet;
 
 INT_PTR WINAPI AdvancedSEDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("AdvancedSEDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CAdvancedSEDialog* dlg = NULL;
@@ -1040,7 +1044,7 @@ BOOL CAdvancedSEDialog::OnImport()
                     settings.SfxFile[0] = 0;
                 }
 
-                char zip2sfxDir[U8_MAX_NAME + MAX_PATH]; // UTF-8 path in the plugin's directory
+                char zip2sfxDir[U8_MAX_NAME + MAX_PATH];                                         // UTF-8 path in the plugin's directory
                 if (GetModuleFileNameU8(DLLInstance, zip2sfxDir, (DWORD)sizeof(zip2sfxDir) - 9)) // -9 is the length difference between "zip2sfx\\" and "zip.spl"
                 {
                     char* name = strrchr(zip2sfxDir, '\\');
@@ -1705,6 +1709,10 @@ BOOL CAdvancedSEDialog::LoadFavSettings(CSfxSettings* sfxSettings)
 
 INT_PTR WINAPI SfxTextsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("SfxTextsDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CSfxTextsDialog* dlg = NULL;
@@ -1975,6 +1983,10 @@ BOOL CSfxTextsDialog::OnReset()
 
 INT_PTR WINAPI ManageFavoritiesDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ManageFavoritiesDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg,
                         wParam, lParam);
     static CManageFavoritiesDialog* dlg = NULL;

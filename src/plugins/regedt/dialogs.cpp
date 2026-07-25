@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -75,6 +75,7 @@ BOOL InitDialogs()
     if (!InitializeWinLib("RegEdt", DLLInstance))
         return FALSE;
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SG); // feature 036: dark theme for WinLib dialogs
 
     if (!CreateEnvFont())
     {

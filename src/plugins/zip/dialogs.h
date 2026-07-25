@@ -18,6 +18,12 @@
 #define WM_USER_GETICON (WM_APP + 1)
 #define WM_USER_SETVOLSIZE (WM_APP + 2)
 
+// Dark-theme touchpoints shared by every raw dialog proc in this plugin
+// (feature 036): call first in the proc; WM_INITDIALOG themes the dialog and
+// returns FALSE (continue init), WM_CTLCOLOR* returns TRUE with '*result' set
+// while the Dark theme is active.
+BOOL ZIPThemeDlgMsg(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam, INT_PTR* result);
+
 class CDlgRoot
 {
 public:

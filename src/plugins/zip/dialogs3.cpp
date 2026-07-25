@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -91,6 +91,10 @@ LRESULT CALLBACK EditControlProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
 INT_PTR WINAPI CommentDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("CommentDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CCommentDialog* dlg = NULL;
 
@@ -278,6 +282,10 @@ BOOL CCommentDialog::Save()
 
 INT_PTR WINAPI WaitForDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("WaitForDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam, lParam);
     static CWaitForDialog* dlg = NULL;
 
@@ -370,6 +378,10 @@ WaitForDialog(HWND parent, char* waitFor)
 
 INT_PTR WINAPI ChangeTextDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+
+    INT_PTR themeResult; // feature 036: dark-theme touchpoints
+    if (ZIPThemeDlgMsg(hDlg, uMsg, wParam, lParam, &themeResult))
+        return themeResult;
     CALL_STACK_MESSAGE4("ChangeTextDlgProc(, 0x%X, 0x%IX, 0x%IX)", uMsg, wParam,
                         lParam);
     static CChangeTextsDialog* dlg = NULL;

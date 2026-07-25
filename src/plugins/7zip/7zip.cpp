@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -167,6 +167,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
         return NULL;
     SetWinLibStrings("Invalid number!", LoadStr(IDS_PLUGINNAME));
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     // set the basic plugin information
     salamander->SetBasicPluginData(LoadStr(IDS_PLUGINNAME),

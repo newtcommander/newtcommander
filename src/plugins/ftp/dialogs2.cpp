@@ -1038,6 +1038,7 @@ HWND CWaitWindow::Create(DWORD showTime)
 
     if (HWindow != NULL)
     {
+        SalamanderGeneral->ThemeApplyToTopLevel(HWindow); // feature 036: dark title bar
         SalamanderGeneral->MultiMonCenterWindow(HWindow, hCenterWnd, TRUE);
         if (showTime != 0)
         {
@@ -1395,6 +1396,7 @@ HWND CListWaitWindow::Create(DWORD showTime)
 
     if (HWindow != NULL)
     {
+        SalamanderGeneral->ThemeApplyToTopLevel(HWindow);      // feature 036: dark title bar
         CGetSizesOfListWaitDlg getSizesOfListWaitDlg(HWindow); // move controls from the dialog into the new window
         getSizesOfListWaitDlg.Execute();                       // the dialog closes before it even opens
 

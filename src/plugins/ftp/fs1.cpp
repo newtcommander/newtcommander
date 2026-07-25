@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2023 Open Salamander Authors
+// SPDX-FileCopyrightText: 2023 Open Salamander Authors
 // SPDX-License-Identifier: GPL-2.0-or-later
 // CommentsTranslationProject: TRANSLATED
 
@@ -59,6 +59,7 @@ BOOL InitFS()
     if (!InitializeWinLib("FTP_Client", DLLInstance))
         return FALSE;
     SetupWinLibHelp(HTMLHelpCallback);
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
     SetWinLibStrings(LoadStr(IDS_INVALIDNUMBER), LoadStr(IDS_FTPPLUGINTITLE));
 
     AtomObject2 = GlobalAddAtom("object handle2"); // atom for CSetWaitCursorWindow

@@ -24,11 +24,13 @@ static HACCEL ViewerAccels = NULL;
 
 static std::string WToUtf8Str(const std::wstring& w)
 {
-    if (w.empty()) return std::string();
+    if (w.empty())
+        return std::string();
     int need = WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), NULL, 0, NULL, NULL);
     std::string s;
     s.resize(need > 0 ? need : 0);
-    if (need > 0) WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), &s[0], need, NULL, NULL);
+    if (need > 0)
+        WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), &s[0], need, NULL, NULL);
     return s;
 }
 
@@ -41,16 +43,26 @@ static std::wstring UriDecode(const std::wstring& in)
         wchar_t c = in[i];
         if (c == L'%' && i + 2 < in.size())
         {
-            auto hex = [](wchar_t h) -> int {
-                if (h >= L'0' && h <= L'9') return h - L'0';
-                if (h >= L'a' && h <= L'f') return h - L'a' + 10;
-                if (h >= L'A' && h <= L'F') return h - L'A' + 10;
+            auto hex = [](wchar_t h) -> int
+            {
+                if (h >= L'0' && h <= L'9')
+                    return h - L'0';
+                if (h >= L'a' && h <= L'f')
+                    return h - L'a' + 10;
+                if (h >= L'A' && h <= L'F')
+                    return h - L'A' + 10;
                 return -1;
             };
             int hi = hex(in[i + 1]), lo = hex(in[i + 2]);
-            if (hi >= 0 && lo >= 0) { bytes += (char)((hi << 4) | lo); i += 2; continue; }
+            if (hi >= 0 && lo >= 0)
+            {
+                bytes += (char)((hi << 4) | lo);
+                i += 2;
+                continue;
+            }
         }
-        if (c < 0x80) bytes += (char)c;
+        if (c < 0x80)
+            bytes += (char)c;
         else
         {
             char buf[8];
@@ -61,7 +73,8 @@ static std::wstring UriDecode(const std::wstring& in)
     int need = MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), NULL, 0);
     std::wstring w;
     w.resize(need > 0 ? need : 0);
-    if (need > 0) MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), &w[0], need);
+    if (need > 0)
+        MultiByteToWideChar(CP_UTF8, 0, bytes.data(), (int)bytes.size(), &w[0], need);
     return w;
 }
 
@@ -86,6 +99,7 @@ BOOL InitViewer()
     if (!InitializeWinLib(PluginNameEN, DLLInstance))
         return FALSE;
     SetWinLibStrings(LoadStr(IDS_INVALID_NUM), LoadStr(IDS_PLUGINNAME));
+    SetupWinLibTheme(SalamanderGeneral); // feature 036: dark theme for WinLib dialogs
 
     ACCEL acc[] = {
         {FVIRTKEY | FCONTROL, 'F', CM_EDIT_FIND},
@@ -108,7 +122,11 @@ BOOL InitViewer()
 
 void ReleaseViewer()
 {
-    if (ViewerAccels != NULL) { DestroyAcceleratorTable(ViewerAccels); ViewerAccels = NULL; }
+    if (ViewerAccels != NULL)
+    {
+        DestroyAcceleratorTable(ViewerAccels);
+        ViewerAccels = NULL;
+    }
     ReleaseWinLib(DLLInstance);
 }
 
@@ -136,10 +154,19 @@ public:
         : CThread("MDView Viewer")
     {
         Name = _strdup(name);
-        Left = left; Top = top; Width = width; Height = height;
-        ShowCmd = showCmd; AlwaysOnTop = alwaysOnTop; ReturnLock = returnLock;
-        Continue = contEvent; Lock = lock; LockOwner = lockOwner; Success = success;
-        EnumFilesSourceUID = enumFilesSourceUID; EnumFilesCurrentIndex = enumFilesCurrentIndex;
+        Left = left;
+        Top = top;
+        Width = width;
+        Height = height;
+        ShowCmd = showCmd;
+        AlwaysOnTop = alwaysOnTop;
+        ReturnLock = returnLock;
+        Continue = contEvent;
+        Lock = lock;
+        LockOwner = lockOwner;
+        Success = success;
+        EnumFilesSourceUID = enumFilesSourceUID;
+        EnumFilesCurrentIndex = enumFilesCurrentIndex;
     }
     virtual ~CViewerThread() { free(Name); }
     virtual unsigned Body();
@@ -151,7 +178,11 @@ unsigned CViewerThread::Body()
     CViewerWindow* window = new CViewerWindow(EnumFilesSourceUID, EnumFilesCurrentIndex);
     if (window != NULL)
     {
-        if (ReturnLock) { *Lock = window->GetLock(); *LockOwner = TRUE; }
+        if (ReturnLock)
+        {
+            *Lock = window->GetLock();
+            *LockOwner = TRUE;
+        }
         if (!ReturnLock || *Lock != NULL)
         {
             if (g_savePos && g_wndPlacement.length != 0)
@@ -161,7 +192,8 @@ unsigned CViewerThread::Body()
                 SalamanderGeneral->MultiMonGetClipRectByRect(&place.rcNormalPosition, &workRect, &monitorRect);
                 OffsetRect(&place.rcNormalPosition, workRect.left - monitorRect.left, workRect.top - monitorRect.top);
                 SalamanderGeneral->MultiMonEnsureRectVisible(&place.rcNormalPosition, TRUE);
-                Left = place.rcNormalPosition.left; Top = place.rcNormalPosition.top;
+                Left = place.rcNormalPosition.left;
+                Top = place.rcNormalPosition.top;
                 Width = place.rcNormalPosition.right - place.rcNormalPosition.left;
                 Height = place.rcNormalPosition.bottom - place.rcNormalPosition.top;
                 ShowCmd = place.showCmd;
@@ -170,6 +202,7 @@ unsigned CViewerThread::Body()
                                  WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, Left, Top, Width, Height,
                                  NULL, NULL, DLLInstance, window) != NULL)
             {
+                SalamanderGeneral->ThemeApplyToTopLevel(window->HWindow); // feature 036: dark title bar
                 ShowWindow(window->HWindow, ShowCmd);
                 SetForegroundWindow(window->HWindow);
                 UpdateWindow(window->HWindow);
@@ -182,7 +215,10 @@ unsigned CViewerThread::Body()
 
     BOOL openFile = *Success && Name != NULL;
     SetEvent(Continue);
-    Continue = NULL; Lock = NULL; LockOwner = NULL; Success = NULL;
+    Continue = NULL;
+    Lock = NULL;
+    LockOwner = NULL;
+    Success = NULL;
 
     if (openFile)
     {
@@ -236,7 +272,8 @@ BOOL WINAPI CPluginInterfaceForViewer::CanViewFile(const char* name)
     free(wp);
     if (h == INVALID_HANDLE_VALUE)
         return FALSE; // cascade to the internal text viewer
-    BYTE buf[512]; DWORD rd = 0;
+    BYTE buf[512];
+    DWORD rd = 0;
     ReadFile(h, buf, sizeof(buf), &rd, NULL);
     CloseHandle(h);
     bool bom = rd >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF));
@@ -266,7 +303,11 @@ BOOL WINAPI CPluginInterfaceForViewer::ViewFile(const char* name, int left, int 
         data.WholeCaption = FALSE;
         int err = 0;
         SalamanderGeneral->ViewFileInPluginViewer(NULL, &data, FALSE, NULL, NULL, err);
-        if (returnLock) { *lock = NULL; *lockOwner = FALSE; }
+        if (returnLock)
+        {
+            *lock = NULL;
+            *lockOwner = FALSE;
+        }
         return TRUE;
     }
 
@@ -311,7 +352,11 @@ static INT_PTR CALLBACK FindDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
             EndDialog(hDlg, IDOK);
             return TRUE;
         }
-        if (LOWORD(wParam) == IDCANCEL) { EndDialog(hDlg, IDCANCEL); return TRUE; }
+        if (LOWORD(wParam) == IDCANCEL)
+        {
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+        }
         break;
     }
     return FALSE;
@@ -328,7 +373,8 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
     Web = NULL;
     HSchemeMenu = NULL;
     Theme = MdThemeById(g_scheme);
-    if (Theme == NULL) Theme = MdThemeDefault(false);
+    if (Theme == NULL)
+        Theme = MdThemeDefault(false);
     Encoding = MDENC_UTF8;
     FindText[0] = 0;
     FindIndex = -1;
@@ -341,7 +387,12 @@ CViewerWindow::CViewerWindow(int enumFilesSourceUID, int enumFilesCurrentIndex) 
 
 CViewerWindow::~CViewerWindow()
 {
-    if (Web != NULL) { Web->Destroy(); delete Web; Web = NULL; }
+    if (Web != NULL)
+    {
+        Web->Destroy();
+        delete Web;
+        Web = NULL;
+    }
     free(Name);
 }
 
@@ -357,18 +408,28 @@ const MdTheme* CViewerWindow::EffectiveTheme()
     if (g_followSys)
     {
         BOOL light = TRUE;
-        HKEY k;
-        if (RegOpenKeyExW(HKEY_CURRENT_USER,
-                          L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-                          0, KEY_READ, &k) == ERROR_SUCCESS)
+        if (SalamanderGeneral->IsDarkThemeActive())
         {
-            DWORD v = 1, sz = sizeof(v), type = 0;
-            if (RegQueryValueExW(k, L"AppsUseLightTheme", NULL, &type, (LPBYTE)&v, &sz) == ERROR_SUCCESS)
-                light = (v != 0);
-            RegCloseKey(k);
+            // feature 036: the application's Dark theme (Options > Theme) takes
+            // precedence over the OS light/dark setting
+            light = FALSE;
+        }
+        else
+        {
+            HKEY k;
+            if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                              L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                              0, KEY_READ, &k) == ERROR_SUCCESS)
+            {
+                DWORD v = 1, sz = sizeof(v), type = 0;
+                if (RegQueryValueExW(k, L"AppsUseLightTheme", NULL, &type, (LPBYTE)&v, &sz) == ERROR_SUCCESS)
+                    light = (v != 0);
+                RegCloseKey(k);
+            }
         }
         const MdTheme* t = MdThemeById(light ? g_schemeLight : g_schemeDark);
-        if (t) return t;
+        if (t)
+            return t;
     }
     const MdTheme* t = MdThemeById(g_scheme);
     return t ? t : MdThemeDefault(false);
@@ -415,7 +476,8 @@ void CViewerWindow::BuildMenu()
 
 void CViewerWindow::RefreshSchemeChecks()
 {
-    if (HSchemeMenu == NULL) return;
+    if (HSchemeMenu == NULL)
+        return;
     const MdTheme* t = MdThemeById(g_scheme);
     int idx = t ? MdThemeIndex(t) : 0;
     CheckMenuRadioItem(HSchemeMenu, CM_SCHEME_FIRST, CM_SCHEME_FIRST + MdThemeCount - 1,
@@ -432,11 +494,15 @@ void CViewerWindow::RefreshSchemeChecks()
 void CViewerWindow::UpdateTitle()
 {
     std::wstring title = FilePathW;
-    if (!title.empty()) title += L" - ";
+    if (!title.empty())
+        title += L" - ";
     title += L"Markdown Viewer";
-    if (SourceMode) title += L" [Source]";
-    if (Encoding == MDENC_ANSI) title += L" [ANSI]";
-    else if (Encoding == MDENC_UTF16LE || Encoding == MDENC_UTF16BE) title += L" [UTF-16]";
+    if (SourceMode)
+        title += L" [Source]";
+    if (Encoding == MDENC_ANSI)
+        title += L" [ANSI]";
+    else if (Encoding == MDENC_UTF16LE || Encoding == MDENC_UTF16BE)
+        title += L" [UTF-16]";
     wchar_t z[16];
     _snwprintf_s(z, _TRUNCATE, L" (%d%%)", g_zoom);
     title += z;
@@ -465,8 +531,10 @@ void CViewerWindow::ShowDocument(const std::wstring& fragment)
     {
         Web->SetDocument(&Html, DocDir);
         Web->SetZoomPercent(g_zoom);
-        if (Web->IsReady()) Web->Navigate(fragment);
-        else RenderPending = true;
+        if (Web->IsReady())
+            Web->Navigate(fragment);
+        else
+            RenderPending = true;
     }
 }
 
@@ -501,8 +569,10 @@ void CViewerWindow::RenderDocument()
                     DWORD n = (DWORD)(sz.QuadPart < cap ? sz.QuadPart : cap);
                     bytes.resize(n);
                     DWORD rd = 0;
-                    if (ReadFile(h, n ? &bytes[0] : NULL, n, &rd, NULL)) bytes.resize(rd);
-                    else bytes.clear();
+                    if (ReadFile(h, n ? &bytes[0] : NULL, n, &rd, NULL))
+                        bytes.resize(rd);
+                    else
+                        bytes.clear();
                     CloseHandle(h);
                     Encoding = MdDetectDecode(bytes.data(), bytes.size(), DecodedText);
                     SourceMode = true;
@@ -513,7 +583,11 @@ void CViewerWindow::RenderDocument()
                 DWORD n = (DWORD)sz.QuadPart;
                 bytes.resize(n);
                 DWORD rd = 0;
-                if (ReadFile(h, n ? &bytes[0] : NULL, n, &rd, NULL)) { bytes.resize(rd); loaded = true; }
+                if (ReadFile(h, n ? &bytes[0] : NULL, n, &rd, NULL))
+                {
+                    bytes.resize(rd);
+                    loaded = true;
+                }
             }
             CloseHandle(h);
         }
@@ -539,19 +613,25 @@ void CViewerWindow::RenderDocument()
 
 void CViewerWindow::SetZoom(int pct)
 {
-    if (pct < 50) pct = 50;
-    if (pct > 300) pct = 300;
+    if (pct < 50)
+        pct = 50;
+    if (pct > 300)
+        pct = 300;
     g_zoom = pct;
-    if (Web != NULL) Web->SetZoomPercent(g_zoom);
+    if (Web != NULL)
+        Web->SetZoomPercent(g_zoom);
     UpdateTitle();
 }
 
 void CViewerWindow::SelectScheme(int idx)
 {
-    if (idx < 0 || idx >= MdThemeCount) return;
+    if (idx < 0 || idx >= MdThemeCount)
+        return;
     lstrcpynA(g_scheme, MdThemes[idx].id, sizeof(g_scheme));
-    if (MdThemes[idx].dark) lstrcpynA(g_schemeDark, MdThemes[idx].id, sizeof(g_schemeDark));
-    else lstrcpynA(g_schemeLight, MdThemes[idx].id, sizeof(g_schemeLight));
+    if (MdThemes[idx].dark)
+        lstrcpynA(g_schemeDark, MdThemes[idx].id, sizeof(g_schemeDark));
+    else
+        lstrcpynA(g_schemeLight, MdThemes[idx].id, sizeof(g_schemeLight));
     RefreshSchemeChecks();
     Regenerate();
 }
@@ -571,13 +651,15 @@ void CViewerWindow::DoFind(BOOL forward, BOOL prompt)
         if (DialogBoxParamW(HLanguage, MAKEINTRESOURCEW(IDD_FIND), HWindow, FindDlgProc,
                             (LPARAM)FindText) != IDOK)
             return;
-        if (FindText[0] == 0) return;
+        if (FindText[0] == 0)
+            return;
         // Regenerate with <mark>s for the (new) term and re-serve it. SetDocument
         // bumps the doc version, so the single Navigate below is a full reload
         // that carries the new marks (fixes the v021 double-navigation race).
         FindIndex = -1;
         RebuildHtml();
-        if (Web != NULL) Web->SetDocument(&Html, DocDir);
+        if (Web != NULL)
+            Web->SetDocument(&Html, DocDir);
         if (Html.matchCount <= 0 && Web != NULL && Web->IsReady())
             Web->Navigate(); // reload to clear any previous term's highlights
     }
@@ -588,8 +670,10 @@ void CViewerWindow::DoFind(BOOL forward, BOOL prompt)
         return;
     }
     FindIndex += forward ? 1 : -1;
-    if (FindIndex < 0) FindIndex = Html.matchCount - 1;
-    if (FindIndex >= Html.matchCount) FindIndex = 0;
+    if (FindIndex < 0)
+        FindIndex = Html.matchCount - 1;
+    if (FindIndex >= Html.matchCount)
+        FindIndex = 0;
     if (Web != NULL && Web->IsReady())
     {
         Web->Navigate(L"mdfind-" + std::to_wstring(FindIndex));
@@ -618,35 +702,48 @@ void CViewerWindow::ActivateLink(const std::wstring& uri)
         // relative link inside the document
         std::wstring rel = uri.substr(host.size());
         size_t hash = rel.find(L'#');
-        if (hash != std::wstring::npos) rel = rel.substr(0, hash);
+        if (hash != std::wstring::npos)
+            rel = rel.substr(0, hash);
         size_t q = rel.find(L'?');
-        if (q != std::wstring::npos) rel = rel.substr(0, q);
-        if (rel.empty() || rel == L"doc.html") return; // our own document
+        if (q != std::wstring::npos)
+            rel = rel.substr(0, q);
+        if (rel.empty() || rel == L"doc.html")
+            return; // our own document
         rel = UriDecode(rel);
 
         std::wstring lower = rel;
-        for (wchar_t& ch : lower) ch = (wchar_t)towlower(ch);
+        for (wchar_t& ch : lower)
+            ch = (wchar_t)towlower(ch);
         bool isMd = (lower.size() > 3 && lower.substr(lower.size() - 3) == L".md") ||
                     (lower.size() > 9 && lower.substr(lower.size() - 9) == L".markdown");
-        for (wchar_t& ch : rel) if (ch == L'/') ch = L'\\';
+        for (wchar_t& ch : rel)
+            if (ch == L'/')
+                ch = L'\\';
         if (isMd && !DocDir.empty() && rel.find(L':') == std::wstring::npos && rel.compare(0, 2, L"\\\\") != 0)
         {
             std::wstring full = DocDir;
-            if (!full.empty() && full.back() != L'\\') full += L'\\';
+            if (!full.empty() && full.back() != L'\\')
+                full += L'\\';
             full += rel;
             char* u8 = SplWToU8Alloc(full.c_str());
-            if (u8 != NULL) { SpawnViewer(u8, -1, -1, FALSE, NULL, NULL); free(u8); }
+            if (u8 != NULL)
+            {
+                SpawnViewer(u8, -1, -1, FALSE, NULL, NULL);
+                free(u8);
+            }
             return;
         }
         // other local target: show the resolved path only (never launched)
         std::wstring full = DocDir;
-        if (!full.empty() && full.back() != L'\\') full += L'\\';
+        if (!full.empty() && full.back() != L'\\')
+            full += L'\\';
         full += rel;
         std::wstring msg = full + L"\n\n";
         char* u8 = SplWToU8Alloc(msg.c_str());
         SalamanderGeneral->SalMessageBox(HWindow, u8 ? u8 : LoadStr(IDS_LINK_BLOCKED),
                                          LoadStr(IDS_WINDOW_TITLE), MB_OK | MB_ICONINFORMATION);
-        if (u8) free(u8);
+        if (u8)
+            free(u8);
         return;
     }
 
@@ -656,7 +753,8 @@ void CViewerWindow::ActivateLink(const std::wstring& uri)
     if (colon != std::wstring::npos && colon > 0)
     {
         scheme = uri.substr(0, colon);
-        for (wchar_t& ch : scheme) ch = (wchar_t)towlower(ch);
+        for (wchar_t& ch : scheme)
+            ch = (wchar_t)towlower(ch);
     }
     if (scheme == L"http" || scheme == L"https" || scheme == L"mailto")
         ShellExecuteW(HWindow, L"open", uri.c_str(), NULL, NULL, SW_SHOWNORMAL);
@@ -704,7 +802,8 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         Web = new CMdWebHost();
         CMdWebHost::Callbacks cb;
-        cb.OnReady = [this]() {
+        cb.OnReady = [this]()
+        {
             if (RenderPending)
             {
                 RenderPending = false;
@@ -713,10 +812,14 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 Web->Navigate();
             }
         };
-        cb.OnActivateLink = [this](const std::wstring& uri) { ActivateLink(uri); };
-        cb.OnInitFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
-        cb.OnProcessFailed = [this]() { PostMessage(HWindow, WM_APP + 1, 0, 0); };
-        cb.OnZoomChanged = [this](int pct) { g_zoom = pct; UpdateTitle(); };
+        cb.OnActivateLink = [this](const std::wstring& uri)
+        { ActivateLink(uri); };
+        cb.OnInitFailed = [this]()
+        { PostMessage(HWindow, WM_APP + 1, 0, 0); };
+        cb.OnProcessFailed = [this]()
+        { PostMessage(HWindow, WM_APP + 1, 0, 0); };
+        cb.OnZoomChanged = [this](int pct)
+        { g_zoom = pct; UpdateTitle(); };
         Web->Create(HWindow, UserDataFolder(), cb);
         break;
     }
@@ -739,7 +842,8 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_SETFOCUS:
         // forward frame focus into the WebView2 content so keyboard scrolling
         // (arrows / PgUp / PgDn) works without a mouse click
-        if (Web != NULL && Web->IsReady()) Web->Focus();
+        if (Web != NULL && Web->IsReady())
+            Web->Focus();
         return 0;
 
     case WM_COMMAND:
@@ -752,24 +856,52 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         switch (id)
         {
-        case CM_FILE_CLOSE: DestroyWindow(HWindow); return 0;
+        case CM_FILE_CLOSE:
+            DestroyWindow(HWindow);
+            return 0;
         case CM_FILE_OPENTEXT: // "View Source" toggle (Ctrl+U)
             SourceMode = !SourceMode;
             FindIndex = -1;
             RefreshSchemeChecks();
             Regenerate();
             return 0;
-        case CM_EDIT_FIND: DoFind(TRUE, TRUE); return 0;
-        case CM_EDIT_FINDNEXT: DoFind(TRUE, FALSE); return 0;
-        case CM_EDIT_FINDPREV: DoFind(FALSE, FALSE); return 0;
-        case CM_VIEW_FOLLOWSYS: g_followSys = !g_followSys; RefreshSchemeChecks(); Regenerate(); return 0;
-        case CM_VIEW_REMOTEIMG: RemoteAllowed = !RemoteAllowed; RefreshSchemeChecks(); Regenerate(); return 0;
-        case CM_VIEW_ZOOMIN: SetZoom(g_zoom + 10); return 0;
-        case CM_VIEW_ZOOMOUT: SetZoom(g_zoom - 10); return 0;
-        case CM_VIEW_ZOOMRESET: SetZoom(100); return 0;
-        case CM_SCHEME_NEXT: CycleScheme(1); return 0;
-        case CM_SCHEME_PREV: CycleScheme(-1); return 0;
-        case CM_HELP_ABOUT: OnAbout(HWindow); return 0;
+        case CM_EDIT_FIND:
+            DoFind(TRUE, TRUE);
+            return 0;
+        case CM_EDIT_FINDNEXT:
+            DoFind(TRUE, FALSE);
+            return 0;
+        case CM_EDIT_FINDPREV:
+            DoFind(FALSE, FALSE);
+            return 0;
+        case CM_VIEW_FOLLOWSYS:
+            g_followSys = !g_followSys;
+            RefreshSchemeChecks();
+            Regenerate();
+            return 0;
+        case CM_VIEW_REMOTEIMG:
+            RemoteAllowed = !RemoteAllowed;
+            RefreshSchemeChecks();
+            Regenerate();
+            return 0;
+        case CM_VIEW_ZOOMIN:
+            SetZoom(g_zoom + 10);
+            return 0;
+        case CM_VIEW_ZOOMOUT:
+            SetZoom(g_zoom - 10);
+            return 0;
+        case CM_VIEW_ZOOMRESET:
+            SetZoom(100);
+            return 0;
+        case CM_SCHEME_NEXT:
+            CycleScheme(1);
+            return 0;
+        case CM_SCHEME_PREV:
+            CycleScheme(-1);
+            return 0;
+        case CM_HELP_ABOUT:
+            OnAbout(HWindow);
+            return 0;
         }
         break;
     }
@@ -786,7 +918,8 @@ LRESULT CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             g_wndPlacement.length = sizeof(WINDOWPLACEMENT);
             GetWindowPlacement(HWindow, &g_wndPlacement);
         }
-        if (Web != NULL) Web->Destroy();
+        if (Web != NULL)
+            Web->Destroy();
         ViewerWindowQueue.Remove(HWindow);
         PostQuitMessage(0);
         break;
