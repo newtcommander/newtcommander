@@ -170,7 +170,9 @@ typedef struct
     int IconResID;
     int TextResID;
 } CMainWindowIconItem;
-#define MAINWINDOWICONS_COUNT 4
+// feature 035: the red/green/blue variants were removed; stale registry or
+// command-line indexes >= 1 fall back to the single default entry
+#define MAINWINDOWICONS_COUNT 1
 extern CMainWindowIconItem MainWindowIcons[MAINWINDOWICONS_COUNT];
 
 struct CConfiguration
@@ -1079,12 +1081,8 @@ protected:
 
 class CCfgPageMainWindow : public CCommonPropSheetPage
 {
-protected:
-    HIMAGELIST HIconsList;
-
 public:
     CCfgPageMainWindow();
-    ~CCfgPageMainWindow();
 
     virtual void Transfer(CTransferInfo& ti);
     virtual void Validate(CTransferInfo& ti);
@@ -1094,8 +1092,6 @@ public:
 
 protected:
     virtual INT_PTR DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
-
-    BOOL InitIconCombobox();
 };
 
 //

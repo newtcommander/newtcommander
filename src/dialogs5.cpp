@@ -2684,22 +2684,12 @@ CCfgPageEditors::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 CMainWindowIconItem MainWindowIcons[MAINWINDOWICONS_COUNT] =
     {
-        {IDI_SALAMANDER, IDS_SALAMANDERICON_DEFAULT}, // default icon
-        {IDI_SALAMANDER_RED, IDS_SALAMANDERICON_RED},
-        {IDI_SALAMANDER_GREEN, IDS_SALAMANDERICON_GREEN},
-        {IDI_SALAMANDER_BLUE, IDS_SALAMANDERICON_BLUE},
+        {IDI_SALAMANDER, IDS_SALAMANDERICON_DEFAULT}, // default icon (feature 035: color variants removed)
 };
 
 CCfgPageMainWindow::CCfgPageMainWindow()
     : CCommonPropSheetPage(NULL, HLanguage, IDD_CFGPAGE_MAINWINDOW, IDD_CFGPAGE_MAINWINDOW, PSP_USETITLE, NULL)
 {
-    HIconsList = NULL;
-}
-
-CCfgPageMainWindow::~CCfgPageMainWindow()
-{
-    if (HIconsList != NULL)
-        ImageList_Destroy(HIconsList);
 }
 
 void CCfgPageMainWindow::LoadControls()
@@ -2751,16 +2741,6 @@ void CCfgPageMainWindow::Transfer(CTransferInfo& ti)
         }
     }
 
-    int oldMainWindowIconIndex = Configuration.MainWindowIconIndex;
-    if (ti.Type == ttDataToWindow)
-        SendDlgItemMessage(HWindow, IDC_TITLEBAR_ICON_INDEX, CB_SETCURSEL, Configuration.MainWindowIconIndex, 0);
-    else
-    {
-        Configuration.MainWindowIconIndex = (int)SendDlgItemMessage(HWindow, IDC_TITLEBAR_ICON_INDEX, CB_GETCURSEL, 0, 0);
-        if (Configuration.MainWindowIconIndex != oldMainWindowIconIndex)
-            Configuration.MainWindowIconIndexForced = -1; // a change occurred, clear any command line option
-    }
-
     if (ti.Type == ttDataToWindow)
     {
         EnableControls();
@@ -2771,72 +2751,11 @@ void CCfgPageMainWindow::Validate(CTransferInfo& ti)
 {
 }
 
-BOOL CCfgPageMainWindow::InitIconCombobox()
-{
-    HWND hCombo = GetDlgItem(HWindow, IDC_TITLEBAR_ICON_INDEX);
-
-    // get the position of the original combobox
-    RECT r;
-    GetWindowRect(hCombo, &r);
-    POINT p;
-    p.x = r.left;
-    p.y = r.top;
-    ScreenToClient(HWindow, &p);
-
-    // create the EX version capable of displaying an image list
-    HWND hNewCombo = CreateWindowEx(0, WC_COMBOBOXEX, NULL,
-                                    WS_BORDER | WS_CHILD | CBS_DROPDOWNLIST | WS_TABSTOP,
-                                    0, 0, 0, (MAINWINDOWICONS_COUNT + 1) * (r.bottom - r.top), // give it some reserve so the list is not clipped on HDPI
-                                    HWindow,
-                                    NULL,
-                                    HInstance,
-                                    NULL);
-    SetWindowLongPtr(hNewCombo, GWLP_ID, IDC_TITLEBAR_ICON_INDEX);
-
-    // since Vista, if font aliasing is set to Standard, the combobox had aliased font while the rest of the dialog
-    // had the classic non-aliased one; set the correct font
-    HFONT hFont = (HFONT)SendMessage(hCombo, WM_GETFONT, 0, 0);
-    SendMessage(hNewCombo, WM_SETFONT, (WPARAM)hFont, MAKELPARAM(TRUE, 0));
-
-    HIconsList = ImageList_Create(16, 16, GetImageListColorFlags() | ILC_MASK, 0, 1);
-
-    COMBOBOXEXITEM cbei;
-    cbei.mask = CBEIF_TEXT | CBEIF_IMAGE | CBEIF_SELECTEDIMAGE;
-    int i;
-    for (i = 0; i < MAINWINDOWICONS_COUNT; i++)
-    {
-        HICON hIcon = LoadIcon(HInstance, MAKEINTRESOURCE(MainWindowIcons[i].IconResID));
-        ImageList_AddIcon(HIconsList, hIcon);
-        DestroyIcon(hIcon);
-
-        cbei.iItem = i;
-        cbei.pszText = LoadStr(MainWindowIcons[i].TextResID);
-        cbei.iImage = i;
-        cbei.iSelectedImage = i;
-        SendMessage(hNewCombo, CBEM_INSERTITEM, 0, (LPARAM)&cbei);
-    }
-
-    SendMessage(hNewCombo, CBEM_SETIMAGELIST, 0, (LPARAM)HIconsList);
-
-    SetWindowPos(hNewCombo, hCombo, p.x, p.y, r.right - r.left, r.bottom - r.top, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-    DestroyWindow(hCombo);
-
-    return TRUE;
-}
-
 INT_PTR
 CCfgPageMainWindow::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
-    case WM_INITDIALOG:
-    {
-        // replace the existing combobox for icon color selection with its EX version
-        InitIconCombobox();
-
-        break;
-    }
-
     case WM_COMMAND:
     {
         if (HIWORD(wParam) == BN_CLICKED)

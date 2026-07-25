@@ -2432,9 +2432,6 @@
 
 // Main Window icon colors
 #define IDS_SALAMANDERICON_DEFAULT      13776
-#define IDS_SALAMANDERICON_RED          13777
-#define IDS_SALAMANDERICON_GREEN        13778
-#define IDS_SALAMANDERICON_BLUE         13779
 
 // Copy/Move progress dialog: number of hours in "time left": %d hr
 #define IDS_PROGDLGHOURS                13800

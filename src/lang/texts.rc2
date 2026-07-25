@@ -1776,9 +1776,6 @@ STRINGTABLE
  IDS_SHEXT_NOTLOADEDYET, "Drag&drop operation from archive or plugin file system has failed. Please remove unwantedly created DROPFAKE directory (if any) from target directory.\n\nThis should happen only immediately after installation or if drop target is not Windows Explorer nor Newt Commander. If drop target is Windows Explorer, please restart Windows to correct this problem (advanced users can just kill explorer.exe process and start it again)."
  
  IDS_SALAMANDERICON_DEFAULT, "Default"
- IDS_SALAMANDERICON_RED, "Red"
- IDS_SALAMANDERICON_GREEN, "Green"
- IDS_SALAMANDERICON_BLUE, "Blue"
  
  IDS_PROGDLGHOURS, "%d hr"
  IDS_PROGDLGMINUTES, "%d min"

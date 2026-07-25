@@ -909,12 +909,6 @@
     </Image>
     <Image Include="..\res\salamand.ico">
     </Image>
-    <Image Include="..\res\sal_b.ico">
-    </Image>
-    <Image Include="..\res\sal_g.ico">
-    </Image>
-    <Image Include="..\res\sal_r.ico">
-    </Image>
     <Image Include="..\res\throbber.png">
     </Image>
     <Image Include="..\res\toolbar.bmp">

@@ -829,15 +829,6 @@
     <Image Include="..\res\pluginfs.ico">
       <Filter>rc</Filter>
     </Image>
-    <Image Include="..\res\sal_b.ico">
-      <Filter>rc</Filter>
-    </Image>
-    <Image Include="..\res\sal_g.ico">
-      <Filter>rc</Filter>
-    </Image>
-    <Image Include="..\res\sal_r.ico">
-      <Filter>rc</Filter>
-    </Image>
     <Image Include="..\res\salamand.ico">
       <Filter>rc</Filter>
     </Image>

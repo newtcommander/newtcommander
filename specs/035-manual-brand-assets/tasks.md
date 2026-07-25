@@ -35,11 +35,11 @@
 
 **Independent Test**: Quickstart §3 (window/taskbar/Explorer icon, config page, stale-registry fallback) + §4 swap dry run for the icon.
 
-- [ ] T005 [P] [US1] Delete `src/res/sal_r.ico`, `src/res/sal_g.ico`, `src/res/sal_b.ico` (`git rm`) and remove their `<Image>` items from `src/vcxproj/salamand.vcxproj` and `src/vcxproj/salamand.vcxproj.filters`
-- [ ] T006 [P] [US1] Remove `IDI_SALAMANDER_RED/GREEN/BLUE` defines from `src/resource.rh2` and their `ICON` statements from `src/salamand.rc2`
-- [ ] T007 [US1] Shrink the variant machinery: `src/cfgdlg.h` `MAINWINDOWICONS_COUNT` 4 → 1; `src/dialogs5.cpp` `MainWindowIcons[]` down to the default entry and delete the `IDC_TITLEBAR_ICON_INDEX` combo fill/transfer/HDPI-rebuild code in `CCfgPageMainWindow`; verify `src/dialogs4.cpp` `GetMainWindowIconIndex()` clamp still covers stale registry/`-i`/tasklist values
-- [ ] T008 [US1] Remove the " Main Window Icon " groupbox, "Ic&on color:" label, `IDC_TITLEBAR_ICON_INDEX` combobox and shortcut-hint static from `IDD_CFGPAGE_MAINWINDOW` in `src/lang/lang.rc`; drop `IDC_TITLEBAR_ICON_INDEX` from `src/lang/lang.rh` and the now-unused `IDS_SALAMANDERICON_RED/GREEN/BLUE` strings from `src/lang/lang.rc`/`lang.rh`
-- [ ] T009 [US1] Build (`build.cmd`) and run-verify per quickstart §3: new-pipeline icon in window top-left, taskbar and Explorer; config page lays out cleanly without the combo; `reg add … "Main window icon index" /d 2` → app starts with default icon, no error
+- [X] T005 [P] [US1] Delete `src/res/sal_r.ico`, `src/res/sal_g.ico`, `src/res/sal_b.ico` (`git rm`) and remove their `<Image>` items from `src/vcxproj/salamand.vcxproj` and `src/vcxproj/salamand.vcxproj.filters`
+- [X] T006 [P] [US1] Remove `IDI_SALAMANDER_RED/GREEN/BLUE` defines from `src/resource.rh2` and their `ICON` statements from `src/salamand.rc2`
+- [X] T007 [US1] Shrink the variant machinery: `src/cfgdlg.h` `MAINWINDOWICONS_COUNT` 4 → 1; `src/dialogs5.cpp` `MainWindowIcons[]` down to the default entry and delete the `IDC_TITLEBAR_ICON_INDEX` combo fill/transfer/HDPI-rebuild code in `CCfgPageMainWindow`; verify `src/dialogs4.cpp` `GetMainWindowIconIndex()` clamp still covers stale registry/`-i`/tasklist values
+- [X] T008 [US1] Remove the " Main Window Icon " groupbox, "Ic&on color:" label, `IDC_TITLEBAR_ICON_INDEX` combobox and shortcut-hint static from `IDD_CFGPAGE_MAINWINDOW` in `src/lang/lang.rc`; drop `IDC_TITLEBAR_ICON_INDEX` from `src/lang/lang.rh` and the now-unused `IDS_SALAMANDERICON_RED/GREEN/BLUE` strings from `src/lang/lang.rc`/`lang.rh`
+- [X] T009 [US1] Build (`build.cmd`) and run-verify per quickstart §3: new-pipeline icon in window top-left, taskbar and Explorer; config page lays out cleanly without the combo; `reg add … "Main window icon index" /d 2` → app starts with default icon, no error
 
 **Checkpoint**: US1 delivers the MVP — icon fully hand-swappable, variants gone.
 
