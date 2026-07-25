@@ -195,8 +195,14 @@
 //         see specs/004-long-paths-unicode/contracts/plugin-interface-vnext.md);
 //         plugins built for <= 103 are refused at load, rebuild against this SDK,
 //         third-party migration guide: doc\plugin-vnext-migration.md
+//   105 - 0.1.0 build 184: theme services for plugin UI (feature 036): 6 methods
+//         appended at the end of CSalamanderGeneralAbstract (IsDarkThemeActive,
+//         GetThemeSysColor(Brush), ThemeApplyToDialog/ToTopLevel,
+//         ThemeHandleCtlColor); pure vtable append - plugins built for 104
+//         keep loading and running unchanged (they just stay light in Dark mode),
+//         see specs/036-plugin-dark-theme/contracts/plugin-theme-api.md
 
-#define LAST_VERSION_OF_SALAMANDER 104
+#define LAST_VERSION_OF_SALAMANDER 105
 #define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Newt Commander 0.1.0 build 184 (" SAL_VER_PLATFORM ") or later."
 
 #endif // __SPL_VERS_H

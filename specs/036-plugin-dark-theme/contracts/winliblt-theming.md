@@ -18,20 +18,23 @@ theming — winliblt behaves byte-for-byte as before feature 036.
 
 `CDialog::CDialogProc` and `CPropSheetPage::CPropSheetPageProc`:
 
-1. On `WM_INITDIALOG` (after the object is attached, before the object's
-   `DialogProc` runs): call `provider->ThemeApplyToDialog(hwndDlg)`.
-2. On `WM_CTLCOLORDLG/STATIC/EDIT/LISTBOX/BTN`: call
-   `provider->ThemeHandleCtlColor(...)` first; if TRUE, return its result
-   without invoking the object's `DialogProc` for that message; if FALSE,
-   proceed exactly as today.
+1. On `WM_INITDIALOG` (after the object is attached and
+   `NotifDlgJustCreated()` ran, before the object's `DialogProc` sees the
+   message): call `provider->ThemeApplyToDialog(hwndDlg)`.
+2. On every dispatched message: invoke the object's `DialogProc` FIRST;
+   only when it returns FALSE (left the message unhandled) forward to
+   `provider->ThemeHandleCtlColor(...)`, which colors
+   `WM_CTLCOLORDLG/STATIC/EDIT/LISTBOX/BTN` in the Dark theme and ignores
+   everything else.
 
 Guarantees:
 
 - Default theme: `ThemeHandleCtlColor` returns FALSE and
   `ThemeApplyToDialog` no-ops → zero behavioral delta.
-- A dialog's own `DialogProc` can still fully customize drawing: object
-  handlers run for every message except a Dark-handled WM_CTLCOLOR*, which
-  is the same precedence 028 uses in the core winlib.
+- A dialog's own `DialogProc` keeps full precedence: any WM_CTLCOLOR* it
+  answers itself (custom warning colors etc.) wins over the theme — the
+  same precedence the core established in 028 (`CCommonDialog` themes only
+  what derived dialogs leave unhandled).
 - No process-wide effects: no `InitCommonControlsEx`, no manifests, no
   class re-registration (constitution VI).
 

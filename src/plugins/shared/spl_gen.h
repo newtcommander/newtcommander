@@ -3450,6 +3450,57 @@ public:
     // pouziva se pri critical shutdown k odblokovani okna/dialogu, nad kterym jsou otevrene
     // modalni dialogy, hrozi-li vice vrstev, je nutne volat opakovane
     virtual void WINAPI CloseAllOwnedEnabledDialogs(HWND parent, DWORD tid = 0) = 0;
+
+    // ------------------------------------------------------------------------
+    // Theme services for plugin UI (feature 036, interface version 105).
+    // The application owns a Default/Dark visual theme (Options > Theme, see
+    // feature 028); these methods let a plugin render its own windows and
+    // dialogs consistently with the active theme. All of them are strict
+    // passthroughs/no-ops while the Default theme (or Windows High Contrast)
+    // is active, so calling them never changes the classic light appearance.
+    // Theme state should be read at window creation time; the application
+    // does not push live repaints into open plugin windows on a theme switch
+    // (reopen adopts the new theme). Contract:
+    // specs/036-plugin-dark-theme/contracts/plugin-theme-api.md
+
+    // returns TRUE iff the user selected the Dark theme AND Windows High
+    // Contrast is not active; branch custom drawing on this predicate
+    // mozne volat z libovolneho threadu
+    virtual BOOL WINAPI IsDarkThemeActive() = 0;
+
+    // GetSysColor() replacement for DRAWING code: Default theme returns
+    // GetSysColor(index) unchanged; Dark theme returns the dark chrome
+    // palette entry (unmapped indices fall back to GetSysColor); do not
+    // store the value across a theme switch
+    // mozne volat z libovolneho threadu
+    virtual COLORREF WINAPI GetThemeSysColor(int index) = 0;
+
+    // GetSysColorBrush() replacement for fills; the returned brush is owned
+    // by the application (plugin MUST NOT delete it) and is rebuilt on theme
+    // switches, so fetch it at draw time instead of caching it
+    // mozne volat z libovolneho threadu
+    virtual HBRUSH WINAPI GetThemeSysColorBrush(int index) = 0;
+
+    // dark-themes a dialog: dark title bar + per-child SetWindowTheme dark
+    // variants + listview/treeview colors; call once from WM_INITDIALOG;
+    // safe in the Default theme (no-op/restore)
+    // omezeni: thread vlastnici okno 'hDialog'
+    virtual void WINAPI ThemeApplyToDialog(HWND hDialog) = 0;
+
+    // applies/removes the dark (DWM immersive) title bar on a plugin
+    // top-level window according to the active theme; call after creating
+    // viewer frames and modeless tool windows
+    // omezeni: thread vlastnici okno 'hWindow'
+    virtual void WINAPI ThemeApplyToTopLevel(HWND hWindow) = 0;
+
+    // central WM_CTLCOLORDLG/STATIC/EDIT/LISTBOX/BTN handling for plugin
+    // dialog procs: forward the message here first; returns TRUE when the
+    // Dark theme handled it and stores the brush into 'result' (return
+    // '*result' from the dialog proc), FALSE in the Default theme (fall
+    // through to the existing handling)
+    // omezeni: thread vlastnici okno dialogu
+    virtual BOOL WINAPI ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam,
+                                            INT_PTR* result) = 0;
 };
 
 #ifdef _MSC_VER

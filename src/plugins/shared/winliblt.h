@@ -35,6 +35,17 @@ typedef void(WINAPI* FWinLibLTHelpCallback)(HWND hWindow, UINT helpID);
 // nastaveni callbacku pro pripojeni na HTML help
 void SetupWinLibHelp(FWinLibLTHelpCallback helpCallback);
 
+class CSalamanderGeneralAbstract;
+
+// feature 036: enables dark-theme support for every WinLib dialog and
+// property-sheet page in this plugin (dark title bar + control theming on
+// WM_INITDIALOG, central WM_CTLCOLOR* fallback when the dialog object does
+// not handle the message itself); call once from SalamanderPluginEntry
+// after the interfaces are obtained; NULL or never calling = no theming,
+// WinLib behaves exactly as before this feature; see
+// specs/036-plugin-dark-theme/contracts/winliblt-theming.md
+void SetupWinLibTheme(CSalamanderGeneralAbstract* salamander);
+
 // konstanty pro stringy WinLibu (jen interni pouziti ve WinLibu)
 enum CWLS
 {

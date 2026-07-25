@@ -27,6 +27,8 @@
 #endif
 
 #include "spl_base.h"
+#include "spl_com.h" // feature 036: types required by spl_gen.h
+#include "spl_gen.h" // feature 036: theme provider interface
 #include "dbg.h"
 
 #ifdef ENABLE_PROPERTYDIALOG
@@ -53,6 +55,9 @@ char WinLibStrings[WLS_COUNT][101] = {
 
 FWinLibLTHelpCallback WinLibLTHelpCallback = NULL; // callbacku pro pripojeni na HTML help
 
+// feature 036: theme provider for dark-mode dialog support; NULL = theming off
+static CSalamanderGeneralAbstract* WinLibThemeProvider = NULL;
+
 //
 // ****************************************************************************
 
@@ -65,6 +70,11 @@ void SetWinLibStrings(const char* invalidNumber, const char* error)
 void SetupWinLibHelp(FWinLibLTHelpCallback helpCallback)
 {
     WinLibLTHelpCallback = helpCallback;
+}
+
+void SetupWinLibTheme(CSalamanderGeneralAbstract* salamander)
+{
+    WinLibThemeProvider = salamander;
 }
 
 BOOL InitializeWinLib(const char* pluginName, HINSTANCE dllInstance)
@@ -515,6 +525,8 @@ CDialog::CDialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 return TRUE;
             }
             dlg->NotifDlgJustCreated(); // zavedeno jako misto pro upravu layoutu dialogu
+            if (WinLibThemeProvider != NULL) // feature 036: dark title bar + control theming
+                WinLibThemeProvider->ThemeApplyToDialog(hwndDlg);
         }
         break;
     }
@@ -554,7 +566,15 @@ CDialog::CDialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
     //--- zavolani metody DialogProc(...) prislusneho objektu dialogu
     if (dlg != NULL)
-        return dlg->DialogProc(uMsg, wParam, lParam);
+    {
+        INT_PTR ret = dlg->DialogProc(uMsg, wParam, lParam);
+        // feature 036: dark WM_CTLCOLOR* fallback when the dialog object left
+        // the message unhandled (object handlers keep precedence, as in the core)
+        if (ret == FALSE && WinLibThemeProvider != NULL &&
+            WinLibThemeProvider->ThemeHandleCtlColor(uMsg, wParam, lParam, &ret))
+            return ret;
+        return ret;
+    }
     else
         return FALSE; // chyba nebo message neprisla mezi WM_INITDIALOG a WM_DESTROY
 }
@@ -770,6 +790,8 @@ CPropSheetPage::CPropSheetPageProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
                 return TRUE;
             }
             dlg->NotifDlgJustCreated(); // zavedeno jako misto pro upravu layoutu dialogu
+            if (WinLibThemeProvider != NULL) // feature 036: dark title bar + control theming
+                WinLibThemeProvider->ThemeApplyToDialog(hwndDlg);
         }
         break;
     }
@@ -809,7 +831,15 @@ CPropSheetPage::CPropSheetPageProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
     }
     //--- zavolani metody DialogProc(...) prislusneho objektu dialogu
     if (dlg != NULL)
-        return dlg->DialogProc(uMsg, wParam, lParam);
+    {
+        INT_PTR ret = dlg->DialogProc(uMsg, wParam, lParam);
+        // feature 036: dark WM_CTLCOLOR* fallback when the page object left
+        // the message unhandled (object handlers keep precedence, as in the core)
+        if (ret == FALSE && WinLibThemeProvider != NULL &&
+            WinLibThemeProvider->ThemeHandleCtlColor(uMsg, wParam, lParam, &ret))
+            return ret;
+        return ret;
+    }
     else
         return FALSE; // chyba nebo message neprisla mezi WM_INITDIALOG a WM_DESTROY
 }

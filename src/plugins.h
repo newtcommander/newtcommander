@@ -2349,6 +2349,16 @@ public:
     virtual BOOL WINAPI IsCriticalShutdown();
 
     virtual void WINAPI CloseAllOwnedEnabledDialogs(HWND parent, DWORD tid = 0);
+
+    // theme services for plugin UI (feature 036, interface version 105);
+    // thin delegations to the theme engine in themes.cpp
+    virtual BOOL WINAPI IsDarkThemeActive();
+    virtual COLORREF WINAPI GetThemeSysColor(int index);
+    virtual HBRUSH WINAPI GetThemeSysColorBrush(int index);
+    virtual void WINAPI ThemeApplyToDialog(HWND hDialog);
+    virtual void WINAPI ThemeApplyToTopLevel(HWND hWindow);
+    virtual BOOL WINAPI ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam,
+                                            INT_PTR* result);
 };
 
 //

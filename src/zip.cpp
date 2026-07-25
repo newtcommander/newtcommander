@@ -32,6 +32,7 @@ extern "C"
 #include "crypt\fileenc.h"
 #include "crypt\sha1.h"
 #include "pwdmngr.h"
+#include "themes.h"
 
 CPackerConfig PackerConfig;
 CUnpackerConfig UnpackerConfig;
@@ -5254,6 +5255,39 @@ void CSalamanderGeneral::CloseAllOwnedEnabledDialogs(HWND parent, DWORD tid)
 {
     CALL_STACK_MESSAGE2("CSalamanderGeneral::CloseAllOwnedEnabledDialogs(, %d)", tid);
     ::CloseAllOwnedEnabledDialogs(parent, tid);
+}
+
+// theme services for plugin UI (feature 036); single palette owner is themes.cpp
+
+BOOL CSalamanderGeneral::IsDarkThemeActive()
+{
+    return ::IsDarkThemeActive();
+}
+
+COLORREF CSalamanderGeneral::GetThemeSysColor(int index)
+{
+    return ::ThemeSysColor(index);
+}
+
+HBRUSH CSalamanderGeneral::GetThemeSysColorBrush(int index)
+{
+    return ::ThemeSysColorBrush(index);
+}
+
+void CSalamanderGeneral::ThemeApplyToDialog(HWND hDialog)
+{
+    ::ThemeApplyToDialog(hDialog);
+}
+
+void CSalamanderGeneral::ThemeApplyToTopLevel(HWND hWindow)
+{
+    ::ThemeApplyToTopLevel(hWindow);
+}
+
+BOOL CSalamanderGeneral::ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam,
+                                             INT_PTR* result)
+{
+    return ::ThemeHandleCtlColor(uMsg, wParam, lParam, result);
 }
 
 //
