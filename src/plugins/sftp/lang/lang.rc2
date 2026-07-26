@@ -170,7 +170,11 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTI
 CAPTION "Verify Host Key"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    ICON            IDC_WARNINGICON, IDI_HOSTKEY_WARN, 7, 7, 20, 20
+    // The icon is set at run time (STM_SETICON in HostKeyProc), not named here.
+    // Naming a resource ordinal as an ICON control's title crashes the
+    // Translator while exporting this dialog, and it could not resolve anyway:
+    // warning.ico lives in sftp.spl while this template lives in the .slg.
+    ICON            "", IDI_HOSTKEY_WARN, 7, 7, 20, 20
     LTEXT           "", IDT_HOSTKEY_TEXT, 35, 7, 258, 96
     DEFPUSHBUTTON   "&Trust and Store", IDB_HOSTKEY_TRUST, 35, 112, 76, 14
     PUSHBUTTON      "Connect &Once", IDB_HOSTKEY_ONCE, 117, 112, 76, 14
@@ -183,25 +187,25 @@ CAPTION "Change Permissions"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     LTEXT           "", IDT_CHMODTARGET, 7, 7, 196, 8
-    LTEXT           "Owner", IDC_STATIC, 40, 22, 40, 8
-    LTEXT           "Group", IDC_STATIC, 90, 22, 40, 8
-    LTEXT           "Others", IDC_STATIC, 140, 22, 40, 8
-    LTEXT           "Read", IDC_STATIC, 7, 36, 30, 8
+    LTEXT           "Owner", IDC_STATIC_1, 40, 22, 40, 8
+    LTEXT           "Group", IDC_STATIC_2, 90, 22, 40, 8
+    LTEXT           "Others", IDC_STATIC_3, 140, 22, 40, 8
+    LTEXT           "Read", IDC_STATIC_4, 7, 36, 30, 8
     AUTOCHECKBOX    "", IDC_UR, 40, 35, 12, 10
     AUTOCHECKBOX    "", IDC_GR, 90, 35, 12, 10
     AUTOCHECKBOX    "", IDC_OR, 140, 35, 12, 10
-    LTEXT           "Write", IDC_STATIC, 7, 50, 30, 8
+    LTEXT           "Write", IDC_STATIC_5, 7, 50, 30, 8
     AUTOCHECKBOX    "", IDC_UW, 40, 49, 12, 10
     AUTOCHECKBOX    "", IDC_GW, 90, 49, 12, 10
     AUTOCHECKBOX    "", IDC_OW, 140, 49, 12, 10
-    LTEXT           "Execute", IDC_STATIC, 7, 64, 30, 8
+    LTEXT           "Execute", IDC_STATIC_6, 7, 64, 30, 8
     AUTOCHECKBOX    "", IDC_UX, 40, 63, 12, 10
     AUTOCHECKBOX    "", IDC_GX, 90, 63, 12, 10
     AUTOCHECKBOX    "", IDC_OX, 140, 63, 12, 10
     AUTOCHECKBOX    "Set&UID", IDC_SETUID, 7, 82, 50, 10
     AUTOCHECKBOX    "Set&GID", IDC_SETGID, 67, 82, 50, 10
     AUTOCHECKBOX    "S&ticky", IDC_STICKY, 127, 82, 50, 10
-    LTEXT           "&Octal:", IDC_STATIC, 7, 100, 30, 8
+    LTEXT           "&Octal:", IDC_STATIC_7, 7, 100, 30, 8
     EDITTEXT        IDE_OCTAL, 40, 98, 40, 12, ES_AUTOHSCROLL
     AUTOCHECKBOX    "Apply to subdirectories &recursively", IDC_RECURSE, 7, 118, 190, 10
     AUTOCHECKBOX    "Set &modification time", IDC_SETTIME, 7, 132, 90, 10
@@ -229,28 +233,28 @@ IDD_CONFIG DIALOGEX 0, 0, 260, 236
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "Connect timeout (s):", IDC_STATIC, 7, 9, 90, 8
+    LTEXT           "Connect timeout (s):", IDC_STATIC_1, 7, 9, 90, 8
     EDITTEXT        IDE_CONNECTTIMEOUT, 130, 7, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Operation timeout (s):", IDC_STATIC, 7, 25, 90, 8
+    LTEXT           "Operation timeout (s):", IDC_STATIC_2, 7, 25, 90, 8
     EDITTEXT        IDE_OPTIMEOUT, 130, 23, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Keep-alive every (s):", IDC_STATIC, 7, 41, 90, 8
+    LTEXT           "Keep-alive every (s):", IDC_STATIC_3, 7, 41, 90, 8
     EDITTEXT        IDE_KEEPALIVE, 130, 39, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Keep-alive stop after (min):", IDC_STATIC, 7, 57, 110, 8
+    LTEXT           "Keep-alive stop after (min):", IDC_STATIC_4, 7, 57, 110, 8
     EDITTEXT        IDE_KEEPALIVESTOP, 130, 55, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Connect retries:", IDC_STATIC, 7, 73, 90, 8
+    LTEXT           "Connect retries:", IDC_STATIC_5, 7, 73, 90, 8
     EDITTEXT        IDE_CONNRETRIES, 130, 71, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Retry delay (s):", IDC_STATIC, 7, 89, 90, 8
+    LTEXT           "Retry delay (s):", IDC_STATIC_6, 7, 89, 90, 8
     EDITTEXT        IDE_RETRYDELAY, 130, 87, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Resume overlap (bytes):", IDC_STATIC, 7, 105, 100, 8
+    LTEXT           "Resume overlap (bytes):", IDC_STATIC_7, 7, 105, 100, 8
     EDITTEXT        IDE_RESUMEOVERLAP, 130, 103, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Resume min size (bytes):", IDC_STATIC, 7, 121, 100, 8
+    LTEXT           "Resume min size (bytes):", IDC_STATIC_8, 7, 121, 100, 8
     EDITTEXT        IDE_RESUMEMINSIZE, 130, 119, 50, 12, ES_AUTOHSCROLL | ES_NUMBER
-    GROUPBOX        "Permissions column", IDC_STATIC, 7, 140, 246, 46
+    GROUPBOX        "Permissions column", IDC_STATIC_9, 7, 140, 246, 46
     AUTORADIOBUTTON "Show &Unix rights (drwxr-xr-x)", IDC_COLVIEW_RIGHTS, 14, 153, 160, 10, WS_GROUP
     AUTORADIOBUTTON "Show classic &attributes", IDC_COLVIEW_ATTR, 14, 165, 160, 10
     AUTOCHECKBOX    "Show &octal mode in information line", IDC_SHOWOCTAL, 130, 153, 118, 10
     AUTOCHECKBOX    "Enable session &logging", IDC_ENABLELOG, 7, 194, 120, 10
-    LTEXT           "Log max size (KB):", IDC_STATIC, 130, 195, 70, 8
+    LTEXT           "Log max size (KB):", IDC_STATIC_10, 130, 195, 70, 8
     EDITTEXT        IDE_LOGMAXSIZE, 205, 193, 45, 12, ES_AUTOHSCROLL | ES_NUMBER
 END
 

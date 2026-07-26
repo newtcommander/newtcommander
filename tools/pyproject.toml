@@ -10,6 +10,10 @@ dependencies = [
     "tree-sitter>=0.22",
     "tree-sitter-c>=0.22",
     "tree-sitter-cpp>=0.22",
+    # Feature 038: offline machine translation of UI resources. Used only by
+    # tools/translate, which is hand-run by a maintainer -- build.cmd never
+    # imports it and the build has no network dependency.
+    "anthropic>=0.69",
 ]
 
 [project.scripts]
@@ -17,9 +21,12 @@ comment-translation-status = "comments.translation_status:main"
 comment-find-czech-words = "comments.find_czech_words:main"
 comment-word-counter = "comments.word_counter:main"
 comment-code-guard = "comments.code_guard:main"
+translate-merge = "translate.merge:main"
+translate-batch = "translate.translate:main"
+translate-slt = "translate.slt:main"
 
 [tool.setuptools]
-packages = ["comments"]
+packages = ["comments", "translate"]
 
 [build-system]
 requires = ["setuptools>=68"]

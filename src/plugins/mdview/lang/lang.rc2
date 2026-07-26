@@ -72,7 +72,7 @@ STYLE DS_SETFONT | DS_FIXEDSYS | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTI
 CAPTION "Find"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "Find &text:", IDC_STATIC, 7, 9, 60, 8
+    LTEXT           "Find &text:", IDC_STATIC_1, 7, 9, 60, 8
     EDITTEXT        IDC_FIND_TEXT, 7, 21, 206, 12, ES_AUTOHSCROLL
     DEFPUSHBUTTON   "Find &Next", IDOK, 108, 40, 50, 14
     PUSHBUTTON      "Cancel", IDCANCEL, 163, 40, 50, 14

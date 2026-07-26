@@ -7,6 +7,8 @@
 Thumbs.db
 # Python artifacts
 /tools/salamander_tools.egg-info/
+__pycache__/
+*.pyc
 # Visual Studio cache/options directory
 .vs/
 *.aps
@@ -21,3 +23,9 @@ Thumbs.db
 # Direct MSBuild outputs when OPENSAL_BUILD_DIR is unset (setup/remove built individually)
 /src/vcxproj/setup/setup/Debug_x64/
 /src/vcxproj/setup/remove/Debug_x64/
+
+# Feature 038 translation-build intermediates. Generated per build into
+# OPENSAL_BUILD_DIR; only translations\*\*.slt and *.origin are committed.
+*.atp
+*.sdc
+/translations/**/*.bak

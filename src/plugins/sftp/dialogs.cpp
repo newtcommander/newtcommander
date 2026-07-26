@@ -187,6 +187,24 @@ static INT_PTR CALLBACK HostKeyProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             _snprintf_s(text, _TRUNCATE, LoadStr(IDS_HOSTKEY_NEWTEXT), hostPort, d->KeyType, d->Fingerprint);
         }
         SetDlgItemTextU8(hwnd, IDT_HOSTKEY_TEXT, text); // contains the host name
+        // The warning icon is applied here rather than named in the dialog
+        // template: a template-level reference would be looked up in the
+        // language module, which does not hold any icons.
+        //
+        // Use the shell's standard warning icon rather than the plugin's own
+        // warning.ico: that file holds a single 16x16 image, and this control
+        // is 20x20 dialog units (~30x32 px), so it could only ever be upscaled
+        // into a blur. IDI_WARNING ships at every size, stays crisp at high DPI,
+        // and is the same icon a message box would show here.
+        //
+        // LR_SHARED: system icons are owned by the system, must not be
+        // destroyed, and the handle may be reused -- so no cleanup is needed.
+        HICON warnIcon = (HICON)LoadImage(NULL, IDI_WARNING, IMAGE_ICON,
+                                          GetSystemMetrics(SM_CXICON),
+                                          GetSystemMetrics(SM_CYICON),
+                                          LR_SHARED);
+        if (warnIcon != NULL)
+            SendDlgItemMessage(hwnd, IDI_HOSTKEY_WARN, STM_SETICON, (WPARAM)warnIcon, 0);
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         return TRUE;
     }

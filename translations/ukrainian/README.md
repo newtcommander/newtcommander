@@ -1,0 +1,21 @@
+# Ukrainian translation
+
+Added by feature 038. **No human translator has contributed to this language** —
+every string is produced by machine translation from the English original, so
+each `.slt` here is entirely `machine` origin (see the `.origin` sidecars).
+
+Registered in `../languages.cfg` as LANGID **1058** with `origin = machine`,
+which makes the build set a non-empty `SLGIncomplete` in every Ukrainian `.slg`.
+The product then tells the user this translation is not fully human-reviewed and
+points them at where to help.
+
+To (re)generate:
+
+```bat
+python -m translate.merge --language ukrainian
+```
+
+Corrections from a Ukrainian speaker are welcome and take precedence — editing
+text in a `.slt` here is enough; the merge step never overwrites a human-marked
+entry. Add or remove rows only via a template refresh, since `.slt` import is
+positional (see `../../tools/translate/README.md`).

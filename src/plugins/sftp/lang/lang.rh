@@ -3,9 +3,12 @@
 // Used by lang.rc
 //
 
-#ifndef IDC_STATIC
-#define IDC_STATIC (-1)
-#endif
+// NOTE: do not define IDC_STATIC here. The Translator parses this file as its
+// Resource Symbols source and rejects a parenthesized negative value with
+// "SYMBOLS file: invalid ID (IDC_STATIC)", which blocks .slt export for the
+// whole module. Static controls in translatable dialogs use IDC_STATIC_1..40
+// from sftp.rh2 / shared\statics.rh2 instead -- they need unique, non-negative
+// per-dialog IDs anyway, because the Translator stores control IDs as WORD.
 
 // ---------------------------------------------------------------------------
 // String table IDs (1..499)

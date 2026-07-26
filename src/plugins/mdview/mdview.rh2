@@ -62,6 +62,15 @@
 #define IDD_FIND                 300
 #define IDC_FIND_TEXT            301
 
+// Static controls in translatable dialogs MUST have a unique, non-negative ID
+// per dialog -- the Translator stores control IDs as WORD and rejects a
+// DIALOGEX template whose control ID has a non-zero high word ("32-bit IDs are
+// not supported", datadlg.cpp:1050). IDC_STATIC is (-1) = 0xFFFFFFFF, so a
+// dialog using it cannot be translated at all. Every other translatable module
+// reserves a 40-ID block and uses IDC_STATIC_1..40 from shared/statics.rh2.
+#define IDC_STATIC_1             3000
+#include "statics.rh2" // 3000 to 3039 are reserved by this !!!
+
 #ifndef IDC_STATIC
 #define IDC_STATIC               (-1)
 #endif
