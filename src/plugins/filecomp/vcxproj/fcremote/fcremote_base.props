@@ -4,7 +4,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros"></PropertyGroup>
   <PropertyGroup>
-    <OutDir>$(OPENSAL_BUILD_DIR)salamander\$(Configuration)_$(ShortPlatform)\plugins\filecomp\</OutDir>
+    <OutDir>$(OPENSAL_BUILD_DIR)newtcommander\$(Configuration)_$(ShortPlatform)\plugins\filecomp\</OutDir>
     <IntDir>$(OutDir)Intermediate\fcremote\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <EmbedManifest>false</EmbedManifest>

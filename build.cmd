@@ -119,7 +119,7 @@ if "%PREREQ_FAIL%"=="1" (
 :: duplicate entry, unlisted plugin) stops the build before MSBuild
 :: runs. See specs\007-plugin-build-policy\ for the contract.
 
-set "OUT_DIR=%OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
+set "OUT_DIR=%OPENSAL_BUILD_DIR%newtcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
 set "PLUGINS_STAGE_LOG=%TEMP%\opensal_plugins_stage.txt"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0src\vcxproj\gen_plugins_filter.ps1" -Config "%~dp0plugins.cfg" -Solution "%~dp0src\vcxproj\salamand.sln" -OutSlnf "%~dp0src\vcxproj\salamand.gen.slnf" -PluginsRoot "%~dp0src\plugins" -OutputPluginsDir "%OUT_DIR%\plugins" > "%PLUGINS_STAGE_LOG%" 2>&1
 set "PLUGINS_STAGE_EXIT=%errorlevel%"
@@ -179,7 +179,7 @@ echo  Mode          : %BUILD_TARGET%
 echo  Plugin policy : %ENABLED_COUNT% plugins enabled ^(plugins.cfg^)
 echo  Lang policy   : %ENABLED_LANGS% of %REGISTERED_LANGS% languages enabled ^(languages.cfg^)
 if "%BUILD_FULL%"=="1" echo  Full build    : runtime data files + plugins.ver
-echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
+echo  Output        : %OPENSAL_BUILD_DIR%newtcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 echo  MSBuild       : %MSBUILD_PATH%
 echo ============================================================
 echo.
@@ -259,7 +259,7 @@ if %BUILD_EXIT% equ 0 (
 )
 echo  Configuration : %BUILD_CONFIG% %BUILD_PLATFORM%
 echo  Duration      : %DUR_M% min %DUR_S% sec
-echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
+echo  Output        : %OPENSAL_BUILD_DIR%newtcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
     echo  Plugins       : %PLUG_COUNT% registered in plugins.ver ^(version %NEW_VER%^)
     echo  Languages     : %LANG_COUNT% language modules
@@ -280,7 +280,7 @@ exit /b %BUILD_EXIT%
 :: already knows, so all built plugins appear in Plugin Manager.
 
 :populate_runtime
-set "OUT_DIR=%OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
+set "OUT_DIR=%OPENSAL_BUILD_DIR%newtcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
 echo.
 echo Populating runtime layout: %OUT_DIR%
 

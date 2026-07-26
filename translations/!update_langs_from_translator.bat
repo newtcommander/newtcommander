@@ -14,7 +14,7 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit /b
 )
 
-set TRLS_SOURCE=%OPENSAL_BUILD_DIR%salamander\translator\Salamand 4.0
+set TRLS_SOURCE=%OPENSAL_BUILD_DIR%newtcommander\translator\Salamand 4.0
 
 echo This batch will update .slt files from:
 echo %TRLS_SOURCE%

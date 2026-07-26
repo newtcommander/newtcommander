@@ -47,7 +47,7 @@
     </Import>
   </ImportGroup>
   <PropertyGroup>
-    <OutDir>$(OPENSAL_BUILD_DIR)salamander\$(Configuration)_$(ShortPlatform)\saltests\</OutDir>
+    <OutDir>$(OPENSAL_BUILD_DIR)newtcommander\$(Configuration)_$(ShortPlatform)\saltests\</OutDir>
     <IntDir>$(OutDir)Intermediate\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup>

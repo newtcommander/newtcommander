@@ -14,14 +14,14 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit 1
 )
 
-if not exist "%OPENSAL_BUILD_DIR%salamander" (
-  echo %OPENSAL_BUILD_DIR%salamander does not exist!
+if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
+  echo %OPENSAL_BUILD_DIR%newtcommander does not exist!
   echo.
   pause
   exit 1
 )
 
-set SLGS=%OPENSAL_BUILD_DIR%salamander\%1
+set SLGS=%OPENSAL_BUILD_DIR%newtcommander\%1
 for /r %SLGS% %%i in (*.slg) do call :sign %%i
 pause
 exit 0

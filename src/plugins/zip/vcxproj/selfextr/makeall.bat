@@ -12,8 +12,8 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit /b
 )
 
-if not exist "%OPENSAL_BUILD_DIR%salamander" (
-  echo Build directory does not exist: %OPENSAL_BUILD_DIR%salamander
+if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
+  echo Build directory does not exist: %OPENSAL_BUILD_DIR%newtcommander
   echo.
   pause
   exit /b
@@ -42,18 +42,18 @@ rem @mkdir Other_SFX
 rem @call :sfxmove ..\..\RELEASE\plugins\zip\sfx\hungarian.sfx Other_SFX\hungarian.sfx
 
 echo.
-echo Press any key to copy SFX packages to %OPENSAL_BUILD_DIR%salamander...
+echo Press any key to copy SFX packages to %OPENSAL_BUILD_DIR%newtcommander...
 echo.
 pause
 
 for %%t in (Debug_x86 Release_x86 Debug_x64 Release_x64) do (
   echo.
   echo Copying SFX packages to %%t...
-  if not exist "%OPENSAL_BUILD_DIR%salamander\%%t\plugins\zip\sfx" mkdir "%OPENSAL_BUILD_DIR%salamander\%%t\plugins\zip\sfx"
+  if not exist "%OPENSAL_BUILD_DIR%newtcommander\%%t\plugins\zip\sfx" mkdir "%OPENSAL_BUILD_DIR%newtcommander\%%t\plugins\zip\sfx"
   for %%s in (czech.sfx english.sfx german.sfx slovak.sfx spanish.sfx ^
               romanian.sfx hungarian.sfx russian.sfx chinesesimplified.sfx ^
               dutch.sfx french.sfx) do (
-    @call :sfxcopy "sfx\%%s" "%OPENSAL_BUILD_DIR%salamander\%%t\plugins\zip\sfx\%%s"
+    @call :sfxcopy "sfx\%%s" "%OPENSAL_BUILD_DIR%newtcommander\%%t\plugins\zip\sfx\%%s"
   )
 )
 

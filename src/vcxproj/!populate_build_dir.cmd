@@ -27,16 +27,16 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit /b
 )
 
-if not exist "%OPENSAL_BUILD_DIR%salamander" (
-  echo Target directory does not exist: %OPENSAL_BUILD_DIR%salamander
+if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
+  echo Target directory does not exist: %OPENSAL_BUILD_DIR%newtcommander
   echo.
   pause
   exit /b
 )
 
-powershell.exe -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:OPENSAL_BUILD_DIR+'salamander\salamander.lnk'); $s.TargetPath=$env:SAL_POPULATE_ROOT+'salamand.sln'; $s.Save()"
+powershell.exe -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:OPENSAL_BUILD_DIR+'newtcommander\newtcommander.lnk'); $s.TargetPath=$env:SAL_POPULATE_ROOT+'salamand.sln'; $s.Save()"
 
-echo Populating directory: %OPENSAL_BUILD_DIR%salamander
+echo Populating directory: %OPENSAL_BUILD_DIR%newtcommander
 call :copy_files Debug_x86   debug_nonredist\x86\Microsoft.VC143.DebugCRT concrt140d.dll msvcp140d.dll vcruntime140d.dll "%UCRTD_REDIST_PATH%\Redist\Debug\x86"
 call :copy_files Release_x86 x86\Microsoft.VC143.CRT                      concrt140.dll  msvcp140.dll  vcruntime140.dll  "%UCRT_REDIST_PATH%\ucrt\DLLs\x86"
 call :copy_files Debug_x64   debug_nonredist\x64\Microsoft.VC143.DebugCRT concrt140d.dll msvcp140d.dll vcruntime140d.dll "%UCRTD_REDIST_PATH%\Redist\Debug\x64"
@@ -48,7 +48,7 @@ echo Copying third-party files...
 for %%t in (Debug_x86 Debug_x64 Release_x86 Release_x64) do (
   echo.
   echo Target directory: %%t
-  call :copy_thirdparty "%OPENSAL_BUILD_DIR%salamander\%%t"
+  call :copy_thirdparty "%OPENSAL_BUILD_DIR%newtcommander\%%t"
 )
 
 call :sfx_make_all
@@ -103,19 +103,19 @@ exit /b
 :copy_files
 echo.
 echo Target directory: %1
-if not exist "%OPENSAL_BUILD_DIR%salamander\%1" mkdir "%OPENSAL_BUILD_DIR%salamander\%1"
+if not exist "%OPENSAL_BUILD_DIR%newtcommander\%1" mkdir "%OPENSAL_BUILD_DIR%newtcommander\%1"
 echo Copying %2\%3...
-call :mycopy "%MSVC_REDIST_PATH%\%2\%3" "%OPENSAL_BUILD_DIR%salamander\%1\"
+call :mycopy "%MSVC_REDIST_PATH%\%2\%3" "%OPENSAL_BUILD_DIR%newtcommander\%1\"
 echo Copying %2\%4...
-call :mycopy "%MSVC_REDIST_PATH%\%2\%4" "%OPENSAL_BUILD_DIR%salamander\%1\"
+call :mycopy "%MSVC_REDIST_PATH%\%2\%4" "%OPENSAL_BUILD_DIR%newtcommander\%1\"
 echo Copying %2\%5...
-call :mycopy "%MSVC_REDIST_PATH%\%2\%5" "%OPENSAL_BUILD_DIR%salamander\%1\"
+call :mycopy "%MSVC_REDIST_PATH%\%2\%5" "%OPENSAL_BUILD_DIR%newtcommander\%1\"
 echo Copying %6...
-call :mycopy_dir %6 "%OPENSAL_BUILD_DIR%salamander\%1"
+call :mycopy_dir %6 "%OPENSAL_BUILD_DIR%newtcommander\%1"
 echo Copying ..\res\toolbars...
-call :mycopy_dir ..\res\toolbars "%OPENSAL_BUILD_DIR%salamander\%1\toolbars\"
+call :mycopy_dir ..\res\toolbars "%OPENSAL_BUILD_DIR%newtcommander\%1\toolbars\"
 echo Copying ..\res\toolbars\dark...
-call :mycopy_dir ..\res\toolbars\dark "%OPENSAL_BUILD_DIR%salamander\%1\toolbars\dark\"
+call :mycopy_dir ..\res\toolbars\dark "%OPENSAL_BUILD_DIR%newtcommander\%1\toolbars\dark\"
 exit /b
 
 

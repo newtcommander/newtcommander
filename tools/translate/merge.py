@@ -33,7 +33,7 @@ from .rebrand import find_residue, rebrand
 from .slt import Section, SltFile, load
 from .validate import check, duplicate_accelerators, repair
 
-DEFAULT_TEMPLATES = "build/salamander/translator/templates"
+DEFAULT_TEMPLATES = "build/newtcommander/translator/templates"
 
 HUMAN, MACHINE, FALLBACK, SKIP = "human", "machine", "english_fallback", "skip"
 

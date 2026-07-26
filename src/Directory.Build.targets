@@ -4,12 +4,12 @@
 
   Every project sets IntDir to a folder *inside* its Release output directory
   (typically "$(OutDir)Intermediate\"), which litters the shipped output tree
-  (…\salamander\Release_<plat>\) with build scaffolding. For Release only, this
+  (…\newtcommander\Release_<plat>\) with build scaffolding. For Release only, this
   file relocates each such intermediate directory to a sibling "obj\" root that
   lives OUTSIDE the shipped output tree, by rewriting only the output-tree root
   segment of IntDir and preserving the project's existing (already unique)
   relative sub-path. Because String.Replace is a no-op when the token is absent,
-  projects whose intermediates are not under the salamander output tree (e.g.
+  projects whose intermediates are not under the newtcommander output tree (e.g.
   the setup\ projects) are left untouched. Debug is intentionally not modified,
   so incremental development and its Intermediate layout stay exactly as before.
 
@@ -18,9 +18,21 @@
   set in the per-project *.props files. Relocating (rather than deleting)
   intermediates keeps incremental Release builds fast: the object/PCH cache
   simply moves, it is not discarded.
+
+  KEEP IN SYNC (feature 039b): the "newtcommander\..." literal below MUST match
+  the output-root segment spelled by every <OutDir> in src\**\*_base.props. It
+  is a STRING MATCH, and String.Replace is a silent no-op on mismatch: if the
+  two ever drift, this line quietly stops firing, Release intermediates go back
+  inside the shipped tree, and build.cmd's :clean_release_tree then deletes the
+  live object/PCH cache after every build. Nothing errors; builds just become
+  from-scratch forever. If you rename the output directory again, grep for the
+  old segment across *.props/*.targets/*.vcxproj and confirm zero hits remain.
+  (src\plugins\pictview\vcxproj\salpvenv_base.props hardcodes _x64 while
+  importing x86.props, so its IntDir never matches this token: a dormant
+  instance of exactly that drift. Its project is not in salamand.sln.)
 -->
 <Project>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <IntDir>$(IntDir.Replace('salamander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))</IntDir>
+    <IntDir>$(IntDir.Replace('newtcommander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))</IntDir>
   </PropertyGroup>
 </Project>

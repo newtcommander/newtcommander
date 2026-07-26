@@ -68,8 +68,8 @@ foreach ($pair in @(@('NEWTC_REPO_ROOT', $RepoRoot), @('NEWTC_OUT_DIR', $OutDir)
 $languagesCfg = Join-Path $RepoRoot 'translations\languages.cfg'
 $pluginsCfg = Join-Path $RepoRoot 'plugins.cfg'
 $translationsRoot = Join-Path $RepoRoot 'translations'
-$templatesDir = Join-Path $BuildDir 'salamander\translator\templates'
-$atpRoot = Join-Path $BuildDir 'salamander\translator\projects'
+$templatesDir = Join-Path $BuildDir 'newtcommander\translator\templates'
+$atpRoot = Join-Path $BuildDir 'newtcommander\translator\projects'
 
 # ---------------------------------------------------------------------------
 # translator.exe
