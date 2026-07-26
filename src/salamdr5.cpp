@@ -454,7 +454,7 @@ RETRY:
                         ;
 
                     char buf[MAX_PATH + 200];
-                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_TERMINATEDBYUSER), path); // path may exceed the buffer (long paths, feature 010)
+                    _snprintf_s(buf, _TRUNCATE, LoadStrU8(IDS_TERMINATEDBYUSER), path); // path may exceed the buffer (long paths, feature 010)
                     SalMessageBox(parent, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
                 }
             }
@@ -517,7 +517,7 @@ RETRY:
         case ERROR_BAD_PATHNAME:
         {
             char text[MAX_PATH + 100];
-            _snprintf_s(text, _TRUNCATE, LoadStr(IDS_DIRNAMEINVALID), path); // path may exceed the buffer (long paths, feature 010)
+            _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_DIRNAMEINVALID), path); // path may exceed the buffer (long paths, feature 010)
             SalMessageBox(parent, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             break;
         }
@@ -684,7 +684,7 @@ PARSE_AGAIN:
         int fsNameIndex;
         if (!Plugins.IsPluginFS(fsName, index, fsNameIndex))
         {
-            _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS)); // path may exceed the buffer (long paths, feature 027; sibling at :910 was already hardened)
+            _snprintf_s(errBuf, _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), path, LoadStrU8(IDS_NOTPLUGINFS)); // path may exceed the buffer (long paths, feature 027; sibling at :910 was already hardened)
             SalMessageBox(parent, errBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
             if (error != NULL)
                 *error = SPP_NOTPLUGINFS;
@@ -757,7 +757,7 @@ PARSE_AGAIN:
                         *error = SPP_WINDOWSPATHERROR;
                 }
             }
-            text = LoadStr(errTextID);
+            text = LoadStrU8(errTextID);
         }
         if (text == NULL)
         {
@@ -843,7 +843,7 @@ PARSE_AGAIN:
                                 }
                                 else // it was supposed to be an archive (a path inside the file is provided), report it loudly
                                 {
-                                    text = LoadStr(IDS_NOTARCHIVEPATH);
+                                    text = LoadStrU8(IDS_NOTARCHIVEPATH);
                                     if (error != NULL)
                                         *error = SPP_NOTARCHIVEFILE;
                                     break; // report the error
@@ -907,7 +907,7 @@ PARSE_AGAIN:
             }
         }
 
-        _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, text); // path may exceed the buffer (long paths, feature 010)
+        _snprintf_s(errBuf, _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), path, text); // path may exceed the buffer (long paths, feature 010)
         SalMessageBox(parent, errBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
         if (backslashAtEnd || mustBePath)
             SalPathAddBackslash(path, pathBufSize);
@@ -967,7 +967,7 @@ BOOL SalSplitWindowsPath(HWND parent, const char* title, const char* errorTitle,
                 }
                 if (invalidPath || !SalCreateDirectory(newDirs, NULL)) // W-backed, long-path capable (feature 027; was ANSI CreateDirectory)
                 {
-                    _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), newDirs); // long-path capable (feature 014)
+                    _snprintf_s(textBuf, _TRUNCATE, LoadStrU8(IDS_CREATEDIRFAILED), newDirs); // long-path capable (feature 014)
                     SalMessageBox(parent, textBuf, errorTitle, MB_OK | MB_ICONEXCLAMATION);
                     ok = FALSE;
                     break;
@@ -1090,7 +1090,7 @@ BOOL SalSplitGeneralPath(HWND parent, const char* title, const char* errorTitle,
                     if (Configuration.CnfrmCreatePath) // ask whether the path should be created
                     {
                         BOOL dontShow = FALSE;
-                        _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_MOVECOPY_CREATEPATH), tmpNewDirs); // long-path capable (feature 014)
+                        _snprintf_s(textBuf, _TRUNCATE, LoadStrU8(IDS_MOVECOPY_CREATEPATH), tmpNewDirs); // long-path capable (feature 014)
 
                         MSGBOXEX_PARAMS params;
                         memset(&params, 0, sizeof(params));

@@ -699,7 +699,7 @@ void CSalShExtPastedData::DoPasteOperation(BOOL copy, const char* tgtPath)
 
             if (err != NO_ERROR)
             {
-                sprintf(text, LoadStr(IDS_FILEERRORFORMAT), ArchiveFileName, GetErrorText(err));
+                sprintf(text, LoadStrU8(IDS_FILEERRORFORMAT), ArchiveFileName, GetErrorText(err));
                 SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_ERRORUNPACK), MB_OK | MB_ICONEXCLAMATION);
             }
             else

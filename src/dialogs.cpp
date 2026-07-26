@@ -1948,7 +1948,7 @@ void CFileListDialog::Validate(CTransferInfo& ti)
             if (!append && attr != 0xFFFFFFFF)
             {
                 char text[MAX_PATH + 300]; // buffFile can approach MAX_PATH (feature 027; was 300)
-                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_FILEALREADYEXIST), buffFile);
+                _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_FILEALREADYEXIST), buffFile);
                 if (SalMessageBox(HWindow, text, LoadStr(IDS_QUESTION),
                                   MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES)
                 {

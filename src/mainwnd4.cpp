@@ -139,7 +139,7 @@ BOOL CMainWindow::CloseDetachedFS(HWND parent, CPluginFSInterfaceEncapsulation* 
             *s = 0; // cannot obtain the user portion
 
         char buf[2 * MAX_PATH + 100];
-        sprintf(buf, LoadStr(IDS_FSFORCECLOSE), path);
+        sprintf(buf, LoadStrU8(IDS_FSFORCECLOSE), path);
         if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                           MB_YESNO | MB_ICONQUESTION) == IDYES) // user chooses "close"
         {
@@ -363,7 +363,7 @@ void CMainWindow::MakeFileList()
             {
                 DWORD err = GetLastError();
                 char message[MAX_PATH + 100];
-                sprintf(message, LoadStr(IDS_FILEERRORFORMAT), fileName, GetErrorText(err));
+                sprintf(message, LoadStrU8(IDS_FILEERRORFORMAT), fileName, GetErrorText(err));
                 SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             }
         }

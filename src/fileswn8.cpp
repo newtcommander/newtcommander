@@ -95,7 +95,7 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
     if (!PathContainsValidComponents(path, TRUE))
     {
         char textBuf[2 * MAX_PATH + 200];
-        _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_RECYCLEBINERROR), path); // hardening (feature 011)
+        _snprintf_s(textBuf, _TRUNCATE, LoadStrU8(IDS_RECYCLEBINERROR), path); // hardening (feature 011)
         SalMessageBox(MainWindow->HWindow, textBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
         return FALSE; // quick dirty bloody hack - Recycle Bin simply cannot handle names ending with a space or dot (it deletes a different name created by trimming those characters, which we definitely don't want)
     }
@@ -110,7 +110,7 @@ BOOL CFilesWindow::DeleteThroughRecycleBin(int* selection, int selCount, CFileDa
         if (oneFile->Name[oneFile->NameLen - 1] <= ' ' || oneFile->Name[oneFile->NameLen - 1] == '.')
         {
             char textBuf[2 * MAX_PATH + 200];
-            _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_RECYCLEBINERROR), oneFile->Name);
+            _snprintf_s(textBuf, _TRUNCATE, LoadStrU8(IDS_RECYCLEBINERROR), oneFile->Name);
             SalMessageBox(MainWindow->HWindow, textBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             return FALSE; // quick dirty bloody hack - Recycle Bin simply cannot handle names ending with a space or dot (it deletes a different name created by trimming those characters, which we definitely do not want)
         }
@@ -281,7 +281,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
             {
                 char msg[300 + MAX_PATH];
                 _snprintf_s(msg, _TRUNCATE,
-                            LoadStr(type == atMove ? IDS_ERRMOVESELCONTW64ALIAS : IDS_ERRDELETESELCONTW64ALIAS),
+                            LoadStrU8(type == atMove ? IDS_ERRMOVESELCONTW64ALIAS : IDS_ERRDELETESELCONTW64ALIAS),
                             redirectedDir);
                 SalMessageBox(HWindow, msg, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
 
@@ -713,7 +713,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                             }
                             else
                             {
-                                _snprintf_s(textBuf, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), path, GetErrorText(err));
+                                _snprintf_s(textBuf, _TRUNCATE, LoadStrU8(IDS_FILEERRORFORMAT), path, GetErrorText(err));
                                 SalMessageBox(HWindow, textBuf,
                                               (type == atCopy) ? LoadStr(IDS_ERRORCOPY) : LoadStr(IDS_ERRORMOVE),
                                               MB_OK | MB_ICONEXCLAMATION);
@@ -1110,7 +1110,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                             char buf1[50];
                             char buf2[50];
                             char buf3[200];
-                            sprintf(buf3, LoadStr(IDS_NOTENOUGHSPACE),
+                            sprintf(buf3, LoadStrU8(IDS_NOTENOUGHSPACE),
                                     NumberToStr(buf1, occupiedSpTooBig ? script->OccupiedSpace : script->TotalFileSize),
                                     NumberToStr(buf2, script->FreeSpace));
                             cancel = SalMessageBox(HWindow, buf3,
@@ -1223,7 +1223,7 @@ BOOL EmailFilesAddDirectory(CSimpleMAPI* mapi, const char* path, BOOL* errGetFil
         if (err != ERROR_FILE_NOT_FOUND && err != ERROR_NO_MORE_FILES)
         {
             char text[2 * MAX_PATH + 100];
-            sprintf(text, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+            sprintf(text, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
             if (SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_ERRORTITLE),
                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
             {

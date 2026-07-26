@@ -869,7 +869,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                 SetCurrentDirectoryToSystem();
                 RefreshListBox(0, -1, -1, FALSE, FALSE);
 
-                _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), GetPath(), GetErrorText(err)); // path may exceed the buffer (long paths, feature 011)
+                _snprintf_s(buf, _TRUNCATE, LoadStrU8(IDS_CANNOTREADDIR), GetPath(), GetErrorText(err)); // path may exceed the buffer (long paths, feature 011)
                 SalMessageBox(parent, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             }
         }
@@ -2018,7 +2018,7 @@ CHANGE_AGAIN:
         {
             if (strlen(fsUserPart) >= MAX_PATH) // plugins do not support longer paths
             {
-                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
+                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), path, LoadStrU8(IDS_TOOLONGPATH));
                 SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                               MB_OK | MB_ICONEXCLAMATION);
                 if (newDir != NULL)
@@ -2114,7 +2114,7 @@ CHANGE_AGAIN:
             }
             else
             {
-                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_NOTPLUGINFS));
+                _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), path, LoadStrU8(IDS_NOTPLUGINFS));
                 SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                               MB_OK | MB_ICONEXCLAMATION);
                 if (newDir != NULL)
@@ -2192,7 +2192,7 @@ CHANGE_AGAIN:
                             strcpy(absFSPath, path);
                         else
                         {
-                            _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), path, LoadStr(IDS_TOOLONGPATH));
+                            _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), path, LoadStrU8(IDS_TOOLONGPATH));
                             SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                           MB_OK | MB_ICONEXCLAMATION);
                             success = FALSE;
@@ -2226,7 +2226,7 @@ CHANGE_AGAIN:
                         }
                     }
                 }
-                text = LoadStr(errTextID);
+                text = LoadStrU8(errTextID);
                 textFailReason = CHPPFR_INVALIDPATH;
             }
             BOOL showErr = TRUE;
@@ -2273,7 +2273,7 @@ CHANGE_AGAIN:
                         {
                             if (*end != 0 && !SalPathAppend(copy, end + 1, SAL_MAX_PATH_UTF8)) // if extending the part of the path processed so far leaves no room for the rest, use the original form of the path
                                 strcpy(copy, path);
-                            text = LoadStr(IDS_TOOLONGPATH);
+                            text = LoadStrU8(IDS_TOOLONGPATH);
                             textFailReason = CHPPFR_INVALIDPATH;
                             break;
                         }
@@ -2406,7 +2406,7 @@ CHANGE_AGAIN:
                                     {
                                         if (!SalPathAppend(copy, end + 1, SAL_MAX_PATH_UTF8)) // if extending the archive name would leave no room for the path inside the archive, use the original form of the path
                                             strcpy(copy, path);
-                                        text = LoadStr(IDS_TOOLONGPATH);
+                                        text = LoadStrU8(IDS_TOOLONGPATH);
                                         textFailReason = CHPPFR_INVALIDPATH;
                                         break;
                                     }
@@ -2448,7 +2448,7 @@ CHANGE_AGAIN:
                                     }
                                     else
                                     {
-                                        text = LoadStr(IDS_NOTARCHIVEPATH);
+                                        text = LoadStrU8(IDS_NOTARCHIVEPATH);
                                         textFailReason = CHPPFR_INVALIDARCHIVE;
                                         break;
                                     }
@@ -2460,7 +2460,7 @@ CHANGE_AGAIN:
                             if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND ||
                                 err == ERROR_BAD_PATHNAME)
                             {
-                                text = LoadStr(IDS_PATHNOTFOUND);
+                                text = LoadStrU8(IDS_PATHNOTFOUND);
                             }
                             else
                             {
@@ -2523,7 +2523,7 @@ CHANGE_AGAIN:
             {
                 if (showErr)
                 {
-                    _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), showNewDirPathInErrBoxes && newDir != NULL ? newDir : path, text);
+                    _snprintf_s(errBuf, _countof(errBuf), _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), showNewDirPathInErrBoxes && newDir != NULL ? newDir : path, text);
                     SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                   MB_OK | MB_ICONEXCLAMATION);
                 }

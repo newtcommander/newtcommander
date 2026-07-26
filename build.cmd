@@ -167,6 +167,40 @@ if not "%LANGS_STAGE_EXIT%"=="0" (
 set /a REGISTERED_LANGS=ENABLED_LANGS+DISABLED_LANGS
 
 :: ============================================================
+:: File-name display-encoding guard (feature 042)
+:: ============================================================
+:: Fails the build when a file name would be destroyed on its way
+:: to the screen. Three patterns, each one a defect users reported:
+::   * a name converted through the legacy code page (lossy: one '?'
+::     per UTF-16 unit, so an emoji costs two)
+::   * a name composed into a LoadStr() template (mixed encoding, so
+::     CMessageBox drops the whole message to its legacy path and the
+::     name becomes mojibake)
+::   * an LVN_GETDISPINFOW handler in a dialog that never sends
+::     NF_REQUERY, i.e. a handler that can never run
+::
+:: This class was reported twice on different surfaces, so it is
+:: checked mechanically rather than left to review. A site that is
+:: genuinely fine is annotated in place:
+::     // encoding-check: allow <rule-id> - <reason>
+:: See specs\042-fix-find-results-encoding\ for the contract.
+
+where python >nul 2>&1
+if errorlevel 1 (
+    echo  Encoding guard: SKIPPED ^(python not on PATH^)
+) else (
+    python "%~dp0tools\check_encoding.py" --strict > "%TEMP%\opensal_encguard.txt" 2>&1
+    if errorlevel 1 (
+        type "%TEMP%\opensal_encguard.txt"
+        del "%TEMP%\opensal_encguard.txt" >nul 2>&1
+        echo.
+        echo Encoding guard FAILED - a file name would be destroyed before it is drawn.
+        exit /b 1
+    )
+    del "%TEMP%\opensal_encguard.txt" >nul 2>&1
+)
+
+:: ============================================================
 :: Display build configuration
 :: ============================================================
 

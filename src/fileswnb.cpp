@@ -807,12 +807,22 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 
     case WM_USER_EQUIVPAIRNOTICE:
-    {   // feature 004 (FR-007): the listing found two canonically equivalent but
+    { // feature 004 (FR-007): the listing found two canonically equivalent but
         // differently stored names; inform the user once (after the listing is done)
         if (GetEquivalentPairNoticeName()[0] != 0)
         {
             char buf[SAL_FIND_NAME_U8 + 300];
-            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_EQUIVNAMESPAIR), GetEquivalentPairNoticeName());
+            // feature 042: LoadStrU8, not LoadStr. The name is UTF-8; a template
+            // in the machine's legacy codepage would make the composed string
+            // invalid UTF-8, and CMessageBox accepts its wide drawing path only
+            // when the WHOLE body converts. One ANSI ingredient therefore costs
+            // the entire notice its wide path: the localized sentences still
+            // render (they are legacy bytes drawn as legacy text) but the name
+            // becomes mojibake - reported as "ÄŤ-dir" for "č-dir".
+            // Note this is invisible in English: English resources are pure
+            // ASCII, ASCII is valid UTF-8, so the composed string converts
+            // cleanly. Only localized builds show the defect.
+            _snprintf_s(buf, _TRUNCATE, LoadStrU8(IDS_EQUIVNAMESPAIR), GetEquivalentPairNoticeName());
             SetEquivalentPairNoticeName(NULL);
             SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
         }

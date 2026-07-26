@@ -785,6 +785,9 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     if (Plugins.FindDLL(pluginName, index))
                     {
                         char buf2[MAX_PATH + 300];
+                        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                        //   encoding is not controlled by this feature and converting the template around it could
+                        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                         sprintf(buf2, LoadStr(IDS_PLUGINEXISTS), Plugins.Get(index)->Name,
                                 Plugins.Get(index)->DLLName);
                         //                add = SalMessageBox(HWindow, buf2, LoadStr(IDS_QUESTION),
@@ -826,7 +829,7 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 strcpy(name, p->Name);
                 char buf[MAX_PATH + 100];
-                sprintf(buf, LoadStr(IDS_PLUGINREMOVEOK), name);
+                sprintf(buf, LoadStrU8(IDS_PLUGINREMOVEOK), name);
                 if (SalMessageBox(HWindow, buf, LoadStr(IDS_QUESTION),
                                   MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
@@ -846,6 +849,9 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (p->InitDLL(HWindow))
                 {
                     char buf[MAX_PATH + 100];
+                    // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                    //   encoding is not controlled by this feature and converting the template around it could
+                    //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                     sprintf(buf, LoadStr(IDS_PLUGINTESTOK), p->Name);
                     SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
                 }
@@ -1321,6 +1327,9 @@ CPluginKeys::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDC_RESET:
         {
             char buf[MAX_PATH + 100];
+            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+            //   encoding is not controlled by this feature and converting the template around it could
+            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
             sprintf(buf, LoadStr(IDS_PLUGINRESETKEYS), Plugin->Name);
             if (SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OKCANCEL | MB_ICONQUESTION) == IDOK)
             {

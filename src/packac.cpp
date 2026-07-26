@@ -63,6 +63,14 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         }
         // subclass listview
         ListView->AttachToControl(HWindow, IDC_ACLIST);
+        // feature 042: ask the control to re-negotiate its notification format.
+        // Its creation-time NF_QUERY arrives before WM_INITDIALOG, when
+        // CDialog::CDialogProc still has no dialog object to dispatch to, so the
+        // query goes unanswered and DefDlgProc settles it from
+        // IsWindowUnicode(parent) = FALSE. Without this the LVN_GETDISPINFOW
+        // handler below is unreachable and the ANSI one serves every row.
+        SendMessage(GetDlgItem(HWindow, IDC_ACLIST), WM_NOTIFYFORMAT,
+                    (WPARAM)HWindow, NF_REQUERY);
         // create status bar
         HStatusBar = CreateWindowEx(0, STATUSCLASSNAME, (LPCTSTR)NULL,
                                     SBARS_SIZEGRIP | WS_CHILD | CCS_BOTTOM | WS_VISIBLE | WS_GROUP,
@@ -166,6 +174,21 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             CPackACDrives(HLanguage, IDD_ACDRIVES, IDD_ACDRIVES, HWindow, DrivesList).Execute();
             break;
         }
+        }
+        break;
+    }
+    case WM_NOTIFYFORMAT:
+    {
+        // feature 042: answer the NF_REQUERY sent from WM_INITDIALOG so the list
+        // view reports through LVN_GETDISPINFOW instead of the ANSI variant.
+        // A dialog procedure cannot return a message result directly - it
+        // returns only handled/not-handled - so the value must go through
+        // DWLP_MSGRESULT. Returning NFR_UNICODE would merely say "handled"
+        // while the control read a result of zero and stayed on ANSI.
+        if (lParam == NF_QUERY || lParam == NF_REQUERY)
+        {
+            SetWindowLongPtr(HWindow, DWLP_MSGRESULT, NFR_UNICODE);
+            return TRUE;
         }
         break;
     }

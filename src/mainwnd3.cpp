@@ -2796,6 +2796,8 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
             if (FileExists(ConfigurationName))
             {
                 char buff[3000];
+                // encoding-check: allow mixed-composition - configuration name chosen in-app, not a file name
+                //   (feature 042, FR-010)
                 _snprintf_s(buff, _TRUNCATE, LoadStr(IDS_SAVECFG_EXPFILEEXISTS), ConfigurationName);
                 int ret = SalMessageBox(HWindow, buff, LoadStr(IDS_INFOTITLE),
                                         MB_ICONINFORMATION | MB_OKCANCEL);

@@ -1254,7 +1254,7 @@ BOOL CFilesWindow::PrepareCloseCurrentPath(HWND parent, BOOL canForce, BOOL canD
                     char text[MAX_PATH + 500];
                     char checkText[200];
                     sprintf(title, LoadStr(IDS_INFOTITLE));
-                    sprintf(text, LoadStr(IDS_ARCHIVECLOSEEDIT), GetZIPArchive());
+                    sprintf(text, LoadStrU8(IDS_ARCHIVECLOSEEDIT), GetZIPArchive());
                     sprintf(checkText, LoadStr(IDS_DONTSHOWAGAIN));
                     BOOL dontShow = !Configuration.CnfrmCloseArchive;
 
@@ -1314,7 +1314,7 @@ BOOL CFilesWindow::PrepareCloseCurrentPath(HWND parent, BOOL canForce, BOOL canD
                             canclose = FALSE;
                             if (canForce) // we can ask the user whether to force it
                             {
-                                sprintf(buf, LoadStr(IDS_ARCHIVEFORCECLOSE), GetZIPArchive());
+                                sprintf(buf, LoadStrU8(IDS_ARCHIVEFORCECLOSE), GetZIPArchive());
                                 userAsked = TRUE;
                                 if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                                                   MB_YESNO | MB_ICONQUESTION) == IDYES) // user chooses "Close"
@@ -1342,7 +1342,7 @@ BOOL CFilesWindow::PrepareCloseCurrentPath(HWND parent, BOOL canForce, BOOL canD
                                     canclose = FALSE;
                                     if (canForce && !userAsked) // we can ask the user whether to force it
                                     {
-                                        sprintf(buf, LoadStr(IDS_ARCHIVEFORCECLOSE), GetZIPArchive());
+                                        sprintf(buf, LoadStrU8(IDS_ARCHIVEFORCECLOSE), GetZIPArchive());
                                         if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                                                           MB_YESNO | MB_ICONQUESTION) == IDYES) // user chooses "Close"
                                         {
@@ -1383,7 +1383,7 @@ BOOL CFilesWindow::PrepareCloseCurrentPath(HWND parent, BOOL canForce, BOOL canD
                     {
                         char path[2 * MAX_PATH];
                         GetGeneralPath(path, 2 * MAX_PATH);
-                        sprintf(buf, LoadStr(IDS_FSFORCECLOSE), path);
+                        sprintf(buf, LoadStrU8(IDS_FSFORCECLOSE), path);
                         if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                                           MB_YESNO | MB_ICONQUESTION) == IDYES) // user chooses "Close"
                         {
@@ -1948,7 +1948,7 @@ BOOL CFilesWindow::ChangePathToDisk(HWND parent, const char* path, int suggested
                     }
                     // we report the error that caused the path to be shortened
                     char errBuf[2 * MAX_PATH + 100];
-                    _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHERRORFORMAT), // path may exceed the buffer (long paths, feature 010)
+                    _snprintf_s(errBuf, _TRUNCATE, LoadStrU8(IDS_PATHERRORFORMAT), // path may exceed the buffer (long paths, feature 010)
                                 openIfPathIsInaccessibleGoToCfg ? ifPathIsInaccessibleGoTo : path,
                                 GetErrorText(lastErr));
                     SalMessageBox(parent, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
@@ -2162,7 +2162,7 @@ BOOL CFilesWindow::ChangePathToArchive(const char* archive, const char* archiveP
                     tryPathWithArchiveOnError = (err == ERROR_SUCCESS && !pathInvalid); // shorter path is accessible, we'll try it
                 if (!isRefresh)                                                         // during refresh path-shortening messages are not displayed
                 {
-                    sprintf(text, LoadStr(IDS_FILEERRORFORMAT), archive, GetErrorText(lastErr));
+                    sprintf(text, LoadStrU8(IDS_FILEERRORFORMAT), archive, GetErrorText(lastErr));
                     SalMessageBox(HWindow, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                 }
                 goto ERROR_1;
@@ -2318,7 +2318,7 @@ BOOL CFilesWindow::ChangePathToArchive(const char* archive, const char* archiveP
                         {
                             // notify that there were changes and that editors should be closed
                             char buf[MAX_PATH + 200];
-                            sprintf(buf, LoadStr(IDS_ARCHIVEREFRESHEDIT), GetZIPArchive());
+                            sprintf(buf, LoadStrU8(IDS_ARCHIVEREFRESHEDIT), GetZIPArchive());
                             SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
                         }
                         forceUpdateInt = TRUE; // nowhere to return, path change required (possibly back to disk)
@@ -2330,7 +2330,7 @@ BOOL CFilesWindow::ChangePathToArchive(const char* archive, const char* archiveP
                     err = GetLastError(); // unable to open the archive file
                     if (!isRefresh)       // during refresh missing-path messages are not displayed
                     {
-                        sprintf(text, LoadStr(IDS_FILEERRORFORMAT), archive, GetErrorText(err));
+                        sprintf(text, LoadStrU8(IDS_FILEERRORFORMAT), archive, GetErrorText(err));
                         SalMessageBox(HWindow, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                     }
                 }
@@ -2727,7 +2727,7 @@ BOOL CFilesWindow::ChangeAndListPathOnFS(const char* fsName, int fsNameIndex, co
         if (i == count) // report error (the file to focus was not found)
         {
             char errText[MAX_PATH + 200];
-            sprintf(errText, LoadStr(IDS_UNABLETOFOCUSFILEONFS), cutFileName);
+            sprintf(errText, LoadStrU8(IDS_UNABLETOFOCUSFILEONFS), cutFileName);
             SalMessageBox(HWindow, errText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             *cutFileName = 0;
         }

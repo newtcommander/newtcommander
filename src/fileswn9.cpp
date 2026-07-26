@@ -1172,7 +1172,7 @@ void CFilesWindow::OfferArchiveUpdateIfNeededAux(HWND parent, int textID, BOOL* 
     {
         // show info about the need to update the archive that contains edited files
         char text[MAX_PATH + 500];
-        sprintf(text, LoadStr(textID), GetZIPArchive());
+        sprintf(text, LoadStrU8(textID), GetZIPArchive());
         SalMessageBox(parent, text, LoadStr(IDS_INFOTITLE),
                       MSGBOXEX_OK | MSGBOXEX_ICONINFORMATION | MSGBOXEX_SILENT);
         // package the changed files, prepare them for further use

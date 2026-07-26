@@ -2909,6 +2909,19 @@ CFindDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         // construct the list view
         FoundFilesListView = new CFoundFilesListView(HWindow, IDC_FIND_RESULTS, this);
 
+        // feature 042: make the list view re-ask for its notification format.
+        // The control sends WM_NOTIFYFORMAT/NF_QUERY while it is being created,
+        // which is BEFORE WM_INITDIALOG - and CDialog::CDialogProc attaches the
+        // dialog object only at WM_INITDIALOG, so everything earlier returns
+        // FALSE ("not handled"). Our NFR_UNICODE answer below therefore never
+        // ran, DefDlgProc replied from IsWindowUnicode(HWindow) = FALSE, and the
+        // control settled on ANSI notifications for good. That is why names were
+        // served through the ANSI LVN_GETDISPINFO and lost every character the
+        // machine's codepage cannot hold. NF_REQUERY asks again, now that the
+        // handler can answer. Only the control->parent direction is affected;
+        // messages sent TO the control (ANSI column headers) are unchanged.
+        SendMessage(FoundFilesListView->HWindow, WM_NOTIFYFORMAT, (WPARAM)HWindow, NF_REQUERY);
+
         SetFullRowSelect(Configuration.FindFullRowSelect);
 
         TBHeader = new CFindTBHeader(HWindow, IDC_FIND_FOUND_FILES);
@@ -3862,10 +3875,30 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
     }
 
     case WM_NOTIFYFORMAT:
-    {   // feature 004: ask the common controls for Unicode notifications so the
+    { // feature 004: ask the common controls for Unicode notifications so the
         // results list view can render UTF-8 names (converted in LVN_GETDISPINFOW)
-        if (lParam == NF_QUERY)
-            return NFR_UNICODE;
+        //
+        // feature 042: this handler was broken twice over, and both halves had
+        // to be fixed before a single name rendered correctly.
+        //
+        // 1. It never ran. The NF_QUERY a control sends while it is being
+        //    created arrives before WM_INITDIALOG, and CDialog::CDialogProc has
+        //    no dialog object to dispatch to until then, so the query went
+        //    unanswered and the control fell back to IsWindowUnicode(parent) =
+        //    FALSE. WM_INITDIALOG now sends NF_REQUERY, which is what gets us
+        //    here at a point where we can answer.
+        //
+        // 2. It answered in a way a dialog cannot. "return NFR_UNICODE" is a
+        //    window-procedure idiom: a DIALOG procedure returns only
+        //    handled/not-handled, and any real result must go through
+        //    DWLP_MSGRESULT. Returning 2 merely said "handled" while the control
+        //    read a result of zero - so even once it ran, it still requested
+        //    ANSI. (LVN_ODFINDITEMW below already uses the correct idiom.)
+        if (lParam == NF_QUERY || lParam == NF_REQUERY)
+        {
+            SetWindowLongPtr(HWindow, DWLP_MSGRESULT, NFR_UNICODE);
+            return TRUE;
+        }
         break;
     }
 
@@ -3884,8 +3917,12 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
                 if (infoW->item.mask & LVIF_TEXT)
                 {
                     const char* u8 = item->GetText(infoW->item.iSubItem, FoundFilesDataTextBuffer, FileNameFormat);
-                    if (u8 == NULL || SalU8ToW(u8, -1, FoundFilesDataTextBufferW,
-                                               _countof(FoundFilesDataTextBufferW)) == 0)
+                    // feature 042: convert leniently. The strict variant returned
+                    // 0 for a malformed name and blanked the whole cell, hiding
+                    // the item entirely; SalU8ToWDisplay costs one U+FFFD per
+                    // offending character and keeps the rest of the name (FR-005).
+                    if (u8 == NULL || SalU8ToWDisplay(u8, -1, FoundFilesDataTextBufferW,
+                                                      _countof(FoundFilesDataTextBufferW)) == 0)
                     {
                         FoundFilesDataTextBufferW[0] = 0;
                     }
@@ -4089,6 +4126,15 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
             case LVN_ODFINDITEM:
             {
                 // assist the list view with quick search
+                //
+                // feature 042: unreachable in practice - WM_INITDIALOG sends
+                // NF_REQUERY, so quick search arrives as LVN_ODFINDITEMW above,
+                // which converts the typed text to UTF-8 and compares with
+                // SalNameEqualCI. This ANSI variant compares ANSI keystrokes
+                // against UTF-8 stored names, so it silently matched nothing for
+                // any name that is not plain ASCII. Kept as a defensive fallback
+                // only; the comparison below is correct while both sides are
+                // ASCII, which is the only case that can still reach it.
                 NMLVFINDITEM* pFindInfo = (NMLVFINDITEM*)lParam;
                 int iStart = pFindInfo->iStart;
                 LVFINDINFO* fi = &pFindInfo->lvfi;
@@ -4167,21 +4213,15 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
                     info->item.iImage = item->IsDir ? 0 : 1;
                 if (info->item.mask & LVIF_TEXT)
                 {
-                    // feature 041: GetText() returns UTF-8; this is the ANSI
-                    // notification, so transcode instead of handing the raw
-                    // bytes over. Without this the locale thousands separator
-                    // (UTF-8 since feature 041) showed up as "2<A0>055".
+                    // feature 042: unreachable in practice - WM_INITDIALOG sends
+                    // NF_REQUERY, so the control asks through LVN_GETDISPINFOW
+                    // above. Kept only as a defensive fallback, and deliberately
+                    // ASCII-only: feature 041 transcoded here through CP_ACP,
+                    // which silently replaced every character the machine's
+                    // codepage could not hold with '?' - one per UTF-16 unit, so
+                    // an emoji cost two. That conversion is lossy by
+                    // construction and must not come back (spec FR-002).
                     char* u8 = item->GetText(info->item.iSubItem, FoundFilesDataTextBuffer, FileNameFormat);
-                    if (u8 != NULL && !SalIsASCII(u8))
-                    {
-                        WCHAR wide[1024];
-                        if (SalU8ToW(u8, -1, wide, _countof(wide)) != 0)
-                        {
-                            static char ansi[1024];
-                            if (WideCharToMultiByte(CP_ACP, 0, wide, -1, ansi, _countof(ansi), NULL, NULL) > 0)
-                                u8 = ansi;
-                        }
-                    }
                     info->item.pszText = u8;
                 }
                 break;

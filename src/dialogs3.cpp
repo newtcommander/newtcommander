@@ -2290,7 +2290,7 @@ AGAIN:
     if (MainWindow->GetActivePanel()->CheckPath(FALSE, fileName) != ERROR_SUCCESS)
     {
         char buff[1024];
-        sprintf(buff, LoadStr(IDS_CANNONTFINDFILE), fileName);
+        sprintf(buff, LoadStrU8(IDS_CANNONTFINDFILE), fileName);
         SalMessageBox(HWindow, buff, LoadStr(IDS_ERRORTITLE),
                       MB_OK | MB_ICONEXCLAMATION);
 
@@ -2319,7 +2319,7 @@ AGAIN:
     if (IconsCount == 0)
     {
         char buff[1024];
-        sprintf(buff, LoadStr(IDS_NOICONS), fileName);
+        sprintf(buff, LoadStrU8(IDS_NOICONS), fileName);
         SalMessageBox(HWindow, buff, LoadStr(IDS_ERRORTITLE),
                       MB_OK | MB_ICONEXCLAMATION);
 

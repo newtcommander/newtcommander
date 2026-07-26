@@ -1579,6 +1579,9 @@ BOOL CSalamanderPluginEntry::SetBasicPluginData(const char* pluginName, DWORD fu
         Plugin->SupportFS && !supportFS)
     { // downgrading capabilities is not possible ...
         char bufText[MAX_PATH + 200];
+        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+        //   encoding is not controlled by this feature and converting the template around it could
+        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
         sprintf(bufText, LoadStr(IDS_REINSTALLPLUGIN), Plugin->Name, Plugin->DLLName);
         SalMessageBox(Parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
         Error = TRUE;
@@ -1750,7 +1753,7 @@ CSalamanderPluginEntry::LoadLanguageModule(HWND parent, const char* pluginName)
                 params.HParent = parent;
                 params.Flags = MB_OK | MB_ICONERROR;
                 params.Caption = pluginName;
-                _snprintf_s(errorText, _TRUNCATE, LoadStr(IDS_CANTLOADPLUGINSLG1), path);
+                _snprintf_s(errorText, _TRUNCATE, LoadStrU8(IDS_CANTLOADPLUGINSLG1), path);
                 params.Text = errorText;
                 params.CheckBoxText = LoadStr(IDS_DONOTSHOWCANTLOADPLUGINSLG);
                 params.CheckBoxValue = &Configuration.DoNotDispCantLoadPluginSLG;
@@ -1773,7 +1776,7 @@ CSalamanderPluginEntry::LoadLanguageModule(HWND parent, const char* pluginName)
                     params.HParent = parent;
                     params.Flags = MB_OK | MB_ICONERROR;
                     params.Caption = pluginName;
-                    _snprintf_s(errorText, _TRUNCATE, LoadStr(IDS_CANTLOADPLUGINSLG2), path);
+                    _snprintf_s(errorText, _TRUNCATE, LoadStrU8(IDS_CANTLOADPLUGINSLG2), path);
                     params.Text = errorText;
                     params.CheckBoxText = LoadStr(IDS_DONOTSHOWCANTLOADPLUGINSLG);
                     params.CheckBoxValue = &Configuration.DoNotDispCantLoadPluginSLG2;
@@ -2171,6 +2174,9 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
         if (DLL == NULL) // error
         {
             DWORD err = GetLastError();
+            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+            //   encoding is not controlled by this feature and converting the template around it could
+            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
             sprintf(bufText, LoadStr(IDS_UNABLETOLOADPLUGIN), Name, s, GetErrorText(err));
             if (!quiet)
                 SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
@@ -2287,6 +2293,9 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
                         if (Name == NULL || Name[0] == 0)
                             sprintf(bufText, LoadStr(IDS_OLDPLUGINVERSION2), s);
                         else
+                            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                            //   encoding is not controlled by this feature and converting the template around it could
+                            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                             sprintf(bufText, LoadStr(IDS_OLDPLUGINVERSION), Name, s);
                         if (!quiet)
                             SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
@@ -2453,6 +2462,9 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
                         if (Name == NULL || Name[0] == 0)
                             sprintf(bufText, LoadStr(IDS_PLUGININVALID2), s);
                         else
+                            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                            //   encoding is not controlled by this feature and converting the template around it could
+                            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                             sprintf(bufText, LoadStr(IDS_PLUGININVALID), Name, s);
                         if (!quiet)
                             SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
@@ -2614,6 +2626,9 @@ BOOL CPluginData::Remove(HWND parent, int index, BOOL canDelPluginRegKey)
             else
             {
                 char buf[MAX_PATH + 100];
+                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                //   encoding is not controlled by this feature and converting the template around it could
+                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                 sprintf(buf, LoadStr(IDS_PLUGINFORCEUNLOAD), Name);
                 if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
@@ -3027,6 +3042,9 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
             BOOL skipUnload = FALSE;
             if (SupportLoadSave && ::Configuration.AutoSave)
             { // ask if the user wants to save configuration when "save on exit" is on
+                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                //   encoding is not controlled by this feature and converting the template around it could
+                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                 sprintf(buf, LoadStr(IDS_PLUGINSAVECONFIG), Name);
                 if (!ask || SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
@@ -3082,6 +3100,9 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
 
                     if (ask && salKeyDoesNotExist)
                     {
+                        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                        //   encoding is not controlled by this feature and converting the template around it could
+                        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                         sprintf(buf, LoadStr(IDS_PLUGINSAVEFAILED), Name);
                         skipUnload = SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                                                    MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) == IDNO;
@@ -3101,6 +3122,9 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
                     ret = TRUE;
                 else
                 {
+                    // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                    //   encoding is not controlled by this feature and converting the template around it could
+                    //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                     sprintf(buf, LoadStr(IDS_PLUGINFORCEUNLOAD), Name);
                     if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                     {
@@ -3127,7 +3151,7 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
                     PluginIfaceForThumbLoader.Init(NULL, NULL, NULL);
                     SalamanderGeneral.Init(NULL);
 
-                    // when unloading the plugin, remove its icon overlays 
+                    // when unloading the plugin, remove its icon overlays
                     ReleaseIconOverlays();
 
                     // disconnect the unloaded plugin from the delete manager and the disk cache

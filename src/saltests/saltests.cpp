@@ -756,6 +756,74 @@ static void TestDarkIconColorAdaptation()
     CHECK(r == r2 && g == g2 && b == b2);
 }
 
+// Feature 042: the file-name display-encoding defect class.
+//
+// Both reported defects were call-site defects, not helper defects, so these
+// tests are the regression floor rather than the guard -- tools/check_encoding.py
+// is what actually catches a recurrence. What is asserted here is the property
+// every repaired call site depends on: a message composed from a localized
+// template and a file name survives only when BOTH halves are UTF-8, and one
+// legacy-codepage ingredient costs the whole message its wide rendering path.
+static void TestComposedMessageEncoding()
+{
+    // The name as the file system holds it: "emoji-<U+1F642>-dir - Copy<U+011B>"
+    const char* u8Name = "emoji-\xF0\x9F\x99\x82-dir - Copy\xC4\x9B";
+
+    // (1) all-UTF-8 composition -> valid UTF-8 -> the wide path is available
+    char composed[512];
+    _snprintf_s(composed, _TRUNCATE, "Slozka obsahuje: %s", u8Name);
+    WCHAR wide[512];
+    CHECK(SalU8ToW(composed, -1, wide, _countof(wide)) != 0);
+    CHECK(wcsstr(wide, L"emoji-") != NULL);
+    CHECK(wcsstr(wide, L"\xD83D\xDE42") != NULL); // the surrogate pair survived
+    CHECK(wcsstr(wide, L"\x011B") != NULL);       // e-caron survived
+
+    // (2) mixed composition: one legacy-codepage byte in the template.
+    //     0xE1 alone is 'a-acute' in CP1250 and is not valid UTF-8, which is
+    //     exactly how a localized LoadStr() template poisoned the message.
+    //     Strict conversion must REFUSE the whole string -- that refusal is the
+    //     reported defect: CMessageBox then drew everything the legacy way and
+    //     the name became mojibake.
+    char mixed[512];
+    _snprintf_s(mixed, _TRUNCATE, "Slo\xE1ka obsahuje: %s", u8Name);
+    CHECK(SalU8ToW(mixed, -1, wide, _countof(wide)) == 0);
+
+    // (3) the lenient display conversion never loses the whole string: the bad
+    //     byte costs exactly one U+FFFD and the name beside it stays intact.
+    CHECK(SalU8ToWDisplay(mixed, -1, wide, _countof(wide)) != 0);
+    CHECK(wcsstr(wide, L"\xD83D\xDE42") != NULL);
+    CHECK(wcsstr(wide, L"\x011B") != NULL);
+    int replacements = 0;
+    for (const WCHAR* p = wide; *p != 0; p++)
+        if (*p == 0xFFFD)
+            replacements++;
+    CHECK(replacements == 1);
+
+    // (4) a name outside the machine's legacy codepage must never be routed
+    //     through it. This reproduces the Report 1 symptom directly: every
+    //     UTF-16 unit that CP_ACP cannot represent becomes '?', so one emoji
+    //     costs two. The assertion documents WHY FR-002 forbids that route.
+    CHECK(SalU8ToW(u8Name, -1, wide, _countof(wide)) != 0);
+    char lossy[512];
+    BOOL usedDefault = FALSE;
+    int n = WideCharToMultiByte(CP_ACP, 0, wide, -1, lossy, _countof(lossy), "?", &usedDefault);
+    if (n > 0)
+    {
+        CHECK(usedDefault);                 // the codepage could not hold it
+        CHECK(strstr(lossy, "??") != NULL); // two '?' for the one emoji
+    }
+
+    // (5) truncation must never split a surrogate pair in half
+    // (buffer named 'tiny', not 'small' - the Windows headers define 'small' as char)
+    WCHAR tiny[16];
+    int written = SalU8ToWDisplay(u8Name, -1, tiny, _countof(tiny));
+    if (written > 0)
+    {
+        WCHAR last = tiny[written - 2]; // before the terminator
+        CHECK(!(last >= 0xD800 && last <= 0xDBFF));
+    }
+}
+
 int main()
 {
     TestConversions();
@@ -768,6 +836,7 @@ int main()
     TestLongComponentNames();
     TestDarkThemePalette();
     TestDarkIconColorAdaptation();
+    TestComposedMessageEncoding();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;

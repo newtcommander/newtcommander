@@ -436,7 +436,7 @@ void CFilesWindow::FocusShortcutTarget(CFilesWindow* panel)
     if (mountPoint || invalid)
     {
         char errBuf[MAX_PATH + 300];
-        sprintf(errBuf, LoadStr(mountPoint ? IDS_DIRLINK_MOUNT_POINT : IDS_SHORTCUT_INVALID),
+        sprintf(errBuf, LoadStrU8(mountPoint ? IDS_DIRLINK_MOUNT_POINT : IDS_SHORTCUT_INVALID),
                 mountPoint ? junctionOrSymlinkTgt : shortName);
         SalMessageBox(HWindow, errBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }

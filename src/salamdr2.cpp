@@ -2749,7 +2749,7 @@ BOOL SaveEditors(HKEY hKey, const char* name, CEditorMasks* editorMasks)
 void ShowFileError(HWND hParent, int errTextID, const char* fileName, DWORD err)
 {
     char text[MAX_PATH + 300];
-    _snprintf_s(text, _TRUNCATE, LoadStr(errTextID), fileName, GetErrorText(err));
+    _snprintf_s(text, _TRUNCATE, LoadStrU8(errTextID), fileName, GetErrorText(err));
     SalMessageBox(hParent, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
 }
 
@@ -2881,7 +2881,7 @@ BOOL ImportConfiguration(HWND hParent, const char* fileName, BOOL ignoreIfNotExi
             else
             {
                 char text[MAX_PATH + 300];
-                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_IMPORTCFG_NOTOURVER), fileName);
+                _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_IMPORTCFG_NOTOURVER), fileName);
                 if (SalMessageBox(hParent, text, LoadStr(IDS_QUESTION),
                                   MB_YESNO | MSGBOXEX_ESCAPEENABLED | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES)
                 {

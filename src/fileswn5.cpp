@@ -1220,7 +1220,7 @@ BOOL ViewFileInt(HWND parent, const char* name, BOOL altView, DWORD handlerID, B
     {
         char buff[MAX_PATH + 300];
         int textID = altView ? IDS_CANT_VIEW_FILE_ALT : IDS_CANT_VIEW_FILE;
-        sprintf(buff, LoadStr(textID), name);
+        sprintf(buff, LoadStrU8(textID), name);
         SalMessageBox(parent, buff, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }
     return success;
@@ -1466,7 +1466,7 @@ void CFilesWindow::EditFile(char* name, DWORD handlerID)
     else
     {
         char buff[MAX_PATH + 300];
-        sprintf(buff, LoadStr(IDS_CANT_EDIT_FILE), name);
+        sprintf(buff, LoadStrU8(IDS_CANT_EDIT_FILE), name);
         SalMessageBox(HWindow, buff, LoadStr(IDS_ERRORTITLE),
                       MB_OK | MB_ICONEXCLAMATION);
     }
@@ -2397,7 +2397,7 @@ void CFilesWindow::RenameFile(int specialIndex)
             if (SalPathAppend(path, f->Name, MAX_PATH) && IsWin64RedirectedDir(path, NULL, FALSE))
             {
                 char msg[300 + MAX_PATH];
-                _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERRRENAMINGW64ALIAS), f->Name);
+                _snprintf_s(msg, _TRUNCATE, LoadStrU8(IDS_ERRRENAMINGW64ALIAS), f->Name);
                 SalMessageBox(MainWindow->HWindow, msg, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                 return;
             }

@@ -215,7 +215,7 @@ CTipOfTheDayDialog::LoadTips(BOOL quiet)
     if (!quiet)
     {
       char buf[MAX_PATH + 100];
-      sprintf(buf, LoadStr(IDS_FILEREADERROR), fileName);
+      sprintf(buf, LoadStrU8(IDS_FILEREADERROR), fileName);
       SalMessageBox(MainWindow->HWindow, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }
     return FALSE;
@@ -227,7 +227,7 @@ CTipOfTheDayDialog::LoadTips(BOOL quiet)
     if (!quiet)
     {
       char buf[MAX_PATH + 100];
-      sprintf(buf, LoadStr(IDS_FILEREADERROR), fileName);
+      sprintf(buf, LoadStrU8(IDS_FILEREADERROR), fileName);
       SalMessageBox(MainWindow->HWindow, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }
     HANDLES(CloseHandle(hFile));
@@ -248,7 +248,7 @@ CTipOfTheDayDialog::LoadTips(BOOL quiet)
     if (!quiet)
     {
       char buf[MAX_PATH + 100];
-      sprintf(buf, LoadStr(IDS_FILEREADERROR), fileName);
+      sprintf(buf, LoadStrU8(IDS_FILEREADERROR), fileName);
       SalMessageBox(MainWindow->HWindow, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }
     free(data);
@@ -642,6 +642,8 @@ CSharesDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (SharedDirs.GetItem(index, NULL, &remoteName, NULL))
                 {
                     char buff[2000];
+                    // encoding-check: allow mixed-composition - network share name from the OS enumeration, not a
+                    //   file name (feature 042, FR-010)
                     wsprintf(buff, LoadStr(IDS_CONFIRM_STOPSHARE), remoteName);
                     if (SalMessageBox(HWindow, buff, LoadStr(IDS_QUESTION),
                                       MB_OKCANCEL | MB_ICONQUESTION) == IDOK)

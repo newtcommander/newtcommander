@@ -2164,7 +2164,7 @@ BOOL BrowseCommand(HWND hParent, int editlineResID, int filterResID)
         if (error == FNERR_INVALIDFILENAME)
         {
             char buff[MAX_PATH + 100];
-            sprintf(buff, LoadStr(IDS_COMDLG_INVALIDFILENAME), file);
+            sprintf(buff, LoadStrU8(IDS_COMDLG_INVALIDFILENAME), file);
             SalMessageBox(hParent, buff, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
         }
     }

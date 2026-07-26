@@ -992,7 +992,7 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
                     if (err != NO_ERROR)
                     {
                         char message[MAX_PATH + 100];
-                        _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName, GetErrorText(err)); // path may exceed the message buffer (feature 012)
+                        _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_FILEERRORFORMAT), fileName, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                         SetCurrentDirectoryToSystem();
                         SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                         if (usedNames != NULL)
@@ -1004,7 +1004,7 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
             else
             {
                 char message[MAX_PATH + 100];
-                _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName,
+                _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_FILEERRORFORMAT), fileName,
                             GetErrorText(ERROR_INVALID_DATA)); // path may exceed the message buffer (feature 012)
                 SetCurrentDirectoryToSystem();
                 SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
@@ -1016,7 +1016,7 @@ BOOL CFilesWindow::BuildScriptMain2(COperations* script, BOOL copy, char* target
         else
         {
             char message[MAX_PATH + 100];
-            _snprintf_s(message, _TRUNCATE, LoadStr(IDS_FILEERRORFORMAT), fileName,
+            _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_FILEERRORFORMAT), fileName,
                         GetErrorText(GetLastError())); // path may exceed the message buffer (feature 012)
             //      SetCurrentDirectoryToSystem();
             SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
@@ -1105,7 +1105,7 @@ void CFilesWindow::DropCopyMove(BOOL copy, char* targetPath, CCopyMoveData* data
                     char buf1[50];
                     char buf2[50];
                     char buf3[200];
-                    sprintf(buf3, LoadStr(IDS_NOTENOUGHSPACE),
+                    sprintf(buf3, LoadStrU8(IDS_NOTENOUGHSPACE),
                             NumberToStr(buf1, occupiedSpTooBig ? script->OccupiedSpace : script->TotalFileSize),
                             NumberToStr(buf2, script->FreeSpace));
                     cancel = SalMessageBox(HWindow, buf3,
@@ -1724,7 +1724,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
     if (type == atDelete && Configuration.CnfrmSHDirDel &&
         (sourceDirAttr & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM)))
     {
-        _snprintf_s(text, _TRUNCATE, LoadStr(IDS_DELETESHDIR), sourcePath); // path may exceed the message buffer (feature 012)
+        _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_DELETESHDIR), sourcePath); // path may exceed the message buffer (feature 012)
         int res = SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_QUESTION),
                                 MB_YESNOCANCEL | MB_ICONQUESTION);
         UpdateWindow(MainWindow->HWindow);
@@ -2216,7 +2216,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
 
                 if (askDirDelete)
                 {
-                    _snprintf_s(text, _TRUNCATE, LoadStr(IDS_NONEMPTYDIRDELCONFIRM), sourcePath); // path may exceed the message buffer (feature 012)
+                    _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_NONEMPTYDIRDELCONFIRM), sourcePath); // path may exceed the message buffer (feature 012)
                     int res = SalMessageBox(MainWindow->HWindow, text, LoadStr(IDS_QUESTION),
                                             MB_YESNOCANCEL | MB_ICONQUESTION);
                     UpdateWindow(MainWindow->HWindow);
@@ -2982,7 +2982,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
         {
             if (!script->SkipAllCountSizeErrors)
             {
-                _snprintf_s(message, _TRUNCATE, LoadStr(IDS_GETCOMPRFILESIZEERROR), name, GetErrorText(err)); // path may exceed the message buffer (feature 012)
+                _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_GETCOMPRFILESIZEERROR), name, GetErrorText(err)); // path may exceed the message buffer (feature 012)
                 script->SkipAllCountSizeErrors = SalMessageBox(HWindow, message, LoadStr(IDS_ERRORTITLE),
                                                                MB_YESNO | MB_ICONEXCLAMATION) == IDYES;
                 UpdateWindow(MainWindow->HWindow);

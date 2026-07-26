@@ -301,7 +301,7 @@ void InitAux(HWND hWindow, TIndirectArray<CCodeTablesData>& Data,
     {
         // file error
         char buf[MAX_PATH + 100];
-        sprintf(buf, LoadStr(IDS_FILEREADERROR), fileName);
+        sprintf(buf, LoadStrU8(IDS_FILEREADERROR), fileName);
         SalMessageBox(hWindow, buf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
     }
 }
@@ -361,7 +361,7 @@ CCodeTable::CCodeTable(HWND hWindow, const char* dirName)
 
         if (err != NO_ERROR)
         {
-            sprintf(textBuf, LoadStr(IDS_VIEWERERROPENCODES), fileName, GetErrorText(err));
+            sprintf(textBuf, LoadStrU8(IDS_VIEWERERROPENCODES), fileName, GetErrorText(err));
             SalMessageBox(hWindow, textBuf, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
         }
     }

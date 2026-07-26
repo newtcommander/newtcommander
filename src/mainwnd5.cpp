@@ -344,7 +344,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
                         {
                             err = GetLastError();
                             readErr = TRUE;
-                            _snprintf_s(message, _TRUNCATE, LoadStr(IDS_ERROR_READING_FILE), file1, GetErrorText(err));
+                            _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_ERROR_READING_FILE), file1, GetErrorText(err));
                             progressDlg->FlushDataToControls();
                             if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -381,7 +381,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
           if (!ReadFile(hFile1, buffer1, bufSize, &read1, NULL))
           {
             err = GetLastError();
-            sprintf(message, LoadStr(IDS_ERROR_READING_FILE), file1, GetErrorText(err));
+            sprintf(message, LoadStrU8(IDS_ERROR_READING_FILE), file1, GetErrorText(err));
             progressDlg->FlushDataToControls();
             if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -405,7 +405,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
                         {
                             err = GetLastError();
                             readErr = TRUE;
-                            _snprintf_s(message, _TRUNCATE, LoadStr(IDS_ERROR_READING_FILE), file2, GetErrorText(err));
+                            _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_ERROR_READING_FILE), file2, GetErrorText(err));
                             progressDlg->FlushDataToControls();
                             if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -453,7 +453,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
           if (!ReadFile(hFile2, buffer2, bufSize, &read2, NULL))
           {
             err = GetLastError();
-            sprintf(message, LoadStr(IDS_ERROR_READING_FILE), file2, GetErrorText(err));
+            sprintf(message, LoadStrU8(IDS_ERROR_READING_FILE), file2, GetErrorText(err));
             progressDlg->FlushDataToControls();
             if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -505,7 +505,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
         }
         else
         {
-            _snprintf_s(message, _TRUNCATE, LoadStr(IDS_ERROR_OPENING_FILE), file2, GetErrorText(err));
+            _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_ERROR_OPENING_FILE), file2, GetErrorText(err));
             progressDlg->FlushDataToControls();
             if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -517,7 +517,7 @@ BOOL CompareFilesByContent(HWND hWindow, CCmpDirProgressDialog* progressDlg,
     }
     else
     {
-        _snprintf_s(message, _TRUNCATE, LoadStr(IDS_ERROR_OPENING_FILE), file1, GetErrorText(err));
+        _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_ERROR_OPENING_FILE), file1, GetErrorText(err));
         progressDlg->FlushDataToControls();
         if (SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                           MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -579,7 +579,7 @@ BOOL ReadDirsAndFilesAux(HWND hWindow, DWORD flags, CCmpDirProgressDialog* progr
                     *canceled = FALSE; // we're only obtaining the size, no need to bother the user, skip the error
                 else
                 {
-                    _snprintf_s(message, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+                    _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
                     progressDlg->FlushDataToControls();
                     *canceled = SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                                               MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL;
@@ -701,7 +701,7 @@ BOOL ReadDirsAndFilesAux(HWND hWindow, DWORD flags, CCmpDirProgressDialog* progr
                 *canceled = FALSE; // we're only obtaining the size, no need to bother the user, skip the error
             else
             {
-                _snprintf_s(message, _TRUNCATE, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+                _snprintf_s(message, _TRUNCATE, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
                 progressDlg->FlushDataToControls();
                 *canceled = SalMessageBox(hWindow, message, LoadStr(IDS_ERRORTITLE),
                                           MB_OK | MB_ICONEXCLAMATION) == IDCANCEL;

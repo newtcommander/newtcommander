@@ -1097,7 +1097,7 @@ AGAIN:
         GetRootPath(root, dir);
         if (dirLen <= (int)strlen(root)) // the directory is a root directory
         {
-            _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), dir);
+            _snprintf_s(buf, _TRUNCATE, LoadStrU8(IDS_CREATEDIRFAILED), dir);
             if (errBuf != NULL)
                 strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
             else
@@ -1114,7 +1114,7 @@ AGAIN:
                 char text[MAX_PATH + 500];
                 char checkText[200];
                 sprintf(title, LoadStr(IDS_QUESTION));
-                _snprintf_s(text, _TRUNCATE, LoadStr(IDS_CREATEDIRECTORY), dir);
+                _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_CREATEDIRECTORY), dir);
                 sprintf(checkText, LoadStr(IDS_DONTSHOWAGAINCD));
                 BOOL dontShow = !Configuration.CnfrmCreateDir;
 
@@ -1142,7 +1142,7 @@ AGAIN:
                 s = strrchr(name, '\\');
                 if (s == NULL)
                 {
-                    _snprintf_s(buf, _TRUNCATE, LoadStr(IDS_CREATEDIRFAILED), dir);
+                    _snprintf_s(buf, _TRUNCATE, LoadStrU8(IDS_CREATEDIRFAILED), dir);
                     if (errBuf != NULL)
                         strncpy_s(errBuf, errBufSize, buf, _TRUNCATE);
                     else
@@ -1536,7 +1536,7 @@ BOOL CPathHistoryItem::Execute(CFilesWindow* panel)
                     {
                         if (failReason == CHPPFR_SHORTERPATH || failReason == CHPPFR_FILENAMEFOCUSED)
                         {
-                            _snprintf_s(errBuf, _TRUNCATE, LoadStr(IDS_PATHINARCHIVENOTFOUND), ArchivePathOrFSUserPart); // in-archive path may exceed the buffer (feature 027)
+                            _snprintf_s(errBuf, _TRUNCATE, LoadStrU8(IDS_PATHINARCHIVENOTFOUND), ArchivePathOrFSUserPart); // in-archive path may exceed the buffer (feature 027)
                             SalMessageBox(panel->HWindow, errBuf, LoadStr(IDS_ERRORCHANGINGDIR),
                                           MB_OK | MB_ICONEXCLAMATION);
                         }

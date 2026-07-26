@@ -1713,7 +1713,7 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
 #ifndef _WIN64
             if (ContainsWin64RedirectedDir(panel, (count == 0) ? &index : indexes, (count == 0) ? 1 : count, redirectedDir, TRUE))
             {
-                _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERROPENPROPSELCONTW64ALIAS), redirectedDir);
+                _snprintf_s(msg, _TRUNCATE, LoadStrU8(IDS_ERROPENPROPSELCONTW64ALIAS), redirectedDir);
                 SalMessageBox(MainWindow->HWindow, msg, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             }
             else
@@ -1765,7 +1765,7 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
             if (action == saCutToClipboard &&
                 ContainsWin64RedirectedDir(panel, (count == 0) ? &index : indexes, (count == 0) ? 1 : count, redirectedDir, FALSE))
             {
-                _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERRCUTSELCONTW64ALIAS), redirectedDir);
+                _snprintf_s(msg, _TRUNCATE, LoadStrU8(IDS_ERRCUTSELCONTW64ALIAS), redirectedDir);
                 SalMessageBox(MainWindow->HWindow, msg, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             }
             else
@@ -2055,7 +2055,7 @@ void ShellAction(CFilesWindow* panel, CShellAction action, BOOL useSelection,
 #ifndef _WIN64
                         if (ContainsWin64RedirectedDir(panel, (count == 0) ? &index : indexes, (count == 0) ? 1 : count, redirectedDir, TRUE))
                         {
-                            _snprintf_s(msg, _TRUNCATE, LoadStr(IDS_ERROPENMENUSELCONTW64ALIAS), redirectedDir);
+                            _snprintf_s(msg, _TRUNCATE, LoadStrU8(IDS_ERROPENMENUSELCONTW64ALIAS), redirectedDir);
                             SalMessageBox(MainWindow->HWindow, msg, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
                         }
                         else

@@ -124,7 +124,7 @@ ENUM_NEXT:
                 { // path is too long
                     if (errorOccured != NULL)
                         *errorOccured = SALENUM_ERROR;
-                    _snprintf_s(errText, _TRUNCATE, LoadStr(IDS_NAMEISTOOLONG), f->Name, curZIPPath);
+                    _snprintf_s(errText, _TRUNCATE, LoadStrU8(IDS_NAMEISTOOLONG), f->Name, curZIPPath);
                     if (parent != NULL &&
                         SalMessageBox(parent, errText, LoadStr(IDS_ERRORTITLE),
                                       MB_OKCANCEL | MB_ICONEXCLAMATION) == IDCANCEL)
@@ -204,7 +204,7 @@ ENUM_NEXT:
                     { // path is too long
                         if (errorOccured != NULL)
                             *errorOccured = SALENUM_ERROR;
-                        _snprintf_s(errText, _TRUNCATE, LoadStr(IDS_NAMEISTOOLONG),
+                        _snprintf_s(errText, _TRUNCATE, LoadStrU8(IDS_NAMEISTOOLONG),
                                     (tooLong1 || f->DosName == NULL ? f->Name : f->DosName),
                                     (tooLong1 ? data->EnumLastPath : data->EnumLastDosPath));
                         if (parent != NULL &&
@@ -249,7 +249,7 @@ ENUM_NEXT:
                         { // path is too long
                             if (errorOccured != NULL)
                                 *errorOccured = SALENUM_ERROR;
-                            _snprintf_s(errText, _TRUNCATE, LoadStr(IDS_NAMEISTOOLONG),
+                            _snprintf_s(errText, _TRUNCATE, LoadStrU8(IDS_NAMEISTOOLONG),
                                         (tooLong1 || f->DosName == NULL ? f->Name : f->DosName),
                                         (tooLong1 ? data->EnumLastPath + zipPathLen + (zipPathLen > 0 ? 1 : 0) : data->EnumLastDosPath));
                             if (parent != NULL &&
@@ -554,7 +554,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                             if (Configuration.CnfrmCreatePath) // ask whether the path should be created
                             {
                                 BOOL dontShow = FALSE;
-                                sprintf(textBuf, LoadStr(IDS_MOVECOPY_CREATEPATH), newDirs);
+                                sprintf(textBuf, LoadStrU8(IDS_MOVECOPY_CREATEPATH), newDirs);
 
                                 MSGBOXEX_PARAMS params;
                                 memset(&params, 0, sizeof(params));
@@ -606,7 +606,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                                 }
                                 if (invalidPath || !SalCreateDirectory(newDirs, NULL))
                                 {
-                                    sprintf(textBuf, LoadStr(IDS_CREATEDIRFAILED), newDirs);
+                                    sprintf(textBuf, LoadStrU8(IDS_CREATEDIRFAILED), newDirs);
                                     SalMessageBox(HWindow, textBuf, LoadStr(IDS_ERRORCOPY), MB_OK | MB_ICONEXCLAMATION);
                                     ok = FALSE;
                                     break;
@@ -761,7 +761,7 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                             strcat(name, Dirs->At(data.Indexes[i]).Name);
 
                             char text[2 * MAX_PATH + 100];
-                            sprintf(text, LoadStr(IDS_NONEMPTYDIRDELCONFIRM), name);
+                            sprintf(text, LoadStrU8(IDS_NONEMPTYDIRDELCONFIRM), name);
                             int res = SalMessageBox(HWindow, text, LoadStr(IDS_QUESTION),
                                                     MB_YESNOCANCEL | MB_ICONQUESTION);
                             if (res == IDCANCEL)
@@ -842,7 +842,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
             if (errorOccured != NULL)
                 *errorOccured = SALENUM_ERROR;
             strcpy(end, name);
-            sprintf(text, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+            sprintf(text, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
             *end = 0; // restore the path
             if (parent != NULL &&
                 SalMessageBox(parent, text, LoadStr(IDS_ERRORTITLE),
@@ -1037,7 +1037,7 @@ BOOL _ReadDirectoryTree(HWND parent, char (&path)[MAX_PATH], char* name, CSalama
             if (errorOccured != NULL)
                 *errorOccured = SALENUM_ERROR;
             strcpy(end, name);
-            sprintf(text, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+            sprintf(text, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
             *end = 0; // restore the path
             if (parent != NULL &&
                 SalMessageBox(parent, text, LoadStr(IDS_ERRORTITLE),
@@ -1446,6 +1446,9 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
         }
         if (i == PackerConfig.GetPackersCount()) // the requested plugin was not found
         {
+            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+            //   encoding is not controlled by this feature and converting the template around it could
+            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
             sprintf(subject, LoadStr(IDS_PLUGINPACKERNOTFOUND), pluginName);
             SalMessageBox(HWindow, subject, LoadStr(IDS_PACKTITLE), MB_OK | MB_ICONEXCLAMATION);
             delete[] (data.Indexes);
@@ -1556,7 +1559,7 @@ _PACK_AGAIN:
                 // because it alters the original directory content, which users report as a bug since it's unexpected.
                 if (containsDirLinks == 1)
                 {
-                    _snprintf_s(text, _TRUNCATE, LoadStr(IDS_DELFILESAFTERPACKINGNOLINKS), linkName);
+                    _snprintf_s(text, _TRUNCATE, LoadStrU8(IDS_DELFILESAFTERPACKINGNOLINKS), linkName);
                     SalMessageBox(HWindow, text, LoadStr(IDS_PACKTITLE), MB_OK | MB_ICONEXCLAMATION);
                     PackerConfig.Move = FALSE;
                     goto _PACK_AGAIN;
@@ -1733,6 +1736,9 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
             }
             if (i2 == UnpackerConfig.GetUnpackersCount()) // requested plugin not found
             {
+                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                //   encoding is not controlled by this feature and converting the template around it could
+                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
                 sprintf(subject, LoadStr(IDS_PLUGINUNPACKERNOTFOUND), pluginName);
                 SalMessageBox(HWindow, subject, LoadStr(IDS_ERRORUNPACK), MB_OK | MB_ICONEXCLAMATION);
                 EndStopRefresh(); // the snooper resumes now

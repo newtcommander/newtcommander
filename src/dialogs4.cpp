@@ -149,7 +149,7 @@ BOOL ValidatePathIsNotEmpty(HWND hParent, const char* path)
       // the file was not found - it might not exist or the path may be unreachable;
       // let the user force it
       char buff[1000];
-      sprintf(buff, LoadStr(IDS_THECOMMANDISINVALID), myPath, itemName);
+      sprintf(buff, LoadStrU8(IDS_THECOMMANDISINVALID), myPath, itemName);
       int ret = SalMessageBox(hParent, buff, LoadStr(IDS_ERRORTITLE),
                               MB_YESNO | MB_ICONQUESTION);
       if (ret == IDYES)

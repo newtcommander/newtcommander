@@ -44,7 +44,7 @@ void CFilesWindow::PluginFSFilesAction(CPluginFSActionType type)
     else
         count = 0;
 
-    char subject[MAX_PATH + 100 + 200];    // +200 is a reserve (Windows creates paths longer than MAX_PATH)
+    char subject[MAX_PATH + 100 + 200];            // +200 is a reserve (Windows creates paths longer than MAX_PATH)
     char formatedFileName[SAL_FIND_NAME_U8 + 200]; // UTF-8 name + reserve (feature 004)
     char expanded[200];
     if (count <= 1) // one selected item or none
@@ -380,7 +380,7 @@ void CFilesWindow::DragDropToArcOrFS(CTmpDragDropOperData* data)
         DWORD err = GetLastError();
         if (err != ERROR_FILE_NOT_FOUND && err != ERROR_NO_MORE_FILES)
         {
-            sprintf(text, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+            sprintf(text, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
             SalMessageBox(HWindow, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             if (nameFound != NULL)
                 free(nameFound);
@@ -493,7 +493,7 @@ void CFilesWindow::DragDropToArcOrFS(CTmpDragDropOperData* data)
 
         if (testFindNextErr && err != ERROR_NO_MORE_FILES)
         {
-            sprintf(text, LoadStr(IDS_CANNOTREADDIR), path, GetErrorText(err));
+            sprintf(text, LoadStrU8(IDS_CANNOTREADDIR), path, GetErrorText(err));
             SalMessageBox(HWindow, text, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
             if (nameFound != NULL)
                 free(nameFound);
@@ -639,7 +639,7 @@ void CFilesWindow::DragDropToArcOrFS(CTmpDragDropOperData* data)
                 }
                 else
                 {
-                    sprintf(text, LoadStr(IDS_FILEERRORFORMAT), data->ArchiveOrFSName, GetErrorText(err));
+                    sprintf(text, LoadStrU8(IDS_FILEERRORFORMAT), data->ArchiveOrFSName, GetErrorText(err));
                     SalMessageBox(HWindow, text,
                                   data->Copy ? LoadStr(IDS_ERRORCOPY) : LoadStr(IDS_ERRORMOVE),
                                   MB_OK | MB_ICONEXCLAMATION);
