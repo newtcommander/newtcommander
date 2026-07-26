@@ -236,13 +236,15 @@ BOOL CSplashScreen::PrepareBitmap()
               FALSE, NC_COLOR_MUTED_DARKBG);
 
     // the copyright has two authorship parts; a single line does not fit the
-    // splash width, so each part gets its own line (feature 035)
-    PaintText(VERSINFO_COPYRIGHT1,
+    // splash width, so each part gets its own line (feature 035). Order is
+    // fixed: the current product first, the predecessor below it -- the About
+    // dialog shows the same two lines in the same order (feature 040)
+    PaintText(VERSINFO_COPYRIGHT_NEWT,
               CopyrightR.left,
               CopyrightR.top,
               TRUE, NC_COLOR_TEXT_DARKBG);
 
-    PaintText(VERSINFO_COPYRIGHT2,
+    PaintText(VERSINFO_COPYRIGHT_OPENSAL,
               Copyright2R.left,
               Copyright2R.top,
               TRUE, NC_COLOR_TEXT_DARKBG);
@@ -496,6 +498,15 @@ CAboutDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             SetDlgItemText(HWindow, IDC_ABOUT_WWW, url + 8);
             hl->SetActionOpen(url);
         }
+
+        // The copyright notice is a legal attribution, not translatable UI text:
+        // both controls carry an empty caption in lang.rc (and therefore in every
+        // .slg) and are filled here from versinfo.rh2, so the notice is always
+        // English no matter which language module is loaded. Machine translation
+        // had rewritten the predecessor's attribution and the year in all eleven
+        // languages -- that is what this prevents (feature 040).
+        SetDlgItemText(HWindow, IDC_STATIC_1, VERSINFO_COPYRIGHT_NEWT);
+        SetDlgItemText(HWindow, IDC_STATIC_2, VERSINFO_COPYRIGHT_OPENSAL);
 
         BackgroundBitmap = AboutAndEvalDlgCreateBkgnd(HWindow);
         break;

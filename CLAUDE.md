@@ -15,7 +15,11 @@ WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 - **Websites**: https://newtcommander.org · repo github.com/newtcommander/newtcommander
 - **Copyright rule**: years up to 2026 → "Open Salamander Authors",
   2026 onward → "Newt Commander Authors" (sftp+mdview plugins are solely
-  Newt Commander Authors)
+  Newt Commander Authors). The two notices shown in the About dialog and on
+  the splash screen live in `src/versinfo.rh2`
+  (`VERSINFO_COPYRIGHT_NEWT` above `VERSINFO_COPYRIGHT_OPENSAL`) and are
+  never translated — the About controls carry an empty caption in
+  `lang.rc`. Do not look for this text in the language files (feature 040).
 - **IMPORTANT**: source files, functions, classes, project/solution names
   (`salamand.sln`, `salamand.vcxproj`, `SALAMANDER_*` constants) deliberately
   keep their upstream names — rename only user/OS-visible identity
