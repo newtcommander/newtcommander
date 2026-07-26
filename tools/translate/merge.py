@@ -142,10 +142,14 @@ def build_slt(
     out.set_translation_value("WEB", language.web)
     out.set_translation_value("COMMENT", language.comment)
     out.set_translation_value("HELPDIR", language.helpdir)
-    out.set_translation_value(
-        "SLGINCOMPLETE",
-        f"https://{language.web}" if language.is_machine_assisted else "",
-    )
+    # Always empty: an empty SLGIncomplete is how a .slg declares itself a
+    # complete translation (salamdr1.cpp:200), and a non-empty one makes the
+    # main window pop up a "translation is incomplete" message box at startup
+    # (WM_USER_SLGINCOMPLETE, mainwnd3.cpp:5928). Suppressing that popup is a
+    # deliberate product decision; provenance is still tracked per entry in the
+    # .origin sidecars and reported by the coverage table, so nothing is lost
+    # for a reviewer -- only the startup interruption for the user.
+    out.set_translation_value("SLGINCOMPLETE", "")
 
     for tpl_section in template.sections:
         section = Section(kind=tpl_section.kind, number=tpl_section.number)

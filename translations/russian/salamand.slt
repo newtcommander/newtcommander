@@ -9,7 +9,7 @@ AUTHOR,"Ален Хайруллин, Vasiliy, Игорь Полякофф, Neutr
 WEB,"www.newtcommander.org"
 COMMENT,"Русская версия"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Выделение"

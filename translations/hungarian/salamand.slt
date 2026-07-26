@@ -9,7 +9,7 @@ AUTHOR,"Török József"
 WEB,"www.newtcommander.org"
 COMMENT,"Magyar változat"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Kijelölés"

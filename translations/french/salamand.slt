@@ -9,7 +9,7 @@ AUTHOR,"Gérard Gréco, Arnaud Dupin de Beyssat, Jérémy Marc, Maxime Abbey"
 WEB,"www.newtcommander.org"
 COMMENT,"Version française"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Sélectionner"

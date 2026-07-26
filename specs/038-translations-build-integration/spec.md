@@ -287,9 +287,18 @@ language modules are regenerated and the coverage report reflects the change.
 - **FR-015**: The build MUST report, per language, how much of the product is
   human-translated, how much was produced automatically, and how many source
   entries were discarded as obsolete.
-- **FR-016**: The product MUST continue to indicate to the user when the active
+- **FR-016**: ~~The product MUST continue to indicate to the user when the active
   language is not a fully human-reviewed translation, and point them at where to
-  contribute improvements.
+  contribute improvements.~~
+  **Withdrawn on the requester's instruction (2026-07-26).** The mechanism is the
+  engine's `SLGIncomplete` value, which triggers a message box at startup for any
+  language carrying it. Every shipped language would qualify, so every start
+  showed the popup. All language modules now ship with an empty `SLGIncomplete`,
+  which is how a module declares itself complete; no engine code was changed, so
+  the indicator can be restored by writing the value again.
+  Provenance is unaffected: the `.origin` sidecars still record every entry as
+  human, machine, or English fallback, and the coverage report still prints the
+  split. What is gone is the user-facing notice, not the tracking.
 - **FR-017**: Human-authored translation data MUST remain the authoritative
   source: where a human translation exists it MUST be used in preference to an
   automatic one, and the build MUST NOT overwrite human-authored data.

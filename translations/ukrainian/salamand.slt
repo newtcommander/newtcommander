@@ -9,7 +9,7 @@ AUTHOR,"Newt Commander Project (machine translation)"
 WEB,"www.newtcommander.org"
 COMMENT,"Українська версія"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Вибрати"

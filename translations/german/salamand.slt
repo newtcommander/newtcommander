@@ -9,7 +9,7 @@ AUTHOR,"Dirk Bornhütter, Thomas Kelso, Thomas Pagels, Thomas Wölk, Marko Meist
 WEB,"www.newtcommander.org"
 COMMENT,"Deutsche Version"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Auswählen"

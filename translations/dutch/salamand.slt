@@ -9,7 +9,7 @@ AUTHOR,"Cor van der Smissen, Marco Fung, Patrick Vijgeboom, S.V. (Stephan) Rietv
 WEB,"www.newtcommander.org"
 COMMENT,"Nederlandse versie"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Selecteer"

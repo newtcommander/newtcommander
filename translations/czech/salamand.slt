@@ -9,7 +9,7 @@ AUTHOR,"Hynek Mikulič"
 WEB,"www.newtcommander.org"
 COMMENT,"Česká verze"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Vybrat"

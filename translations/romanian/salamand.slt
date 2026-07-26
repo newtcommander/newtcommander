@@ -9,7 +9,7 @@ AUTHOR,"Ioan Stefancu, Donca Radu"
 WEB,"www.newtcommander.org"
 COMMENT,"Versiunea romana"
 HELPDIR,"ENGLISH"
-SLGINCOMPLETE,"https://www.newtcommander.org"
+SLGINCOMPLETE,""
 
 [DIALOG 100]
 205,72,1,"Selectez"
