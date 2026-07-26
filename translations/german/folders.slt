@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1031
+AUTHOR,"Dirk Bornhütter, Thomas Kelso, Thomas Pagels, Thomas Wölk, Marko Meister und Mick Weiss"
+WEB,"www.newtcommander.org"
+COMMENT,"Deutsche Version"
+
+[STRINGTABLE 0]
+1000,1,"Ordner"
+1001,1,"Über das Plugin"
+1003,1,"Durchsuche Ordner wie „Desktop“, „Systemsteuerung“, „Papierkorb“ usw."
+1004,1,"'\tDesktop"
+

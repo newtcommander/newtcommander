@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,3082
+AUTHOR,"Juan Pablo Barrio Lera"
+WEB,"www.newtcommander.org"
+COMMENT,"Versión en español"
+
+[STRINGTABLE 0]
+1000,1,"Carpetas"
+1001,1,"Acerca del plugin"
+1003,1,"Explora carpetas como «Escritorio», «Panel de control», «Papelera de reciclaje», etc."
+1004,1,"'\tDesktop"
+

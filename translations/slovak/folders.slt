@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1051
+AUTHOR,"Roman Paholík"
+WEB,"www.newtcommander.org"
+COMMENT,"Slovenská verzia"
+
+[STRINGTABLE 0]
+1000,1,"Zložky"
+1001,1,"O plugine"
+1003,1,"Prehliadajte priečinky, ako napríklad Plocha, Ovládací panel, Koš atď."
+1004,1,"'\tDesktop"
+

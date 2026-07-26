@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1051
+AUTHOR,"Roman Paholík"
+WEB,"www.newtcommander.org"
+COMMENT,"Slovenská verzia"
+
+[STRINGTABLE 0]
+128,1,"{!}%d vybrané zariadenie{2:s|0||1|s}"
+129,1,"Žiadne zariadenia"
+
+[STRINGTABLE 1]
+8192,1,"Prenosné zariadenia"
+8193,1,"Správa prenosných zariadení."
+
+[STRINGTABLE 2]
+9216,1,"O plugine"
+
+[STRINGTABLE 3]
+10240,1,"Chyba pri zmene adresára"
+10241,1,"Cesta: „%s“\r \n Chyba: %s"
+
+[STRINGTABLE 4]
+19457,1,"Uvedená cesta obsahuje cestu k súboru."
+

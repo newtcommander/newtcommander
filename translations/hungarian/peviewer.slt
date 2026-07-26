@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\hungarian\peviewer.atp"
-TEXTVERSION,"3.0 (x86)"
-VERSION,"3,0,0,180"
+PROJECTNAME,"translator\projects\_template\peviewer\peviewer.atp"
+TEXTVERSION,"3.0 (x64)"
+VERSION,"3,0,0,184"
 
 [TRANSLATION]
 LANGID,1038
 AUTHOR,"Török József"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=6164"
+WEB,"www.newtcommander.org"
 COMMENT,"Magyar változat"
 
 [DIALOG 8501]
@@ -19,7 +19,7 @@ COMMENT,"Magyar változat"
 8701,176,17,105,130,1,""
 8704,289,17,50,14,1,"&Fel"
 8705,289,35,50,14,1,"&Le"
-1,289,97,50,14,1,"OK"
+1,289,97,50,14,0,"OK"
 2,289,115,50,14,1,"Mégse"
 8706,289,133,50,14,1,"Ala&p"
 
@@ -30,9 +30,9 @@ COMMENT,"Magyar változat"
 10100,1,"Hordozható futtatható néző"
 10101,1,"A(z) %s nem nyitható meg."
 10102,1,"Ideiglenes fájl létrehozása sikertelen."
-10103,1,"Kivétel lépett fel.\n\nNézett fájl: %s\n\nHa biztos, hogy a megnézett fájl nem sérült, küldje el a fájlt a support@altap.cz címre.\nÚjra előidézzük és kijavítjuk a hibát. Köszönjük az együttműködését!"
+10103,1,"Kivétel lépett fel.\n\nNézett fájl: %s\n\nHa biztos, hogy a megnézett fájl nem sérült, küldje el a fájlt a www.newtcommander.org címre.\nÚjra előidézzük és kijavítjuk a hibát. Köszönjük az együttműködését!"
 10104,1,"Olyan futtatható fájlok információinak megjelenítése, mint EXE, DLL, stb."
 
 [STRINGTABLE 2]
-10118,1,"Nincs Hordozható végrehajtható fájl szekció kijelölve a plugin beállításokban.\nBeállítások > Plugin beállítás > Hordozható végrehajtható fájl néző\naz Open Salamander főablakának menüjében, a látható szekciók megadásához."
+10118,1,"Nincs Hordozható végrehajtható fájl szekció kijelölve a plugin beállításokban.\nBeállítások > Plugin beállítás > Hordozható végrehajtható fájl néző\naz Newt Commander főablakának menüjében, a látható szekciók megadásához."
 

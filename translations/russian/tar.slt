@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\russian\tar.atp"
-TEXTVERSION,"3.34 (x86)"
-VERSION,"3,3,4,180"
+PROJECTNAME,"translator\projects\_template\tar\tar.atp"
+TEXTVERSION,"3.34 (x64)"
+VERSION,"3,3,4,184"
 
 [TRANSLATION]
 LANGID,1049
 AUTHOR,"Ален Хайруллин, Vasiliy, Игорь Полякофф, Neutron16"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=6166"
+WEB,"www.newtcommander.org"
 COMMENT,"Русская версия"
 
 [STRINGTABLE 0]
@@ -39,7 +39,7 @@ COMMENT,"Русская версия"
 11268,1,"Ошибка записи файла: "
 11269,1,"Функция записи "WriteFile" не выполнила запись требуемых данных."
 11270,1,"Некорректный блок в потоке GZip, невозможно извлечь."
-11271,1,"Внутренняя ошибка в модуле TAR. Пожалуйста, сообщите о произошедшей проблеме в службу поддержки по адресу support@altap.cz."
+11271,1,"Внутренняя ошибка в модуле TAR. Пожалуйста, сообщите о произошедшей проблеме в службу поддержки по адресу www.newtcommander.org."
 11272,1,"Ошибка выделения памяти."
 11273,1,"Ошибка контрольной суммы CRC."
 11274,1,"Некорректные данные в сжатом потоке, архив поврежден."

@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1029
+AUTHOR,"Hynek Mikulič"
+WEB,"www.newtcommander.org"
+COMMENT,"Česká verze"
+
+[STRINGTABLE 0]
+128,1,"{!}%d vybrané zařízení{2:s|0||1|s}"
+129,1,"Žádná zařízení"
+
+[STRINGTABLE 1]
+8192,1,"Přenosná zařízení"
+8193,1,"Správa přenosných zařízení."
+
+[STRINGTABLE 2]
+9216,1,"O pluginu"
+
+[STRINGTABLE 3]
+10240,1,"Chyba při změně adresáře"
+10241,1,"Cesta: „%s“\r \n Chyba: %s"
+
+[STRINGTABLE 4]
+19457,1,"Zadaná cesta obsahuje cestu k souboru."
+

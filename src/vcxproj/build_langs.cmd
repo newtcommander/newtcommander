@@ -30,6 +30,10 @@ for %%a in (%*) do (
         set "BUILD_CONFIG=Debug"
     ) else if /i "%%~a"=="--export-templates" (
         set "PS_ARGS=!PS_ARGS! -ExportTemplates"
+    ) else if /i "%%~a"=="--check-layout" (
+        set "PS_ARGS=!PS_ARGS! -CheckLayout"
+    ) else if /i "%%~a"=="--force" (
+        set "PS_ARGS=!PS_ARGS! -Force"
     ) else if /i "%%~a"=="help" (
         goto :show_help
     ) else if /i "%%~a"=="/?" (
@@ -110,6 +114,9 @@ echo   build_langs.cmd                     all enabled modules, all languages
 echo   build_langs.cmd --export-templates  export English .slt templates (stage 1)
 echo   build_langs.cmd --module ^<name^>     restrict to one module
 echo   build_langs.cmd --language ^<name^>   restrict to one language
+echo   build_langs.cmd --check-layout      also run the layout validator (slow:
+echo                                       every finding costs a 30s timeout)
+echo   build_langs.cmd --force             rebuild even if up to date
 echo   build_langs.cmd release             use the Release_x64 output
 echo.
 echo Run build.cmd first: english.slg is the source every language module is

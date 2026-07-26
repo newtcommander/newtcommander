@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\czech\tar.atp"
-TEXTVERSION,"3.34 (x86)"
-VERSION,"3,3,4,180"
+PROJECTNAME,"translator\projects\_template\tar\tar.atp"
+TEXTVERSION,"3.34 (x64)"
+VERSION,"3,3,4,184"
 
 [TRANSLATION]
 LANGID,1029
 AUTHOR,"Hynek Mikulič"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=7008"
+WEB,"www.newtcommander.org"
 COMMENT,"Česká verze"
 
 [STRINGTABLE 0]
@@ -39,7 +39,7 @@ COMMENT,"Česká verze"
 11268,1,"Chyba zápisu archivu: "
 11269,1,"Funkce zápis souboru odmítla zapsat všechna požadovaná data."
 11270,1,"Zjištěn neplatný blok v GZip streamu, nelze extrahovat."
-11271,1,"Interní chyba v pluginu TAR, dejte nám prosím vědět na email support@altap.cz."
+11271,1,"Interní chyba v pluginu TAR, dejte nám prosím vědět na email www.newtcommander.org."
 11272,1,"Chyba alokace paměti."
 11273,1,"CRC chyba."
 11274,1,"Neočekávaná data v komprimovaném streamu, poškozený archiv."

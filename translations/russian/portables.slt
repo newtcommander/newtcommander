@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1049
+AUTHOR,"Ален Хайруллин, Vasiliy, Игорь Полякофф, Neutron16"
+WEB,"www.newtcommander.org"
+COMMENT,"Русская версия"
+
+[STRINGTABLE 0]
+128,1,"{!}%d выбранное устройство{2:s|0||1|s}"
+129,1,"Устройств нет"
+
+[STRINGTABLE 1]
+8192,1,"Портативные устройства"
+8193,1,"Управление портативными устройствами."
+
+[STRINGTABLE 2]
+9216,1,"О плагине"
+
+[STRINGTABLE 3]
+10240,1,"Ошибка при смене каталога"
+10241,1,"Путь: «%s»\r \n Ошибка: %s"
+
+[STRINGTABLE 4]
+19457,1,"В указанном пути содержится путь к файлу."
+

@@ -37,6 +37,8 @@ param(
     [string]$Module,
     [string]$Language,
     [switch]$ExportTemplates,
+    [switch]$Force,
+    [switch]$CheckLayout,
     [int]$TimeoutSeconds = 30
 )
 
@@ -219,8 +221,11 @@ if ($ExportTemplates) {
 Write-Output ("Building language modules: {0} module(s) x {1} language(s)" -f $modules.Count, $languages.Count)
 
 $built = 0
+$upToDate = 0
 $skippedNoSource = 0
+$layoutErrors = 0
 $failures = New-Object System.Collections.Generic.List[string]
+$layoutList = New-Object System.Collections.Generic.List[string]
 
 foreach ($m in $modules) {
     $langDir = if ($m -eq 'salamand') { Join-Path $OutDir 'lang' }
@@ -247,6 +252,17 @@ foreach ($m in $modules) {
         $atpDir = Join-Path $atpRoot ("{0}\{1}" -f $lang.Folder, $m)
         $sltDir = Split-Path -Parent $slt
 
+        # Incremental: nothing to do when the existing module is newer than both
+        # of its inputs. Skips ~220 process launches on an unchanged rebuild.
+        if (-not $Force -and (Test-Path -LiteralPath $targetSlg -PathType Leaf)) {
+            $out = (Get-Item -LiteralPath $targetSlg).LastWriteTimeUtc
+            if ($out -gt (Get-Item -LiteralPath $slt).LastWriteTimeUtc -and
+                $out -gt (Get-Item -LiteralPath $englishSlg).LastWriteTimeUtc) {
+                $upToDate++
+                continue
+            }
+        }
+
         # 1. seed -- Save() patches a copy, and "none" suppresses the prompt
         Copy-Item -LiteralPath $englishSlg -Destination $targetSlg -Force
 
@@ -265,6 +281,23 @@ foreach ($m in $modules) {
             continue
         }
         $built++
+
+        # 4. layout gate (spec FR-013 / SC-005). A translation longer than its
+        # English original can push a control out of its dialog, and this is the
+        # Translator's own layout validation.
+        #
+        # OPT-IN, because it is expensive in exactly the case it exists for:
+        # -quiet-validate-layout exits cleanly only when there are NO findings
+        # (wndframe.cpp:361). With findings it falls through to interactive mode
+        # and sits there until the guard kills it, so every reported module
+        # costs a full timeout. That is fine for a deliberate QA pass and far
+        # too slow for every build.
+        if ($CheckLayout) {
+            if (-not (Invoke-Translator -Exe $translator -Arguments @('-quiet-validate-layout', $atp) -What ("layout {0}" -f $what))) {
+                $layoutErrors++
+                $layoutList.Add($what)
+            }
+        }
     }
 }
 
@@ -279,6 +312,14 @@ foreach ($m in $modules) {
 }
 
 Write-Output ("  language modules built: {0}" -f $built)
+if ($upToDate -gt 0) {
+    Write-Output ("  up to date (skipped)   : {0}" -f $upToDate)
+}
+if ($layoutErrors -gt 0) {
+    Write-Output ("  LAYOUT WARNINGS        : {0} module(s) have clipped or overlapping controls:" -f $layoutErrors)
+    foreach ($l in $layoutList) { Write-Output ("      {0}" -f $l) }
+    Write-Output "      Fix by widening the control (cx) in the offending translations\<lang>\<module>.slt"
+}
 if ($skippedNoSource -gt 0) {
     Write-Output ("  skipped (no .slt yet)  : {0}  -- run: python -m translate.merge --all" -f $skippedNoSource)
 }

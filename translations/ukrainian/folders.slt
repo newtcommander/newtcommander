@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1058
+AUTHOR,"Newt Commander Project (machine translation)"
+WEB,"www.newtcommander.org"
+COMMENT,"Українська версія"
+
+[STRINGTABLE 0]
+1000,1,"Папки"
+1001,1,"Про плагін"
+1003,1,"Переглядайте папки, такі як «Робочий стіл», «Панель керування», «Кошик» тощо."
+1004,1,"'\tDesktop"
+

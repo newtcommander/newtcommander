@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1029
+AUTHOR,"Hynek Mikulič"
+WEB,"www.newtcommander.org"
+COMMENT,"Česká verze"
+
+[STRINGTABLE 0]
+1000,1,"Složky"
+1001,1,"O pluginu"
+1003,1,"Procházejte složky, jako jsou Plocha, Ovládací panely, Koš atd."
+1004,1,"'\tDesktop"
+

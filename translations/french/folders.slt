@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1036
+AUTHOR,"Gérard Gréco, Arnaud Dupin de Beyssat, Jérémy Marc, Maxime Abbey"
+WEB,"www.newtcommander.org"
+COMMENT,"Version française"
+
+[STRINGTABLE 0]
+1000,1,"Dossiers"
+1001,1,"À propos du plugin"
+1003,1,"Parcours des dossiers comme le Bureau, le Panneau de configuration, la Corbeille, etc."
+1004,1,"'\tDesktop"
+

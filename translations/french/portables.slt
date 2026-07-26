@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1036
+AUTHOR,"Gérard Gréco, Arnaud Dupin de Beyssat, Jérémy Marc, Maxime Abbey"
+WEB,"www.newtcommander.org"
+COMMENT,"Version française"
+
+[STRINGTABLE 0]
+128,1,"{!}%d appareil sélectionné{2:s|0||1|s}"
+129,1,"Aucun appareil"
+
+[STRINGTABLE 1]
+8192,1,"Appareils portables"
+8193,1,"Gérer les appareils mobiles."
+
+[STRINGTABLE 2]
+9216,1,"À propos du plugin"
+
+[STRINGTABLE 3]
+10240,1,"Erreur lors du changement de répertoire"
+10241,1,"Chemin d'accès : « %s »\r \n Erreur : %s"
+
+[STRINGTABLE 4]
+19457,1,"Le chemin indiqué contient le chemin d'accès à un fichier."
+

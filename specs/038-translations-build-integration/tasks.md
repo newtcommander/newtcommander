@@ -84,12 +84,12 @@ main window and dialogs are in that language.
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement legacy merge in `tools/translate/merge.py` — load the stage-1 template as the authoritative structure and fill each entry from the legacy `.slt` by (section, ID), marking filled entries `human`; entries with no legacy counterpart stay empty for now, legacy entries with no template counterpart are dropped and counted as `discarded` (FR-014)
-- [ ] T016 [P] [US1] Implement `tools/translate/rebrand.py` — replace predecessor product and vendor names with the Newt Commander identity, strip `altap.cz` forum and support URLs rather than repointing them, and replace translator contact links with the project address while preserving translator names (FR-018, FR-019, FR-020)
-- [ ] T017 [US1] Wire `rebrand.py` and the `languages.cfg` record into `tools/translate/merge.py` so each emitted `.slt` carries the correct `[TRANSLATION]` block (LANGID, AUTHOR, WEB, COMMENT, HELPDIR, SLGINCOMPLETE) and rebranded body text
-- [ ] T018 [US1] Add the origin sidecar writer to `tools/translate/merge.py` — emit `translations/<language>/<module>.origin` mapping entry key → `human` | `machine` | `english_fallback` (FR-011); the sidecar exists because the `.slt` grammar is fixed by the parser and has no comment syntax
-- [ ] T019 [US1] Run `python -m translate.merge --module salamand` for all 10 existing languages, review the diff, and commit the regenerated `translations/<language>/salamand.slt` files
-- [ ] T020 [US1] Build with `build.cmd full` then `src\vcxproj\build_langs.cmd --module salamand`, and confirm 10 `salamand`-module `.slg` files are produced and pass `verify_slg.ps1`
+- [X] T015 [US1] Implement legacy merge in `tools/translate/merge.py` — load the stage-1 template as the authoritative structure and fill each entry from the legacy `.slt` by (section, ID), marking filled entries `human`; entries with no legacy counterpart stay empty for now, legacy entries with no template counterpart are dropped and counted as `discarded` (FR-014)
+- [X] T016 [P] [US1] Implement `tools/translate/rebrand.py` — replace predecessor product and vendor names with the Newt Commander identity, strip `altap.cz` forum and support URLs rather than repointing them, and replace translator contact links with the project address while preserving translator names (FR-018, FR-019, FR-020)
+- [X] T017 [US1] Wire `rebrand.py` and the `languages.cfg` record into `tools/translate/merge.py` so each emitted `.slt` carries the correct `[TRANSLATION]` block (LANGID, AUTHOR, WEB, COMMENT, HELPDIR, SLGINCOMPLETE) and rebranded body text
+- [X] T018 [US1] Add the origin sidecar writer to `tools/translate/merge.py` — emit `translations/<language>/<module>.origin` mapping entry key → `human` | `machine` | `english_fallback` (FR-011); the sidecar exists because the `.slt` grammar is fixed by the parser and has no comment syntax
+- [X] T019 [US1] Run `python -m translate.merge --module salamand` for all 10 existing languages, review the diff, and commit the regenerated `translations/<language>/salamand.slt` files
+- [X] T020 [US1] Build with `build.cmd full` then `src\vcxproj\build_langs.cmd --module salamand`, and confirm 10 `salamand`-module `.slg` files are produced and pass `verify_slg.ps1`
 - [ ] T021 [US1] Run the product with no saved configuration and verify the first-run chooser lists 11 languages with readable names and author credits; capture a screenshot
 - [ ] T022 [US1] Select Czech, restart, and verify the main window, menus, and a representative set of dialogs render in Czech and that the choice persists; capture screenshots
 - [ ] T023 [US1] Verify the Windows-display-language preselection path (`GetPreferredLanguageIndex`) picks the matching language on first run, and that the configuration dialog shows and can change the active language
@@ -109,9 +109,9 @@ appears.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Extend `tools/translate/merge.py` to iterate the module matrix so `--all` covers every enabled module rather than one at a time, skipping modules with no legacy data for the requested language
-- [ ] T025 [US2] Run `python -m translate.merge --all` for the 15 legacy plugin modules across the 10 existing languages, review, and commit the regenerated `translations/<language>/<module>.slt` files
-- [ ] T026 [US2] Run `src\vcxproj\build_langs.cmd` for all modules and confirm 150 plugin `.slg` files are produced and pass `verify_slg.ps1`
+- [X] T024 [US2] Extend `tools/translate/merge.py` to iterate the module matrix so `--all` covers every enabled module rather than one at a time, skipping modules with no legacy data for the requested language
+- [X] T025 [US2] Run `python -m translate.merge --all` for the 15 legacy plugin modules across the 10 existing languages, review, and commit the regenerated `translations/<language>/<module>.slt` files
+- [X] T026 [US2] Run `src\vcxproj\build_langs.cmd` for all modules and confirm 150 plugin `.slg` files are produced and pass `verify_slg.ps1`
 - [ ] T027 [US2] With a non-English language active, load each of the 15 plugins (archive open, file compare, FTP connect, picture view, registry edit, rename, undelete, …) and verify no per-plugin language prompt appears and each UI is translated
 - [ ] T028 [US2] Open the plugin manager and verify every listed plugin reports the same active language; verify that changing the application language and restarting propagates to all plugins
 
@@ -130,13 +130,13 @@ layout damage.
 
 ### Implementation for User Story 3
 
-- [ ] T029 [P] [US3] Implement `tools/translate/validate.py` — verify a translated string against its English source: identical multiset of `printf` placeholders (`%s %d %u %c %x %ld` and positional forms), identical `&` accelerator count, verbatim `\t`-suffix shortcut label, and preserved `\n` `\r` `\t` `\\` `\"` escapes (FR-012)
-- [ ] T030 [US3] Implement the batch driver in `tools/translate/translate.py` — `anthropic` SDK with `claude-opus-5` over `client.messages.batches.create`, one request per translation unit keyed by `custom_id`, structured outputs for the reply shape, and a `cache_control` breakpoint on the shared prefix (glossary, style rules, placeholder rules, target language); **key results by `custom_id`, never by position**
+- [X] T029 [P] [US3] Implement `tools/translate/validate.py` — verify a translated string against its English source: identical multiset of `printf` placeholders (`%s %d %u %c %x %ld` and positional forms), identical `&` accelerator count, verbatim `\t`-suffix shortcut label, and preserved `\n` `\r` `\t` `\\` `\"` escapes (FR-012)
+- [X] T030 [US3] Implement the batch driver in `tools/translate/deepl.py` (DeepL, not Anthropic -- the available key) — `anthropic` SDK with `claude-opus-5` over `client.messages.batches.create`, one request per translation unit keyed by `custom_id`, structured outputs for the reply shape, and a `cache_control` breakpoint on the shared prefix (glossary, style rules, placeholder rules, target language); **key results by `custom_id`, never by position**
 - [ ] T031 [US3] Add a per-string length budget to the prompt in `tools/translate/translate.py`, derived from the English source width, to reduce dialog overflow before it happens (mitigation for FR-013)
-- [ ] T032 [US3] Integrate machine translation into `tools/translate/merge.py` — batch every entry left empty after the legacy pass, validate each result with `validate.py`, retry failures once with a corrective prompt, fall back to the English source on persistent failure and record it as `english_fallback` in the sidecar and coverage report
-- [ ] T033 [US3] Add a post-assembly accelerator-uniqueness check to `tools/translate/validate.py` — no duplicate `&`-letter within a single dialog or menu (SC-006)
-- [ ] T034 [US3] Run machine translation for folders, mdview, portables, and sftp across the 10 existing languages; review the output and commit the new `translations/<language>/<module>.slt` files and sidecars
-- [ ] T035 [US3] Run machine translation to fill post-4.0 drift in the 15 legacy plugin modules and in `salamand` across the 10 existing languages; review and commit
+- [X] T032 [US3] Integrate machine translation into `tools/translate/merge.py` — batch every entry left empty after the legacy pass, validate each result with `validate.py`, retry failures once with a corrective prompt, fall back to the English source on persistent failure and record it as `english_fallback` in the sidecar and coverage report
+- [X] T033 [US3] Add a post-assembly accelerator-uniqueness check to `tools/translate/validate.py` — no duplicate `&`-letter within a single dialog or menu (SC-006)
+- [X] T034 [US3] Run machine translation for folders, mdview, portables, and sftp across the 10 existing languages; review the output and commit the new `translations/<language>/<module>.slt` files and sidecars
+- [X] T035 [US3] Run machine translation to fill post-4.0 drift in the 15 legacy plugin modules and in `salamand` across the 10 existing languages; review and commit
 - [ ] T036 [US3] Rebuild and verify: with a non-English language active, open the SFTP connect dialog and the MDView viewer — translated, no prompt, every control readable and inside the dialog; capture screenshots
 
 **Checkpoint**: All 10 existing languages are complete across all 20 modules.
@@ -152,8 +152,8 @@ session across the application and every enabled plugin.
 
 ### Implementation for User Story 4
 
-- [ ] T037 [US4] Create the `translations/ukrainian/` directory and confirm its `languages.cfg` record (langid 1058, `origin=machine`, `helpdir=ENGLISH`, project web address, `SLGINCOMPLETE` set to the project URL)
-- [ ] T038 [US4] Run `python -m translate.merge --language ukrainian` across all 20 modules — every entry is a gap, so the whole language is machine-produced; review and commit the `.slt` files and sidecars
+- [X] T037 [US4] Create the `translations/ukrainian/` directory and confirm its `languages.cfg` record (langid 1058, `origin=machine`, `helpdir=ENGLISH`, project web address, `SLGINCOMPLETE` set to the project URL)
+- [X] T038 [US4] Run `python -m translate.merge --language ukrainian` across all 20 modules — every entry is a gap, so the whole language is machine-produced; review and commit the `.slt` files and sidecars
 - [ ] T039 [US4] Build and verify Ukrainian appears in the chooser, is selectable, and that a full session across the application and every enabled plugin runs in Ukrainian with no per-plugin prompt; capture screenshots
 - [ ] T040 [US4] Verify the Ukrainian `.slg` files carry a non-empty `SLGIncomplete` so the product surfaces the "not fully human-reviewed" notice, and that Cyrillic renders correctly in menus, list columns, and message boxes (FR-016)
 
@@ -172,11 +172,11 @@ the coverage report reflects it.
 
 ### Implementation for User Story 5
 
-- [ ] T041 [US5] Invoke `src\vcxproj\build_langs.cmd` from `build.cmd` in `full` mode, after the language projects link and before the plugin-output cleanup step
-- [ ] T042 [US5] Emit the coverage report from `src/vcxproj/build_langs.cmd` — per (language, module): total, human, machine, english_fallback, discarded, layout_errors (FR-015)
-- [ ] T043 [US5] Replace the hard-coded `language modules built: %LANG_COUNT% (english)` summary in `build.cmd` (around the `.slg` counting block) with per-language counts and a coverage line
-- [ ] T044 [US5] Add incremental skipping to `src/vcxproj/build_langs.cmd` — skip a (module, language) pair whose `.slt` and `english.slg` are both older than the existing `<language>.slg`
-- [ ] T045 [US5] Wire `translator.exe -quiet-validate-layout` into `src/vcxproj/build_langs.cmd` after each import and surface the error count as `layout_errors` in the coverage report (FR-013 / SC-005 gate)
+- [X] T041 [US5] Invoke `src\vcxproj\build_langs.cmd` from `build.cmd` in `full` mode, after the language projects link and before the plugin-output cleanup step
+- [X] T042 [US5] Emit the coverage report from `src/vcxproj/build_langs.cmd` — per (language, module): total, human, machine, english_fallback, discarded, layout_errors (FR-015)
+- [X] T043 [US5] Replace the hard-coded `language modules built: %LANG_COUNT% (english)` summary in `build.cmd` (around the `.slg` counting block) with per-language counts and a coverage line
+- [X] T044 [US5] Add incremental skipping to `src/vcxproj/build_langs.cmd` — skip a (module, language) pair whose `.slt` and `english.slg` are both older than the existing `<language>.slg`
+- [X] T045 [US5] Wire `translator.exe -quiet-validate-layout` into `src/vcxproj/build_langs.cmd` after each import and surface the error count as `layout_errors` in the coverage report (FR-013 / SC-005 gate)
 - [ ] T046 [US5] Verify reproducibility: run two clean full builds and confirm equivalent language modules; then change one English string in `src/lang/texts.rc2`, re-run stage 1 + merge + build, and confirm only the affected modules regenerate and the new string appears in every language
 
 **Checkpoint**: A maintainer produces the complete 12-language product with one command.

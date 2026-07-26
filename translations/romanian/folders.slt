@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1048
+AUTHOR,"Ioan Stefancu, Donca Radu"
+WEB,"www.newtcommander.org"
+COMMENT,"Versiunea romana"
+
+[STRINGTABLE 0]
+1000,1,"Dosare"
+1001,1,"Despre plugin"
+1003,1,"Răsfoiți dosare precum „Desktop”, „Panoul de control”, „Coșul de gunoi” etc."
+1004,1,"'\tDesktop"
+

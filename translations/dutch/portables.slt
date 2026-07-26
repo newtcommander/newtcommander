@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1043
+AUTHOR,"Cor van der Smissen, Marco Fung, Patrick Vijgeboom, S.V. (Stephan) Rietveld"
+WEB,"www.newtcommander.org"
+COMMENT,"Nederlandse versie"
+
+[STRINGTABLE 0]
+128,1,"{!}%d geselecteerd apparaat{2:s|0||1|s}"
+129,1,"Geen apparaten"
+
+[STRINGTABLE 1]
+8192,1,"Draagbare apparaten"
+8193,1,"Beheer draagbare apparaten."
+
+[STRINGTABLE 2]
+9216,1,"Over de plug-in"
+
+[STRINGTABLE 3]
+10240,1,"Fout bij het wisselen van map"
+10241,1,"Pad: "%s"\r \n Fout: %s"
+
+[STRINGTABLE 4]
+19457,1,"Het opgegeven pad bevat het pad naar een bestand."
+

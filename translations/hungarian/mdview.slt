@@ -1,0 +1,74 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\mdview\mdview.atp"
+TEXTVERSION,"1.0 (x64)"
+VERSION,"1,0,0,184"
+
+[TRANSLATION]
+LANGID,1038
+AUTHOR,"Török József"
+WEB,"www.newtcommander.org"
+COMMENT,"Magyar változat"
+
+[DIALOG 300]
+220,60,1,"Keresés"
+3000,7,9,60,8,1,"&Szöveg keresése:"
+301,7,21,206,12,1,""
+1,108,40,50,14,1,"&Következő keresése"
+2,163,40,50,14,1,"Mégse"
+
+[STRINGTABLE 0]
+46,1,"Markdown-néző"
+47,1,"A bővítményről"
+
+[STRINGTABLE 1]
+48,1,"Az F3 gomb lenyomására megjeleníti a Markdown (.md) fájlokat."
+49,1,"www.newtcommander.org"
+50,1,"Kivétel történt a Markdown Viewer bővítményben. Kérjük, értesítse a fejlesztőket, és ha lehetséges, csatolja a megtekintett .md fájlt."
+53,1,"Néhány Markdown Viewer ablak nyitva van. Bezárja őket?"
+55,1,"Érvénytelen szám!"
+56,1,"Markdown-fájlok (*.md;*.markdown)|*.md;*.markdown|Minden fájl (*.*)|*.*|"
+
+[STRINGTABLE 2]
+2000,1,"&Fájl"
+2001,1,"Forrá&s megtekintése\tCtrl+U"
+2002,1,"&Bezárás\tEsc"
+2010,1,"Sz&erkesztés"
+2011,1,"&Másolás\tCtrl+C"
+2012,1,"&Összes kijelölése\tCtrl+A"
+2013,1,"&Keresés...\tCtrl+F"
+2014,1,"&Következő keresése\tF3"
+2015,1,"&Előző keresése\tShift+F3"
+
+[STRINGTABLE 3]
+2020,1,"&Megtekintés"
+2021,1,"&Színvilág"
+2022,1,"&A rendszer témájának követése"
+2023,1,"&Nagyítás\tCtrl++"
+2024,1,"&Kicsinyítés\tCtrl+-"
+2025,1,"&Zoom visszaállítása\tCtrl+0"
+2026,1,"&Távoli képek betöltése"
+2030,1,"&Segítség"
+2031,1,"&A Markdown Viewerről"
+
+[STRINGTABLE 4]
+2100,1,"Papír (könnyű)"
+2101,1,"Halvány szürke (világos)"
+2102,1,"Meleg szepia (világos)"
+2103,1,"Napfény"
+2104,1,"Északi fény"
+2105,1,"Grafit (sötét)"
+2106,1,"Éjfél (sötét)"
+2107,1,"Solar Dark"
+2108,1,"Északi sötét"
+2109,1,"Erősen kontrasztos fekete"
+
+[STRINGTABLE 5]
+2200,1,"Ez a fájl nem érvényes UTF-8 kódolású; a rendszer kódlapja alapján jelenik meg. A teljes ellenőrzéshez válassza a Fájl > Megnyitás szövegként menüpontot."
+2201,1,"A fájl nem nyitható meg."
+2202,1,"Ez a dokumentum túl nagy ahhoz, hogy megjeleníthető legyen. Szeretnéd egyszerű szövegként megnyitni?"
+2203,1,"Szöveg keresése:"
+2204,1,"A szöveg nem található."
+2205,1,"Ezt a linket biztonsági okokból letiltották."
+2206,1,"Markdown-néző"
+2207,1,"A WebView2 futtatókörnyezet nem áll rendelkezésre. A fájlt helyette egyszerű szövegként nyitjuk meg."
+

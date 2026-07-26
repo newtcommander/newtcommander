@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1038
+AUTHOR,"Török József"
+WEB,"www.newtcommander.org"
+COMMENT,"Magyar változat"
+
+[STRINGTABLE 0]
+1000,1,"Mappák"
+1001,1,"A bővítményről"
+1003,1,"Böngésszen olyan mappákban, mint az Asztal, a Vezérlőpult, a Lomtár stb."
+1004,1,"'\tDesktop"
+

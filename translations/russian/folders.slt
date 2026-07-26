@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1049
+AUTHOR,"Ален Хайруллин, Vasiliy, Игорь Полякофф, Neutron16"
+WEB,"www.newtcommander.org"
+COMMENT,"Русская версия"
+
+[STRINGTABLE 0]
+1000,1,"Папки"
+1001,1,"О плагине"
+1003,1,"Просмотри папки, такие как «Рабочий стол», «Панель управления», «Корзина» и т. д."
+1004,1,"'\tDesktop"
+

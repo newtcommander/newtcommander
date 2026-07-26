@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\slovak\peviewer.atp"
-TEXTVERSION,"3.0 (x86)"
-VERSION,"3,0,0,180"
+PROJECTNAME,"translator\projects\_template\peviewer\peviewer.atp"
+TEXTVERSION,"3.0 (x64)"
+VERSION,"3,0,0,184"
 
 [TRANSLATION]
 LANGID,1051
 AUTHOR,"Roman Paholík"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=6167"
+WEB,"www.newtcommander.org"
 COMMENT,"Slovenská verzia"
 
 [DIALOG 8501]
@@ -19,7 +19,7 @@ COMMENT,"Slovenská verzia"
 8701,176,17,105,130,1,""
 8704,289,17,50,14,1,"&Hore"
 8705,289,35,50,14,1,"Dol&u"
-1,289,97,50,14,1,"OK"
+1,289,97,50,14,0,"OK"
 2,289,115,50,14,1,"Zrušiť"
 8706,289,133,50,14,1,"Pô&vodné"
 
@@ -30,9 +30,9 @@ COMMENT,"Slovenská verzia"
 10100,1,"Prehliadač spustitelných súborov"
 10101,1,"Nie je možné otvoriť súbor %s."
 10102,1,"Vytvorenie dočasného súboru zlyhalo."
-10103,1,"Vyskytla sa výnimka.\n\nPrehliadaný súbor: %s\n\nAk si myslíte, že prehliadaný súbor nie je poškodený, prosím pošlite tento súbor na support@altap.cz.\nMy preveríme a opravíme chybu prehliadača. Ďakujeme za spoluprácu!"
+10103,1,"Vyskytla sa výnimka.\n\nPrehliadaný súbor: %s\n\nAk si myslíte, že prehliadaný súbor nie je poškodený, prosím pošlite tento súbor na www.newtcommander.org.\nMy preveríme a opravíme chybu prehliadača. Ďakujeme za spoluprácu!"
 10104,1,"Zobrazí informácie o prenosných spustiteľných súboroch, napr.: EXE, DLL, atď."
 
 [STRINGTABLE 2]
-10118,1,"V konfiguráci pluginu sa nenašli žiadne viditeľné sekcie. Na výber\nviditeľných sekcií použite v hlavnom okne Open Salamandera ponuku\nMožnosti > Konfigurácia pluginov > Prehliadač spustiteľných súborov."
+10118,1,"V konfiguráci pluginu sa nenašli žiadne viditeľné sekcie. Na výber\nviditeľných sekcií použite v hlavnom okne Newt Commandera ponuku\nMožnosti > Konfigurácia pluginov > Prehliadač spustiteľných súborov."
 

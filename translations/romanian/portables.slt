@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1048
+AUTHOR,"Ioan Stefancu, Donca Radu"
+WEB,"www.newtcommander.org"
+COMMENT,"Versiunea romana"
+
+[STRINGTABLE 0]
+128,1,"{!}Dispozitivul selectat de%d{2:s|0||1|s}"
+129,1,"Nu există dispozitive"
+
+[STRINGTABLE 1]
+8192,1,"Dispozitive portabile"
+8193,1,"Gestionarea dispozitivelor portabile."
+
+[STRINGTABLE 2]
+9216,1,"Despre plugin"
+
+[STRINGTABLE 3]
+10240,1,"Eroare la schimbarea directorului"
+10241,1,"Cale: „%s”\r \n Eroare: %s"
+
+[STRINGTABLE 4]
+19457,1,"Calea specificată conține calea către un fișier."
+

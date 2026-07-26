@@ -293,6 +293,15 @@ if exist "%OUT_DIR%\plugins\zip\" (
 call :gen_plugins_ver
 if errorlevel 1 exit /b 1
 
+:: Build the translated language modules from the committed .slt files
+:: (feature 038). The solution build above produces only english.slg per
+:: module; this step turns each translation into its own .slg.
+call "%~dp0src\vcxproj\build_langs.cmd" %BUILD_CONFIG%
+if errorlevel 1 (
+    echo ERROR: language module build failed.
+    exit /b 1
+)
+
 :: Count built language modules (.slg)
 set "LANG_COUNT=0"
 for /r "%OUT_DIR%" %%f in (*.slg) do (
@@ -300,10 +309,8 @@ for /r "%OUT_DIR%" %%f in (*.slg) do (
     if /i "!REL!"=="!REL:Intermediate=!" set /a LANG_COUNT+=1
 )
 
-echo   language modules built: %LANG_COUNT% ^(english^)
+echo   language modules built: %LANG_COUNT% ^(all shipped languages^)
 echo.
-echo   NOTE: Translations in translations\ ^(czech, german, ...^) are Translator
-echo         source data ^(.slt^) and cannot be compiled from this repository.
 echo   NOTE: unrar additionally needs unrar.dll at runtime ^(not in repo^);
 echo         pictview runs on the built-in Windows imaging ^(WIC^)
 echo         engine since feature 006.

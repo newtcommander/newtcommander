@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\german\tar.atp"
-TEXTVERSION,"3.34 (x86)"
-VERSION,"3,3,4,180"
+PROJECTNAME,"translator\projects\_template\tar\tar.atp"
+TEXTVERSION,"3.34 (x64)"
+VERSION,"3,3,4,184"
 
 [TRANSLATION]
 LANGID,1031
 AUTHOR,"Dirk Bornhütter, Thomas Kelso, Thomas Pagels, Thomas Wölk, Marko Meister und Mick Weiss"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=7334"
+WEB,"www.newtcommander.org"
 COMMENT,"Deutsche Version"
 
 [STRINGTABLE 0]
@@ -39,7 +39,7 @@ COMMENT,"Deutsche Version"
 11268,1,"Fehler beim Schreiben der Ausgabedatei: "
 11269,1,"Die Funktion 'WriteFile' hat nicht alle angeforderten Daten geschrieben."
 11270,1,"Ungültiger Block im GZip-Strom gefunden, entpacken nicht möglich."
-11271,1,"Interner Fehler im TAR-Plugin, bitte teilen Sie uns diesen über E-Mail an support@altap.cz mit."
+11271,1,"Interner Fehler im TAR-Plugin, bitte teilen Sie uns diesen über E-Mail an www.newtcommander.org mit."
 11272,1,"Speicherzuordnungsfehler."
 11273,1,"CRC Fehler."
 11274,1,"Unerwartete Daten im Kompressionsstrom, Archiv beschädigt."

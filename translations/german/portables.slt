@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1031
+AUTHOR,"Dirk Bornhütter, Thomas Kelso, Thomas Pagels, Thomas Wölk, Marko Meister und Mick Weiss"
+WEB,"www.newtcommander.org"
+COMMENT,"Deutsche Version"
+
+[STRINGTABLE 0]
+128,1,"{!}%d ausgewähltes Gerät{2:s|0||1|s}"
+129,1,"Keine Geräte"
+
+[STRINGTABLE 1]
+8192,1,"Mobile Geräte"
+8193,1,"Mobile Geräte verwalten."
+
+[STRINGTABLE 2]
+9216,1,"Über das Plugin"
+
+[STRINGTABLE 3]
+10240,1,"Fehler beim Wechseln des Verzeichnisses"
+10241,1,"Pfad: „%s“\r \n Fehler: %s"
+
+[STRINGTABLE 4]
+19457,1,"Der angegebene Pfad enthält den Pfad zu einer Datei."
+

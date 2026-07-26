@@ -1,0 +1,74 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\mdview\mdview.atp"
+TEXTVERSION,"1.0 (x64)"
+VERSION,"1,0,0,184"
+
+[TRANSLATION]
+LANGID,1029
+AUTHOR,"Hynek Mikulič"
+WEB,"www.newtcommander.org"
+COMMENT,"Česká verze"
+
+[DIALOG 300]
+220,60,1,"Najít"
+3000,7,9,60,8,1,"Nají&t text:"
+301,7,21,206,12,1,""
+1,108,40,50,14,1,"&Najít další"
+2,163,40,50,14,1,"Zrušit"
+
+[STRINGTABLE 0]
+46,1,"Prohlížeč Markdownu"
+47,1,"O pluginu"
+
+[STRINGTABLE 1]
+48,1,"Po stisknutí klávesy F3 se soubory ve formátu Markdown (.md) vykreslí."
+49,1,"www.newtcommander.org"
+50,1,"V pluginu Markdown Viewer došlo k výjimce. Informujte prosím autory a pokud je to možné, přiložte soubor .md, který jste si prohlíželi."
+53,1,"Jsou otevřena některá okna prohlížeče Markdownu. Chcete je zavřít?"
+55,1,"Neplatné číslo!"
+56,1,"Soubory Markdown (*.md;*.markdown)|*.md;*.markdown|Všechny soubory (*.*)|*.*|"
+
+[STRINGTABLE 2]
+2000,1,"&Soubor"
+2001,1,"&Zobrazit zdrojový kód\tCtrl+U"
+2002,1,"&Zavřít\tEsc"
+2010,1,"&Upravit"
+2011,1,"&Kopírovat\tCtrl+C"
+2012,1,"Vybr&at vše\tCtrl+A"
+2013,1,"&Najít...\tCtrl+F"
+2014,1,"&Najít další\tF3"
+2015,1,"Najít &předchozí\tShift+F3"
+
+[STRINGTABLE 3]
+2020,1,"&Zobrazit"
+2021,1,"Barevné &schéma"
+2022,1,"Použít motiv s&ystému"
+2023,1,"Př&iblížit\tCtrl++"
+2024,1,"Zmenšit z&obrazení\tCtrl+-"
+2025,1,"&Obnovit přiblížení\tCtrl+0"
+2026,1,"Načíst ob&rázky ze vzdáleného serveru"
+2030,1,"&Nápověda"
+2031,1,"O prohlížeči M&arkdownu"
+
+[STRINGTABLE 4]
+2100,1,"Papír (lehký)"
+2101,1,"Světle šedá (světlá)"
+2102,1,"Teplá sépie (světlá)"
+2103,1,"Solární svítidlo"
+2104,1,"Arktické světlo"
+2105,1,"Grafit (tmavý)"
+2106,1,"Půlnoc (tma)"
+2107,1,"Solar Dark"
+2108,1,"Severská temnota"
+2109,1,"Černá s vysokým kontrastem"
+
+[STRINGTABLE 5]
+2200,1,"Tento soubor není v platném kódování UTF-8; zobrazuje se pomocí systémové kódové stránky. Pro plnou kontrolu použijte příkaz Soubor > Otevřít jako text."
+2201,1,"Soubor se nepodařilo otevřít."
+2202,1,"Tento dokument je příliš velký na to, aby se zobrazil. Chcete jej otevřít jako prostý text?"
+2203,1,"Najít text:"
+2204,1,"Text nebyl nalezen."
+2205,1,"Tento odkaz byl z bezpečnostních důvodů zablokován."
+2206,1,"Prohlížeč Markdownu"
+2207,1,"Runtime WebView2 není k dispozici. Soubor se místo toho otevře jako prostý text."
+

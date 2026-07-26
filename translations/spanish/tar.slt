@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\spanish\tar.atp"
-TEXTVERSION,"3.34 (x86)"
-VERSION,"3,3,4,180"
+PROJECTNAME,"translator\projects\_template\tar\tar.atp"
+TEXTVERSION,"3.34 (x64)"
+VERSION,"3,3,4,184"
 
 [TRANSLATION]
 LANGID,3082
 AUTHOR,"Juan Pablo Barrio Lera"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=6168"
+WEB,"www.newtcommander.org"
 COMMENT,"Versión en español"
 
 [STRINGTABLE 0]
@@ -39,7 +39,7 @@ COMMENT,"Versión en español"
 11268,1,"Error grabando al fichero de salida: "
 11269,1,"La función WriteFile rehusó escribir todos los datos pedidos."
 11270,1,"Encontrado un bloque inválido en corriente GZip; imposible extraer."
-11271,1,"Error interno en plugin TAR; por favor, notifíquelo por email a support@altap.cz."
+11271,1,"Error interno en plugin TAR; por favor, notifíquelo por email a www.newtcommander.org."
 11272,1,"Error de asignación de memoria."
 11273,1,"Error CRC."
 11274,1,"Datos inesperados en corriente comprimida; archivo corrupto."

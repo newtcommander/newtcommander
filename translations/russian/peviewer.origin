@@ -1,0 +1,21 @@
+{
+"DIALOG:8501:#caption": "human",
+"DIALOG:8501:1": "skip",
+"DIALOG:8501:1300": "human",
+"DIALOG:8501:1301": "human",
+"DIALOG:8501:2": "human",
+"DIALOG:8501:8700": "skip",
+"DIALOG:8501:8701": "skip",
+"DIALOG:8501:8702": "human",
+"DIALOG:8501:8703": "human",
+"DIALOG:8501:8704": "human",
+"DIALOG:8501:8705": "human",
+"DIALOG:8501:8706": "human",
+"STRINGTABLE:0:1016": "human",
+"STRINGTABLE:1:10100": "human",
+"STRINGTABLE:1:10101": "human",
+"STRINGTABLE:1:10102": "human",
+"STRINGTABLE:1:10103": "human",
+"STRINGTABLE:1:10104": "human",
+"STRINGTABLE:2:10118": "human"
+}

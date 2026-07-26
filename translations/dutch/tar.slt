@@ -1,12 +1,12 @@
 ﻿[EXPORTINFO]
-PROJECTNAME,"translator\salamand 4.0\projects\dutch\tar.atp"
-TEXTVERSION,"3.34 (x86)"
-VERSION,"3,3,4,180"
+PROJECTNAME,"translator\projects\_template\tar\tar.atp"
+TEXTVERSION,"3.34 (x64)"
+VERSION,"3,3,4,184"
 
 [TRANSLATION]
 LANGID,1043
 AUTHOR,"Cor van der Smissen, Marco Fung, Patrick Vijgeboom, S.V. (Stephan) Rietveld"
-WEB,"forum.altap.cz/viewtopic.php?f=23&t=7009"
+WEB,"www.newtcommander.org"
 COMMENT,"Nederlandse versie"
 
 [STRINGTABLE 0]
@@ -39,7 +39,7 @@ COMMENT,"Nederlandse versie"
 11268,1,"Fout bij het schrijven naar bestand: "
 11269,1,"De functie WriteFile weigert alle gegevens weg te schrijven waarom werd gevraagd."
 11270,1,"Ongeldige block in GZip stream ondervonden, onmogelijk om uit te pakken."
-11271,1,"Interne fout in TAR plugin, laat ons aub weten via email support@altap.cz."
+11271,1,"Interne fout in TAR plugin, laat ons aub weten via email www.newtcommander.org."
 11272,1,"Geheugen toewijzingsfout."
 11273,1,"CRC fout."
 11274,1,"Onverwachte gegevens in gecomprimeerde stream, archiefbestand beschadigd."

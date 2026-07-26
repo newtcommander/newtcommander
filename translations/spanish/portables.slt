@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,3082
+AUTHOR,"Juan Pablo Barrio Lera"
+WEB,"www.newtcommander.org"
+COMMENT,"Versión en español"
+
+[STRINGTABLE 0]
+128,1,"{!}%d dispositivo seleccionado{2:s|0||1|s}"
+129,1,"No hay dispositivos"
+
+[STRINGTABLE 1]
+8192,1,"Dispositivos portátiles"
+8193,1,"Gestionar dispositivos móviles."
+
+[STRINGTABLE 2]
+9216,1,"Acerca del plugin"
+
+[STRINGTABLE 3]
+10240,1,"Error al cambiar de directorio"
+10241,1,"Ruta: «%s»\r \n Error: %s"
+
+[STRINGTABLE 4]
+19457,1,"La ruta indicada contiene la ruta a un archivo."
+

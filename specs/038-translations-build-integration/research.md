@@ -443,3 +443,85 @@ translation content, not resource surgery.
 One new item for Phase 8, though: A3 is a project-wide convention with no
 enforcement. A dialog added tomorrow with `IDC_STATIC` silently breaks its
 module's translation. Worth a build-time check.
+
+
+---
+
+# Addendum 2: DeepL as the translation backend (2026-07-26)
+
+R9 planned an Anthropic-based translator. The user supplied a **DeepL free-tier
+key** instead (500,000 characters/month), so `tools/translate/deepl.py` targets
+DeepL. For resource strings this turned out to be the better fit anyway:
+`tag_handling=xml` + `ignore_tags` protects placeholders *at the API*, rather
+than instructing a model and hoping.
+
+Language coverage was verified against `/v2/languages` before any spend: all
+eleven targets are supported, Ukrainian (`UK`) and Simplified Chinese (`ZH`)
+included.
+
+## Budget
+
+Measured before spending, deduplicating identical source strings across modules:
+
+| | characters |
+|---|---:|
+| estimate before the run | 359,702 |
+| actually sent | **288,472** |
+| remaining of 500,000 | 173,873 |
+
+Deduplication saved ~10%; stripping the shortcut label and the accelerator
+before sending saved the rest.
+
+## Four defects found by running it, each caught on a small sample first
+
+**A6 -- double HTML escaping destroyed accelerators.** `_protect` escaped the
+whole string and *then* ran the token regex over the result, by which point
+`&` was already `&amp;`; the regex matched the `&` inside that entity and
+escaped it again. `&CRC/SFV` came back as `& amp;CRC/SFV`. Fixed by escaping
+each segment exactly once.
+
+**A7 -- the engine inserted a space after a protected fragment.** `&CRC/SFV` ->
+`& CRC/SFV`. The `&` count is unchanged, so a naive check passes, but an
+accelerator followed by whitespace underlines nothing. Added `repair()` (undo
+the space when the English had none) and an `accelerator-space` validator rule.
+
+**A8 -- ignore tags are honoured but repositioned.** `&Close	Esc` came back as
+`	Esc schliessen`: the key name intact, but now ahead of the translated verb.
+Fixed by never sending the shortcut label -- split it off, translate the body,
+reattach locally.
+
+**A9 -- protecting `&` splits the word it marks.** `Save p&assphrase` was sent
+as `p` + `<x>&</x>` + `assphrase`, so the engine translated two meaningless
+fragments and returned them untranslated. This one is structural: the marker
+sits *inside* a word. Fixed by stripping the accelerator entirely, translating
+whole words, and re-applying the marker afterwards -- preferring the original
+letter where the translation contains it, else the first letter.
+
+Re-translating the affected entries cost 48,966 characters and needed a
+`--redo-accelerators` flag, because the `.origin` sidecar had already recorded
+them as machine-translated and would otherwise have kept them.
+
+## A10: the rebrand pass must not touch accelerators it did not move
+
+Applying A9's strip/re-insert unconditionally inside `rebrand()` relocated the
+accelerator in **1,145 already-translated entries** that had no brand mention
+at all (`"Porovnat a&tributy"` -> `"Porovna&t atributy"`) -- re-insertion picks
+the first occurrence of the letter, which is not where a human put it.
+
+`rebrand()` now runs the rules plainly first and returns that when it matches,
+so unrelated text is byte-identical; the strip/retry path is used only when
+nothing matched, which is the case an accelerator inside the product name
+(`"Salamand&er"`) actually needs.
+
+The damage was repaired from git: for every entry the sidecar marks `human`,
+the text was recomputed from the committed pre-merge file. Verified afterwards
+-- 60,017 human entries match the git reference exactly, 0 differences.
+
+## A11: the layout validator is opt-in, not part of the build
+
+`-quiet-validate-layout` exits cleanly only when it finds **nothing**
+(`wndframe.cpp:361`); with findings it falls through to interactive mode and
+sits until the timeout guard kills it. Every reported module therefore costs a
+full 30 s. Running it for all 220 pairs put the build on track for ~2 hours, so
+it moved behind `--check-layout`. Import alone runs the full matrix in a few
+minutes.

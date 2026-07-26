@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1058
+AUTHOR,"Newt Commander Project (machine translation)"
+WEB,"www.newtcommander.org"
+COMMENT,"Українська версія"
+
+[STRINGTABLE 0]
+128,1,"{!}%d вибраний пристрій{2:s|0||1|s}"
+129,1,"Пристроїв немає"
+
+[STRINGTABLE 1]
+8192,1,"Портативні пристрої"
+8193,1,"Управління портативними пристроями."
+
+[STRINGTABLE 2]
+9216,1,"Про плагін"
+
+[STRINGTABLE 3]
+10240,1,"Помилка під час зміни каталогу"
+10241,1,"Шлях: «%s»\r \n Помилка: %s"
+
+[STRINGTABLE 4]
+19457,1,"Вказаний шлях містить шлях до файлу."
+

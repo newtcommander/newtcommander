@@ -1,0 +1,21 @@
+{
+"DIALOG:8501:#caption": "machine",
+"DIALOG:8501:1": "skip",
+"DIALOG:8501:1300": "machine",
+"DIALOG:8501:1301": "machine",
+"DIALOG:8501:2": "machine",
+"DIALOG:8501:8700": "skip",
+"DIALOG:8501:8701": "skip",
+"DIALOG:8501:8702": "machine",
+"DIALOG:8501:8703": "machine",
+"DIALOG:8501:8704": "machine",
+"DIALOG:8501:8705": "machine",
+"DIALOG:8501:8706": "machine",
+"STRINGTABLE:0:1016": "machine",
+"STRINGTABLE:1:10100": "machine",
+"STRINGTABLE:1:10101": "machine",
+"STRINGTABLE:1:10102": "machine",
+"STRINGTABLE:1:10103": "machine",
+"STRINGTABLE:1:10104": "machine",
+"STRINGTABLE:2:10118": "machine"
+}

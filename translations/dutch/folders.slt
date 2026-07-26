@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1043
+AUTHOR,"Cor van der Smissen, Marco Fung, Patrick Vijgeboom, S.V. (Stephan) Rietveld"
+WEB,"www.newtcommander.org"
+COMMENT,"Nederlandse versie"
+
+[STRINGTABLE 0]
+1000,1,"Mappen"
+1001,1,"Over de plug-in"
+1003,1,"Blader door mappen zoals Bureaublad, Configuratiescherm, Prullenbak, enz."
+1004,1,"'\tDesktop"
+

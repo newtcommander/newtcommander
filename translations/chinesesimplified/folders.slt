@@ -1,0 +1,17 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\folders\folders.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,2052
+AUTHOR,"Michael Lu"
+WEB,"www.newtcommander.org"
+COMMENT,"简体中文版"
+
+[STRINGTABLE 0]
+1000,1,"文件夹"
+1001,1,"关于插件"
+1003,1,"浏览“桌面”、“控制面板”、“回收站”等文件夹。"
+1004,1,"'\tDesktop"
+

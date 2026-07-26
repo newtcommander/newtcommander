@@ -1,0 +1,29 @@
+﻿[EXPORTINFO]
+PROJECTNAME,"translator\projects\_template\portables\portables.atp"
+TEXTVERSION,"0.1 (x64)"
+VERSION,"0,1,0,184"
+
+[TRANSLATION]
+LANGID,1038
+AUTHOR,"Török József"
+WEB,"www.newtcommander.org"
+COMMENT,"Magyar változat"
+
+[STRINGTABLE 0]
+128,1,"{!}%d kiválasztott eszköz{2:s|0||1|s}"
+129,1,"Nincs eszköz"
+
+[STRINGTABLE 1]
+8192,1,"Hordozható eszközök"
+8193,1,"Hordozható eszközök kezelése."
+
+[STRINGTABLE 2]
+9216,1,"A bővítményről"
+
+[STRINGTABLE 3]
+10240,1,"Hiba a könyvtár váltásakor"
+10241,1,"Útvonal: „%s”\r \n Hiba: %s"
+
+[STRINGTABLE 4]
+19457,1,"A megadott elérési út egy fájl elérési útját tartalmazza."
+
