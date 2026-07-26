@@ -539,15 +539,21 @@ void CSalamanderGUI::SetSubjectTruncatedText(HWND subjectWnd, const char* subjec
 
     if (subject.TruncateText(subjectWnd))
     {
+        // feature 043: this had NO wide path at all, so a plugin's subject line
+        // showed a non-ASCII file name as mojibake even in an English build -
+        // unlike every comparable label in the core. SalSetWindowTextU8 takes
+        // the wide path for a UTF-8 caption and falls back to the legacy call
+        // when the plugin composed it in the legacy code page, so plugin output
+        // that is correct today stays correct.
         if (duplicateAmpersands)
         {
             char buff[1000];
             lstrcpyn(buff, subject.Get(), 1000);
             DuplicateAmpersands(buff, 1000, TRUE);
-            SetWindowText(subjectWnd, buff);
+            SalSetWindowTextU8(subjectWnd, buff);
         }
         else
-            SetWindowText(subjectWnd, subject.Get());
+            SalSetWindowTextU8(subjectWnd, subject.Get());
     }
 }
 

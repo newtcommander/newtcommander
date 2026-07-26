@@ -829,7 +829,13 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 strcpy(name, p->Name);
                 char buf[MAX_PATH + 100];
-                sprintf(buf, LoadStrU8(IDS_PLUGINREMOVEOK), name);
+                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
+                //   encoding is not controlled by this feature (feature 042, FR-010/FR-014)
+                // feature 043: this had been converted to LoadStrU8 by feature 042 in error - 'name' is a
+                // local copy of the ANSI p->Name, so the 042 classifier did not recognise it as plugin
+                // metadata and treated the site as a file-name composition. A UTF-8 template around an ANSI
+                // value is mixed the other way round: the plugin name renders, the localized words do not.
+                sprintf(buf, LoadStr(IDS_PLUGINREMOVEOK), name);
                 if (SalMessageBox(HWindow, buf, LoadStr(IDS_QUESTION),
                                   MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {

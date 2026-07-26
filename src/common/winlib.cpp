@@ -1210,6 +1210,20 @@ void SalListViewSetItemTextU8(HWND lv, int item, int subItem, const char* u8Text
     SendMessageA(lv, LVM_SETITEMTEXTA, (WPARAM)item, (LPARAM)&lvi);
 }
 
+void SalStatusSetTextU8(HWND statusBar, int part, const char* u8Text)
+{
+    if (u8Text == NULL)
+        u8Text = "";
+    WCHAR* w = SalU8ToWAlloc(u8Text);
+    if (w != NULL)
+    {
+        SendMessageW(statusBar, SB_SETTEXTW, (WPARAM)part, (LPARAM)w);
+        free(w);
+        return;
+    }
+    SendMessageA(statusBar, SB_SETTEXTA, (WPARAM)part, (LPARAM)u8Text); // not valid UTF-8: legacy path
+}
+
 #endif // INSIDE_SALAMANDER && !_UNICODE
 
 #ifndef _UNICODE

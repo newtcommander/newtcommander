@@ -462,11 +462,11 @@ void CFilesWindow::UnpackZIPArchive(CFilesWindow* target, BOOL deleteOp, const c
                 BOOL isDir = index < Dirs->Count;
                 CFileData* f = isDir ? &Dirs->At(index) : &Files->At(index - Dirs->Count);
                 AlterFileName(path, f->Name, -1, Configuration.FileNameFormat, 0, index < Dirs->Count);
-                lstrcpy(expanded, LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+                lstrcpy(expanded, LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
             }
         }
     }
-    sprintf(subject, LoadStr(deleteOp ? IDS_CONFIRM_DELETEFROMARCHIVE : IDS_COPYFROMARCHIVETO), expanded);
+    sprintf(subject, LoadStrU8(deleteOp ? IDS_CONFIRM_DELETEFROMARCHIVE : IDS_COPYFROMARCHIVETO), expanded);
     CTruncatedString str;
     str.Set(subject, data.IndexesCount > 1 ? NULL : path);
 
@@ -1375,11 +1375,11 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
                     files = 1;
                 CFileData* f = isDir ? &Dirs->At(index) : &Files->At(index - Dirs->Count);
                 AlterFileName(path, f->Name, -1, Configuration.FileNameFormat, 0, index < Dirs->Count);
-                strcpy(expanded, LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+                strcpy(expanded, LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
             }
         }
     }
-    sprintf(subject, LoadStr(IDS_PACKTOARCHIVE), expanded);
+    sprintf(subject, LoadStrU8(IDS_PACKTOARCHIVE), expanded);
     CTruncatedString str;
     str.Set(subject, data.IndexesCount > 1 ? NULL : path);
 
@@ -1574,10 +1574,10 @@ _PACK_AGAIN:
                 BOOL dontShow = !Configuration.CnfrmAddToArchive;
 
                 char filesDirs[200];
-                ExpandPluralFilesDirs(filesDirs, 200, files, data.IndexesCount - files, epfdmNormal, FALSE);
+                ExpandPluralFilesDirs(filesDirs, 200, files, data.IndexesCount - files, epfdmNormal, FALSE, TRUE);
 
                 char buff[3 * MAX_PATH];
-                sprintf(buff, LoadStr(IDS_CONFIRM_ADDTOARCHIVE), "%s", filesDirs);
+                sprintf(buff, LoadStrU8(IDS_CONFIRM_ADDTOARCHIVE), "%s", filesDirs);
 
                 char* namePart = strrchr(fileBuf, '\\');
                 if (namePart != NULL)
@@ -1589,7 +1589,7 @@ _PACK_AGAIN:
 
                 char alias[200];
                 sprintf(alias, "%d\t%s\t%d\t%s",
-                        DIALOG_YES, LoadStr(IDS_CONFIRM_ADDTOARCHIVE_ADD),
+                        DIALOG_YES, LoadStrU8(IDS_CONFIRM_ADDTOARCHIVE_ADD),
                         DIALOG_NO, LoadStr(IDS_CONFIRM_ADDTOARCHIVE_OVER));
                 CMessageBox msgBox(HWindow,
                                    MSGBOXEX_YESNOCANCEL | MSGBOXEX_ESCAPEENABLED | MSGBOXEX_ICONQUESTION | MSGBOXEX_SILENT | MSGBOXEX_HINT,
@@ -1721,7 +1721,7 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
         else
             strcpy(mask, "*.*");
         CTruncatedString str;
-        str.Set(LoadStr(IDS_UNPACKARCHIVE), fileName);
+        str.Set(LoadStrU8(IDS_UNPACKARCHIVE), fileName);
 
         if (pluginIndex != -1)
         {

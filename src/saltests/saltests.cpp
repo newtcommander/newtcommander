@@ -824,6 +824,73 @@ static void TestComposedMessageEncoding()
     }
 }
 
+// Feature 043: a UTF-8 value must never be handed to a byte-oriented display
+// call. Three surfaces were reported (the language picker, the configuration
+// language field, the F2/F5/F6 caption) and all three shared one shape, so what
+// is asserted here is the shape rather than the three instances.
+static void TestUiTextEncoding()
+{
+    // (1) Locale display names are UTF-8 and must survive a round trip. This is
+    //     what the language picker shows; it read "Cestina (Cesko)" as mojibake
+    //     because the value went to the ANSI ListView_SetItemText.
+    char locale[256];
+    if (SalGetLocaleInfoU8(MAKELCID(MAKELANGID(LANG_CZECH, SUBLANG_DEFAULT), SORT_DEFAULT),
+                           LOCALE_SLANGUAGE, locale, sizeof(locale)) != 0)
+    {
+        WCHAR wide[256];
+        CHECK(SalU8ToW(locale, -1, wide, _countof(wide)) != 0); // valid UTF-8
+        char back[256];
+        CHECK(SalWToU8(wide, -1, back, sizeof(back)) != 0);
+        CHECK(strcmp(locale, back) == 0); // lossless round trip
+    }
+
+    // (2) A caption composed from a UTF-8 template and a UTF-8 name stays valid
+    //     UTF-8, so the wide drawing path is available. With an ANSI template
+    //     the same caption is rejected and the NAME becomes mojibake while the
+    //     localized words survive - which is exactly what users reported.
+    const char* u8Name = "\xD0\xA2\xD0\xB5\xD1\x81\xD1\x82-\xC4\x9B\xC5\xA1"; // "Test-es" in Cyrillic + Czech
+    char caption[512];
+    _snprintf_s(caption, _TRUNCATE, "Prejmenovat adresar \"%s\" na", u8Name);
+    WCHAR wide[512];
+    CHECK(SalU8ToW(caption, -1, wide, _countof(wide)) != 0);
+    CHECK(wcsstr(wide, L"\x0422\x0435\x0441\x0442") != NULL); // the Cyrillic survived
+    CHECK(wcsstr(wide, L"\x011B\x0161") != NULL);             // the Czech survived
+
+    //     the same caption with ONE legacy-code-page byte in the template is
+    //     refused wholesale - the defect, asserted so it cannot come back
+    char mixed[512];
+    // the hex escapes are split so the letter after them is not swallowed into
+    // the escape (\xF8e would parse as one very large character value)
+    _snprintf_s(mixed, _TRUNCATE, "P\xF8"
+                                  "ejmenovat adres\xE1"
+                                  "r \"%s\" na",
+                u8Name);
+    CHECK(SalU8ToW(mixed, -1, wide, _countof(wide)) == 0);
+
+    // (3) A number carrying the locale thousands separator is UTF-8 too. In
+    //     Czech that separator is a non-breaking space (0xC2 0xA0), so a number
+    //     sent to a byte-oriented field rendered as "1<A>234".
+    char sep[16];
+    if (SalGetLocaleInfoU8(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND, sep, sizeof(sep)) != 0)
+    {
+        if (!SalIsASCII(sep)) // only meaningful where the separator is non-ASCII
+        {
+            char number[64];
+            _snprintf_s(number, _TRUNCATE, "1%s234%s567", sep, sep);
+            CHECK(SalU8ToW(number, -1, wide, _countof(wide)) != 0);
+        }
+    }
+
+    // (4) Truncating a caption must never split a character or a surrogate pair.
+    WCHAR tiny[12];
+    int written = SalU8ToWDisplay(caption, -1, tiny, _countof(tiny));
+    if (written > 0)
+    {
+        WCHAR last = tiny[written - 2];
+        CHECK(!(last >= 0xD800 && last <= 0xDBFF));
+    }
+}
+
 int main()
 {
     TestConversions();
@@ -837,6 +904,7 @@ int main()
     TestDarkThemePalette();
     TestDarkIconColorAdaptation();
     TestComposedMessageEncoding();
+    TestUiTextEncoding();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;

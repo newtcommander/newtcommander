@@ -462,7 +462,10 @@ CCopyMoveDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             VerticalAlignChildToChild(HWindow, IDB_BROWSE, IDE_PATH); // place the button precisely after the editline
         }
 
-        SetWindowText(HWindow, Title);
+        // feature 043: the title may be UTF-8 (LoadStrU8 callers); SalSetWindowTextU8
+        // takes the wide path for those and falls back to the legacy call for the
+        // callers that still pass an ANSI LoadStr title, so both stay correct
+        SalSetWindowTextU8(HWindow, Title);
         HWND hSubject = GetDlgItem(HWindow, IDS_SUBJECT);
         if (Subject->TruncateText(hSubject))
         {
@@ -965,7 +968,8 @@ CCopyMoveMoreDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (hl != NULL)
             hl->SetActionShowHint(LoadStr(IDS_MASKS_HINT));
 
-        SetWindowText(HWindow, Title);
+        // feature 043: see the note in CCopyMoveDialog::Transfer
+        SalSetWindowTextU8(HWindow, Title);
         HWND hSubject = GetDlgItem(HWindow, IDS_SUBJECT);
         if (Subject->TruncateText(hSubject))
         {
@@ -1501,22 +1505,22 @@ void CDriveInfo::Transfer(CTransferInfo& ti)
         if (!err)
         {
             NumberToStr(volumeName, CQuadWord(sectorsPerCluster, 0));
-            SetWindowText(GetDlgItem(HWindow, IDT_SPC), volumeName);
+            SalSetDlgItemTextU8(HWindow, IDT_SPC, volumeName);
 
             NumberToStr(volumeName, CQuadWord(bytesPerSector, 0));
-            SetWindowText(GetDlgItem(HWindow, IDT_BPS), volumeName);
+            SalSetDlgItemTextU8(HWindow, IDT_BPS, volumeName);
 
             if (CQuadWord(bytesPerSector, 0) * CQuadWord(sectorsPerCluster, 0) != CQuadWord(0, 0))
                 NumberToStr(volumeName, diskTotalBytes / (CQuadWord(bytesPerSector, 0) * CQuadWord(sectorsPerCluster, 0)));
             else
                 volumeName[0] = 0;
-            SetWindowText(GetDlgItem(HWindow, IDT_NOC), volumeName);
+            SalSetDlgItemTextU8(HWindow, IDT_NOC, volumeName);
 
             if (CQuadWord(bytesPerSector, 0) * CQuadWord(sectorsPerCluster, 0) != CQuadWord(0, 0))
                 NumberToStr(volumeName, CQuadWord(bytesPerSector, 0) * CQuadWord(sectorsPerCluster, 0));
             else
                 volumeName[0] = 0;
-            SetWindowText(GetDlgItem(HWindow, IDT_BPC), volumeName);
+            SalSetDlgItemTextU8(HWindow, IDT_BPC, volumeName);
         }
         if (diskTotalBytes != CQuadWord(-1, -1))
         {
@@ -1530,16 +1534,16 @@ void CDriveInfo::Transfer(CTransferInfo& ti)
             GetWindowRect(GetDlgItem(HWindow, IDB_GRAPH), &tmpR2);
             spaceForLongAndShort = tmpR2.left - tmpR1.left;
 
-            SetWindowText(GetDlgItem(HWindow, IDT_CAPACITY), PrintDiskSize(volumeName, diskTotalBytes, 2));
-            SetWindowText(GetDlgItem(HWindow, IDT_CAPACITY_SHORT), PrintDiskSize(volumeName, diskTotalBytes, 0));
-            SetWindowText(GetDlgItem(HWindow, IDT_FREESPACE), PrintDiskSize(volumeName, diskFreeBytes, 2));
-            SetWindowText(GetDlgItem(HWindow, IDT_FREESPACE_SHORT), PrintDiskSize(volumeName, diskFreeBytes, 0));
+            SalSetDlgItemTextU8(HWindow, IDT_CAPACITY, PrintDiskSize(volumeName, diskTotalBytes, 2));
+            SalSetDlgItemTextU8(HWindow, IDT_CAPACITY_SHORT, PrintDiskSize(volumeName, diskTotalBytes, 0));
+            SalSetDlgItemTextU8(HWindow, IDT_FREESPACE, PrintDiskSize(volumeName, diskFreeBytes, 2));
+            SalSetDlgItemTextU8(HWindow, IDT_FREESPACE_SHORT, PrintDiskSize(volumeName, diskFreeBytes, 0));
             if (diskTotalBytes >= diskFreeBytes)
                 diskTotalBytes -= diskFreeBytes;
             else
                 diskTotalBytes.SetUI64(0); // rather zero than complete nonsense
-            SetWindowText(GetDlgItem(HWindow, IDT_USEDSPACE), PrintDiskSize(volumeName, diskTotalBytes, 2));
-            SetWindowText(GetDlgItem(HWindow, IDT_USEDSPACE_SHORT), PrintDiskSize(volumeName, diskTotalBytes, 0));
+            SalSetDlgItemTextU8(HWindow, IDT_USEDSPACE, PrintDiskSize(volumeName, diskTotalBytes, 2));
+            SalSetDlgItemTextU8(HWindow, IDT_USEDSPACE_SHORT, PrintDiskSize(volumeName, diskTotalBytes, 0));
             // position the static controls
             int height;
             RECT r;
@@ -2009,19 +2013,23 @@ CPackDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 // swap extensions in the combobox
                 SendDlgItemMessage(HWindow, IDE_PATH, CB_RESETCONTENT, 0, 0);
                 strcpy(name, Path);
+                // feature 043: these are archive PATHS (UTF-8). The same combo is
+                // read and written as UTF-8 twenty lines away, so the legacy
+                // CB_ADDSTRING here was the odd one out and mangled any path with
+                // a non-ASCII character.
                 if (ChangeExtension(name, PackerConfig->GetPackerExt(i)))
-                    SendDlgItemMessage(HWindow, IDE_PATH, CB_ADDSTRING, 0, (LPARAM)name);
+                    SalComboAddStringU8(GetDlgItem(HWindow, IDE_PATH), name);
                 else
-                    SendDlgItemMessage(HWindow, IDE_PATH, CB_ADDSTRING, 0, (LPARAM)Path);
+                    SalComboAddStringU8(GetDlgItem(HWindow, IDE_PATH), Path);
 
                 // if the alternative path matches the first one, don't add it (target isn't ptDisk)
                 if (StrICmp(Path, PathAlt) != 0)
                 {
                     strcpy(name, PathAlt);
                     if (ChangeExtension(name, PackerConfig->GetPackerExt(i)))
-                        SendDlgItemMessage(HWindow, IDE_PATH, CB_ADDSTRING, 0, (LPARAM)name);
+                        SalComboAddStringU8(GetDlgItem(HWindow, IDE_PATH), name);
                     else
-                        SendDlgItemMessage(HWindow, IDE_PATH, CB_ADDSTRING, 0, (LPARAM)PathAlt);
+                        SalComboAddStringU8(GetDlgItem(HWindow, IDE_PATH), PathAlt);
                 }
 
                 if (curSel != CB_ERR)
@@ -2202,9 +2210,9 @@ CZIPSizeResultsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
       MoveWindow(HWindow, r1.left, r1.top, width, r1.bottom - r1.top, FALSE);
       */
         char buf[50];
-        SetWindowText(GetDlgItem(HWindow, IDS_SIZE), PrintDiskSize(buf, Size, 1));
-        SetWindowText(GetDlgItem(HWindow, IDS_FILESCOUNT), NumberToStr(buf, CQuadWord(Files, 0)));
-        SetWindowText(GetDlgItem(HWindow, IDS_DIRSCOUNT), NumberToStr(buf, CQuadWord(Dirs, 0)));
+        SalSetDlgItemTextU8(HWindow, IDS_SIZE, PrintDiskSize(buf, Size, 1));
+        SalSetDlgItemTextU8(HWindow, IDS_FILESCOUNT, NumberToStr(buf, CQuadWord(Files, 0)));
+        SalSetDlgItemTextU8(HWindow, IDS_DIRSCOUNT, NumberToStr(buf, CQuadWord(Dirs, 0)));
         break;
     }
     }

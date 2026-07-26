@@ -73,7 +73,7 @@ SRC = REPO / "src"
 EXCLUDED = ("plugins/", "saltests/", "tserver/", "shellext/", "setup/",
             "salmon/", "salopen/", "translator/", "reglib/", "common/dep/")
 
-SUPPRESS = re.compile(r'//\s*encoding-check:\s*allow\s+([a-z-]+)\s*-\s*(\S.*)')
+SUPPRESS = re.compile(r'//\s*encoding-check:\s*allow\s+([a-z0-9-]+)\s*-\s*(\S.*)')
 
 PRINTF = re.compile(r'\b(?:sprintf|sprintf_s|_snprintf|_snprintf_s|wsprintf)\s*\(')
 FMT_IS_LOADSTR = re.compile(r'\b(?:sprintf|sprintf_s|_snprintf|_snprintf_s|wsprintf)\s*\('
@@ -95,7 +95,35 @@ DISPLAY_SINK = re.compile(r'\bpszText\b|\bDrawText\s*\(|\bTextOut\s*\(|\bExtText
 DISPINFOW = re.compile(r'\bLVN_GETDISPINFOW\b')
 REQUERY = re.compile(r'\bNF_REQUERY\b')
 
-RULES = ("cp-acp-display", "mixed-composition", "dead-dispinfow")
+# --- feature 043 -------------------------------------------------------------
+# The rules above describe the two defects feature 042 had in hand. They passed
+# cleanly while three further defects of the same class were present, because
+# they were written around those two SHAPES rather than around the defect: a
+# UTF-8 value reaching a call that reads bytes as legacy single-byte text.
+#
+# The rules below describe the defect. Sources known to produce UTF-8:
+UTF8_SOURCE = re.compile(
+    r'\b('
+    r'LoadStrU8|GetErrorText|NumberToStr|PrintDiskSize|PointToLocalDecimalSeparator|'
+    r'SalGetLocaleInfoU8|SalGetDateFormatU8|SalGetTimeFormatU8|GetLanguageName|'
+    r'ExpandPluralBytesFilesDirs|AlterFileName|GetZIPArchive|GetPath'
+    r')\s*\(')
+# ... and identifiers that hold one by convention in this codebase.
+UTF8_IDENT = re.compile(
+    r'\b('
+    r'\w*[Ff]ile[Nn]ame\w*|\w*[Ff]ullName\w*|formatedFileName|editName|'
+    r'\w*[Pp]ath\b|\w*[Pp]ath[A-Z]\w*|f->Name|item->Name|oneFile->Name|'
+    r'\w*[Ll]inkName\w*|\w*[Aa]rchive[A-Za-z]*|subject|Subject'
+    r')\b')
+
+# Legacy sinks: the byte-oriented A-variants. The W and Sal*U8 forms are safe.
+SINK_LISTVIEW = re.compile(r'\bListView_SetItemText\s*\(')
+SINK_WNDTEXT = re.compile(r'(?<!Sal)\b(?:SetWindowText|SetDlgItemText)\s*\(')
+SINK_STATUS = re.compile(r'\bSB_SETTEXT\b(?!W)')
+SINK_COMBO = re.compile(r'\bCB_ADDSTRING\b(?!W)')
+
+RULES = ("cp-acp-display", "mixed-composition", "dead-dispinfow",
+         "utf8-to-legacy-sink", "ansi-template-caption")
 
 
 class Finding:
@@ -137,6 +165,32 @@ def call_text(lines, i):
             if depth == 0:
                 return blob[:pos + 1]
     return blob
+
+
+WIDE_ATTEMPT = re.compile(
+    r'\bSalU8ToW\w*\s*\(|\bSetWindowTextW\s*\(|\bSetDlgItemTextW\s*\(|'
+    r'\bLVM_SETITEMTEXTW\b|\bSB_SETTEXTW\b|\bDrawTextW\s*\(|\bCB_ADDSTRING\b.*W\b')
+
+
+def wide_fallback(lines, i):
+    """True when this legacy call is the ELSE branch of a wide attempt.
+
+    The codebase's established shape is "convert to UTF-16 and use the W call;
+    if the value is not valid UTF-8, fall back to the legacy call". The legacy
+    call in that shape is deliberate and correct - flagging it would mean
+    flagging roughly sixty correct sites and training everyone to ignore the
+    guard, which is worse than not having one.
+    """
+    if lines[i].lstrip().startswith("//"):
+        return True                      # a comment mentioning the call
+    if re.search(r'\(LPARAM\)\s*""|,\s*""\s*\)', lines[i]):
+        return True                      # clearing a field, nothing to mangle
+    window = "".join(lines[max(0, i - 10):i + 1])
+    if not WIDE_ATTEMPT.search(window):
+        return False
+    # the wide attempt must be paired with an else / fallback for THIS call
+    tail = "".join(lines[max(0, i - 3):i + 1])
+    return bool(re.search(r'\belse\b', tail) or re.search(r'legacy|fallback|transitional', tail, re.I))
 
 
 def suppressed(lines, i, rule):
@@ -193,6 +247,35 @@ def scan(only=None):
                 if DISPLAY_SINK.search(window):
                     if not suppressed(lines, i, "cp-acp-display"):
                         findings.append(Finding("cp-acp-display", rel, i + 1, ln))
+
+            # --- utf8-to-legacy-sink (feature 043) -------------------------
+            # A value produced by a known UTF-8 source, or held in an
+            # identifier that carries one, handed to a byte-oriented sink.
+            if only in (None, "utf8-to-legacy-sink"):
+                sink = (SINK_LISTVIEW.search(ln) or SINK_WNDTEXT.search(ln) or
+                        SINK_STATUS.search(ln) or SINK_COMBO.search(ln))
+                if sink:
+                    # the value is either on this line, or assigned to the
+                    # variable this line passes, a few lines above
+                    back = " ".join(lines[max(0, i - 8):i + 1])
+                    if (UTF8_SOURCE.search(ln) or UTF8_IDENT.search(ln) or
+                            UTF8_SOURCE.search(back)):
+                        if (not wide_fallback(lines, i) and
+                                not suppressed(lines, i, "utf8-to-legacy-sink")):
+                            findings.append(Finding("utf8-to-legacy-sink", rel, i + 1, ln))
+
+            # --- ansi-template-caption (feature 043) -----------------------
+            # A composed caption (CTruncatedString::Set) whose template came
+            # from the ANSI LoadStr and whose substituted value is a name.
+            # The consumers have a wide path; an ANSI template is what stops
+            # them taking it, so the whole caption falls back and the NAME
+            # becomes mojibake while the localized words survive.
+            if only in (None, "ansi-template-caption") and re.search(r'\.Set\s*\(', ln):
+                back = " ".join(lines[max(0, i - 6):i + 2])
+                if ("LoadStr(" in back and "LoadStrU8(" not in back and
+                        UTF8_IDENT.search(ln)):
+                    if not suppressed(lines, i, "ansi-template-caption"):
+                        findings.append(Finding("ansi-template-caption", rel, i + 1, ln))
 
     return findings
 

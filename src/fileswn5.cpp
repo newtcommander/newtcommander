@@ -376,7 +376,7 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                             }
                         }
 
-                        ExpandPluralFilesDirs(expanded, 200, files, dirs, epfdmNormal, FALSE);
+                        ExpandPluralFilesDirs(expanded, 200, files, dirs, epfdmNormal, FALSE, TRUE);
                     }
                     else
                     {
@@ -389,7 +389,7 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                         BOOL isDir = index < Dirs->Count;
                         CFileData* f = isDir ? &Dirs->At(index) : &Files->At(index - Dirs->Count);
                         AlterFileName(path, f->Name, -1, Configuration.FileNameFormat, 0, index < Dirs->Count);
-                        lstrcpy(expanded, LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+                        lstrcpy(expanded, LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
                     }
                     int resTextID;
                     int resTitleID;
@@ -403,11 +403,11 @@ void CFilesWindow::ChangeAttr(BOOL setCompress, BOOL compressed, BOOL setEncrypt
                         resTextID = encrypted ? IDS_CONFIRM_NTFSENCRYPT : IDS_CONFIRM_NTFSDECRYPT;
                         resTitleID = encrypted ? IDS_CONFIRM_NTFSENCRYPT_TITLE : IDS_CONFIRM_NTFSDECRYPT_TITLE;
                     }
-                    sprintf(subject, LoadStr(resTextID), expanded);
+                    sprintf(subject, LoadStrU8(resTextID), expanded);
                     CTruncatedString str;
                     str.Set(subject, count > 1 ? NULL : path);
                     CMessageBox msgBox(HWindow, MSGBOXEX_YESNO | MSGBOXEX_ESCAPEENABLED | MSGBOXEX_ICONQUESTION | MSGBOXEX_SILENT,
-                                       LoadStr(resTitleID), &str, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
+                                       LoadStrU8(resTitleID), &str, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
                     if (msgBox.Execute() != IDYES)
                     {
                         // if we selected an item, deselect it again
@@ -1486,7 +1486,7 @@ void CFilesWindow::EditNewFile()
     else
         lstrcpyn(path, LoadStr(IDS_EDITNEWFILE_DEFAULTNAME), MAX_PATH);
     CTruncatedString subject;
-    subject.Set(LoadStr(IDS_NEWFILENAME), NULL);
+    subject.Set(LoadStrU8(IDS_NEWFILENAME), NULL);
 
     BOOL first = TRUE;
 
@@ -1959,7 +1959,7 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
     if (Is(ptDisk)) // create directory on disk
     {
         CTruncatedString subject;
-        subject.Set(LoadStr(IDS_CREATEDIRECTORY_TEXT), NULL);
+        subject.Set(LoadStrU8(IDS_CREATEDIRECTORY_TEXT), NULL);
         CCopyMoveDialog dlg(HWindow, path, SAL_MAX_PATH_UTF8, LoadStr(IDS_CREATEDIRECTORY_TITLE),
                             &subject, IDD_CREATEDIRDIALOG,
                             Configuration.CreateDirHistory, CREATEDIR_HISTORY_SIZE,
@@ -2066,7 +2066,7 @@ void CFilesWindow::CreateDir(CFilesWindow* target)
                 if (!ret)
                 {
                     CTruncatedString subject;
-                    subject.Set(LoadStr(IDS_CREATEDIRECTORY_TEXT), NULL);
+                    subject.Set(LoadStrU8(IDS_CREATEDIRECTORY_TEXT), NULL);
                     CCopyMoveDialog dlg(HWindow, path, 2 * MAX_PATH, LoadStr(IDS_CREATEDIRECTORY_TITLE),
                                         &subject, IDD_CREATEDIRDIALOG,
                                         Configuration.CreateDirHistory, CREATEDIR_HISTORY_SIZE,
@@ -2380,10 +2380,10 @@ void CFilesWindow::RenameFile(int specialIndex)
     }
 
     char buff[200];
-    sprintf(buff, LoadStr(IDS_RENAME_TO), LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+    sprintf(buff, LoadStrU8(IDS_RENAME_TO), LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
     CTruncatedString subject;
     subject.Set(buff, editName);
-    CCopyMoveDialog dlg(HWindow, editName, SAL_FIND_NAME_U8, LoadStr(IDS_RENAME_TITLE),
+    CCopyMoveDialog dlg(HWindow, editName, SAL_FIND_NAME_U8, LoadStrU8(IDS_RENAME_TITLE),
                         &subject, IDD_RENAMEDIALOG, Configuration.QuickRenameHistory,
                         QUICKRENAME_HISTORY_SIZE, FALSE);
 
@@ -2760,7 +2760,8 @@ void CFilesWindow::QuickRenameBegin(int index, const RECT* labelRect)
         TRACE_E("Cannot create QuickRenameWindow");
         return;
     }
-    if (!fileNameWValid) // not valid UTF-8 (transitional): keep the legacy A text
+    if (!fileNameWValid)
+        // encoding-check: allow utf8-to-legacy-sink - documented legacy fallback, reached only when the name is NOT valid UTF-8; the wide path above covers the normal case
         SetWindowText(hWnd, formatedFileName);
 
     BeginSuspendMode(TRUE); // snooper takes a break

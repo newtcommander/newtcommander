@@ -2069,7 +2069,7 @@ void CFindDialog::StartSearch(WORD command)
 
     char buff[MAX_PATH + 100];
     _snprintf_s(buff, _TRUNCATE, NORMAL_FINDING_CAPTION, LoadStr(IDS_FF_NAME), LoadStr(IDS_FF_NAMED), SearchForData[0]->MasksGroup.GetMasksString());
-    SetWindowText(HWindow, buff);
+    SalSetWindowTextU8(HWindow, buff);
 
     EnableControls();
 }
@@ -2324,7 +2324,7 @@ void CFindDialog::UpdateListViewItems()
             }
             else
                 lstrcpy(buf, LoadStr(IDS_FF_NAME));
-            SetWindowText(HWindow, buf);
+            SalSetWindowTextU8(HWindow, buf);
         }
 
         // used by the search thread to know when to notify us next
@@ -2997,8 +2997,10 @@ CFindDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (FindOptions.At(i)->AutoLoad)
             {
                 char buff[1024];
-                sprintf(buff, LoadStr(IDS_FF_AUTOLOAD), FindOptions.At(i)->ItemName);
-                SendMessage(HStatusBar, SB_SETTEXT, 1 | SBT_NOBORDERS, (LPARAM)buff);
+                // feature 043: ItemName is composed from the UTF-8 NamedText /
+                // LookInText, so the whole line must go out as UTF-8
+                sprintf(buff, LoadStrU8(IDS_FF_AUTOLOAD), FindOptions.At(i)->ItemName);
+                SalStatusSetTextU8(HStatusBar, 1 | SBT_NOBORDERS, buff);
                 break;
             }
 
@@ -3239,7 +3241,7 @@ CFindDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             char buff[MAX_PATH + 100];
             _snprintf_s(buff, _TRUNCATE, NORMAL_FINDING_CAPTION, LoadStr(IDS_FF_NAME), LoadStr(IDS_FF_NAMED),
                         SearchForData[0]->MasksGroup.GetMasksString());
-            SetWindowText(HWindow, buff);
+            SalSetWindowTextU8(HWindow, buff);
         }
 
         //      if (FirstWMSize)

@@ -1656,13 +1656,24 @@ CFilesWindow::CreateDragImage(int cursorX, int cursorY, int& dxHotspot, int& dyH
     }
     int buffLen = lstrlen(buff);
 
+    // feature 043: 'buff' holds a UTF-8 file name (AlterFileName above). This is
+    // the one panel drawing site that had no wide path at all, so a dragged file
+    // with a non-ASCII name showed mojibake in the drag image while the panel row
+    // it was dragged from was correct. Measure and draw wide when the name
+    // converts; keep the legacy calls for anything that does not.
+    WCHAR* buffW = SalU8ToWDisplayAlloc(buff);
+    int buffWLen = buffW != NULL ? (int)wcslen(buffW) : 0;
+
     int width;
     int height = ListBox->ItemHeight;
     HDC hDC = HANDLES(CreateCompatibleDC(NULL));
     ;
     HFONT hOldFont = (HFONT)SelectObject(hDC, Font);
     SIZE sz;
-    GetTextExtentPoint32(hDC, buff, buffLen, &sz);
+    if (buffW != NULL)
+        GetTextExtentPoint32W(hDC, buffW, buffWLen, &sz);
+    else
+        GetTextExtentPoint32(hDC, buff, buffLen, &sz);
     width = iconWidth + sz.cx;
     if (GetViewMode() == vmDetailed && trimWidth)
         width = Columns[0].Width; // if the column is shortened, we do not want other columns to bleed into the dragged image
@@ -1681,6 +1692,8 @@ CFilesWindow::CreateDragImage(int cursorX, int cursorY, int& dxHotspot, int& dyH
     if (hBmp == NULL || lpBits == NULL)
     {
         HANDLES(DeleteDC(hDC));
+        if (buffW != NULL)
+            free(buffW);
         return FALSE;
     }
 
@@ -1707,13 +1720,19 @@ CFilesWindow::CreateDragImage(int cursorX, int cursorY, int& dxHotspot, int& dyH
         int oldTextColor = SetTextColor(hDC, GetCOLORREF(CurrentColors[ITEM_FG_FOCUSED]));
         int oldBkColor = SetBkColor(hDC, GetCOLORREF(CurrentColors[ITEM_BK_FOCUSED]));
         r.left = iconWidth;
-        DrawText(hDC, buff, buffLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
+        if (buffW != NULL)
+            DrawTextW(hDC, buffW, buffWLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
+        else
+            DrawText(hDC, buff, buffLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
         SetTextColor(hDC, oldTextColor);
         SelectObject(hDC, hOldFont);
         hOldFont = (HFONT)SelectObject(hMaskDC, Font);
         SetTextColor(hMaskDC, RGB(0, 0, 0));
         SetBkColor(hMaskDC, RGB(0, 0, 0));
-        DrawText(hMaskDC, buff, buffLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
+        if (buffW != NULL)
+            DrawTextW(hMaskDC, buffW, buffWLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
+        else
+            DrawText(hMaskDC, buff, buffLen, &r, DT_LEFT | DT_SINGLELINE | DT_TOP | DT_NOPREFIX);
         SelectObject(hMaskDC, hOldFont);
         SetTextColor(hDC, oldTextColor);
         SetBkColor(hDC, oldBkColor);
@@ -1813,6 +1832,8 @@ CFilesWindow::CreateDragImage(int cursorX, int cursorY, int& dxHotspot, int& dyH
     HANDLES(DeleteObject(hBmp));
     HANDLES(DeleteDC(hMaskDC));
     HANDLES(DeleteObject(hMaskBmp));
+    if (buffW != NULL)
+        free(buffW);
     return himl;
 }
 

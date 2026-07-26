@@ -339,6 +339,11 @@ BOOL SalInsertMenuItemU8(HMENU menu, UINT item, BOOL byPosition, const MENUITEMI
 // set a listview item/subitem text (UTF-8) via LVM_SETITEMTEXTW so a Unicode
 // name/path is not mangled by the ANSI listview text path
 void SalListViewSetItemTextU8(HWND lv, int item, int subItem, const char* u8Text);
+// set a status-bar part's text (UTF-8) via SB_SETTEXTW (feature 043). The Find
+// window puts search masks and option names into its status bar, and those are
+// UTF-8; the ANSI SB_SETTEXT drew them byte-wise. Invalid UTF-8 falls back to
+// the legacy message, so callers still passing legacy text keep working.
+void SalStatusSetTextU8(HWND statusBar, int part, const char* u8Text);
 #endif // INSIDE_SALAMANDER && !_UNICODE
 
 // ****************************************************************************

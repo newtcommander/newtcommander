@@ -1679,8 +1679,8 @@ COverwriteDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         else
             TRACE_E(LOW_MEMORY);
 
-        SetWindowText(GetDlgItem(HWindow, IDS_SOURCEATTR), SourceAttr);
-        SetWindowText(GetDlgItem(HWindow, IDS_TARGETATTR), TargetAttr);
+        SalSetDlgItemTextU8(HWindow, IDS_SOURCEATTR, SourceAttr);
+        SalSetDlgItemTextU8(HWindow, IDS_TARGETATTR, TargetAttr);
         break;
     }
 
@@ -2090,7 +2090,7 @@ CBetaExpiredDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             sprintf(expired, "%u.%u.%u", BETA_EXPIRATION_DATE.wDay, BETA_EXPIRATION_DATE.wMonth, BETA_EXPIRATION_DATE.wYear);
 
         sprintf(buff, orig, today, expired);
-        SetDlgItemText(HWindow, IDC_BETAEXPIREDDATE, buff);
+        SalSetDlgItemTextU8(HWindow, IDC_BETAEXPIREDDATE, buff);
 
         // the OK button will show numbers counting down, store the original text
         GetDlgItemText(HWindow, IDOK, OldOK, 100);

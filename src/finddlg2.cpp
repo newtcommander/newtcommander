@@ -279,10 +279,12 @@ void CFindDialog::UpdateStatusText()
 
         char text[200];
         if (dirs > 0)
-            ExpandPluralFilesDirs(text, 200, files, dirs, epfdmSelected, FALSE);
+            ExpandPluralFilesDirs(text, 200, files, dirs, epfdmSelected, FALSE, TRUE);
         else
-            ExpandPluralBytesFilesDirs(text, 200, selectedSize, files, dirs, FALSE);
-        SendMessage(HStatusBar, SB_SETTEXT, 1 | SBT_NOBORDERS, (LPARAM)text);
+            ExpandPluralBytesFilesDirs(text, 200, selectedSize, files, dirs, FALSE, TRUE);
+        // feature 043: the summary carries NumberToStr output, whose thousands
+        // separator is UTF-8 since feature 041 (a non-breaking space in Czech)
+        SalStatusSetTextU8(HStatusBar, 1 | SBT_NOBORDERS, text);
     }
     else
     {
@@ -717,10 +719,10 @@ void CFindManageDialog::LoadControls()
         item = (CFindOptionsItem*)itemID;
     else
         item = (CFindOptionsItem*)CurrenOptionsItem;
-    SetDlgItemText(HWindow, IDC_FFS_NAMED, item->NamedText);
-    SetDlgItemText(HWindow, IDC_FFS_LOOKIN, item->LookInText);
+    SalSetDlgItemTextU8(HWindow, IDC_FFS_NAMED, item->NamedText);
+    SalSetDlgItemTextU8(HWindow, IDC_FFS_LOOKIN, item->LookInText);
     SetDlgItemText(HWindow, IDC_FFS_SUBDIRS, item->SubDirectories ? LoadStr(IDS_INFODLGYES) : LoadStr(IDS_INFODLGNO));
-    SetDlgItemText(HWindow, IDC_FFS_CONTAINING, item->GrepText);
+    SalSetDlgItemTextU8(HWindow, IDC_FFS_CONTAINING, item->GrepText);
     char buff[200];
     BOOL dirty;
     item->Criteria.GetAdvancedDescription(buff, 200, dirty);
@@ -1946,9 +1948,9 @@ void CFindLogDialog::OnIgnore()
         return;
 
     CTruncatedString str;
-    str.Set(LoadStr(IDS_FINDLOG_IGNORE), item->Path);
+    str.Set(LoadStrU8(IDS_FINDLOG_IGNORE), item->Path);
     CMessageBox msgBox(HWindow, MSGBOXEX_OKCANCEL | MSGBOXEX_ICONQUESTION,
-                       LoadStr(IDS_QUESTION), &str, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
+                       LoadStrU8(IDS_QUESTION), &str, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL);
     if (msgBox.Execute() == IDOK)
     {
         FindIgnore.AddUnique(TRUE, item->Path);

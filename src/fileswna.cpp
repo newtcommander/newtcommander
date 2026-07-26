@@ -64,11 +64,11 @@ void CFilesWindow::PluginFSFilesAction(CPluginFSActionType type)
         BOOL isDir = i < Dirs->Count;
         CFileData* f = isDir ? &Dirs->At(i) : &Files->At(i - Dirs->Count);
         AlterFileName(formatedFileName, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
-        lstrcpy(expanded, LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+        lstrcpy(expanded, LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
     }
     else
     {
-        ExpandPluralFilesDirs(expanded, 200, count - selectedDirs, selectedDirs, epfdmNormal, FALSE);
+        ExpandPluralFilesDirs(expanded, 200, count - selectedDirs, selectedDirs, epfdmNormal, FALSE, TRUE);
     }
 
     int resID = 0;
@@ -89,7 +89,7 @@ void CFilesWindow::PluginFSFilesAction(CPluginFSActionType type)
     {
         // IDS_COPY/IDS_MOVE contain ampersands, cancel it
         char templ[200];
-        lstrcpyn(templ, LoadStr(resID), 200);
+        lstrcpyn(templ, LoadStrU8(resID), 200);
         RemoveAmpersands(templ);
         sprintf(subject, templ, expanded);
         str.Set(subject, count > 1 ? NULL : formatedFileName);

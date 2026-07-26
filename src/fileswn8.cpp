@@ -425,21 +425,21 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
                     if (SalPathAppend(formatedFileName, f->Name, MAX_PATH + 200) &&
                         GetReparsePointDestination(formatedFileName, NULL, 0, &repPointType, TRUE))
                     {
-                        lstrcpy(expanded, LoadStr(repPointType == 1 /* MOUNT POINT */ ? IDS_QUESTION_VOLMOUNTPOINT : repPointType == 2 /* JUNCTION POINT */ ? IDS_QUESTION_JUNCTION
-                                                                                                                                                            : IDS_QUESTION_SYMLINK));
+                        lstrcpy(expanded, LoadStrU8(repPointType == 1 /* MOUNT POINT */ ? IDS_QUESTION_VOLMOUNTPOINT : repPointType == 2 /* JUNCTION POINT */ ? IDS_QUESTION_JUNCTION
+                                                                                                                                                              : IDS_QUESTION_SYMLINK));
                         deleteLink = TRUE;
                     }
                 }
                 AlterFileName(formatedFileName, f->Name, -1, Configuration.FileNameFormat, 0, isDir);
                 if (expanded[0] == 0)
-                    lstrcpy(expanded, LoadStr(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
+                    lstrcpy(expanded, LoadStrU8(isDir ? IDS_QUESTION_DIRECTORY : IDS_QUESTION_FILE));
             }
             else
                 expanded[0] = 0; // not used
         }
         else // count-files in directories and individualfiles
         {
-            ExpandPluralFilesDirs(expanded, 200, files, count - files, epfdmNormal, FALSE);
+            ExpandPluralFilesDirs(expanded, 200, files, count - files, epfdmNormal, FALSE, TRUE);
         }
 
         int resID = 0;
@@ -471,7 +471,7 @@ void CFilesWindow::FilesAction(CActionType type, CFilesWindow* target, int count
         char subject[MAX_PATH + 100 + 200]; // + 200 is a reserve (Windows can create paths longer than MAX_PATH)
         if (resID != 0)
         {
-            sprintf(subject, LoadStr(resID), expanded);
+            sprintf(subject, LoadStrU8(resID), expanded);
             str.Set(subject, count > 1 ? NULL : formatedFileName);
         }
 

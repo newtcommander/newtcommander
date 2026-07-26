@@ -393,7 +393,7 @@ void CSizeResultsDlg::UpdateEstimate()
                          CQuadWord(bytesPerCluster - 1, 0);
         }
 
-        SetWindowText(GetDlgItem(HWindow, IDC_EST_SIZE), PrintDiskSize(buf, estimated, 1));
+        SalSetDlgItemTextU8(HWindow, IDC_EST_SIZE, PrintDiskSize(buf, estimated, 1));
 
         if (estimated == CQuadWord(0, 0))
             strcpy(buf, "0 %");
@@ -402,7 +402,7 @@ void CSizeResultsDlg::UpdateEstimate()
             sprintf(buf, "%-1.4lg %%", 100 * Size.GetDouble() / estimated.GetDouble());
             PointToLocalDecimalSeparator(buf, _countof(buf));
         }
-        SetWindowText(GetDlgItem(HWindow, IDC_EST_UTIL), buf);
+        SalSetDlgItemTextU8(HWindow, IDC_EST_UTIL, buf);
 
         EnableWindow(GetDlgItem(HWindow, IDC_EST_SIZE), TRUE);
         EnableWindow(GetDlgItem(HWindow, IDC_EST_UTIL), TRUE);
@@ -428,12 +428,12 @@ CSizeResultsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         char buf[100];
 
-        SetWindowText(GetDlgItem(HWindow, IDS_FILESCOUNT), NumberToStr(buf, CQuadWord(Files, 0)));
-        SetWindowText(GetDlgItem(HWindow, IDS_DIRSCOUNT), NumberToStr(buf, CQuadWord(Dirs, 0)));
+        SalSetDlgItemTextU8(HWindow, IDS_FILESCOUNT, NumberToStr(buf, CQuadWord(Files, 0)));
+        SalSetDlgItemTextU8(HWindow, IDS_DIRSCOUNT, NumberToStr(buf, CQuadWord(Dirs, 0)));
 
         if (Occupied != CQuadWord(-1, -1))
         {
-            SetWindowText(GetDlgItem(HWindow, IDS_OCCUPIED), PrintDiskSize(buf, Occupied, 1));
+            SalSetDlgItemTextU8(HWindow, IDS_OCCUPIED, PrintDiskSize(buf, Occupied, 1));
             if (Occupied == CQuadWord(0, 0))
                 strcpy(buf, "0 %");
             else
@@ -448,7 +448,7 @@ CSizeResultsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     sprintf(buf, "%-1.4lg %%", result);
                 PointToLocalDecimalSeparator(buf, _countof(buf));
             }
-            SetWindowText(GetDlgItem(HWindow, IDS_DISKUTILIZATION), buf);
+            SalSetDlgItemTextU8(HWindow, IDS_DISKUTILIZATION, buf);
         }
         else
         {
@@ -456,10 +456,10 @@ CSizeResultsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             EnableWindow(GetDlgItem(HWindow, IDS_DISKUTILIZATION), FALSE);
         }
 
-        SetWindowText(GetDlgItem(HWindow, IDS_SIZE), PrintDiskSize(buf, Size, 1));
+        SalSetDlgItemTextU8(HWindow, IDS_SIZE, PrintDiskSize(buf, Size, 1));
         if (Compressed != CQuadWord(-1, -1))
         {
-            SetWindowText(GetDlgItem(HWindow, IDS_COMPSIZE), PrintDiskSize(buf, Compressed, 1));
+            SalSetDlgItemTextU8(HWindow, IDS_COMPSIZE, PrintDiskSize(buf, Compressed, 1));
             if (Size == CQuadWord(0, 0))
             {
                 strcpy(buf, "100 %");
@@ -469,7 +469,7 @@ CSizeResultsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 sprintf(buf, "%-1.4lg %%", 100 * Compressed.GetDouble() / Size.GetDouble());
                 PointToLocalDecimalSeparator(buf, _countof(buf));
             }
-            SetWindowText(GetDlgItem(HWindow, IDS_COMPRATIO), buf);
+            SalSetDlgItemTextU8(HWindow, IDS_COMPRATIO, buf);
         }
         else
         {
@@ -651,9 +651,9 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 // detect the product family the configuration root belongs to
                 BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = newtCommander     ? "Newt Commander %s"
-                                   : openSalamander  ? "Open Salamander %s"
-                                                     : "Salamander %s";
+                const char* name = newtCommander    ? "Newt Commander %s"
+                                   : openSalamander ? "Open Salamander %s"
+                                                    : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
                 SendDlgItemMessage(HWindow, IDC_IMPORTCONFIG, CB_ADDSTRING, 0, (LPARAM)buff);
                 if (selIndex == 0)
@@ -683,9 +683,9 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 // detect the product family the configuration root belongs to
                 BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = newtCommander     ? "Newt Commander %s"
-                                   : openSalamander  ? "Open Salamander %s"
-                                                     : "Salamander %s";
+                const char* name = newtCommander    ? "Newt Commander %s"
+                                   : openSalamander ? "Open Salamander %s"
+                                                    : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
                 lvi.pszText = buff;
                 ListView_InsertItem(hListView, &lvi);
@@ -879,9 +879,17 @@ void CLanguageSelectorDialog::LoadListView()
         lvi.iSubItem = 0;
         ListView_InsertItem(HListView, &lvi);
 
+        // feature 043: GetLanguageName() returns UTF-8 (it reads the locale
+        // display name through SalGetLocaleInfoU8, feature 041). The ANSI
+        // ListView_SetItemText drew those bytes as legacy code-page text, so
+        // every language name in the picker was mojibake - "Cestina" rendered
+        // as two wrong characters. Invisible in an English build, because
+        // English locale names are ASCII.
         Items[i].GetLanguageName(buff, 200);
-        ListView_SetItemText(HListView, i, 0, buff);
+        SalListViewSetItemTextU8(HListView, i, 0, buff);
         sprintf(buff, "lang\\%s", Items[i].FileName);
+        // encoding-check: allow utf8-to-legacy-sink - the .slg file name comes from the ANSI
+        //   FindFirstFile, so it is legacy text and must not be treated as UTF-8 (feature 043)
         ListView_SetItemText(HListView, i, 1, buff);
     }
 

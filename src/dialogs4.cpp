@@ -867,8 +867,10 @@ void CCfgPageRegional::LoadControls()
     if (language.Init(SLGName, NULL))
     {
         char buff[200];
+        // feature 043: the language name is UTF-8 (SalGetLocaleInfoU8 via
+        // GetLanguageName); the ANSI SetDlgItemText rendered it as mojibake
         language.GetLanguageName(buff, 200);
-        SetDlgItemText(HWindow, IDE_LANGUAGE, buff);
+        SalSetDlgItemTextU8(HWindow, IDE_LANGUAGE, buff);
         language.Free();
     }
 }
