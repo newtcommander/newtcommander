@@ -9,7 +9,7 @@
    build.cmd full         :: also regenerates plugins.ver so mdview auto-registers
    build.cmd full release :: Release x64
    ```
-   Output: `build\salamander\<cfg>_x64\plugins\mdview\mdview.spl` (+ `english.slg`).
+   Output: `build\newtcommander\<cfg>_x64\plugins\mdview\mdview.spl` (+ `english.slg`).
 
    Note: the Release `salamand.exe` link fails with `LNK1104` while a built
    Salamander is running (feature-019 pitfall) — close it first. Debug uses a

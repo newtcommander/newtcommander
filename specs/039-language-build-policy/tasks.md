@@ -25,7 +25,7 @@ independently.
 ## Path Conventions
 
 Repository root is `E:\Projects\newtcommander`. Build output is
-`%OPENSAL_BUILD_DIR%salamander\<Config>_x64` (defaults to `.\build\` when the
+`%OPENSAL_BUILD_DIR%newtcommander\<Config>_x64` (defaults to `.\build\` when the
 variable is unset). Paths below are repository-relative unless stated otherwise.
 
 ---

@@ -52,7 +52,7 @@ The banner tells you what the policy resolved to:
 ```powershell
 # OPENSAL_BUILD_DIR defaults to the repository's build\ directory when unset
 $root = if ($env:OPENSAL_BUILD_DIR) { $env:OPENSAL_BUILD_DIR } else { '.\build\' }
-$out = Join-Path $root 'salamander\Release_x64'
+$out = Join-Path $root 'newtcommander\Release_x64'
 Get-ChildItem -Path $out -Recurse -Filter 'russian.slg'      # expect: nothing
 (Get-ChildItem -Path "$out\lang" -Filter '*.slg').Count      # expect: 9 (8 + english)
 (Get-ChildItem -Path $out -Recurse -Filter '*.slg').Count    # expect: 180 (20 modules x 9)

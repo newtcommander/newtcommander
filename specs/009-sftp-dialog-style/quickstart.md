@@ -16,7 +16,7 @@ build.cmd rebuild
 
 Use `rebuild` (clean) so no stale plugin binary masks the result. Confirm `BUILD SUCCEEDED`
 and that a fresh `sftp.spl` and `english.slg` are produced under
-`build\salamander\Debug_x64\plugins\sftp\`.
+`build\newtcommander\Debug_x64\plugins\sftp\`.
 
 ## Verify — primary acceptance (focused text field)
 

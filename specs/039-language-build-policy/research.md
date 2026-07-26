@@ -61,7 +61,7 @@ policy stage (V3); only *production* stays in `build_langs`.
 
 ### V5 — Output lang directories contain nothing but `.slg`
 
-`build/salamander/Release_x64/lang/` and each of the 19
+`build/newtcommander/Release_x64/lang/` and each of the 19
 `plugins/<name>/lang/` directories hold exactly 12 files: `english.slg` plus one
 per language. `build_langs.ps1:304-312` already sweeps `*.bak` out of them.
 

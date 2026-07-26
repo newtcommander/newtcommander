@@ -55,7 +55,7 @@ Represents a build mode combination.
 | Runtime Library | CRT linkage | MultiThreadedDebugDLL |
 | ASLR | Address randomization | Disabled (debug) |
 | Code Signing | Post-build signing | No (debug) / Yes (release) |
-| Output Dir | Build output path | $(OPENSAL_BUILD_DIR)salamander\Debug_x64\ |
+| Output Dir | Build output path | $(OPENSAL_BUILD_DIR)newtcommander\Debug_x64\ |
 
 **Count**: 6 configurations (3 types × 2 platforms)
 

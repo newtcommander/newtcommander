@@ -20,7 +20,7 @@ Build only the plugin (faster iteration), Debug x64:
 ```bat
 msbuild src\vcxproj\salamand.sln /t:mdview /p:Configuration=Debug /p:Platform=x64 /m
 ```
-Output: `%OPENSAL_BUILD_DIR%salamander\Debug_x64\plugins\mdview\mdview.spl`.
+Output: `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\plugins\mdview\mdview.spl`.
 > If a running Salamander has the Debug mdview.spl loaded, relink fails
 > (LNK1104) — close that instance first. The user's separate Release build does
 > not lock the Debug output.

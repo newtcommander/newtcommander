@@ -12,7 +12,7 @@ build.cmd full                            :: Debug x64 + runtime data (deploys t
 Unit tests (includes the new `TestDarkIconColorAdaptation` suite):
 
 ```batch
-"%OPENSAL_BUILD_DIR%salamander\Debug_x64\saltests.exe"
+"%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\saltests.exe"
 :: expected: "saltests: N checks, 0 failed"
 ```
 

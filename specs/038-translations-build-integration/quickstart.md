@@ -49,7 +49,7 @@ src\vcxproj\build_langs.cmd --export-templates
 For each enabled module this seeds a scratch `.slg` from `english.slg`, emits an
 `.atp`, and runs `-quiet-export-slt`. The result is a current-structure,
 English-text `.slt` per module under
-`%OPENSAL_BUILD_DIR%salamander\translator\templates\`.
+`%OPENSAL_BUILD_DIR%newtcommander\translator\templates\`.
 
 These are **not** committed — they are the skeleton stage 2 fills.
 
@@ -129,7 +129,7 @@ src\vcxproj\build_langs.cmd --language czech --module sftp
 ## Verifying the result
 
 ```bat
-%OPENSAL_BUILD_DIR%salamander\Debug_x64\newtcommander.exe
+%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\newtcommander.exe
 ```
 
 1. **First run** — the language chooser lists **12** entries with readable names

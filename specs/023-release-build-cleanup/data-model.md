@@ -9,7 +9,7 @@ MSBuild build properties and output-tree locations the change governs.
 
 | Property | Meaning | Before | After (Release) |
 |----------|---------|--------|-----------------|
-| `OutDir` | Final output directory of a project | `…\salamander\Release_x64\…` | **unchanged** |
+| `OutDir` | Final output directory of a project | `…\newtcommander\Release_x64\…` | **unchanged** |
 | `IntDir` | Intermediate (obj/PCH/tlog) directory | `$(OutDir)Intermediate\…` (inside the output tree) | `…\obj\Release_x64\…\Intermediate\…` (outside the output tree) |
 | `Configuration` | Build configuration | — | condition key: change applies only when `Release` |
 | `ShortPlatform` | `x64` / `x86` | — | part of both output and obj roots |

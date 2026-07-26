@@ -14,7 +14,7 @@ post-build sweep runs for any Release build.)
 
 ## Acceptance checks
 
-Let `OUT = %OPENSAL_BUILD_DIR%salamander\Release_x64`.
+Let `OUT = %OPENSAL_BUILD_DIR%newtcommander\Release_x64`.
 
 ### SC-001 — no `Intermediate` directory anywhere in the Release tree
 
@@ -61,14 +61,14 @@ build.cmd
 ```
 
 ```powershell
-$DBG = "$env:OPENSAL_BUILD_DIR" + 'salamander\Debug_x64'
+$DBG = "$env:OPENSAL_BUILD_DIR" + 'newtcommander\Debug_x64'
 Test-Path (Join-Path $DBG 'Intermediate')  # True
 Test-Path (Join-Path $DBG 'saltests')      # True
 ```
 
 ### SC-006 — unit tests still build & run in Debug
 
-The Debug build produces `…\salamander\Debug_x64\saltests\saltests.exe`; run it
+The Debug build produces `…\newtcommander\Debug_x64\saltests\saltests.exe`; run it
 and confirm the tests pass.
 
 ## Where do the intermediates live now?

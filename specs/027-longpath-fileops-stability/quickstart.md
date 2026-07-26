@@ -14,7 +14,7 @@ relink with LNK1104 — close the app first.
 ## Tests
 
 - `saltests` builds with the Debug solution; run:
-  `& 'E:\Projects\salamander\build\salamander\Debug_x64\saltests\saltests.exe'`
+  `& 'E:\Projects\salamander\build\newtcommander\Debug_x64\saltests\saltests.exe'`
   (exit code = failed checks; feature 027 = **427 checks, 0 failed**).
   New 027 tests: wide DROPFILES build/parse round-trip with >260 Czech
   paths, path canonicalization pre-scan equivalence. (saltests is excluded

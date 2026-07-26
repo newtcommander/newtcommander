@@ -13,7 +13,7 @@
 
 **Purpose**: Confirm a green starting point so regressions are attributable.
 
-- [X] T001 Build baseline: run `build.cmd` (Debug x64) from repo root and run `%OPENSAL_BUILD_DIR%salamander\Debug_x64\saltests.exe`; record clean build + "0 failed" (482 checks) before any change — DONE: build clean, saltests 482/0 (exe at build\salamander\Debug_x64\saltests\saltests.exe)
+- [X] T001 Build baseline: run `build.cmd` (Debug x64) from repo root and run `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\saltests.exe`; record clean build + "0 failed" (482 checks) before any change — DONE: build clean, saltests 482/0 (exe at build\newtcommander\Debug_x64\saltests\saltests.exe)
 
 ---
 
@@ -46,8 +46,8 @@ to Dark, audit all toolbars + Find window + menus; no dark-blob glyphs.
 - [X] T007 [US1] `src/svg.cpp`: dark override probe in `RenderSVGImage()` — when `IsDarkThemeActive()`, first try `<exe>\toolbars\dark\<svgName>.svg` via the existing `ReadSVGFile()`; if it loads+parses, rasterize verbatim (skip T006 adaptation); on any failure fall back silently (TRACE_I) to the standard SVG + adaptation; never consulted in Default theme (per contracts/dark-icon-override.md)
 - [X] T008 [P] [US1] `git mv src/res/toolbars/CilpboardCut.svg src/res/toolbars/ClipboardCut.svg` — fixes silent SVG miss for the Cut button (`ToolBarButtons[]` references "ClipboardCut", src/toolbar4.cpp:182)
 - [X] T009 [P] [US1] Create `src/res/toolbars/dark/README.txt` — short English summary of the override contract (naming = standard glyph base name, dark-theme-only, verbatim use, fallback chain, design target background RGB(45,45,45)); anchors the directory in git
-- [X] T010 [US1] `src/vcxproj/!populate_build_dir.cmd`: after the existing toolbars copy (line 116), add `call :mycopy_dir ..\res\toolbars\dark "%OPENSAL_BUILD_DIR%salamander\%1\toolbars\dark\"` (same helper/error semantics as the toolbars line) — DONE; additionally the primary deploy path `build.cmd :populate_runtime` (root, line 268) got `/E` on the toolbars robocopy so `dark\` deploys in `build.cmd full` (the populate script is the legacy interactive path)
-- [X] T011 [US1] Run `build.cmd full` (Debug x64) and verify deploy: `toolbars\ClipboardCut.svg` and `toolbars\dark\README.txt` exist under `%OPENSAL_BUILD_DIR%salamander\Debug_x64\`; app starts (smoke) — DONE: build succeeded, both files deployed, app started and was cleanly terminated
+- [X] T010 [US1] `src/vcxproj/!populate_build_dir.cmd`: after the existing toolbars copy (line 116), add `call :mycopy_dir ..\res\toolbars\dark "%OPENSAL_BUILD_DIR%newtcommander\%1\toolbars\dark\"` (same helper/error semantics as the toolbars line) — DONE; additionally the primary deploy path `build.cmd :populate_runtime` (root, line 268) got `/E` on the toolbars robocopy so `dark\` deploys in `build.cmd full` (the populate script is the legacy interactive path)
+- [X] T011 [US1] Run `build.cmd full` (Debug x64) and verify deploy: `toolbars\ClipboardCut.svg` and `toolbars\dark\README.txt` exist under `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\`; app starts (smoke) — DONE: build succeeded, both files deployed, app started and was cleanly terminated
 
 **Checkpoint**: Dark theme shows adapted glyphs everywhere the shared icon
 set is used (toolbars, menus, Find) — GUI audit per quickstart is the

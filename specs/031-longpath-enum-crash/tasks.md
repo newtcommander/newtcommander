@@ -13,7 +13,7 @@
 
 **Purpose**: Green baseline before any change
 
-- [X] T001 Verify baseline: `build.cmd` (Debug x64) succeeds and `build\salamander\Debug_x64\saltests\saltests.exe` reports 0 failed (record check count)
+- [X] T001 Verify baseline: `build.cmd` (Debug x64) succeeds and `build\newtcommander\Debug_x64\saltests\saltests.exe` reports 0 failed (record check count)
 - [X] T002 Verify the repro directory exists (`D:\Temp\ýášřtščýáíf …`, 215 chars); if missing, recreate per quickstart.md
 
 **Checkpoint**: baseline green, repro available

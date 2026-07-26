@@ -146,7 +146,7 @@ validation succeeded"*.
 ## R7: `.atp` project files must be generated
 
 The Translator projects lived outside the repo, under
-`%OPENSAL_BUILD_DIR%salamander\translator\Salamand 4.0\projects\<lang>\<module>.atp`
+`%OPENSAL_BUILD_DIR%newtcommander\translator\Salamand 4.0\projects\<lang>\<module>.atp`
 (per `translations/!update_langs_from_translator.bat`, itself marked *"outdated =
 needs to be fixed before using again"*).
 

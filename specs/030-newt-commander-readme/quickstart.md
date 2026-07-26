@@ -46,7 +46,7 @@ Optionally the full path a fresh reader would take:
 
 ```batch
 build.cmd full          :: complete Debug build incl. plugins + runtime data
-%OPENSAL_BUILD_DIR%salamander\Debug_x64\salamand.exe   :: application starts
+%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\salamand.exe   :: application starts
 ```
 
 Expected: every command behaves exactly as the README describes; the running application

@@ -9,7 +9,7 @@
 
 ### User Story 1 - Release output free of intermediate build artifacts (Priority: P1)
 
-As someone producing a Release build of Open Salamander, when I run the release build the resulting output directory (`…\salamander\Release_x64\`) must not contain any `Intermediate` directory — neither the top-level one nor the nested ones inside plugins, language modules, and helper projects. Intermediate compilation artifacts (object files, precompiled headers, incremental-link state) are build-time scaffolding and have no place in a distributable release layout.
+As someone producing a Release build of Open Salamander, when I run the release build the resulting output directory (`…\newtcommander\Release_x64\`) must not contain any `Intermediate` directory — neither the top-level one nor the nested ones inside plugins, language modules, and helper projects. Intermediate compilation artifacts (object files, precompiled headers, incremental-link state) are build-time scaffolding and have no place in a distributable release layout.
 
 **Why this priority**: This is the core of the request and delivers the primary value — a clean, ship-ready release output. It is independently valuable even if nothing else changes.
 
@@ -75,7 +75,7 @@ As a developer iterating in the Debug configuration, my Debug build must keep it
 
 ### Key Entities *(include if feature involves data)*
 
-- **Release output directory tree**: the folder `…\salamander\Release_x64\` and everything beneath it — the artifact whose cleanliness this feature governs.
+- **Release output directory tree**: the folder `…\newtcommander\Release_x64\` and everything beneath it — the artifact whose cleanliness this feature governs.
 - **Intermediate artifacts**: object files, precompiled headers, and incremental-link/build state produced during compilation; build-time only, never a runtime deliverable.
 - **saltests output**: the unit-test executable and its build artifacts; a development/CI asset, not a shipping deliverable.
 

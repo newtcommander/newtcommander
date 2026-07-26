@@ -16,7 +16,7 @@ a rasterizuje**:
 
 - **Kopírování do buildu**: `src\vcxproj\!populate_build_dir.cmd:115-116`
   kopíruje (robocopy) `src\res\toolbars\` do
-  `<build>\salamander\<Config>\toolbars\` vedle `salamand.exe`. SVG nejsou
+  `<build>\newtcommander\<Config>\toolbars\` vedle `salamand.exe`. SVG nejsou
   součástí `.vcxproj` ani zdrojů (.rc) — jsou to čistě runtime soubory.
 - **Runtime loader**: `RenderSVGImage()` v `src\svg.cpp:92` sestaví cestu
   `<adresář exe>\toolbars\<jméno>.svg` (svg.cpp:94-98), soubor načte,

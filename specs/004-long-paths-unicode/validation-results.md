@@ -10,7 +10,7 @@ invisible to compile-time and unit-level checks.
 
 ## Automated unit tests (foundation layer)
 
-`build\salamander\Debug_x64\saltests\saltests.exe` — **403 checks, 0 failed**.
+`build\newtcommander\Debug_x64\saltests\saltests.exe` — **403 checks, 0 failed**.
 
 Covers: strict UTF-8↔UTF-16 conversion (NFD sequences, non-BMP, invalid input),
 NFC normalization, canonical-equivalence and case-insensitive matching,

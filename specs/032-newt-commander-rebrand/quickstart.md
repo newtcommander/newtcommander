@@ -7,7 +7,7 @@ build.cmd            :: Debug x64 incremental (repo root)
 build.cmd full       :: + runtime data (convert, toolbars, plugins.ver)
 ```
 
-Output: `%OPENSAL_BUILD_DIR%\salamander\Debug_x64\newtcommander.exe` (directory
+Output: `%OPENSAL_BUILD_DIR%\newtcommander\Debug_x64\newtcommander.exe` (directory
 names unchanged — only the binary is renamed).
 
 ## Regenerating icon assets (only when the visual identity changes)

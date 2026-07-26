@@ -16,7 +16,7 @@
 
 **Purpose**: Confirm a healthy starting point so every later diff is attributable to this feature.
 
-- [x] T001 Run baseline `build.cmd rebuild full` on a clean working tree; confirm BUILD SUCCEEDED and record the reported plugin count (expected 35 registered in plugins.ver) and output layout under `%OPENSAL_BUILD_DIR%salamander\Debug_x64\` for later comparison
+- [x] T001 Run baseline `build.cmd rebuild full` on a clean working tree; confirm BUILD SUCCEEDED and record the reported plugin count (expected 35 registered in plugins.ver) and output layout under `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\` for later comparison
 
 ---
 

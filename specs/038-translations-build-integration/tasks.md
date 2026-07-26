@@ -25,7 +25,7 @@ verified independently.
 ## Path Conventions
 
 Repository root is `E:\Projects\newtcommander`. Build output goes to
-`%OPENSAL_BUILD_DIR%salamander\<Config>_<Platform>\`. Committed translation
+`%OPENSAL_BUILD_DIR%newtcommander\<Config>_<Platform>\`. Committed translation
 source lives in `translations/`; offline tooling in `tools/translate/`; build
 scripts in `src/vcxproj/`.
 
@@ -65,7 +65,7 @@ a language module without this.
 - [X] T009 Create `src/vcxproj/build_langs.cmd` — parse `translations/languages.cfg` and `plugins.cfg`, enumerate the (module × language) matrix, validate that every `languages.cfg` folder exists under `translations/` and every LANGID is unique, failing the build with a clear message otherwise
 - [X] T010 Add target seeding to `src/vcxproj/build_langs.cmd` — copy `english.slg` to `<language>.slg` in the module's `lang` output directory before every import (satisfies the `CopyFile` precondition in `CData::Save()` and gives the target `SLGCRCofImpSLT="none"`, which suppresses the only modal prompt on the quiet-import path)
 - [X] T011 Add the guarded `translator.exe` invoker to `src/vcxproj/build_langs.cmd` — treat **`ERRORLEVEL == 1` as success**, run every invocation under a 30 s timeout, kill the process on timeout, and report failures naming the (language, module) pair
-- [X] T012 Add `--export-templates` mode to `src/vcxproj/build_langs.cmd` — for each module, seed a scratch `.slg`, emit an `.atp`, and run `-quiet-export-slt` into `%OPENSAL_BUILD_DIR%salamander\translator\templates\<module>.slt`
+- [X] T012 Add `--export-templates` mode to `src/vcxproj/build_langs.cmd` — for each module, seed a scratch `.slg`, emit an `.atp`, and run `-quiet-export-slt` into `%OPENSAL_BUILD_DIR%newtcommander\translator\templates\<module>.slt`
 - [X] T013 [P] Create `src/vcxproj/verify_slg.ps1` — read `VS_FIXEDFILEINFO.dwFileVersionMS/LS` from each produced `.slg` and compare against its owning binary (`newtcommander.exe` or `<name>.spl`), failing the build on mismatch (FR-026)
 - [X] T014 Add `.bak` cleanup for the output `lang` directories to `src/vcxproj/build_langs.cmd` (the Translator leaves one per import)
 

@@ -7,7 +7,7 @@ set OPENSAL_BUILD_DIR=D:\Build\OpenSal\
 build.cmd full              :: Debug x64 + runtime data + plugins.ver
 ```
 
-Run `%OPENSAL_BUILD_DIR%salamander\Debug_x64\salamand.exe`.
+Run `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\salamand.exe`.
 (Beware: a locally installed Salamander 4.0 shares the process name —
 make sure you are testing the freshly built binary.)
 

@@ -5,7 +5,7 @@
 
 ## Summary
 
-The Release output tree (`…\salamander\Release_x64\`) is polluted with build
+The Release output tree (`…\newtcommander\Release_x64\`) is polluted with build
 scaffolding — `Intermediate\` directories at every level plus the `saltests\`
 test-binary directory — none of which belong in a shippable release. This plan
 keeps that tree clean by: (1) relocating every salamander-tree project's `IntDir`

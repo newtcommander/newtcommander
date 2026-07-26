@@ -230,7 +230,7 @@ Document the complete build-to-executable flow.
 
 ### Output Structure
 ```
-%OPENSAL_BUILD_DIR%salamander/
+%OPENSAL_BUILD_DIR%newtcommander/
 ├── Debug_x86/           (or Release_x86, Debug_x64, Release_x64)
 │   ├── salamand.exe     (main application)
 │   ├── lang/english.slg (main language)

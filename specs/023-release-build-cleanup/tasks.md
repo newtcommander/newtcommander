@@ -21,7 +21,7 @@ halves of a clean release tree); US3 is a P2 guardrail.
 
 **Purpose**: Baseline for before/after verification.
 
-- [x] T001 Set `OPENSAL_BUILD_DIR`, locate VS2022 MSBuild via `vswhere`, and record a baseline listing of all `Intermediate` directories and the `saltests` directory currently present under `build\salamander\Release_x64\` (for before/after comparison).
+- [x] T001 Set `OPENSAL_BUILD_DIR`, locate VS2022 MSBuild via `vswhere`, and record a baseline listing of all `Intermediate` directories and the `saltests` directory currently present under `build\newtcommander\Release_x64\` (for before/after comparison).
 
 ---
 
@@ -31,9 +31,9 @@ halves of a clean release tree); US3 is a P2 guardrail.
 
 **Independent Test**: After a Release build, `Get-ChildItem $OUT -Directory -Recurse -Filter Intermediate` returns nothing; a second incremental Release build does not full-recompile.
 
-- [x] T002 [US1] Create `src/Directory.Build.targets` that, for `Configuration=Release` only, relocates `IntDir` outside the output tree by rewriting the root segment: `$(IntDir.Replace('salamander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))`. Include an explanatory comment. (Debug untouched; no-op for non-salamander-tree projects.)
+- [x] T002 [US1] Create `src/Directory.Build.targets` that, for `Configuration=Release` only, relocates `IntDir` outside the output tree by rewriting the root segment: `$(IntDir.Replace('newtcommander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))`. Include an explanatory comment. (Debug untouched; no-op for non-salamander-tree projects.)
 - [x] T003 [US1] Add a Release-only post-build sweep to `build.cmd` that, after a successful build, removes any residual `Intermediate` directories (recursively) **and** the `saltests` directory from `%OUT_DIR%` (the output tree). Gate on `%BUILD_CONFIG%`=="Release" so Debug keeps its `Intermediate`. (This task also satisfies US2's residual-`saltests` cleanup — single shared edit to `build.cmd`.)
-- [x] T004 [US1] Verify with `MSBuild <proj> -getProperty:IntDir -p:Configuration=Release -p:Platform=x64` for `salamand`, a plugin, a plugin `lang_*`, and `salmon` that IntDir now resolves under `obj\Release_x64\…`; and with `-p:Configuration=Debug` that `salamand`/plugin IntDir is unchanged (`salamander\Debug_x64\…\Intermediate\`).
+- [x] T004 [US1] Verify with `MSBuild <proj> -getProperty:IntDir -p:Configuration=Release -p:Platform=x64` for `salamand`, a plugin, a plugin `lang_*`, and `salmon` that IntDir now resolves under `obj\Release_x64\…`; and with `-p:Configuration=Debug` that `salamand`/plugin IntDir is unchanged (`newtcommander\Debug_x64\…\Intermediate\`).
 
 **Checkpoint**: Release build produces no `Intermediate` dirs; Debug IntDir unchanged.
 
@@ -58,7 +58,7 @@ halves of a clean release tree); US3 is a P2 guardrail.
 
 **Independent Test**: After a Debug build, `Test-Path $DBG\Intermediate` and `Test-Path $DBG\saltests` are both `True`.
 
-- [x] T007 [US3] Verify a Debug build (`build.cmd`) is structurally unchanged: `salamander\Debug_x64\Intermediate\` and `salamander\Debug_x64\saltests\` still present, and `saltests.exe` runs. (Guardrail — satisfied by the Release-only conditions in T002/T003/T005; no code change.)
+- [x] T007 [US3] Verify a Debug build (`build.cmd`) is structurally unchanged: `newtcommander\Debug_x64\Intermediate\` and `newtcommander\Debug_x64\saltests\` still present, and `saltests.exe` runs. (Guardrail — satisfied by the Release-only conditions in T002/T003/T005; no code change.)
 
 ---
 
@@ -66,7 +66,7 @@ halves of a clean release tree); US3 is a P2 guardrail.
 
 **Purpose**: Full acceptance run against Success Criteria.
 
-- [x] T008 Clean Release build (`build.cmd rebuild release`, or `build.cmd full release`); then run quickstart checks SC-001 (no `Intermediate`) and SC-002 (no `saltests`) against `build\salamander\Release_x64\`.
+- [x] T008 Clean Release build (`build.cmd rebuild release`, or `build.cmd full release`); then run quickstart checks SC-001 (no `Intermediate`) and SC-002 (no `saltests`) against `build\newtcommander\Release_x64\`.
 - [x] T009 [P] Verify SC-003: all runtime deliverables still present (`salamand.exe`, `salamand.pdb`, `lang\english.slg`, `plugins\*.spl`, `plugins\plugins.ver`, `convert\`, `toolbars\`, `utils\`).
 - [x] T010 Verify SC-004: run `build.cmd release` twice; the second run is a fast incremental build (no full recompilation) — confirming the relocated `obj\` cache is reused.
 - [x] T011 [P] Verify SC-005/SC-006: Debug output unchanged and `saltests.exe` (Debug) builds/runs.

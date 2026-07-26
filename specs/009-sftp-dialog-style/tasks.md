@@ -28,7 +28,7 @@ Existing WinAPI repository; changes confined to `src/plugins/sftp/` and
 **Purpose**: Establish a clean, known baseline to test against.
 
 - [X] T001 Confirm the working branch is `009-sftp-dialog-style` and the initial fix is present: no `ICC_STANDARD_CLASSES` in `src/plugins/sftp/sftp.cpp`, and `DS_SHELLFONT` (`DS_SETFONT | DS_FIXEDSYS`) on every dialog in `src/plugins/sftp/lang/lang.rc2`. — CONFIRMED: sftp.cpp:101 = `ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES`; 8/8 dialogs have DS_FIXEDSYS.
-- [X] T002 Produce a clean baseline build with `build.cmd rebuild` and confirm success plus fresh `sftp.spl` and `english.slg` under `build\salamander\Debug_x64\plugins\sftp\`. — DONE: BUILD SUCCEEDED, 0 errors; fresh artifacts 21:13.
+- [X] T002 Produce a clean baseline build with `build.cmd rebuild` and confirm success plus fresh `sftp.spl` and `english.slg` under `build\newtcommander\Debug_x64\plugins\sftp\`. — DONE: BUILD SUCCEEDED, 0 errors; fresh artifacts 21:13.
 
 ---
 

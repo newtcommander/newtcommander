@@ -8,12 +8,12 @@ build.cmd                 :: Debug x64 incremental (also builds saltests)
 build.cmd full release    :: Release x64 (the configuration the user runs)
 ```
 
-Outputs: `build\salamander\Debug_x64\` and `build\salamander\Release_x64\`.
+Outputs: `build\newtcommander\Debug_x64\` and `build\newtcommander\Release_x64\`.
 
 ## Automated tests
 
 ```powershell
-& '.\build\salamander\Debug_x64\saltests\saltests.exe'
+& '.\build\newtcommander\Debug_x64\saltests\saltests.exe'
 # expected: "saltests: <N> checks, 0 failed", exit code 0
 ```
 
@@ -32,7 +32,7 @@ build.
 The original reproduction directory (verified to exist):
 `D:\Temp\ýášřtščýáíf buaweýáh …` (215 chars, 330 UTF-8 bytes).
 
-1. Start `build\salamander\Release_x64\salamand.exe`.
+1. Start `build\newtcommander\Release_x64\salamand.exe`.
 2. Navigate a panel to `D:\Temp` (the crash used to fire on first paint).
 3. Switch view modes: Brief, Detailed, Icons, Thumbnails, Tiles (sites 1–3,
    7–8) — panel must stay responsive, name rendered in full.

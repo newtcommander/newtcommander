@@ -6,7 +6,7 @@
 
 Five fresh WER crash dumps from the user's machine, all from today
 (2026-07-23 10:40–10:48), all of process
-`D:\Projects\newtcommander\build\salamander\Release_x64\salamand.exe`
+`D:\Projects\newtcommander\build\newtcommander\Release_x64\salamand.exe`
 (the current Release x64 build, PDB matches bit-for-bit).
 
 Newest dump `salamand.exe.61172.dmp` analyzed with DbgEng against the local

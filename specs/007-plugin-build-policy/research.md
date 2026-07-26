@@ -101,7 +101,7 @@ check self-adapts when future plugins are added.
 
 **Decision**: On every `build.cmd` run, after successful validation
 and *before* MSBuild, the helper deletes
-`%OPENSAL_BUILD_DIR%salamander\<Config>_<Platform>\plugins\<name>\`
+`%OPENSAL_BUILD_DIR%newtcommander\<Config>_<Platform>\plugins\<name>\`
 for every disabled plugin and for any leftover directory not matching
 an existing plugin (covers the 8 removed ones). If a `plugins.ver`
 exists in the output, its entry lines for non-enabled plugins are

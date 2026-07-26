@@ -44,9 +44,9 @@ Run `build.cmd` and verify:
 ### 2. Output files exist
 
 Check that these files exist in the build directory:
-- `%OPENSAL_BUILD_DIR%salamander\Debug_x64\salamand.exe`
-- `%OPENSAL_BUILD_DIR%salamander\Debug_x64\lang\english.slg`
-- At least one plugin: `%OPENSAL_BUILD_DIR%salamander\Debug_x64\plugins\zip\zip.spl`
+- `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\salamand.exe`
+- `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\lang\english.slg`
+- At least one plugin: `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\plugins\zip\zip.spl`
 
 ### 3. Application launches
 

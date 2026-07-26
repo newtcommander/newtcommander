@@ -5,7 +5,7 @@
 
 ## Problem restatement
 
-The Release output tree `…\salamander\Release_x64\` currently contains build
+The Release output tree `…\newtcommander\Release_x64\` currently contains build
 scaffolding that is not part of a shippable release:
 
 - **`Intermediate` directories** at many levels (verified in the current output):
@@ -40,13 +40,13 @@ so incremental builds stay fast.
 
 **Decision**: Add one file `src/Directory.Build.targets` that, for Release only,
 sets:
-`IntDir = $(IntDir.Replace('salamander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))`.
+`IntDir = $(IntDir.Replace('newtcommander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))`.
 
 **Rationale**:
 - MSBuild imports `Directory.Build.targets` **after** every project's property
   sheets (via `Microsoft.Cpp.targets` → `Microsoft.Common.targets`), so this
   assignment wins over the `$(OutDir)Intermediate\` value set in the `*.props`.
-- Rewriting only the **root segment** (`salamander\<cfg>_<plat>\` → `obj\<cfg>_<plat>\`)
+- Rewriting only the **root segment** (`newtcommander\<cfg>_<plat>\` → `obj\<cfg>_<plat>\`)
   preserves each project's existing, already-unique relative sub-path. This is
   collision-proof — important because project **names are not unique**
   (`portables` and `lang_portables` each appear twice), so a naive
@@ -69,8 +69,8 @@ sets:
 | `salmon` | Release x64 | `obj\Release_x64\…\plugins\Intermediate\salmon\Intermediate\` ✅ (outside tree) |
 | `saltests` | Release x64 | `obj\Release_x64\saltests\Intermediate\` ✅ |
 | `setup` | Release x64 | `setup\Release_x64\Intermediate\` ✅ **unchanged** (no-op) |
-| `salamand` | **Debug** x64 | `salamander\Debug_x64\Intermediate\` ✅ **unchanged** |
-| `zip` | **Debug** x64 | `salamander\Debug_x64\plugins\zip\Intermediate\` ✅ **unchanged** |
+| `salamand` | **Debug** x64 | `newtcommander\Debug_x64\Intermediate\` ✅ **unchanged** |
+| `zip` | **Debug** x64 | `newtcommander\Debug_x64\plugins\zip\Intermediate\` ✅ **unchanged** |
 
 The mechanism works exactly as designed and does not touch Debug.
 

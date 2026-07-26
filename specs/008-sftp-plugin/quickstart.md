@@ -27,7 +27,7 @@ build.cmd            :: incremental Debug x64 — sftp builds because plugins.cf
 build.cmd full       :: also regenerates plugins\plugins.ver so the plugin auto-registers
 ```
 
-Output: `%OPENSAL_BUILD_DIR%salamander\Debug_x64\plugins\sftp\sftp.spl`
+Output: `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\plugins\sftp\sftp.spl`
 (+ `lang\english.slg`). Run Salamander from the build dir; the plugin
 appears in Plugin Manager and as an item in the Alt+F1/F2 menu.
 

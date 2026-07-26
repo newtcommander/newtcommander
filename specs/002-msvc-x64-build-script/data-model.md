@@ -32,11 +32,11 @@ the script's interface and behavior.
 
 | Artifact | Path | Description |
 |----------|------|-------------|
-| Main executable | `%OPENSAL_BUILD_DIR%salamander\Debug_x64\salamand.exe` | Open Salamander application |
-| Main language | `%OPENSAL_BUILD_DIR%salamander\Debug_x64\lang\english.slg` | English UI resources |
-| Plugins | `%OPENSAL_BUILD_DIR%salamander\Debug_x64\plugins\*\*.spl` | 35 plugin DLLs |
-| Plugin languages | `%OPENSAL_BUILD_DIR%salamander\Debug_x64\plugins\*\lang\english.slg` | Plugin UI resources |
-| Utilities | `%OPENSAL_BUILD_DIR%salamander\...\` | salopen, salspawn, salmon, tserver, etc. |
+| Main executable | `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\salamand.exe` | Open Salamander application |
+| Main language | `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\lang\english.slg` | English UI resources |
+| Plugins | `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\plugins\*\*.spl` | 35 plugin DLLs |
+| Plugin languages | `%OPENSAL_BUILD_DIR%newtcommander\Debug_x64\plugins\*\lang\english.slg` | Plugin UI resources |
+| Utilities | `%OPENSAL_BUILD_DIR%newtcommander\...\` | salopen, salspawn, salmon, tserver, etc. |
 
 ## Entity: Build Summary
 
@@ -47,4 +47,4 @@ Displayed at script completion:
 | Status | "BUILD SUCCEEDED" or "BUILD FAILED" |
 | Duration | "Build time: 3 minutes 42 seconds" |
 | Configuration | "Configuration: Debug x64" |
-| Output directory | "Output: D:\Build\OpenSal\salamander\Debug_x64\" |
+| Output directory | "Output: D:\Build\OpenSal\newtcommander\Debug_x64\" |
