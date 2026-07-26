@@ -48,6 +48,61 @@ char* SalWToU8Alloc(const WCHAR* src, int srcLen = -1);
 
 //*****************************************************************************
 //
+// SalU8ToWDisplay
+//
+// LENIENT UTF-8 -> UTF-16 conversion, for DISPLAY ONLY (feature 041).
+//
+// Unlike SalU8ToW, malformed input does not fail: each offending byte becomes
+// U+FFFD and conversion continues. Use this only where the result is drawn and
+// then discarded.
+//
+// NEVER use it on a value that will be written back into a name, a path, or
+// anything persisted - substituting characters there would corrupt user data,
+// which is exactly what the strict variant above exists to prevent.
+//
+// Rationale: a display surface that composes several fields into one string
+// must not let one bad field destroy the others. Strict conversion turns a
+// single stray byte into a whole unreadable line; this turns it into a single
+// visible replacement character.
+//
+// Return Values
+//   Number of WCHARs written including the terminating null (or the required
+//   size when buf == NULL); 0 only when src is NULL or the buffer is too small.
+//
+int SalU8ToWDisplay(const char* src, int srcLen, WCHAR* buf, int bufSize);
+
+// Allocating variant; caller releases with free(). NULL only when src is NULL
+// or the allocation fails - never because the input was malformed.
+WCHAR* SalU8ToWDisplayAlloc(const char* src, int srcLen = -1);
+
+//*****************************************************************************
+//
+// Locale text as UTF-8 (feature 041)
+//
+// The application's narrow strings are UTF-8. These wrappers close the last
+// hole in that rule: text obtained from the user's regional settings. Each
+// calls the W variant of the underlying API and converts the result to UTF-8,
+// so callers get text in the same encoding as everything else they concatenate
+// it with.
+//
+// Before feature 041 the ANSI variants were called directly, and their output
+// - the Czech thousands separator is a non-breaking space, one 0xA0 byte -
+// made the composed string invalid UTF-8. Every non-ASCII character in the
+// information line was then rendered through the legacy byte path as mojibake.
+//
+// Return Values
+//   Number of BYTES written including the terminating null, or 0 on failure -
+//   matching the A functions these replace, so existing "== 0" checks and
+//   "- 1" length arithmetic keep working (the value is a byte count in both).
+//
+int SalGetLocaleInfoU8(LCID locale, LCTYPE lcType, char* u8Buf, int u8BufSize);
+int SalGetDateFormatU8(LCID locale, DWORD flags, const SYSTEMTIME* date,
+                       const char* u8Format, char* u8Buf, int u8BufSize);
+int SalGetTimeFormatU8(LCID locale, DWORD flags, const SYSTEMTIME* time,
+                       const char* u8Format, char* u8Buf, int u8BufSize);
+
+//*****************************************************************************
+//
 // SalWToACPLossless
 //
 // Convert UTF-16 to the system legacy ANSI code page WITHOUT best-fit

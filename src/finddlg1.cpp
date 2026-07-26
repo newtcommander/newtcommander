@@ -120,7 +120,7 @@ char* CFoundFilesData::GetText(int i, char* text, int fileNameFormat)
         if (FileTimeToLocalFileTime(&LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
         {
-            if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) == 0)
+            if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
         }
         else
@@ -135,7 +135,7 @@ char* CFoundFilesData::GetText(int i, char* text, int fileNameFormat)
         if (FileTimeToLocalFileTime(&LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
         {
-            if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
+            if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
         }
         else
@@ -1212,10 +1212,10 @@ BOOL CFoundFilesListView::InitColumns()
     st.wHour = 10;   // morning (not sure whether AM or PM will be shorter, so try both)
     st.wMinute = 59; // the longest possible value
     st.wSecond = 59; // the longest possible value
-    if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, format1, 200) == 0)
+    if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, format1, 200) == 0)
         sprintf(format1, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
     st.wHour = 20; // afternoon
-    if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, format2, 200) == 0)
+    if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, format2, 200) == 0)
         sprintf(format2, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
 
     int maxWidth = ListView_GetStringWidth(HWindow, format1);
@@ -1225,7 +1225,7 @@ BOOL CFoundFilesListView::InitColumns()
     ListView_SetColumnWidth(HWindow, 4, maxWidth + 20);
 
     maxWidth = 0;
-    if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) == 0)
+    if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) == 0)
         sprintf(format1, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
     else
     {
@@ -1243,7 +1243,7 @@ BOOL CFoundFilesListView::InitColumns()
             {
                 st.wDay = sats[mo];
                 st.wMonth = 1 + mo;
-                if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) != 0)
+                if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) != 0)
                 {
                     w = ListView_GetStringWidth(HWindow, format1);
                     if (w > maxWidth)
@@ -1258,7 +1258,7 @@ BOOL CFoundFilesListView::InitColumns()
                 st.wMonth = maxMonth;
                 for (st.wDay = 21; st.wDay < 28; st.wDay++) // all possible weekdays (doesn't have to start on Monday)
                 {
-                    if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) != 0)
+                    if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, format1, 200) != 0)
                     {
                         w = ListView_GetStringWidth(HWindow, format1);
                         if (w > maxWidth)
@@ -4166,7 +4166,24 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
                 if (info->item.mask & LVIF_IMAGE)
                     info->item.iImage = item->IsDir ? 0 : 1;
                 if (info->item.mask & LVIF_TEXT)
-                    info->item.pszText = item->GetText(info->item.iSubItem, FoundFilesDataTextBuffer, FileNameFormat);
+                {
+                    // feature 041: GetText() returns UTF-8; this is the ANSI
+                    // notification, so transcode instead of handing the raw
+                    // bytes over. Without this the locale thousands separator
+                    // (UTF-8 since feature 041) showed up as "2<A0>055".
+                    char* u8 = item->GetText(info->item.iSubItem, FoundFilesDataTextBuffer, FileNameFormat);
+                    if (u8 != NULL && !SalIsASCII(u8))
+                    {
+                        WCHAR wide[1024];
+                        if (SalU8ToW(u8, -1, wide, _countof(wide)) != 0)
+                        {
+                            static char ansi[1024];
+                            if (WideCharToMultiByte(CP_ACP, 0, wide, -1, ansi, _countof(ansi), NULL, NULL) > 0)
+                                u8 = ansi;
+                        }
+                    }
+                    info->item.pszText = u8;
+                }
                 break;
             }
 

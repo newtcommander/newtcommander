@@ -3744,7 +3744,7 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
         if (computeDate && (totalCount > 20))
         {
             // determine whether we can estimate the widths
-            if (GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SSHORTDATE, text, 50) != 0)
+            if (SalGetLocaleInfoU8(LOCALE_USER_DEFAULT, LOCALE_SSHORTDATE, text, 50) != 0)
             {
                 // check if the date format contains words (dddd || MMMM),
                 // which would be rendered as text: (Monday || May)
@@ -3759,9 +3759,9 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                     st.wMonth = 12;
                     st.wDay = 24;
                     st.wDayOfWeek = 0; // Sunday
-                    if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) == 0)
+                    if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) == 0)
                         sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
-                    wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale date may be non-ASCII UTF-8
+                    wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale date is UTF-8 (feature 041)
                     if (wlen >= 0)
                         GetTextExtentPoint32W(dc, wbuf, wlen, &act);
                     else // invalid UTF-8 (unexpected): byte-wise fallback
@@ -3852,11 +3852,11 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
                 }
                 else
                 {
-                    len = GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) - 1;
+                    len = SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 50) - 1;
                     if (len < 0)
                         len = sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
                 }
-                wlen = SalU8ToW(text, len, wbuf, _countof(wbuf)) - 1; // locale date may be non-ASCII UTF-8
+                wlen = SalU8ToW(text, len, wbuf, _countof(wbuf)) - 1; // locale date is UTF-8 (feature 041)
                 if (wlen >= 0)
                     GetTextExtentPoint32W(dc, wbuf, wlen, &act);
                 else // invalid UTF-8 (unexpected): byte-wise fallback
@@ -4023,9 +4023,9 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             st.wMinute = 59;
             st.wSecond = 59;
             st.wHour = 10; // morning (AM)
-            if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
+            if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time may be non-ASCII UTF-8
+            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time is UTF-8 (feature 041)
             if (wlen >= 0)
                 GetTextExtentPoint32W(dc, wbuf, wlen, &act);
             else // invalid UTF-8 (unexpected): byte-wise fallback
@@ -4034,9 +4034,9 @@ void CFilesWindow::RefreshListBox(int suggestedXOffset,
             if (columnWidthTime < act.cx)
                 columnWidthTime = act.cx;
             st.wHour = 23; // afternoon (PM)
-            if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
+            if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 50) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time may be non-ASCII UTF-8
+            wlen = SalU8ToW(text, -1, wbuf, _countof(wbuf)) - 1; // locale time is UTF-8 (feature 041)
             if (wlen >= 0)
                 GetTextExtentPoint32W(dc, wbuf, wlen, &act);
             else // invalid UTF-8 (unexpected): byte-wise fallback

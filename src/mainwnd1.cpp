@@ -1906,7 +1906,7 @@ void CMainWindow::SetWindowTitle(const char* text)
         // beta version Expires on
         lstrcat(stdWndName, " - Expires on ");
         char expire[100];
-        if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_LONGDATE, &BETA_EXPIRATION_DATE, NULL, expire, 100) == 0)
+        if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_LONGDATE, &BETA_EXPIRATION_DATE, NULL, expire, 100) == 0)
             sprintf(expire, "%u.%u.%u", BETA_EXPIRATION_DATE.wDay, BETA_EXPIRATION_DATE.wMonth, BETA_EXPIRATION_DATE.wYear);
         lstrcat(stdWndName, expire);
 #endif // USE_BETA_EXPIRATION_DATE

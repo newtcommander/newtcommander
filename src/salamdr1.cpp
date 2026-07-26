@@ -132,9 +132,9 @@ int GTDExceptionHasOccured = 0;
 int SHLExceptionHasOccured = 0;
 int RelExceptionHasOccured = 0;
 
-char DecimalSeparator[5] = "."; // "znaky" (max. 4 znaky) vytazene ze systemu
-int DecimalSeparatorLen = 1;    // delka ve znacich bez nuly na konci
-char ThousandsSeparator[5] = " ";
+char DecimalSeparator[16] = "."; // znaky vytazene ze systemu (UTF-8, feature 041)
+int DecimalSeparatorLen = 1;     // delka v bajtech bez nuly na konci
+char ThousandsSeparator[16] = " ";
 int ThousandsSeparatorLen = 1;
 
 BOOL WindowsXP64AndLater = FALSE;  // JRYFIXME - zrusit
@@ -941,8 +941,13 @@ void InitLocales()
         IsAlpha[i] = IsCharAlpha((char)i);
     }
 
-    if ((DecimalSeparatorLen = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL, DecimalSeparator, 5)) == 0 ||
-        DecimalSeparatorLen > 5)
+    // feature 041: read as UTF-8. The Czech thousands separator is a
+    // non-breaking space, which in the legacy ANSI form is a lone 0xA0 byte --
+    // invalid UTF-8. Splicing it into a number made every string built around
+    // that number invalid, and the information line then drew the file name
+    // next to it through the byte-wise fallback path as mojibake.
+    if ((DecimalSeparatorLen = SalGetLocaleInfoU8(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+                                                  DecimalSeparator, _countof(DecimalSeparator))) == 0)
     {
         strcpy(DecimalSeparator, ".");
         DecimalSeparatorLen = 1;
@@ -953,8 +958,13 @@ void InitLocales()
         DecimalSeparator[DecimalSeparatorLen] = 0; // posychrujeme nulu na konci
     }
 
-    if ((ThousandsSeparatorLen = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND, ThousandsSeparator, 5)) == 0 ||
-        ThousandsSeparatorLen > 5)
+    // NumberToStr() writes into a caller buffer of 50 bytes (see consts.h), and
+    // a 20-digit number carries 6 separators. Anything longer than 4 bytes --
+    // more than one character in UTF-8 -- could overflow that, so refuse it and
+    // keep the default rather than truncate a multi-byte sequence in half.
+    if ((ThousandsSeparatorLen = SalGetLocaleInfoU8(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+                                                    ThousandsSeparator, _countof(ThousandsSeparator))) == 0 ||
+        ThousandsSeparatorLen - 1 > 4)
     {
         strcpy(ThousandsSeparator, " ");
         ThousandsSeparatorLen = 1;

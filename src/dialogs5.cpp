@@ -3377,12 +3377,12 @@ void CTaskListDialog::Refresh()
     for (i = 0; i < c; i++)
     {
         char date[50], time[50];
-        if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &items[i].StartTime, NULL, time, 50) == 0)
+        if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &items[i].StartTime, NULL, time, 50) == 0)
         {
             sprintf(time, "%u:%02u:%02u", items[i].StartTime.wHour, items[i].StartTime.wMinute,
                     items[i].StartTime.wSecond);
         }
-        if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &items[i].StartTime, NULL, date, 50) == 0)
+        if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &items[i].StartTime, NULL, date, 50) == 0)
         {
             sprintf(date, "%u.%u.%u", items[i].StartTime.wDay, items[i].StartTime.wMonth,
                     items[i].StartTime.wYear);

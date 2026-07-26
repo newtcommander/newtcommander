@@ -310,7 +310,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
             {
                 if (!upDir)
                 {
-                    StatusLine->SetText(LoadStr(IDS_NOFILESFOUND));
+                    StatusLine->SetText(LoadStrU8(IDS_NOFILESFOUND)); // u8: drawn by the information line
                     SetCurrentDirectoryToSystem();
                     DirectoryLine->SetHidden(HiddenFilesCount, HiddenDirsCount);
                     if (UseSystemIcons || UseThumbnails) // even though we don't have any icons, we need to start loading them (just to set IconCacheValid = TRUE)
@@ -970,7 +970,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
         SetCurrentDirectoryToSystem();
 
         if (Files->Count + Dirs->Count == 0)
-            StatusLine->SetText(LoadStr(IDS_NOFILESFOUND));
+            StatusLine->SetText(LoadStrU8(IDS_NOFILESFOUND)); // u8: drawn by the information line
 
         // sorting of Files and Dirs according to the current sorting method
         SortDirectory();
@@ -1401,7 +1401,7 @@ BOOL CFilesWindow::ReadDirectory(HWND parent, BOOL isRefresh)
                             StatusLine->SetSubTexts(varPlacements, varPlacementsCount);
                     }
                     else
-                        StatusLine->SetText(LoadStr(IDS_NOFILESFOUND));
+                        StatusLine->SetText(LoadStrU8(IDS_NOFILESFOUND)); // u8: drawn by the information line
                 }
 
                 // sorting of Files and Dirs according to the current sorting method

@@ -154,10 +154,14 @@ BOOL CStatusWindow::SetText(const char* txt, int pathLen)
     TextLen = l - 1;
 
     // feature 010: keep a UTF-16 mirror so measurement/drawing runs on the W
-    // APIs; NULL (invalid UTF-8) switches all consumers to the legacy ANSI path
+    // APIs. feature 041: the mirror is built leniently, so a byte we cannot
+    // interpret costs one replacement character instead of dropping the WHOLE
+    // line onto the legacy byte-wise path -- which is what used to render every
+    // accented character in a file name as mojibake. The NULL fallback is kept
+    // only for allocation failure; it is no longer reachable for bad input.
     if (TextW != NULL)
         free(TextW);
-    TextW = SalU8ToWAlloc(Text);
+    TextW = SalU8ToWDisplayAlloc(Text);
     TextLenW = TextW != NULL ? (int)wcslen(TextW) : 0;
 
     if (SubTexts != NULL)
@@ -1038,6 +1042,15 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                         EllipsedChars++;
                         EllipsedWidth += charWidth;
                     }
+                    // feature 041: a character outside the BMP is two WCHARs;
+                    // never resume in the middle of a surrogate pair
+                    if (TextW != NULL && iter > 0 && iter < textLen &&
+                        TextW[iter] >= 0xDC00 && TextW[iter] <= 0xDFFF)
+                    {
+                        EllipsedChars++;
+                        EllipsedWidth += AlpDX[iter] - AlpDX[iter - 1];
+                        iter++;
+                    }
                     visibleChars = textLen - iter;
                     truncateEnd = FALSE; // we trim from the inside
                 }
@@ -1047,6 +1060,11 @@ void CStatusWindow::Paint(HDC hdc, BOOL highlightText, BOOL highlightHotTrackOnl
                     // After which we can copy "..."
                     while (visibleChars > 0 &&
                            AlpDX[visibleChars - 1] + TextEllipsisWidthEnv > textWidth)
+                        visibleChars--;
+                    // feature 041: do not cut between the two halves of a
+                    // surrogate pair -- that would draw a lone half as a box
+                    if (TextW != NULL && visibleChars > 0 &&
+                        TextW[visibleChars - 1] >= 0xD800 && TextW[visibleChars - 1] <= 0xDBFF)
                         visibleChars--;
                 }
             }
@@ -1813,7 +1831,7 @@ CStatusWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         case 3:
         {
             text[0] = 0;
-            ExpandPluralFilesDirs(text, 200, HiddenFilesCount, HiddenDirsCount, epfdmHidden, FALSE);
+            ExpandPluralFilesDirs(text, 200, HiddenFilesCount, HiddenDirsCount, epfdmHidden, FALSE, TRUE); // u8: drawn by this window
             //          lstrcat(text, " ");
             //          CQuadWord qwHidden(HiddenFilesCount + HiddenDirsCount, 0);
             //          ExpandPluralString(text + strlen(text), 100, LoadStr(IDS_PLURAL_SWITCH_HIDDEN),

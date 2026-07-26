@@ -329,3 +329,136 @@ BOOL SalNameEqualCI(const char* u8a, int aLen, const char* u8b, int bLen)
     }
     return SalCompareNamesUTF8(u8a, aLen, u8b, bLen, TRUE) == 0;
 }
+
+//*****************************************************************************
+//
+// SalU8ToWDisplay
+//
+// Lenient counterpart of SalU8ToW, for display only. MultiByteToWideChar
+// without MB_ERR_INVALID_CHARS substitutes U+FFFD for malformed sequences and
+// keeps going, which is exactly the degradation a display surface wants: one
+// bad byte costs one character, not the whole string.
+//
+
+int SalU8ToWDisplay(const char* src, int srcLen, WCHAR* buf, int bufSize)
+{
+    if (src == NULL)
+    {
+        if (buf != NULL && bufSize > 0)
+            buf[0] = 0;
+        return 0;
+    }
+    int res = MultiByteToWideChar(CP_UTF8, 0, src, srcLen,
+                                  buf, buf == NULL ? 0 : bufSize);
+    if (res > 0 && srcLen >= 0)
+    {
+        // input was not null-terminated: report/write the terminator ourselves
+        if (buf != NULL)
+        {
+            if (res >= bufSize)
+            {
+                buf[0] = 0;
+                return 0;
+            }
+            buf[res] = 0;
+        }
+        res++;
+    }
+    if (res == 0 && buf != NULL && bufSize > 0)
+        buf[0] = 0;
+    return res;
+}
+
+WCHAR* SalU8ToWDisplayAlloc(const char* src, int srcLen)
+{
+    if (src == NULL)
+        return NULL;
+    int need = SalU8ToWDisplay(src, srcLen, NULL, 0);
+    if (need <= 0)
+        return NULL;
+    if (srcLen >= 0)
+        need++; // room for the terminator we add ourselves
+    WCHAR* buf = (WCHAR*)malloc(need * sizeof(WCHAR));
+    if (buf == NULL)
+        return NULL;
+    if (SalU8ToWDisplay(src, srcLen, buf, need) == 0)
+    {
+        free(buf);
+        return NULL;
+    }
+    return buf;
+}
+
+//*****************************************************************************
+//
+// Locale text as UTF-8
+//
+// Each wrapper calls the W variant and transcodes to UTF-8. The returned byte
+// count matches what the A variant would have returned for an ASCII result, so
+// callers that test "== 0" or subtract 1 for the length keep working.
+//
+
+// converts a wide result into the caller's UTF-8 buffer; 'wideLen' counts
+// WCHARs INCLUDING the terminating null, as the locale APIs report it
+static int LocaleWideToU8(const WCHAR* wide, int wideLen, char* u8Buf, int u8BufSize)
+{
+    if (wideLen <= 0)
+    {
+        if (u8Buf != NULL && u8BufSize > 0)
+            u8Buf[0] = 0;
+        return 0;
+    }
+    if (wideLen == 1) // the API returned an empty string (terminator only)
+    {
+        if (u8Buf == NULL)
+            return 1;
+        if (u8BufSize < 1)
+            return 0;
+        u8Buf[0] = 0;
+        return 1;
+    }
+    // the APIs include the terminator in the count; SalWToU8 adds its own
+    int res = SalWToU8(wide, wideLen - 1, u8Buf, u8BufSize);
+    if (res == 0 && u8Buf != NULL && u8BufSize > 0)
+        u8Buf[0] = 0;
+    return res;
+}
+
+int SalGetLocaleInfoU8(LCID locale, LCTYPE lcType, char* u8Buf, int u8BufSize)
+{
+    WCHAR wide[256];
+    int wideLen = GetLocaleInfoW(locale, lcType, wide, _countof(wide));
+    return LocaleWideToU8(wide, wideLen, u8Buf, u8BufSize);
+}
+
+int SalGetDateFormatU8(LCID locale, DWORD flags, const SYSTEMTIME* date,
+                       const char* u8Format, char* u8Buf, int u8BufSize)
+{
+    WCHAR wideFormat[128];
+    const WCHAR* format = NULL;
+    if (u8Format != NULL)
+    {
+        if (SalU8ToW(u8Format, -1, wideFormat, _countof(wideFormat)) == 0)
+            return 0;
+        format = wideFormat;
+    }
+    WCHAR wide[256];
+    int wideLen = GetDateFormatW(locale, flags, date, format, wide, _countof(wide));
+    return LocaleWideToU8(wide, wideLen, u8Buf, u8BufSize);
+}
+
+int SalGetTimeFormatU8(LCID locale, DWORD flags, const SYSTEMTIME* time,
+                       const char* u8Format, char* u8Buf, int u8BufSize)
+{
+    WCHAR wideFormat[128];
+    const WCHAR* format = NULL;
+    if (u8Format != NULL)
+    {
+        if (SalU8ToW(u8Format, -1, wideFormat, _countof(wideFormat)) == 0)
+            return 0;
+        format = wideFormat;
+    }
+    WCHAR wide[256];
+    int wideLen = GetTimeFormatW(locale, flags, time, format, wide, _countof(wide));
+    return LocaleWideToU8(wide, wideLen, u8Buf, u8BufSize);
+}

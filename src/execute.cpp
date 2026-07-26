@@ -1063,7 +1063,7 @@ const char* WINAPI FileDataExpFileDate(HWND msgParent, void* param)
         FileTimeToLocalFileTime(&data->FileData->LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
     {
-        if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, data->Buffer, 50) == 0)
+        if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, data->Buffer, 50) == 0)
             sprintf(data->Buffer, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
     }
     else
@@ -1087,7 +1087,7 @@ const char* WINAPI FileDataExpFileDateOnlyForDisk(HWND msgParent, void* param)
     }
     if (stIsReady)
     {
-        if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, data->Buffer, 50) == 0)
+        if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, data->Buffer, 50) == 0)
             sprintf(data->Buffer, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
     }
     else
@@ -1118,7 +1118,7 @@ const char* WINAPI FileDataExpFileTime(HWND msgParent, void* param)
         FileTimeToLocalFileTime(&data->FileData->LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
     {
-        if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, data->Buffer, 50) == 0)
+        if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, data->Buffer, 50) == 0)
             sprintf(data->Buffer, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
     }
     else
@@ -1142,7 +1142,7 @@ const char* WINAPI FileDataExpFileTimeOnlyForDisk(HWND msgParent, void* param)
     }
     if (stIsReady)
     {
-        if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, data->Buffer, 50) == 0)
+        if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, data->Buffer, 50) == 0)
             sprintf(data->Buffer, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
     }
     else

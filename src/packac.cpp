@@ -1659,7 +1659,7 @@ char* CPackACFound::GetText(int column)
         if (FileTimeToLocalFileTime(&LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
         {
-            if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 100) == 0)
+            if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, text, 100) == 0)
                 sprintf(text, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
         }
         else
@@ -1674,7 +1674,7 @@ char* CPackACFound::GetText(int column)
         if (FileTimeToLocalFileTime(&LastWrite, &ft) &&
             FileTimeToSystemTime(&ft, &st))
         {
-            if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 100) == 0)
+            if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, text, 100) == 0)
                 sprintf(text, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
         }
         else

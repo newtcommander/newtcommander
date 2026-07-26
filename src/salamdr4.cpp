@@ -626,8 +626,10 @@ int ExpandPluralString(char* lpOut, int nOutMax, const char* lpFmt, int nParCoun
 // Returns the number of copied characters without the terminator.
 //
 
-int ExpandPluralFilesDirs(char* lpOut, int nOutMax, int files, int dirs, int mode, BOOL forDlgCaption)
+int ExpandPluralFilesDirs(char* lpOut, int nOutMax, int files, int dirs, int mode, BOOL forDlgCaption, BOOL u8)
 {
+    // feature 041: the information line needs the template in UTF-8 (see consts.h)
+    char* (*loadStr)(int, HINSTANCE) = u8 ? LoadStrU8 : LoadStr;
     static int form[2][3][3] =
         {
             {{IDS_PLURAL_X_FILES, IDS_PLURAL_X_DIRS, IDS_PLURAL_X_FILES_Y_DIRS},
@@ -649,7 +651,7 @@ int ExpandPluralFilesDirs(char* lpOut, int nOutMax, int files, int dirs, int mod
     if (files > 0 && dirs == 0)
     {
         CQuadWord qwFiles(files, 0);
-        ExpandPluralString(expanded, nOutMax, LoadStr(form[indDlgCaption][mode][0]), 1, &qwFiles);
+        ExpandPluralString(expanded, nOutMax, loadStr(form[indDlgCaption][mode][0], NULL), 1, &qwFiles);
         ret = sprintf(lpOut, expanded, files);
     }
     else
@@ -657,21 +659,23 @@ int ExpandPluralFilesDirs(char* lpOut, int nOutMax, int files, int dirs, int mod
         if (files == 0 && dirs > 0)
         {
             CQuadWord qwDirs(dirs, 0);
-            ExpandPluralString(expanded, nOutMax, LoadStr(form[indDlgCaption][mode][1]), 1, &qwDirs);
+            ExpandPluralString(expanded, nOutMax, loadStr(form[indDlgCaption][mode][1], NULL), 1, &qwDirs);
             ret = sprintf(lpOut, expanded, dirs);
         }
         else
         {
             CQuadWord qwPars[2] = {CQuadWord(files, 0), CQuadWord(dirs, 0)};
-            ExpandPluralString(expanded, nOutMax, LoadStr(form[indDlgCaption][mode][2]), 2, qwPars);
+            ExpandPluralString(expanded, nOutMax, loadStr(form[indDlgCaption][mode][2], NULL), 2, qwPars);
             ret = sprintf(lpOut, expanded, files, dirs);
         }
     }
     return ret;
 }
 
-int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& selectedBytes, int files, int dirs, BOOL useSubTexts)
+int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& selectedBytes, int files, int dirs, BOOL useSubTexts, BOOL u8)
 {
+    // feature 041: the information line needs the template in UTF-8 (see consts.h)
+    char* (*loadStr)(int, HINSTANCE) = u8 ? LoadStrU8 : LoadStr;
     char expanded[200];
     char number[50];
     if (nOutMax > 200)
@@ -684,7 +688,7 @@ int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& select
     {
         CQuadWord qwPars[2] = {selectedBytes, CQuadWord(files, 0)};
         ExpandPluralString(expanded, nOutMax,
-                           LoadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_FILES2 : IDS_PLURAL_X_BYTES_Y_SEL_FILES),
+                           loadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_FILES2 : IDS_PLURAL_X_BYTES_Y_SEL_FILES, NULL),
                            2, qwPars);
         ret = sprintf(lpOut, expanded, NumberToStr(number, selectedBytes), files);
     }
@@ -694,7 +698,7 @@ int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& select
         {
             CQuadWord qwPars[2] = {selectedBytes, CQuadWord(dirs, 0)};
             ExpandPluralString(expanded, nOutMax,
-                               LoadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_DIRS2 : IDS_PLURAL_X_BYTES_Y_SEL_DIRS),
+                               loadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_DIRS2 : IDS_PLURAL_X_BYTES_Y_SEL_DIRS, NULL),
                                2, qwPars);
             ret = sprintf(lpOut, expanded, NumberToStr(number, selectedBytes), dirs);
         }
@@ -702,7 +706,7 @@ int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& select
         {
             CQuadWord qwPars[3] = {selectedBytes, CQuadWord(files, 0), CQuadWord(dirs, 0)};
             ExpandPluralString(expanded, nOutMax,
-                               LoadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_FILES_Z_SEL_DIRS2 : IDS_PLURAL_X_BYTES_Y_SEL_FILES_Z_SEL_DIRS),
+                               loadStr(useSubTexts ? IDS_PLURAL_X_BYTES_Y_SEL_FILES_Z_SEL_DIRS2 : IDS_PLURAL_X_BYTES_Y_SEL_FILES_Z_SEL_DIRS, NULL),
                                3, qwPars);
             ret = sprintf(lpOut, expanded, NumberToStr(number, selectedBytes), files, dirs);
         }
@@ -1411,7 +1415,7 @@ void WINAPI InternalGetDate()
         }
         TransferRowData |= 0x00000001;
     }
-    TransferLen = GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
+    TransferLen = SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
     if (TransferLen < 0)
         TransferLen = sprintf(TransferBuffer, "%u.%u.%u", InternalColumnST.wDay, InternalColumnST.wMonth, InternalColumnST.wYear);
 }
@@ -1436,7 +1440,7 @@ void WINAPI InternalGetDateOnlyForDisk()
         TransferLen = 0;
         return;
     }
-    TransferLen = GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
+    TransferLen = SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
     if (TransferLen < 0)
         TransferLen = sprintf(TransferBuffer, "%u.%u.%u", InternalColumnST.wDay, InternalColumnST.wMonth, InternalColumnST.wYear);
 }
@@ -1453,7 +1457,7 @@ void WINAPI InternalGetTime()
         }
         TransferRowData |= 0x00000001;
     }
-    TransferLen = GetTimeFormat(LOCALE_USER_DEFAULT, 0, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
+    TransferLen = SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
     if (TransferLen < 0)
         TransferLen = sprintf(TransferBuffer, "%u:%02u:%02u", InternalColumnST.wHour, InternalColumnST.wMinute, InternalColumnST.wSecond);
 }
@@ -1478,7 +1482,7 @@ void WINAPI InternalGetTimeOnlyForDisk()
         TransferLen = 0;
         return;
     }
-    TransferLen = GetTimeFormat(LOCALE_USER_DEFAULT, 0, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
+    TransferLen = SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &InternalColumnST, NULL, TransferBuffer, TRANSFER_BUFFER_MAX) - 1;
     if (TransferLen < 0)
         TransferLen = sprintf(TransferBuffer, "%u:%02u:%02u", InternalColumnST.wHour, InternalColumnST.wMinute, InternalColumnST.wSecond);
 }

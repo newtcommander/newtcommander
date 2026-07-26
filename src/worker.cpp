@@ -1093,9 +1093,9 @@ void GetFileOverwriteInfo(char* buff, int buffLen, HANDLE file, const char* file
     {
         if (fileTime != NULL)
             *fileTime = ft;
-        if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, time, 50) == 0)
+        if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, time, 50) == 0)
             sprintf(time, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-        if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, date, 50) == 0)
+        if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, date, 50) == 0)
             sprintf(date, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
     }
 
@@ -1157,9 +1157,9 @@ void GetDirInfo(char* buffer, const char* dir)
             FileTimeToSystemTime(&ft, &st))
         {
             char date[50], time[50];
-            if (GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, time, 50) == 0)
+            if (SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, time, 50) == 0)
                 sprintf(time, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
-            if (GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, date, 50) == 0)
+            if (SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, date, 50) == 0)
                 sprintf(date, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
 
             sprintf(buffer, "%s, %s", date, time);

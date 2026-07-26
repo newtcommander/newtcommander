@@ -82,6 +82,50 @@ RELOAD:
     return ret;
 }
 
+// feature 041: UTF-8 counterpart of LoadStr(), for text that gets concatenated
+// with UTF-8 data and drawn through the UTF-8 path (the information line).
+// See the note at the declaration in consts.h for why LoadStr() itself was not
+// converted.
+char* LoadStrU8(int resID, HINSTANCE hInstance)
+{
+    static char buffer[10000]; // buffer for many strings
+    static char* act = buffer;
+
+    HANDLES(EnterCriticalSection(&__StrCriticalSection.cs));
+
+    if (10000 - (act - buffer) < 200)
+        act = buffer;
+
+    if (hInstance == NULL)
+        hInstance = HLanguage;
+
+    char* ret;
+    WCHAR wide[2048];
+    int wideLen = LoadStringW(hInstance, resID, wide, _countof(wide));
+    int size = 0;
+    if (wideLen > 0)
+    {
+        size = SalWToU8(wide, wideLen, act, 10000 - (int)(act - buffer));
+        if (size > 0)
+            size--; // SalWToU8 counts the terminator, LoadString does not
+    }
+    if (size != 0)
+    {
+        ret = act;
+        act += size + 1;
+    }
+    else
+    {
+        TRACE_E("Error in LoadStrU8(" << resID << ").");
+        static char bufferError[] = "ERROR LOADING STRING";
+        ret = bufferError;
+    }
+
+    HANDLES(LeaveCriticalSection(&__StrCriticalSection.cs));
+
+    return ret;
+}
+
 WCHAR* LoadStrW(int resID, HINSTANCE hInstance)
 {
     static WCHAR buffer[10000]; // buffer for many strings
@@ -3153,7 +3197,7 @@ BOOL CLanguage::Init(const char* fileName, HINSTANCE modul)
 
 BOOL CLanguage::GetLanguageName(char* buffer, int bufferSize)
 {
-    if (GetLocaleInfo(MAKELCID(LanguageID, SORT_DEFAULT), LOCALE_SLANGUAGE, buffer, bufferSize) == 0)
+    if (SalGetLocaleInfoU8(MAKELCID(LanguageID, SORT_DEFAULT), LOCALE_SLANGUAGE, buffer, bufferSize) == 0)
     {
         lstrcpyn(buffer, "?", bufferSize);
     }

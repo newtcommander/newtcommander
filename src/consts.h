@@ -797,6 +797,17 @@ BOOL SafeInvokeCommand(IContextMenu2* menu, CMINVOKECOMMANDINFO& ici);
 char* LoadStr(int resID, HINSTANCE hInstance = NULL);   // taha string z resourcu
 WCHAR* LoadStrW(int resID, HINSTANCE hInstance = NULL); // taha wide-string z resourcu
 
+// feature 041: LoadStr() returns the string in the system ANSI code page,
+// because LoadStringA transcodes the UTF-16 resource. That is fine for the
+// many consumers that hand it straight to an ANSI Win32 API, but WRONG when
+// the text is concatenated with UTF-8 data (a file name, or a number carrying
+// the locale separator) and drawn through the UTF-8 path -- one ANSI byte made
+// the whole composed string invalid UTF-8. Use this variant there.
+// Converting LoadStr() itself was tried and rejected: it breaks every consumer
+// that still uses an ANSI display API (the Find dialog's list and status bar,
+// for instance), which is a far larger change than this defect warrants.
+char* LoadStrU8(int resID, HINSTANCE hInstance = NULL);
+
 // podpora pro tvorbu parametrizovanych textu (reseni jednotnych a mnoznych cisel
 // v textech); 'lpFmt' je formatovaci retezec pro vysledny text - popis jeho formatu
 // nasleduje; vysledny text se vraci v bufferu 'lpOut' o velikosti 'nOutMax' bytu;
@@ -852,10 +863,16 @@ int ExpandPluralString(char* lpOut, int nOutMax, const char* lpFmt, int nParCoun
 // Vrati pocet nakopirovanych znaku bez terminatoru.
 //
 // popis konstant epfdmXXX viz spl_gen.h
+// feature 041: 'u8' picks LoadStrU8() instead of LoadStr() for the localized
+// template, so the result is UTF-8. Set it ONLY for the information line, whose
+// text is drawn through the UTF-8 path and is concatenated with a number that
+// carries the locale separator. Every other caller (dialogs, captions, the Find
+// dialog, plugins via CSalamanderGeneral) keeps the ANSI default, because they
+// still hand the result to ANSI display APIs.
 int ExpandPluralFilesDirs(char* lpOut, int nOutMax, int files, int dirs,
-                          int mode, BOOL forDlgCaption);
+                          int mode, BOOL forDlgCaption, BOOL u8 = FALSE);
 int ExpandPluralBytesFilesDirs(char* lpOut, int nOutMax, const CQuadWord& selectedBytes,
-                               int files, int dirs, BOOL useSubTexts);
+                               int files, int dirs, BOOL useSubTexts, BOOL u8 = FALSE);
 
 // V textu nalezne pary '<' '>', vyradi je z bufferu a prida odkazy na
 // jejich obsah do 'varPlacements'. 'varPlacements' je pole DWORDu o '*varPlacementsCount'
@@ -1671,9 +1688,12 @@ BOOL SafeGetOpenFileName(LPOPENFILENAME lpofn);
 BOOL SafeGetSaveFileName(LPOPENFILENAME lpofn);
 BOOL SafeGetSaveFileNameW(LPOPENFILENAMEW lpofn); // feature 005: UTF-8-fidelity browse (internal)
 
-extern char DecimalSeparator[5]; // "znaky" (max. 4 znaky) vytazene ze systemu
-extern int DecimalSeparatorLen;  // delka ve znacich bez nuly na konci
-extern char ThousandsSeparator[5];
+// feature 041: UTF-8, like every other narrow string in the application. The
+// buffers are sized for the UTF-8 form (up to 3 characters = 12 bytes + null);
+// the lengths are BYTE counts, as they always were -- callers memcpy by them.
+extern char DecimalSeparator[16]; // znaky vytazene ze systemu (UTF-8)
+extern int DecimalSeparatorLen;   // delka v bajtech bez nuly na konci
+extern char ThousandsSeparator[16];
 extern int ThousandsSeparatorLen;
 
 extern DWORD SalamanderStartTime;     // cas startu Salamandera (GetTickCount)

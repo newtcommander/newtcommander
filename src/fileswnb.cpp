@@ -987,11 +987,11 @@ CFilesWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     char text[200];
                     if (displaySize)
                     {
-                        ExpandPluralBytesFilesDirs(text, 200, selectedSize, files, dirs, TRUE);
+                        ExpandPluralBytesFilesDirs(text, 200, selectedSize, files, dirs, TRUE, TRUE); // u8: drawn by the information line
                         LookForSubTexts(text, varPlacements, &varPlacementsCount);
                     }
                     else
-                        ExpandPluralFilesDirs(text, 200, files, dirs, epfdmSelected, FALSE);
+                        ExpandPluralFilesDirs(text, 200, files, dirs, epfdmSelected, FALSE, TRUE); // u8: drawn by the information line
                     if (StatusLine->SetText(text) && displaySize)
                         StatusLine->SetSubTexts(varPlacements, varPlacementsCount);
                     varPlacementsCount = 100; // mohlo se poskodit

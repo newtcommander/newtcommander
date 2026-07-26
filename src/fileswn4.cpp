@@ -1815,7 +1815,7 @@ void GetTileTexts(CFileData* f, int isDir,
     {
         if (validDate)
         {
-            out2LenA = GetDateFormat(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, out2, 500) - 1;
+            out2LenA = SalGetDateFormatU8(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &st, NULL, out2, 500) - 1;
             if (out2LenA < 0)
                 out2LenA = sprintf(out2, "%u.%u.%u", st.wDay, st.wMonth, st.wYear);
         }
@@ -1831,7 +1831,7 @@ void GetTileTexts(CFileData* f, int isDir,
     {
         if (validTime)
         {
-            out2LenB = GetTimeFormat(LOCALE_USER_DEFAULT, 0, &st, NULL, out2 + out2LenA, 500 - out2LenA) - 1;
+            out2LenB = SalGetTimeFormatU8(LOCALE_USER_DEFAULT, 0, &st, NULL, out2 + out2LenA, 500 - out2LenA) - 1;
             if (out2LenB < 0)
                 out2LenB = sprintf(out2 + out2LenA, "%u:%02u:%02u", st.wHour, st.wMinute, st.wSecond);
         }
