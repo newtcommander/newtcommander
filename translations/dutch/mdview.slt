@@ -13,7 +13,7 @@ COMMENT,"Nederlandse versie"
 220,60,1,"Zoek"
 3000,7,9,60,8,1,"Zoek &tekst:"
 301,7,21,206,12,1,""
-1,108,40,50,14,1,"Volge&nde zoeken"
+1,108,40,53,14,1,"Volge&nde zoeken"
 2,163,40,50,14,1,"Annuleren"
 
 [STRINGTABLE 0]

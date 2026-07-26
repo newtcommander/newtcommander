@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import Language, Module, load_enabled_modules, load_languages
+from .layout import widen
 from .deepl import TARGET_CODES, Client, DeepLError, load_key
 from .match import CAPTION_KEY, entry_key, index_entries, match
 from .rebrand import find_residue, rebrand
@@ -50,6 +51,7 @@ class Coverage:
     skip: int = 0
     discarded: int = 0
     rebranded: int = 0
+    widened: int = 0
     invalid: list[str] = field(default_factory=list)
     dup_accel: list[str] = field(default_factory=list)
 
@@ -94,19 +96,24 @@ def load_origin(
     return origin
 
 
-def _carry_geometry(tpl_dialog: Section, legacy_dialog: Section | None) -> bool:
-    """Should this dialog reuse the legacy control geometry?
-
-    A human translator resized controls to fit their longer text, and that work
-    is worth keeping. But the legacy layout describes the 4.0 dialog; if the
-    dialog has since changed, its coordinates would be wrong. Reuse them only
-    when the dialog is still the same size, which is a good proxy for "the
-    layout did not change".
-    """
-    if legacy_dialog is None or not legacy_dialog.rows or not tpl_dialog.rows:
-        return False
-    # Row 0 of a dialog is the dialog itself: cx, cy, state, caption.
-    return legacy_dialog.rows[0].numbers[:2] == tpl_dialog.rows[0].numbers[:2]
+# NOTE: an earlier version carried control geometry over from the legacy
+# translation, to keep the resizing a human translator had done. It was removed,
+# for two reasons that compound:
+#
+#   * the legacy layout describes the 4.0 dialog. IDD_ABOUT is 299x184 in both
+#     versions, but today's has twelve controls where 4.0 had nine -- a second
+#     copyright line was inserted and everything below moved down 11 units.
+#     Carrying the old coordinates drew the web-address control through the
+#     authors line.
+#   * merging *overwrites the file it reads*, so on the next run the previous
+#     output is the "legacy" input. Any bad geometry is indistinguishable from
+#     deliberate translator work and perpetuates itself -- tightening the
+#     heuristic did not help, because by then the two layouts genuinely matched.
+#
+# Geometry now always starts from the template (the current English layout) and
+# is widened from the translated text by translate.layout. That is deterministic
+# and idempotent: the same .slt always produces the same coordinates, whatever
+# ran before.
 
 
 def build_slt(
@@ -153,11 +160,6 @@ def build_slt(
 
     for tpl_section in template.sections:
         section = Section(kind=tpl_section.kind, number=tpl_section.number)
-        legacy_section = legacy_sections.get(tpl_section.key)
-        reuse_geometry = tpl_section.kind == "DIALOG" and _carry_geometry(
-            tpl_section, legacy_section
-        )
-
         for i, tpl_row in enumerate(tpl_section.rows):
             key = entry_key(tpl_section, tpl_row, i)
             source, value = plan[key]
@@ -175,10 +177,6 @@ def build_slt(
                 text, kind = value, HUMAN
                 numbers[-1] = 1
                 cov.human += 1
-                if reuse_geometry:
-                    hit = legacy_index.get(key)
-                    if hit is not None and len(hit.numbers) == len(numbers):
-                        numbers[:-1] = hit.numbers[:-1]
             else:  # gap
                 english = value
                 candidate = translations.get(english)
@@ -211,6 +209,10 @@ def build_slt(
         # activating one, so a duplicate within a dialog or menu is a real
         # keyboard-navigation defect (spec SC-006). Reported, not auto-fixed:
         # choosing a different letter is a judgement call about the wording.
+        # Grow controls the translation outgrew, before the accelerator check.
+        if section.kind == "DIALOG":
+            cov.widened += len(widen(section, {}))
+
         if section.kind in ("DIALOG", "MENU"):
             dups = duplicate_accelerators([r.text for r in section.rows])
             if dups:
@@ -345,6 +347,7 @@ def print_report(reports: list[Coverage], dry_run: bool) -> None:
         agg.skip += r.skip
         agg.discarded += r.discarded
         agg.rebranded += r.rebranded
+        agg.widened += r.widened
         agg.invalid += r.invalid
         agg.dup_accel += [f"{r.module} {d}" for d in r.dup_accel]
     for agg in by_lang.values():
@@ -356,11 +359,13 @@ def print_report(reports: list[Coverage], dry_run: bool) -> None:
     total_invalid = sum(len(a.invalid) for a in by_lang.values())
     total_dups = sum(len(a.dup_accel) for a in by_lang.values())
     total_rebrand = sum(a.rebranded for a in by_lang.values())
+    total_widen = sum(a.widened for a in by_lang.values())
     total_discard = sum(a.discarded for a in by_lang.values())
     print(
         f"rebranded entries: {total_rebrand}   discarded legacy: {total_discard}   "
         f"validation failures: {total_invalid}   duplicate accelerators: {total_dups}"
     )
+    print(f"controls widened to fit: {total_widen}")
     if total_invalid:
         print("\nvalidation failures (kept English):")
         shown = 0

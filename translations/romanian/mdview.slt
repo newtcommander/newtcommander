@@ -13,7 +13,7 @@ COMMENT,"Versiunea romana"
 220,60,1,"Căutare"
 3000,7,9,60,8,1,"Cău&tare text:"
 301,7,21,206,12,1,""
-1,108,40,50,14,1,"&Caută următorul"
+1,108,40,53,14,1,"&Caută următorul"
 2,163,40,50,14,1,"Anulează"
 
 [STRINGTABLE 0]

@@ -11,9 +11,9 @@ COMMENT,"Nederlandse versie"
 
 [DIALOG 1200]
 220,83,1,"UnISO Configuratie"
-1201,8,11,188,10,1,"&Verwijder het alleen lezen attribuut wanneer er gekopieerd wordt van een archief"
-1202,8,23,198,10,1,"&Toon sessie als map (toegang tot all sessies toegestaan)"
-1203,8,35,108,10,1,"T&oon boot image disk als bestand"
+1201,8,11,208,10,1,"&Verwijder het alleen lezen attribuut wanneer er gekopieerd wordt van een archief"
+1202,8,23,208,10,1,"&Toon sessie als map (toegang tot all sessies toegestaan)"
+1203,8,35,131,10,1,"T&oon boot image disk als bestand"
 3000,2,58,216,1,1,""
 1,108,64,50,14,0,"OK"
 2,163,64,50,14,1,"Annuleren"

@@ -13,7 +13,7 @@ COMMENT,"Deutsche Version"
 220,60,1,"Finden"
 3000,7,9,60,8,1,"&Text suchen:"
 301,7,21,206,12,1,""
-1,108,40,50,14,1,"Weiter suche&n"
+1,108,40,53,14,1,"Weiter suche&n"
 2,163,40,50,14,1,"Abbrechen"
 
 [STRINGTABLE 0]

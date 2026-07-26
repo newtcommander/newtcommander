@@ -11,11 +11,11 @@ COMMENT,"Versiunea romana"
 
 [DIALOG 8501]
 346,154,1,"Configurare Vizualizator Executabil Portabil"
-1300,7,7,69,8,1,"Sectiuni dispon&ibile:"
+1300,7,7,87,8,1,"Sectiuni dispon&ibile:"
 8700,7,17,105,130,1,""
 8702,119,17,50,14,1,"&Adauga ->"
 8703,119,35,50,14,1,"<- &Elimina"
-1301,176,7,58,8,1,"Sectiuni &Vizibile:"
+1301,176,7,74,8,1,"Sectiuni &Vizibile:"
 8701,176,17,105,130,1,""
 8704,289,17,50,14,1,"Muta &Sus"
 8705,289,35,50,14,1,"Muta &Jos"

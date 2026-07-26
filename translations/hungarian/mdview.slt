@@ -11,9 +11,9 @@ COMMENT,"Magyar változat"
 
 [DIALOG 300]
 220,60,1,"Keresés"
-3000,7,9,60,8,1,"&Szöveg keresése:"
+3000,7,9,66,8,1,"&Szöveg keresése:"
 301,7,21,206,12,1,""
-1,108,40,50,14,1,"&Következő keresése"
+1,108,40,53,14,1,"&Következő keresése"
 2,163,40,50,14,1,"Mégse"
 
 [STRINGTABLE 0]

@@ -11,9 +11,9 @@ COMMENT,"Deutsche Version"
 
 [DIALOG 1200]
 220,83,1,"UnISO - Konfiguration"
-1201,8,11,188,10,1,"Schreibschutz-&Attribut beim Kopieren aus dem Archiv entfernen"
-1202,8,23,198,10,1,"Die &Session als Verzeichnis zeigen (erlaubt Zugriff auf alle Sessions)"
-1203,8,35,108,10,1,"&Boot-Image-Disk als Datei zeigen"
+1201,8,11,208,10,1,"Schreibschutz-&Attribut beim Kopieren aus dem Archiv entfernen"
+1202,8,23,208,10,1,"Die &Session als Verzeichnis zeigen (erlaubt Zugriff auf alle Sessions)"
+1203,8,35,131,10,1,"&Boot-Image-Disk als Datei zeigen"
 3000,2,58,216,1,1,""
 1,108,64,50,14,0,"OK"
 2,163,64,50,14,1,"Abbrechen"

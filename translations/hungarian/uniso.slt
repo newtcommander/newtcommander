@@ -11,9 +11,9 @@ COMMENT,"Magyar változat"
 
 [DIALOG 1200]
 220,83,1,"UnISO beállítás"
-1201,8,11,188,10,1,"Í&rásvédett attribútum törlése archívumból másoláskor"
-1202,8,23,198,10,1,"Menetek mutatá&sa mappaként (minden menet hozzáférhető)"
-1203,8,35,108,10,1,"&Boot lemez mutatása fájlként"
+1201,8,11,208,10,1,"Í&rásvédett attribútum törlése archívumból másoláskor"
+1202,8,23,208,10,1,"Menetek mutatá&sa mappaként (minden menet hozzáférhető)"
+1203,8,35,115,10,1,"&Boot lemez mutatása fájlként"
 3000,2,58,216,1,1,""
 1,108,64,50,14,0,"OK"
 2,163,64,50,14,1,"Mégse"

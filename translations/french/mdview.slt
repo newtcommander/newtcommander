@@ -11,9 +11,9 @@ COMMENT,"Version française"
 
 [DIALOG 300]
 220,60,1,"Rechercher"
-3000,7,9,60,8,1,"Rechercher du &texte :"
+3000,7,9,87,8,1,"Rechercher du &texte :"
 301,7,21,206,12,1,""
-1,108,40,50,14,1,"Rechercher suiva&nt"
+1,108,40,53,14,1,"Rechercher suiva&nt"
 2,163,40,50,14,1,"Annuler"
 
 [STRINGTABLE 0]
