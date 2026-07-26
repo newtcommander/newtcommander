@@ -75,6 +75,18 @@ file, builds only enabled plugins (via a generated solution filter
 `src\vcxproj\salamand.gen.slnf`, gitignored), and removes outputs of
 disabled plugins. See `specs/007-plugin-build-policy/`.
 
+**Language build policy**: `translations/languages.cfg` decides which
+languages are built and shipped — each `[folder]` section carries
+`enabled = on|off`, the language counterpart of `plugins.cfg`. Every
+`build.cmd` run validates the registry and reconciles the output tree
+(any `.slg` not belonging to an enabled language is deleted from `lang\`
+and `plugins\*\lang\`); language modules are *produced* only on a full
+build. Currently 8 of 11 enabled — Simplified Chinese, Russian and
+Ukrainian are off pending a menu rendering defect; their translation
+source is retained, so re-enabling is one line. Authoring tools skip
+disabled languages by default (`translate.merge --language <folder>` is
+the opt-in). See `specs/039-language-build-policy/`.
+
 Alternative scripts in `src\vcxproj\`: `build.cmd` (simple), `rebuild.cmd` (interactive menu) — these build the full solution and ignore `plugins.cfg`.
 
 **Prerequisites**:
@@ -154,7 +166,9 @@ plugin architecture preservation, UI consistency.
 - Windows Registry for configuration (`REG_SZ` string values); NTFS/exFAT/FAT/network file systems as managed objects (004-long-paths-unicode)
 - Translation data: `translations/<language>/<module>.slt` UTF-8-BOM text archives, committed; consumed at build time by `translator.exe` quiet modes to produce `<language>.slg` (038-translations-build-integration)
 - Python 3.13 (`tools/`, `pyproject.toml`) + `anthropic` SDK for offline machine translation — developer-side only, never invoked by the build (038-translations-build-integration)
+- Language build policy: `translations/languages.cfg` `enabled = on|off` per language; validated and reconciled by `src/vcxproj/lang_policy.ps1` on every `build.cmd` run (039-language-build-policy)
 
 ## Recent Changes
 - 002-msvc-x64-build-script: Added Windows Batch script (.cmd) + MSBuild (from VS2022), vswhere.exe
 - 038-translations-build-integration: 12 shipped languages (English + 10 existing + new machine-translated Ukrainian) x 20 enabled modules; `.slt` import is strictly positional, so translation source is always regenerated from a current-structure English template
+- 039-language-build-policy: which languages ship is now a committed policy (`enabled = on|off` in `translations/languages.cfg`), honoured by the build on every run; 3 non-Latin-script languages disabled pending a menu rendering defect, source retained

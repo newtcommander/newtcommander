@@ -382,8 +382,15 @@ def main(argv: list[str] | None = None) -> int:
         prog="translate-merge",
         description="Build translations/<lang>/<module>.slt from template + legacy + DeepL.",
     )
-    ap.add_argument("--all", action="store_true", help="every language and module")
-    ap.add_argument("--language", help="restrict to one language folder")
+    ap.add_argument(
+        "--all", action="store_true",
+        help="every ENABLED language and module (disabled languages are skipped)",
+    )
+    ap.add_argument(
+        "--language",
+        help="restrict to one language folder; naming a disabled language "
+             "processes it anyway",
+    )
     ap.add_argument("--module", help="restrict to one module")
     ap.add_argument("--dry-run", action="store_true", help="no API calls, no writes")
     ap.add_argument("--templates", type=Path, default=None)
@@ -399,13 +406,30 @@ def main(argv: list[str] | None = None) -> int:
     if not (args.all or args.language or args.module or args.dry_run):
         ap.error("specify --all, --language, --module, or --dry-run")
 
+    # Enabled languages only unless one is named explicitly. Translating a
+    # language that will not ship spends DeepL characters for nothing
+    # (feature 039, FR-012), so an unrestricted run never touches a disabled
+    # one. Naming it IS the opt-in (FR-013) -- a maintainer who types the name
+    # has said what they want, and a second flag on top of that is ceremony.
     languages = load_languages()
     modules = load_enabled_modules()
     if args.language:
         languages = [l for l in languages if l.folder == args.language]
         if not languages:
-            print(f"error: unknown language {args.language!r}", file=sys.stderr)
-            return 1
+            # Not in the enabled set. Look again including the disabled ones so
+            # "disabled" and "does not exist" get different answers.
+            disabled = [
+                l for l in load_languages(include_disabled=True)
+                if l.folder == args.language
+            ]
+            if not disabled:
+                print(f"error: unknown language {args.language!r}", file=sys.stderr)
+                return 1
+            print(
+                f"note: {args.language!r} is disabled in languages.cfg -- "
+                "processing it because you named it explicitly"
+            )
+            languages = disabled
     if args.module:
         modules = [m for m in modules if m.name == args.module]
         if not modules:

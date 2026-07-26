@@ -146,7 +146,13 @@ def main(argv: list[str] | None = None) -> int:
     residue: Counter = Counter()
     samples: list[tuple[str, str]] = []
 
-    for lang in load_languages():
+    # DELIBERATELY include disabled languages (feature 039, FR-013 opt-in used
+    # from code rather than a command line). Rebranding translates nothing and
+    # spends no budget -- it is a correctness sweep over committed source. If it
+    # skipped disabled languages, brand residue would quietly accumulate in
+    # their .slt files and surface the moment one is re-enabled, which would
+    # make FR-005 ("re-enabling requires no re-translation") false in practice.
+    for lang in load_languages(include_disabled=True):
         for module in load_enabled_modules():
             path = lang.directory / f"{module.name}.slt"
             if not path.is_file():

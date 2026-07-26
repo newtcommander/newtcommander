@@ -134,6 +134,39 @@ if not "%PLUGINS_STAGE_EXIT%"=="0" (
 )
 
 :: ============================================================
+:: Language build policy (translations\languages.cfg)
+:: ============================================================
+:: Validate the shipped-language registry and reconcile the build
+:: output with it: every .slg that does not belong to a language
+:: marked "enabled = on" is deleted, so switching a language off
+:: takes effect on the next build instead of requiring a clean one.
+::
+:: This runs on EVERY build, not only full builds. Language modules
+:: are produced by build_langs (called from :populate_runtime, i.e.
+:: full builds only), but stale ones must be removed regardless --
+:: the product enumerates lang\*.slg from disk, so a leftover file
+:: means a disabled language is still offered to the user.
+:: See specs\039-language-build-policy\ for the contract.
+
+set "LANGS_STAGE_LOG=%TEMP%\opensal_langs_stage.txt"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0src\vcxproj\lang_policy.ps1" -Config "%~dp0translations\languages.cfg" -TranslationsRoot "%~dp0translations" -OutputRoot "%OUT_DIR%" > "%LANGS_STAGE_LOG%" 2>&1
+set "LANGS_STAGE_EXIT=%errorlevel%"
+type "%LANGS_STAGE_LOG%"
+set "ENABLED_LANGS=0"
+set "DISABLED_LANGS=0"
+for /f "tokens=2,4" %%n in ('findstr /b /c:"Languages:" "%LANGS_STAGE_LOG%"') do (
+    set "ENABLED_LANGS=%%n"
+    set "DISABLED_LANGS=%%o"
+)
+del "%LANGS_STAGE_LOG%" >nul 2>&1
+if not "%LANGS_STAGE_EXIT%"=="0" (
+    echo.
+    echo Language policy check FAILED. Fix translations\languages.cfg and try again.
+    exit /b 1
+)
+set /a REGISTERED_LANGS=ENABLED_LANGS+DISABLED_LANGS
+
+:: ============================================================
 :: Display build configuration
 :: ============================================================
 
@@ -144,6 +177,7 @@ echo ============================================================
 echo  Configuration : %BUILD_CONFIG% %BUILD_PLATFORM%
 echo  Mode          : %BUILD_TARGET%
 echo  Plugin policy : %ENABLED_COUNT% plugins enabled ^(plugins.cfg^)
+echo  Lang policy   : %ENABLED_LANGS% of %REGISTERED_LANGS% languages enabled ^(languages.cfg^)
 if "%BUILD_FULL%"=="1" echo  Full build    : runtime data files + plugins.ver
 echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 echo  MSBuild       : %MSBUILD_PATH%

@@ -1,6 +1,10 @@
 # build_langs.ps1 - produces the shipped .slg language modules (feature 038)
 #
-# Driven by build_langs.cmd. For every (module x language) pair it:
+# Builds ENABLED languages only (feature 039). Removing the modules of a
+# disabled language is not done here -- it happens in lang_policy.ps1, which
+# build.cmd runs on every build, because this script runs only on full builds.
+#
+# Driven by build_langs.cmd. For every (module x enabled language) pair it:
 #
 #   1. copies english.slg to <language>.slg          (seed)
 #   2. generates <module>.atp                        (gen_atp.ps1)
@@ -135,12 +139,31 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# Only ENABLED languages are built (feature 039, FR-002). read_languages.ps1
+# emits every registered language with an enabled flag as the 4th field; the
+# disabled ones are counted here so the summary can name them, and removed from
+# the output tree by lang_policy.ps1 during the build's policy stage.
 $languages = New-Object System.Collections.Generic.List[object]
+$skippedOff = New-Object System.Collections.Generic.List[string]
+$namedIsDisabled = $false
 foreach ($line in $langRecords) {
     if ($line -notmatch '\|') { continue }
     $parts = $line.Split('|')
     if ($Language -and $parts[0] -ne $Language) { continue }
+    if ($parts[3] -ne '1') {
+        if ($Language) { $namedIsDisabled = $true } else { $skippedOff.Add($parts[0]) }
+        continue
+    }
     $languages.Add([pscustomobject]@{ Folder = $parts[0]; LangId = [int]$parts[1]; Origin = $parts[2] })
+}
+# Asking for a disabled language by name is refused rather than honoured: this
+# is a BUILD tool, the policy stage would delete the result on the next build,
+# and producing something that silently vanishes is worse than failing loudly.
+# Preparing a disabled translation is the authoring tools' job --
+# "python -m translate.merge --language <folder>" does exactly that.
+if ($namedIsDisabled) {
+    Write-Output ("ERROR: language '{0}' is disabled in languages.cfg -- enable it there to build it" -f $Language)
+    exit 1
 }
 if ($Language -and $languages.Count -eq 0) {
     Write-Output ("ERROR: language '{0}' is not registered in languages.cfg" -f $Language)
@@ -314,6 +337,9 @@ foreach ($m in $modules) {
 Write-Output ("  language modules built: {0}" -f $built)
 if ($upToDate -gt 0) {
     Write-Output ("  up to date (skipped)   : {0}" -f $upToDate)
+}
+if ($skippedOff.Count -gt 0) {
+    Write-Output ("  languages skipped (off): {0}  -- {1}" -f $skippedOff.Count, (($skippedOff | Sort-Object) -join ', '))
 }
 if ($layoutErrors -gt 0) {
     Write-Output ("  LAYOUT WARNINGS        : {0} module(s) have clipped or overlapping controls:" -f $layoutErrors)

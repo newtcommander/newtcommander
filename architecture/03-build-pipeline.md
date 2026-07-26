@@ -56,6 +56,26 @@ syntax error, unknown or duplicate entry, unlisted plugin — stops the
 build before compilation. See
 `specs/007-plugin-build-policy/contracts/build-cmd.md`.
 
+Every run then executes the **language build policy stage** (feature 039),
+the language counterpart of the above. `translations\languages.cfg` — the
+shipped-language registry, one `[folder]` section per language carrying an
+`enabled = on|off` field — is validated by `src\vcxproj\lang_policy.ps1`,
+and the output tree is reconciled with it: every `.slg` in `lang\` and
+`plugins\*\lang\` that does not belong to an enabled language is deleted
+(`english.slg` is compiled from the `.rc` sources and always kept). Any
+validation error — missing or unrecognized field, duplicate LANGID, a
+registered language with no `translations\<folder>\` directory, or a
+directory with no record — stops the build before compilation, naming the
+offending section.
+
+Note the split: **removal happens on every build, production only on a
+full build.** Language modules are produced by `build_langs.cmd`, which
+runs from `:populate_runtime` (i.e. `build.cmd full`). If removal also
+lived there, a plain `build.cmd` after switching a language off would
+leave its modules in the output tree — and because the product enumerates
+`lang\*.slg` from disk, the language would still be offered. See
+`specs/039-language-build-policy/contracts/build-scripts.md`.
+
 ### 2. Visual Studio IDE
 
 Open `src\vcxproj\salamand.sln` and build from the IDE. Select

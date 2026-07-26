@@ -1,5 +1,16 @@
 # Ukrainian translation
 
+> **Currently not shipped.** Feature 039 set `enabled = off` for Ukrainian in
+> `../languages.cfg`, together with Russian and Simplified Chinese, because all
+> three render incorrectly in menus. The defect is recorded in
+> `specs/039-language-build-policy/spec.md` and has not been diagnosed. Nothing
+> here was removed — the translation below is complete and intact, and
+> re-enabling is a one-line change once the rendering is fixed.
+>
+> The authoring tools skip disabled languages by default, so
+> `python -m translate.merge --all` will not touch this directory. To work on
+> it deliberately, name it: `python -m translate.merge --language ukrainian`.
+
 Added by feature 038. **No human translator has contributed to this language** —
 every string is produced by machine translation from the English original, so
 each `.slt` here is entirely `machine` origin (see the `.origin` sidecars).

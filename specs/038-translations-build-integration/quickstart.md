@@ -151,11 +151,18 @@ src\vcxproj\build_langs.cmd --language czech --module sftp
 
 ## Adding a new language
 
+> **Updated by feature 039**: `languages.cfg` gained a required
+> `enabled = on|off` field, so the record format described here is no longer
+> complete on its own. See
+> `specs/039-language-build-policy/contracts/languages-cfg.md`.
+
 1. Add a record to `translations/languages.cfg` (folder, LANGID, display name,
-   author, web, comment, `origin = machine`).
+   author, web, comment, `origin = machine`, `enabled = on|off`).
 2. `mkdir translations/<folder>`
 3. `python -m translate.merge --language <folder>` — every entry is a gap, so
-   the whole language is machine-produced.
+   the whole language is machine-produced. Naming the language explicitly also
+   works while it is still `enabled = off`, which is the usual way to prepare
+   one before shipping it.
 4. Review, commit, `build.cmd full`.
 
 ---

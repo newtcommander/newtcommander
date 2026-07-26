@@ -53,7 +53,7 @@ Only stage 3 runs on every build.
 
 | Module | Purpose |
 |---|---|
-| `config.py` | Reads `translations/languages.cfg` and `plugins.cfg`; enumerates the (module × language) matrix |
+| `config.py` | Reads `translations/languages.cfg` and `plugins.cfg`; enumerates the (module × language) matrix. `load_languages()` returns **enabled languages only** unless asked otherwise — see the language policy below |
 | `slt.py` | `.slt` reader/writer with byte-exact round-trip; `--verify` mode |
 | `rebrand.py` | Predecessor product/vendor names and legacy URLs → Newt Commander identity |
 | `validate.py` | Placeholder / accelerator / shortcut-label preservation checks |
@@ -62,10 +62,40 @@ Only stage 3 runs on every build.
 
 ---
 
+## The language policy (feature 039)
+
+Each `[language]` section in `translations/languages.cfg` carries
+`enabled = on|off`. A language switched `off` is not built and not shipped;
+its committed `.slt` files and `.origin` sidecars are never touched, so
+re-enabling it costs nothing.
+
+These tools honour that policy:
+
+| Tool | Default | Opt-in for a disabled language | Why |
+|---|---|---|---|
+| `merge` | enabled only | `--language <folder>` | it spends DeepL characters — translating a language that will not ship is waste |
+| `rebrand` | **all languages** | *(it is the opt-in)* | it spends nothing and is a correctness sweep; missed brand residue would surface the moment a language is re-enabled |
+| `config` (printer) | **all languages** | *(it is the opt-in)* | its job is to show the policy, not act on it |
+| `build_langs.cmd` | enabled only | none — it errors instead | it is a build tool; the policy stage would delete the result anyway |
+
+Naming a disabled language *is* the opt-in — there is no extra flag — and it
+is never silent:
+
+```bat
+python -m translate.merge --all                    :: 8 enabled languages
+python -m translate.merge --language ukrainian     :: prints a "disabled" notice, then processes it
+```
+
+In code, `load_languages(include_disabled=True)` returns the whole registry.
+The default is the safe one deliberately: a tool that forgets about the
+policy fails *closed* rather than quietly spending budget.
+
+---
+
 ## Commands
 
 ```bat
-:: Inspect the configured matrix
+:: Inspect the whole registry and what ships
 python -m translate.config
 
 :: Verify the .slt reader/writer round-trips every committed file byte-for-byte

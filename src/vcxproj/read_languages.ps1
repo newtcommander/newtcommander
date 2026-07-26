@@ -4,7 +4,15 @@
 # directories under translations\, and emits one pipe-delimited record per
 # language so a batch file can consume it with a simple for /f loop:
 #
-#     <folder>|<langid>|<origin>
+#     <folder>|<langid>|<origin>|<enabled>
+#
+# EVERY registered language is emitted, enabled or not (feature 039). The
+# consumers need both sets: build_langs.ps1 builds the enabled ones, and
+# lang_policy.ps1 needs to know what to delete from the build output. One
+# reader serving both means one place to be wrong.
+#
+# This script is a PURE READER -- it never deletes or writes anything. Output
+# reconciliation lives in lang_policy.ps1.
 #
 # Batch cannot read the registry directly: author and comment fields carry
 # Cyrillic, CJK, and accented Latin text, which the console code page mangles.
@@ -22,6 +30,12 @@ param(
 $ErrorActionPreference = 'Stop'
 $errors = New-Object System.Collections.Generic.List[string]
 
+# Every section name encountered, whether or not its record validated. V3 below
+# uses this rather than the validated list: a section with a bad field is still
+# a section, and reporting its directory as "not registered" on top of the real
+# error sends the reader looking for a second, non-existent problem.
+$seenFolders = New-Object System.Collections.Generic.List[string]
+
 if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) {
     Write-Output ("ERROR: languages.cfg not found at '{0}'. This file is the" -f $Config)
     Write-Output '       shipped-language registry: one [folder] section per language'
@@ -33,10 +47,11 @@ if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) {
 $languages = New-Object System.Collections.Generic.List[object]
 $current = $null
 $fields = @{}
-$required = @('langid', 'display_name', 'author', 'web', 'comment', 'helpdir', 'origin')
+$required = @('langid', 'display_name', 'author', 'web', 'comment', 'helpdir', 'origin', 'enabled')
 
 function Flush-Section {
     if ($null -eq $script:current) { return }
+    $script:seenFolders.Add($script:current)
     $missing = @($script:required | Where-Object { -not $script:fields.ContainsKey($_) })
     if ($missing.Count -gt 0) {
         $script:errors.Add(("language [{0}] is missing: {1}" -f $script:current, ($missing -join ', ')))
@@ -49,11 +64,15 @@ function Flush-Section {
         elseif ($script:fields['origin'] -notin @('human', 'mixed', 'machine')) {
             $script:errors.Add(("language [{0}] has unknown origin '{1}' (expected human, mixed, or machine)" -f $script:current, $script:fields['origin']))
         }
+        elseif ($script:fields['enabled'] -notin @('on', 'off')) {
+            $script:errors.Add(("language [{0}] has enabled '{1}' (expected on or off)" -f $script:current, $script:fields['enabled']))
+        }
         else {
             $script:languages.Add([pscustomobject]@{
-                Folder = $script:current
-                LangId = $langid
-                Origin = $script:fields['origin']
+                Folder  = $script:current
+                LangId  = $langid
+                Origin  = $script:fields['origin']
+                Enabled = ($script:fields['enabled'] -eq 'on')
             })
         }
     }
@@ -110,7 +129,7 @@ if (Test-Path -LiteralPath $TranslationsRoot -PathType Container) {
         }
     }
     $registered = @{}
-    foreach ($lang in $languages) { $registered[$lang.Folder] = $true }
+    foreach ($name in $seenFolders) { $registered[$name] = $true }
     foreach ($name in $onDisk.Keys) {
         if (-not $registered.ContainsKey($name)) {
             $errors.Add(("translations\{0}\ exists but is not registered in languages.cfg" -f $name))
@@ -127,6 +146,7 @@ if ($errors.Count -gt 0) {
 }
 
 foreach ($lang in $languages) {
-    Write-Output ("{0}|{1}|{2}" -f $lang.Folder, $lang.LangId, $lang.Origin)
+    $enabled = if ($lang.Enabled) { 1 } else { 0 }
+    Write-Output ("{0}|{1}|{2}|{3}" -f $lang.Folder, $lang.LangId, $lang.Origin, $enabled)
 }
 exit 0
