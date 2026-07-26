@@ -228,7 +228,7 @@ echo  Duration      : %DUR_M% min %DUR_S% sec
 echo  Output        : %OPENSAL_BUILD_DIR%salamander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
     echo  Plugins       : %PLUG_COUNT% registered in plugins.ver ^(version %NEW_VER%^)
-    echo  Languages     : %LANG_COUNT% language modules ^(english^)
+    echo  Languages     : %LANG_COUNT% language modules
 )
 echo ============================================================
 echo.
