@@ -687,6 +687,33 @@ static void TestDarkThemePalette()
 }
 
 // ---------------------------------------------------------------------------
+// Feature 044: dark Find-window surfaces (status bar, separators, disabled
+// edit/toolbar text, progress bar) draw with these palette pairs (SC-002)
+
+static void TestFindDarkModeSurfaces()
+{
+    COLORREF chrome[64];
+    for (int i = 0; i < 64; i++)
+        chrome[i] = 0;
+#define TC_FILL(idx, r, g, b) chrome[idx] = RGB(r, g, b);
+    THEME_DARK_SYSCOLORS(TC_FILL)
+#undef TC_FILL
+
+    // status bar text / "Found Items" label / header labels on the dark face
+    CHECK(ContrastRatio(chrome[COLOR_BTNTEXT], chrome[COLOR_BTNFACE]) >= 4.5);
+    // disabled edit text ("No Advanced Options") and disabled toolbar captions
+    CHECK(ContrastRatio(chrome[COLOR_GRAYTEXT], chrome[COLOR_BTNFACE]) >= 3.0);
+    // etched separators: a visible dark bevel pair, both halves darker than
+    // the light-theme lines they replace (255/160)
+    CHECK(chrome[COLOR_3DDKSHADOW] != chrome[COLOR_3DLIGHT]);
+    CHECK(Luminance(chrome[COLOR_3DDKSHADOW]) < 0.1);
+    CHECK(Luminance(chrome[COLOR_3DLIGHT]) < 0.1);
+    // progress bar: accent bar visible on its dark track
+    CHECK(ContrastRatio(chrome[COLOR_HIGHLIGHT], chrome[COLOR_BTNSHADOW]) >= 1.5);
+    CHECK(Luminance(chrome[COLOR_BTNSHADOW]) < 0.1);
+}
+
+// ---------------------------------------------------------------------------
 // Feature 029: dark adaptation of toolbar glyph colors
 // (ThemeDarkAdaptColor in src/common/themes_palette.h; SC-002: adapted
 // neutral strokes must reach >= 3:1 contrast on the dark COLOR_BTNFACE)
@@ -902,6 +929,7 @@ int main()
     TestDropFiles();
     TestLongComponentNames();
     TestDarkThemePalette();
+    TestFindDarkModeSurfaces();
     TestDarkIconColorAdaptation();
     TestComposedMessageEncoding();
     TestUiTextEncoding();

@@ -325,6 +325,242 @@ static LRESULT CALLBACK ThemeFlatDisabledTextSubclassProc(HWND hWnd, UINT uMsg, 
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+// SS_ETCHED* separators are drawn by the native Static control with real
+// GetSysColor(COLOR_3DSHADOW/3DHILIGHT) - the etched edge never routes
+// through WM_CTLCOLORSTATIC, so the lines stay light in the dark theme
+// (feature 044). Repaint them with the dark bevel pair; the Default theme
+// passes through to the native drawing.
+static LRESULT CALLBACK ThemeEtchedLineSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                    LPARAM lParam, UINT_PTR uIdSubclass,
+                                                    DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        if (!IsDarkThemeActive())
+            break; // normal drawing
+
+        PAINTSTRUCT ps;
+        HDC hDC = BeginPaint(hWnd, &ps);
+        RECT r;
+        GetClientRect(hWnd, &r);
+        FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+        // mirror the native geometry: the horizontal/vertical variants draw
+        // a two-pixel etched line at the top/left of the client area
+        DWORD type = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE) & SS_TYPEMASK;
+        if (type == SS_ETCHEDHORZ)
+            r.bottom = r.top + 2;
+        else if (type == SS_ETCHEDVERT)
+            r.right = r.left + 2;
+        ThemeDrawEdge(hDC, &r, EDGE_ETCHED, BF_RECT);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemeEtchedLineSubclassProc, 3);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// A DISABLED Edit control paints its text with the visual style's
+// ETS_DISABLED color (a light-theme gray), ignoring the WM_CTLCOLOR*
+// colors entirely - unreadable on the dark face (feature 044). Repaint
+// single-line disabled edits flat, like the static subclass above;
+// enabled edits and the Default theme pass through.
+static LRESULT CALLBACK ThemeFlatDisabledEditSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                          LPARAM lParam, UINT_PTR uIdSubclass,
+                                                          DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_PAINT:
+    {
+        if (!IsDarkThemeActive() || IsWindowEnabled(hWnd))
+            break; // normal drawing
+
+        DWORD style = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE);
+        if (style & ES_MULTILINE)
+            break; // the flat repaint cannot reproduce multiline layout
+
+        PAINTSTRUCT ps;
+        HDC hDC = BeginPaint(hWnd, &ps);
+        RECT r;
+        GetClientRect(hWnd, &r);
+        FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+        WCHAR text[512];
+        int len = GetWindowTextW(hWnd, text, _countof(text));
+        if (len > 0)
+        {
+            RECT fr;
+            SendMessage(hWnd, EM_GETRECT, 0, (LPARAM)&fr); // the exact text rectangle
+            if (fr.right <= fr.left || fr.bottom <= fr.top)
+                fr = r;
+            HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+            HFONT hOldFont = hFont != NULL ? (HFONT)SelectObject(hDC, hFont) : NULL;
+            int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+            COLORREF oldClr = SetTextColor(hDC, ThemeSysColor(COLOR_GRAYTEXT));
+            UINT dt = DT_SINGLELINE | DT_NOPREFIX;
+            if (style & ES_CENTER)
+                dt |= DT_CENTER;
+            else if (style & ES_RIGHT)
+                dt |= DT_RIGHT;
+            DrawTextW(hDC, text, len, &fr, dt);
+            SetTextColor(hDC, oldClr);
+            SetBkMode(hDC, oldBkMode);
+            if (hOldFont != NULL)
+                SelectObject(hDC, hOldFont);
+        }
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemeFlatDisabledEditSubclassProc, 4);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// comctl32 has no dark visual style for msctls_statusbar32 and ignores
+// SB_SETBKCOLOR while visual styles are active, so the dark theme paints
+// the whole control here: background, part borders and texts, forwarded
+// owner-draw parts and the size grip (feature 044). The Default theme
+// passes every message to the native control.
+static LRESULT CALLBACK ThemeStatusBarSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                   LPARAM lParam, UINT_PTR uIdSubclass,
+                                                   DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_ERASEBKGND:
+    {
+        if (!IsDarkThemeActive())
+            break;
+        RECT r;
+        GetClientRect(hWnd, &r);
+        FillRect((HDC)wParam, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+        return TRUE;
+    }
+
+    case WM_PAINT:
+    {
+        if (!IsDarkThemeActive())
+            break;
+
+        PAINTSTRUCT ps;
+        HDC hDC = BeginPaint(hWnd, &ps);
+        RECT client;
+        GetClientRect(hWnd, &client);
+        FillRect(hDC, &client, ThemeSysColorBrush(COLOR_BTNFACE));
+
+        HFONT hFont = (HFONT)SendMessage(hWnd, WM_GETFONT, 0, 0);
+        HFONT hOldFont = hFont != NULL ? (HFONT)SelectObject(hDC, hFont) : NULL;
+        int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+        COLORREF oldClr = SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
+
+        int parts = (int)SendMessage(hWnd, SB_GETPARTS, 0, 0);
+        int i;
+        for (i = 0; i < parts; i++)
+        {
+            RECT r;
+            if (!SendMessage(hWnd, SB_GETRECT, i, (LPARAM)&r))
+                continue;
+            LRESULT lenType = SendMessage(hWnd, SB_GETTEXTLENGTHW, i, 0);
+            WORD flags = HIWORD(lenType);
+            if (flags & SBT_OWNERDRAW)
+            {
+                // native contract: the parent draws owner-draw parts
+                DRAWITEMSTRUCT dis;
+                memset(&dis, 0, sizeof(dis));
+                dis.CtlID = (UINT)GetDlgCtrlID(hWnd);
+                dis.itemID = i;
+                dis.itemAction = ODA_DRAWENTIRE;
+                dis.hwndItem = hWnd;
+                dis.hDC = hDC;
+                dis.rcItem = r;
+                dis.itemData = (ULONG_PTR)SendMessage(hWnd, SB_GETTEXTW, i, 0);
+                SendMessage(GetParent(hWnd), WM_DRAWITEM, (WPARAM)dis.CtlID, (LPARAM)&dis);
+                continue;
+            }
+            if ((flags & SBT_NOBORDERS) == 0)
+            {
+                RECT br = r;
+                ThemeDrawEdge(hDC, &br, BDR_SUNKENOUTER, BF_RECT);
+            }
+            int len = LOWORD(lenType);
+            if (len > 0)
+            {
+                WCHAR stackBuf[512];
+                WCHAR* buf = stackBuf;
+                if (len + 1 > _countof(stackBuf))
+                    buf = (WCHAR*)malloc(((size_t)len + 1) * sizeof(WCHAR));
+                if (buf != NULL)
+                {
+                    buf[0] = 0;
+                    SendMessage(hWnd, SB_GETTEXTW, i, (LPARAM)buf);
+                    RECT tr = r;
+                    tr.left += 3;
+                    tr.right -= 3;
+                    DrawTextW(hDC, buf, -1, &tr, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+                    if (buf != stackBuf)
+                        free(buf);
+                }
+            }
+        }
+
+        // size grip: three diagonal light/dark line pairs in the corner
+        DWORD style = (DWORD)GetWindowLongPtr(hWnd, GWL_STYLE);
+        if (style & SBARS_SIZEGRIP)
+        {
+            HPEN penLight = CreatePen(PS_SOLID, 1, ThemeSysColor(COLOR_3DLIGHT));
+            HPEN penDark = CreatePen(PS_SOLID, 1, ThemeSysColor(COLOR_BTNSHADOW));
+            if (penLight != NULL && penDark != NULL)
+            {
+                HPEN hOldPen = (HPEN)SelectObject(hDC, penLight);
+                int x = client.right - 1;
+                int y = client.bottom - 1;
+                int o;
+                for (o = 4; o <= 12; o += 4)
+                {
+                    SelectObject(hDC, penLight);
+                    MoveToEx(hDC, x - o - 1, y, NULL);
+                    LineTo(hDC, x + 1, y - o - 2);
+                    SelectObject(hDC, penDark);
+                    MoveToEx(hDC, x - o, y, NULL);
+                    LineTo(hDC, x + 1, y - o - 1);
+                }
+                SelectObject(hDC, hOldPen);
+            }
+            if (penLight != NULL)
+                DeleteObject(penLight);
+            if (penDark != NULL)
+                DeleteObject(penDark);
+        }
+
+        SetTextColor(hDC, oldClr);
+        SetBkMode(hDC, oldBkMode);
+        if (hOldFont != NULL)
+            SelectObject(hDC, hOldFont);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemeStatusBarSubclassProc, 5);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
 {
     BOOL dark = (BOOL)lParam;
@@ -345,20 +581,60 @@ static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
         else
             SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
     }
-    else if (_stricmp(className, "Edit") == 0 ||
-             _stricmp(className, "ListBox") == 0 ||
+    else if (_stricmp(className, "Edit") == 0)
+    {
+        // DarkMode_CFD keeps the edit border dark - DarkMode_Explorer has no
+        // dark Edit border part and falls back to the light frame (feature
+        // 044; same class the command line and the combo boxes already use).
+        // Edits with their own scrollbars keep DarkMode_Explorer, which is
+        // the class that darkens scrollbars.
+        DWORD editStyle = (DWORD)GetWindowLongPtr(hChild, GWL_STYLE);
+        if (editStyle & (WS_VSCROLL | WS_HSCROLL))
+            SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
+        else
+            SetWindowTheme(hChild, dark ? L"DarkMode_CFD" : NULL, NULL);
+        // flat repaint of disabled edits (see the subclass above); inert
+        // while the control is enabled or Default is active
+        if (dark)
+            SetWindowSubclass(hChild, ThemeFlatDisabledEditSubclassProc, 4, 0);
+        else
+            RemoveWindowSubclass(hChild, ThemeFlatDisabledEditSubclassProc, 4);
+    }
+    else if (_stricmp(className, "ListBox") == 0 ||
              _stricmp(className, "ScrollBar") == 0)
     {
         SetWindowTheme(hChild, dark ? L"DarkMode_Explorer" : NULL, NULL);
     }
     else if (_stricmp(className, "Static") == 0)
     {
-        // flat repaint of disabled labels (see the subclass above); the
-        // subclass is inert while the control is enabled or Default is active
-        if (dark)
-            SetWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2, 0);
+        DWORD type = (DWORD)GetWindowLongPtr(hChild, GWL_STYLE) & SS_TYPEMASK;
+        if (type == SS_ETCHEDHORZ || type == SS_ETCHEDVERT || type == SS_ETCHEDFRAME)
+        {
+            // etched separator lines self-draw with real 3D system colors;
+            // repaint them with the dark bevel pair (see the subclass above)
+            if (dark)
+                SetWindowSubclass(hChild, ThemeEtchedLineSubclassProc, 3, 0);
+            else
+                RemoveWindowSubclass(hChild, ThemeEtchedLineSubclassProc, 3);
+        }
         else
-            RemoveWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2);
+        {
+            // flat repaint of disabled labels (see the subclass above); the
+            // subclass is inert while the control is enabled or Default is active
+            if (dark)
+                SetWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2, 0);
+            else
+                RemoveWindowSubclass(hChild, ThemeFlatDisabledTextSubclassProc, 2);
+        }
+    }
+    else if (_stricmp(className, "msctls_statusbar32") == 0)
+    {
+        // dark repaint of the whole status bar (see the subclass above);
+        // pure passthrough while Default is active
+        if (dark)
+            SetWindowSubclass(hChild, ThemeStatusBarSubclassProc, 5, 0);
+        else
+            RemoveWindowSubclass(hChild, ThemeStatusBarSubclassProc, 5);
     }
     else if (_stricmp(className, "ComboBox") == 0 ||
              _stricmp(className, "ComboBoxEx32") == 0)

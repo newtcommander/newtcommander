@@ -308,6 +308,8 @@ void CFindDialog::OnColorsChange()
     }
     // feature 028: open Find windows follow a live theme switch (both ways)
     ThemeApplyToDialog(HWindow);
+    // feature 044: a progress bar alive during the switch is re-colored too
+    UpdateProgressBarTheme();
     if (MenuBar != NULL)
     {
         MenuBar->SetFont();
@@ -441,6 +443,9 @@ void CFindTBHeader::OnColorsChange()
         ToolBar->SetHotImageList(HHotToolBarImageList);
         ToolBar->OnColorsChanged();
     }
+    // feature 044: the WS_EX_STATICEDGE frame follows the theme (WM_NCPAINT
+    // above) - force a non-client repaint on a live theme switch
+    RedrawWindow(HWindow, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME);
 }
 
 int CFindTBHeader::GetNeededHeight()
@@ -564,12 +569,38 @@ CFindTBHeader::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         HFONT hOldFont = (HFONT)SelectObject(hdc, (HFONT)SendMessage(HWindow, WM_GETFONT, 0, 0));
         int oldBkMode = SetBkMode(hdc, TRANSPARENT);
+        // feature 044: the DC's default text color is black - set the themed
+        // one (passthrough in the Default theme, where it is black anyway)
+        COLORREF oldTextColor = SetTextColor(hdc, ThemeSysColor(COLOR_BTNTEXT));
         FillRect(hdc, &r, ThemeSysColorBrush(COLOR_3DFACE));
         DrawText(hdc, Text, -1, &tr, DT_SINGLELINE | DT_RIGHT | DT_VCENTER);
+        SetTextColor(hdc, oldTextColor);
         SetBkMode(hdc, oldBkMode);
         SelectObject(hdc, hOldFont);
 
         return TRUE;
+    }
+
+    case WM_NCPAINT:
+    {
+        // feature 044: the WS_EX_STATICEDGE frame (set in the ctor) is drawn
+        // by DefWindowProc with real 3D system colors - in the dark theme
+        // draw it with the dark bevel pair instead (precedent: the panel
+        // frame in filesbx1.cpp)
+        if (IsDarkThemeActive())
+        {
+            HDC hdc = HANDLES(GetWindowDC(HWindow));
+            if (hdc != NULL)
+            {
+                RECT r;
+                GetWindowRect(HWindow, &r);
+                OffsetRect(&r, -r.left, -r.top);
+                ThemeDrawEdge(hdc, &r, BDR_SUNKENOUTER, BF_RECT);
+                HANDLES(ReleaseDC(HWindow, hdc));
+            }
+            return 0;
+        }
+        break;
     }
 
     case WM_TIMER:

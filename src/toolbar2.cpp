@@ -640,23 +640,32 @@ void CToolBar::DrawItem(HDC hDC, int index)
             int textLenW = textW != NULL ? (int)wcslen(textW) : 0;
             if (grayed)
             {
-                RECT textR2 = r;
-                textR2.left++;
-                textR2.top++;
-                textR2.right++;
-                textR2.bottom++;
-                SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNHILIGHT));
-                if (textW != NULL)
+                if (IsDarkThemeActive())
                 {
-                    DrawTextW(CacheBitmap->HMemDC, textW, textLenW,
-                              &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    // feature 044: the classic two-pass emboss is unreadable on
+                    // the dark face - draw disabled text flat in the disabled color
+                    SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_GRAYTEXT));
                 }
                 else
                 {
-                    DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
-                             &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    RECT textR2 = r;
+                    textR2.left++;
+                    textR2.top++;
+                    textR2.right++;
+                    textR2.bottom++;
+                    SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNHILIGHT));
+                    if (textW != NULL)
+                    {
+                        DrawTextW(CacheBitmap->HMemDC, textW, textLenW,
+                                  &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    }
+                    else
+                    {
+                        DrawText(CacheBitmap->HMemDC, item->Text, item->TextLen,
+                                 &textR2, noPrefix | DT_NOCLIP | DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+                    }
+                    SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNSHADOW));
                 }
-                SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNSHADOW));
             }
             else
                 SetTextColor(CacheBitmap->HMemDC, ThemeSysColor(COLOR_BTNTEXT));

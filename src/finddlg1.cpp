@@ -18,6 +18,8 @@
 #include "tasklist.h"
 
 #include <Shlwapi.h>
+#include <uxtheme.h>
+#include <vssym32.h>
 
 const char* MINIMIZED_FINDING_CAPTION = "(%d) %s [%s %s]";
 const char* NORMAL_FINDING_CAPTION = "%s [%s %s]";
@@ -1171,6 +1173,73 @@ CFoundFilesListView::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HANDLES(LeaveCriticalSection(&FileNamesEnumDataSect));
         return 0;
     }
+
+    case WM_NOTIFY:
+    {
+        // feature 044: the DarkMode_ItemsView theme darkens the header
+        // background but keeps the light theme's black label text (the app
+        // deliberately avoids the undocumented SetPreferredAppMode). Draw the
+        // labels ourselves in dark mode; light mode keeps the default painting.
+        LPNMHDR nmh = (LPNMHDR)lParam;
+        if (nmh->code == NM_CUSTOMDRAW && nmh->hwndFrom == ListView_GetHeader(HWindow) &&
+            IsDarkThemeActive())
+        {
+            LPNMCUSTOMDRAW cd = (LPNMCUSTOMDRAW)lParam;
+            if (cd->dwDrawStage == CDDS_PREPAINT)
+                return CDRF_NOTIFYITEMDRAW;
+            if (cd->dwDrawStage == CDDS_ITEMPREPAINT)
+            {
+                HDC hDC = cd->hdc;
+                RECT r = cd->rc;
+
+                // background: the header's own (dark) theme part, so hover and
+                // pressed states match the default-painted area past the last column
+                int state = HIS_NORMAL;
+                if (cd->uItemState & CDIS_SELECTED)
+                    state = HIS_PRESSED;
+                else if (cd->uItemState & CDIS_HOT)
+                    state = HIS_HOT;
+                HTHEME hTheme = OpenThemeData(nmh->hwndFrom, L"Header");
+                if (hTheme != NULL)
+                {
+                    DrawThemeBackground(hTheme, hDC, HP_HEADERITEM, state, &r, NULL);
+                    CloseThemeData(hTheme);
+                }
+                else
+                    FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+
+                WCHAR text[260];
+                text[0] = 0;
+                HDITEMW hdi;
+                memset(&hdi, 0, sizeof(hdi));
+                hdi.mask = HDI_TEXT | HDI_FORMAT;
+                hdi.pszText = text;
+                hdi.cchTextMax = _countof(text);
+                SendMessage(nmh->hwndFrom, HDM_GETITEMW, cd->dwItemSpec, (LPARAM)&hdi);
+
+                HFONT hFont = (HFONT)SendMessage(nmh->hwndFrom, WM_GETFONT, 0, 0);
+                HFONT hOldFont = hFont != NULL ? (HFONT)SelectObject(hDC, hFont) : NULL;
+                int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+                COLORREF oldClr = SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
+                RECT tr = r;
+                tr.left += 6;
+                tr.right -= 6;
+                UINT dt = DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS;
+                if ((hdi.fmt & HDF_JUSTIFYMASK) == HDF_RIGHT)
+                    dt |= DT_RIGHT;
+                else if ((hdi.fmt & HDF_JUSTIFYMASK) == HDF_CENTER)
+                    dt |= DT_CENTER;
+                DrawTextW(hDC, text, -1, &tr, dt);
+                SetTextColor(hDC, oldClr);
+                SetBkMode(hDC, oldBkMode);
+                if (hOldFont != NULL)
+                    SelectObject(hDC, hOldFont);
+                return CDRF_SKIPDEFAULT;
+            }
+            return CDRF_DODEFAULT;
+        }
+        break;
+    }
     }
     return CWindow::WindowProc(uMsg, wParam, lParam);
 }
@@ -1450,6 +1519,29 @@ void CFindDialog::GetLayoutParams()
     FindTextY = ResultsY - FindTextH;
 }
 
+void CFindDialog::UpdateProgressBarTheme()
+{
+    if (HProgressBar == NULL)
+        return;
+    // feature 044: the themed progress bar ignores PBM_SETBKCOLOR and
+    // PBM_SETBARCOLOR; in the dark theme strip its visual-style theme so the
+    // classic renderer honors the dark track/bar colors. The Default theme
+    // restores the native themed look.
+    if (IsDarkThemeActive())
+    {
+        SetWindowTheme(HProgressBar, L"", L"");
+        SendMessage(HProgressBar, PBM_SETBKCOLOR, 0, (LPARAM)ThemeSysColor(COLOR_BTNSHADOW));
+        SendMessage(HProgressBar, PBM_SETBARCOLOR, 0, (LPARAM)ThemeSysColor(COLOR_HIGHLIGHT));
+    }
+    else
+    {
+        SetWindowTheme(HProgressBar, NULL, NULL);
+        SendMessage(HProgressBar, PBM_SETBKCOLOR, 0, (LPARAM)CLR_DEFAULT);
+        SendMessage(HProgressBar, PBM_SETBARCOLOR, 0, (LPARAM)CLR_DEFAULT);
+    }
+    InvalidateRect(HProgressBar, NULL, TRUE);
+}
+
 void CFindDialog::SetTwoStatusParts(BOOL two, BOOL force)
 {
     int margin = HMargin - 4;
@@ -1474,6 +1566,7 @@ void CFindDialog::SetTwoStatusParts(BOOL two, BOOL force)
                                           progressWidth, r.bottom - 2,
                                           HStatusBar, (HMENU)0, HInstance, NULL);
             SendMessage(HProgressBar, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+            UpdateProgressBarTheme();
         }
     }
     else
@@ -3010,6 +3103,11 @@ CFindDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         // not supported yet, hide the option
         ShowWindow(GetDlgItem(HWindow, IDC_FIND_INCLUDE_ARCHIVES), FALSE);
 
+        // feature 044: NotifDlgJustCreated already ran ThemeApplyToDialog, but
+        // that was before this handler created the status bar, the menu bar and
+        // the header toolbars - apply again (idempotent) so they are themed too
+        ThemeApplyToDialog(HWindow);
+
         EnableControls();
         break;
     }
@@ -3828,6 +3926,9 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
         {
             DRAWITEMSTRUCT* di = (DRAWITEMSTRUCT*)lParam;
             int prevBkMode = SetBkMode(di->hDC, TRANSPARENT);
+            // feature 044: dark status bar draws light text (passthrough in
+            // the Default theme, where ThemeSysColor == GetSysColor == black)
+            COLORREF prevColor = SetTextColor(di->hDC, ThemeSysColor(COLOR_BTNTEXT));
             char buff[MAX_PATH + 50];
             SearchingText.Get(buff, MAX_PATH + 50);
             WCHAR* buffW = SalU8ToWAlloc(buff); // UTF-8 -> wide for correct display (feature 004)
@@ -3838,6 +3939,7 @@ MENU_TEMPLATE_ITEM FindLookInBrowseMenu[] =
             }
             else // not valid UTF-8 (transitional): keep the legacy path
                 DrawText(di->hDC, buff, (int)strlen(buff), &di->rcItem, DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_PATH_ELLIPSIS);
+            SetTextColor(di->hDC, prevColor);
             SetBkMode(di->hDC, prevBkMode);
             return TRUE;
         }

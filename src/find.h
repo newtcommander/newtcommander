@@ -719,8 +719,8 @@ protected:
     BOOL TwoParts;     // does the status bar have two texts?
                        //    CFindAdvancedDialog FindAdvanced;
     CFoundFilesListView* FoundFilesListView;
-    char FoundFilesDataTextBuffer[SAL_FIND_NAME_U8];      // for obtaining text from CFoundFilesData::GetText (UTF-8 names, feature 004)
-    WCHAR FoundFilesDataTextBufferW[SAL_FIND_NAME_U8];    // the same text converted for LVN_GETDISPINFOW (feature 004)
+    char FoundFilesDataTextBuffer[SAL_FIND_NAME_U8];   // for obtaining text from CFoundFilesData::GetText (UTF-8 names, feature 004)
+    WCHAR FoundFilesDataTextBufferW[SAL_FIND_NAME_U8]; // the same text converted for LVN_GETDISPINFOW (feature 004)
     CFindTBHeader* TBHeader;
     BOOL SearchInProgress;
     BOOL CanClose; // the window can be closed (we are not inside a method of this object)
@@ -797,6 +797,8 @@ protected:
     void LayoutControls(); // arranges controls within the dialog
 
     void SetTwoStatusParts(BOOL two, BOOL force = FALSE); // sets one or two status bar parts; sizes are adjusted according to the status bar length
+
+    void UpdateProgressBarTheme(); // dark theme: classic renderer + dark colors for the status bar progress child (feature 044)
 
     void SetContentVisible(BOOL visible);
     void UpdateAdvancedText();
