@@ -18,14 +18,16 @@
 
 // LegalCopyright metadata written to the version resource. Not displayed
 // anywhere in the UI -- the two defines below are what the user sees.
-#define VERSINFO_COPYRIGHT   "Copyright © 1997-2026 Open Salamander Authors, © 2026 Newt Commander Authors"
+#define VERSINFO_COPYRIGHT   "Copyright © 1997-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT
 // The two notices displayed by the splash screen and the About dialog
-// (feature 040). Newt Commander first, Open Salamander second, on both
+// (feature 040). This project's holder first, Open Salamander second, on both
 // surfaces. Each line is self-contained English and is NEVER routed through
 // the translation pipeline -- the About dialog controls carry an empty caption
 // in lang.rc and are filled at run time from these defines.
-// The copyright-year rule updates all three defines here together.
-#define VERSINFO_COPYRIGHT_NEWT     "Copyright © 2026 Newt Commander Authors"
+// The copyright-year rule updates all three defines here together; the holder
+// name itself lives in VERSINFO_HOLDER_NEWT (plugins\shared\spl_vers.h) and is
+// shared with every plugin and standalone .rc.
+#define VERSINFO_COPYRIGHT_NEWT     "Copyright © 2026 " VERSINFO_HOLDER_NEWT
 #define VERSINFO_COPYRIGHT_OPENSAL  "Copyright © 1997-2026 Open Salamander Authors"
 #define VERSINFO_COMPANY     "Newt Commander Project"
 

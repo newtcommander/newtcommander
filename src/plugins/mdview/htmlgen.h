@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Open Salamander Authors
+// SPDX-FileCopyrightText: 2026 Pavel Stupka
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // htmlgen.h - Markdown (UTF-8) -> self-contained HTML document + theme CSS.

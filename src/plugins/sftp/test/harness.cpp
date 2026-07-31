@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Open Salamander Authors
+// SPDX-FileCopyrightText: 2026 Pavel Stupka
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Dev-only unit test harness for the SFTP plugin's pure-logic helpers.

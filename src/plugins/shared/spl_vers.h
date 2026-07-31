@@ -21,6 +21,14 @@
 #define VERSINFO_xstr(s) VERSINFO_str(s)
 #define VERSINFO_str(s) #s
 
+// Copyright holder for everything authored in this project. The year-split rule
+// (feature 032): years up to 2026 stay credited to "Open Salamander Authors",
+// 2026 onward to the holder below. Defined here -- the one header every
+// versinfo.rh2 and every standalone .rc carrying a notice already includes --
+// so the holder changes in a single edit instead of in ~35 string literals.
+// Always concatenate, never spell the name out: "... , © 2026 " VERSINFO_HOLDER_NEWT
+#define VERSINFO_HOLDER_NEWT "Pavel Stupka"
+
 // Newt Commander versioning (feature 032): semantic version MAJOR.MINORA.MINORB,
 // always three components ("0.1.0"), unlike the historical Salamander scheme
 // where MINORB were hundredths appended without a dot (2.53) and a zero was dropped (5.0)

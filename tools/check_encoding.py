@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: 2026 Newt Commander Authors
+# SPDX-FileCopyrightText: 2026 Pavel Stupka
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Guard against the file-name display-encoding defect class (feature 042).
 

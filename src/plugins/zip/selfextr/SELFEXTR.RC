@@ -10,6 +10,7 @@
 
 #include "resource.h"
 #include "comdefs.h"
+#include "..\..\shared\spl_vers.h" // VERSINFO_HOLDER_NEWT for LegalCopyright
 
 #ifdef _DEBUG
 SE_IDI_ICON ICON "icon.ico"
@@ -37,7 +38,7 @@ BEGIN
             VALUE "CompanyName", "Newt Commander Project" "\0"
             VALUE "FileDescription", "Self-Extractor" "\0"
             VALUE "FileVersion", "1.40.0.0" "\0"
-            VALUE "LegalCopyright", "Copyright © 2000-2026 Open Salamander Authors, © 2026 Newt Commander Authors" "\0"
+            VALUE "LegalCopyright", "Copyright © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT "\0"
         END
     END
     BLOCK "VarFileInfo"

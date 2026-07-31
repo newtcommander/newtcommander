@@ -15,7 +15,7 @@
 
 #include "spl_vers.h" // retrieve version and build numbers
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2009-2026 Open Salamander Authors, © 2026 Newt Commander Authors"
+#define VERSINFO_COPYRIGHT   "Copyright © 2009-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT
 #define VERSINFO_COMPANY     "Newt Commander Project"
 
 #define VERSINFO_DESCRIPTION "UnCHM plugin for Newt Commander"

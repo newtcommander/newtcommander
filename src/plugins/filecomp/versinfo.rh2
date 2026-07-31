@@ -15,7 +15,7 @@
 
 #include "spl_vers.h" // vytahneme cisla verzi + buildu
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2000-2026 Open Salamander Authors, © 2026 Newt Commander Authors"
+#define VERSINFO_COPYRIGHT   "Copyright © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT
 #define VERSINFO_COMPANY     "Newt Commander Project"
 
 #define VERSINFO_DESCRIPTION "File Comparator for Newt Commander"

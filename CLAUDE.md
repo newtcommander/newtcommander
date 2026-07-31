@@ -14,12 +14,18 @@ WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
   writes Open Salamander/Altap registry keys (no config import)
 - **Websites**: https://newtcommander.org · repo github.com/newtcommander/newtcommander
 - **Copyright rule**: years up to 2026 → "Open Salamander Authors",
-  2026 onward → "Newt Commander Authors" (sftp+mdview plugins are solely
-  Newt Commander Authors). The two notices shown in the About dialog and on
-  the splash screen live in `src/versinfo.rh2`
-  (`VERSINFO_COPYRIGHT_NEWT` above `VERSINFO_COPYRIGHT_OPENSAL`) and are
-  never translated — the About controls carry an empty caption in
-  `lang.rc`. Do not look for this text in the language files (feature 040).
+  2026 onward → **Pavel Stupka** (sftp+mdview plugins are solely his).
+  The holder name is defined **once**, as `VERSINFO_HOLDER_NEWT` in
+  `src/plugins/shared/spl_vers.h`; every notice concatenates it
+  (`"… , © 2026 " VERSINFO_HOLDER_NEWT`) and never spells it out — that
+  covers all 30 `versinfo.rh2` files, the standalone `.rc` files
+  (salmon, shellext, zip sfx trio, fcremote, salpvenv) and the two
+  hardcoded strings in `plugins2.cpp` / `zip/add_del.cpp`. The two
+  notices shown in the About dialog and on the splash screen live in
+  `src/versinfo.rh2` (`VERSINFO_COPYRIGHT_NEWT` above
+  `VERSINFO_COPYRIGHT_OPENSAL`) and are never translated — the About
+  controls carry an empty caption in `lang.rc`. Do not look for this
+  text in the language files (feature 040).
 - **IMPORTANT**: source files, functions, classes, project/solution names
   (`salamand.sln`, `salamand.vcxproj`, `SALAMANDER_*` constants) deliberately
   keep their upstream names — rename only user/OS-visible identity
