@@ -67,7 +67,7 @@ if not defined OPENSAL_BUILD_DIR (
     echo NOTE: OPENSAL_BUILD_DIR not set, defaulting to !OPENSAL_BUILD_DIR!
 )
 
-set "OUT_DIR=%OPENSAL_BUILD_DIR%newtcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
+set "OUT_DIR=%OPENSAL_BUILD_DIR%tandemcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%"
 
 if not exist "%OUT_DIR%" (
     echo ERROR: build output not found: %OUT_DIR%

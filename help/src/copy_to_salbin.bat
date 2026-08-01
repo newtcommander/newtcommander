@@ -7,8 +7,8 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit /b
 )
 
-if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
-  echo Target directory does not exist: %OPENSAL_BUILD_DIR%newtcommander
+if not exist "%OPENSAL_BUILD_DIR%tandemcommander" (
+  echo Target directory does not exist: %OPENSAL_BUILD_DIR%tandemcommander
   pause
   exit /b
 )
@@ -21,7 +21,7 @@ if "%1"=="" (
 )
 
 for %%t in (Debug_x86 Release_x86 Debug_x64 Release_x64) do (
-  call :mycopy_with_mkdir_bat "%~1" "%OPENSAL_BUILD_DIR%newtcommander\%%t\help\english"
+  call :mycopy_with_mkdir_bat "%~1" "%OPENSAL_BUILD_DIR%tandemcommander\%%t\help\english"
 )
 del "%~1"
 

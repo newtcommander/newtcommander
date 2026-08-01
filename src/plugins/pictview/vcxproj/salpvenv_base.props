@@ -4,7 +4,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros"></PropertyGroup>
   <PropertyGroup>
-    <OutDir>$(OPENSAL_BUILD_DIR)newtcommander\$(Configuration)_x64\plugins\pictview\</OutDir>
+    <OutDir>$(OPENSAL_BUILD_DIR)tandemcommander\$(Configuration)_x64\plugins\pictview\</OutDir>
     <IntDir>$(OutDir)Intermediate\SalPVEnv_x86\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <EmbedManifest>false</EmbedManifest>

@@ -49,7 +49,7 @@ if (-not $Module -or $Module -eq 'salamand') {
     if (Test-Path -LiteralPath $appLangDir -PathType Container) {
         $targets.Add([pscustomobject]@{
             Name  = 'salamand'
-            Owner = Join-Path $OutDir 'newtcommander.exe'
+            Owner = Join-Path $OutDir 'tandemcommander.exe'
             Dir   = $appLangDir
         })
     }

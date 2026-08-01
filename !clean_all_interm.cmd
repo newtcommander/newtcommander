@@ -21,15 +21,15 @@ set called_from_clean_all_interm=yes
 call !clean_src_interm.cmd
 rem echo.
 
-if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
-  echo Build directory does not exist: %OPENSAL_BUILD_DIR%newtcommander
+if not exist "%OPENSAL_BUILD_DIR%tandemcommander" (
+  echo Build directory does not exist: %OPENSAL_BUILD_DIR%tandemcommander
   echo.
   pause
   exit /b
 )
 
 for %%t in (Debug_x86 Release_x86 Debug_x64 Release_x64) do (
-  call :clean_salbin_dir "%OPENSAL_BUILD_DIR%newtcommander\%%t"
+  call :clean_salbin_dir "%OPENSAL_BUILD_DIR%tandemcommander\%%t"
 )
 
 for %%t in (Debug Release) do (

@@ -9,8 +9,8 @@ if "%OPENSAL_BUILD_DIR%"=="" (
   exit /b
 )
 
-if not exist "%OPENSAL_BUILD_DIR%newtcommander" (
-  echo Target directory does not exist: %OPENSAL_BUILD_DIR%newtcommander
+if not exist "%OPENSAL_BUILD_DIR%tandemcommander" (
+  echo Target directory does not exist: %OPENSAL_BUILD_DIR%tandemcommander
   echo.
   pause
   exit /b
@@ -37,13 +37,13 @@ echo Go to INDEX tab in opened HTML Help to create salamand.chw file.
 echo.
 
 for %%t in (Debug_x86 Release_x86 Debug_x64 Release_x64) do (
-  call :my_del "%OPENSAL_BUILD_DIR%newtcommander\%%t\help\english\salamand.chw"
+  call :my_del "%OPENSAL_BUILD_DIR%tandemcommander\%%t\help\english\salamand.chw"
 )
 
-call "%OPENSAL_BUILD_DIR%newtcommander\Debug_x86\help\english\salamand.chm"
+call "%OPENSAL_BUILD_DIR%tandemcommander\Debug_x86\help\english\salamand.chm"
 
 for %%t in (          Release_x86 Debug_x64 Release_x64) do (
-  call :mycopy_bat "%OPENSAL_BUILD_DIR%newtcommander\Debug_x86\help\english\salamand.chw" "%OPENSAL_BUILD_DIR%newtcommander\%%t\help\english\salamand.chw"
+  call :mycopy_bat "%OPENSAL_BUILD_DIR%tandemcommander\Debug_x86\help\english\salamand.chw" "%OPENSAL_BUILD_DIR%tandemcommander\%%t\help\english\salamand.chw"
 )
 
 echo.
