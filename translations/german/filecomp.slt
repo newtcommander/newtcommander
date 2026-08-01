@@ -6,7 +6,7 @@ VERSION,"1,1,9,184"
 [TRANSLATION]
 LANGID,1031
 AUTHOR,"Dirk Bornhütter, Thomas Kelso, Thomas Pagels, Thomas Wölk, Marko Meister und Mick Weiss"
-WEB,"www.newtcommander.org"
+WEB,"www.tandemcommander.org"
 COMMENT,"Deutsche Version"
 
 [DIALOG 100]
