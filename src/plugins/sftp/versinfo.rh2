@@ -18,10 +18,10 @@
 
 #include "spl_vers.h" // retrieve version and build numbers
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2026 " VERSINFO_HOLDER_NEWT
-#define VERSINFO_COMPANY     "Newt Commander Project"
+#define VERSINFO_COPYRIGHT   "Copyright © 2026 " VERSINFO_HOLDER_TANDEM
+#define VERSINFO_COMPANY     "Tandem Commander Project"
 
-#define VERSINFO_DESCRIPTION "SFTP Client for Newt Commander"
+#define VERSINFO_DESCRIPTION "SFTP Client for Tandem Commander"
 
 #ifdef _LANG
 #define VERSINFO_INTERNAL    "ENGLISH"
@@ -32,7 +32,7 @@
 #endif
 
 // for SLG translators
-#define VERSINFO_SLG_WEB     "www.newtcommander.org"
+#define VERSINFO_SLG_WEB     "www.tandemcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __SFTP_VERSINFO_RH2

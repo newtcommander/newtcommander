@@ -18,10 +18,10 @@
 
 #include "spl_vers.h"
 
-#define VERSINFO_COPYRIGHT   "Copyright © 2026 " VERSINFO_HOLDER_NEWT
-#define VERSINFO_COMPANY     "Newt Commander Project"
+#define VERSINFO_COPYRIGHT   "Copyright © 2026 " VERSINFO_HOLDER_TANDEM
+#define VERSINFO_COMPANY     "Tandem Commander Project"
 
-#define VERSINFO_DESCRIPTION "Markdown viewer plugin for Newt Commander"
+#define VERSINFO_DESCRIPTION "Markdown viewer plugin for Tandem Commander"
 
 #ifdef _LANG
 #define VERSINFO_INTERNAL    "ENGLISH"
@@ -31,7 +31,7 @@
 #define VERSINFO_ORIGINAL    VERSINFO_INTERNAL ".SPL"
 #endif
 
-#define VERSINFO_SLG_WEB     "www.newtcommander.org"
+#define VERSINFO_SLG_WEB     "www.tandemcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __MDVIEW_VERSINFO_RH2

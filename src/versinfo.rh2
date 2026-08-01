@@ -18,32 +18,32 @@
 
 // LegalCopyright metadata written to the version resource. Not displayed
 // anywhere in the UI -- the two defines below are what the user sees.
-#define VERSINFO_COPYRIGHT   "Copyright © 1997-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT
+#define VERSINFO_COPYRIGHT   "Copyright © 1997-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_TANDEM
 // The two notices displayed by the splash screen and the About dialog
 // (feature 040). This project's holder first, Open Salamander second, on both
 // surfaces. Each line is self-contained English and is NEVER routed through
 // the translation pipeline -- the About dialog controls carry an empty caption
 // in lang.rc and are filled at run time from these defines.
 // The copyright-year rule updates all three defines here together; the holder
-// name itself lives in VERSINFO_HOLDER_NEWT (plugins\shared\spl_vers.h) and is
+// name itself lives in VERSINFO_HOLDER_TANDEM (plugins\shared\spl_vers.h) and is
 // shared with every plugin and standalone .rc.
-#define VERSINFO_COPYRIGHT_NEWT     "Copyright © 2026 " VERSINFO_HOLDER_NEWT
+#define VERSINFO_COPYRIGHT_TANDEM     "Copyright © 2026 " VERSINFO_HOLDER_TANDEM
 #define VERSINFO_COPYRIGHT_OPENSAL  "Copyright © 1997-2026 Open Salamander Authors"
-#define VERSINFO_COMPANY     "Newt Commander Project"
+#define VERSINFO_COMPANY     "Tandem Commander Project"
 
-#define VERSINFO_DESCRIPTION "Newt Commander, File Manager"
+#define VERSINFO_DESCRIPTION "Tandem Commander, File Manager"
 #define VERSINFO_COMMENT     "A small and fast two-pane file manager with open plugin architecture."
 
 #ifdef _LANG
 #define VERSINFO_INTERNAL    "ENGLISH"
 #define VERSINFO_ORIGINAL    VERSINFO_INTERNAL ".SLG"
 #else
-#define VERSINFO_INTERNAL    "NEWTCOMMANDER"
+#define VERSINFO_INTERNAL    "TANDEMCOMMANDER"
 #define VERSINFO_ORIGINAL    VERSINFO_INTERNAL ".EXE"
 #endif
 
 // for SLG translators
-#define VERSINFO_SLG_WEB     "newtcommander.org"
+#define VERSINFO_SLG_WEB     "tandemcommander.org"
 #define VERSINFO_SLG_COMMENT "English version"
 
 #endif // __VERSINFO_RH2

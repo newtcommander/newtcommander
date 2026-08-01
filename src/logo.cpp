@@ -239,7 +239,7 @@ BOOL CSplashScreen::PrepareBitmap()
     // splash width, so each part gets its own line (feature 035). Order is
     // fixed: the current product first, the predecessor below it -- the About
     // dialog shows the same two lines in the same order (feature 040)
-    PaintText(VERSINFO_COPYRIGHT_NEWT,
+    PaintText(VERSINFO_COPYRIGHT_TANDEM,
               CopyrightR.left,
               CopyrightR.top,
               TRUE, NC_COLOR_TEXT_DARKBG);
@@ -505,7 +505,7 @@ CAboutDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         // English no matter which language module is loaded. Machine translation
         // had rewritten the predecessor's attribution and the year in all eleven
         // languages -- that is what this prevents (feature 040).
-        SetDlgItemText(HWindow, IDC_STATIC_1, VERSINFO_COPYRIGHT_NEWT);
+        SetDlgItemText(HWindow, IDC_STATIC_1, VERSINFO_COPYRIGHT_TANDEM);
         SetDlgItemText(HWindow, IDC_STATIC_2, VERSINFO_COPYRIGHT_OPENSAL);
 
         BackgroundBitmap = AboutAndEvalDlgCreateBkgnd(HWindow);

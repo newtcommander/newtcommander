@@ -26,10 +26,10 @@
 // 2026 onward to the holder below. Defined here -- the one header every
 // versinfo.rh2 and every standalone .rc carrying a notice already includes --
 // so the holder changes in a single edit instead of in ~35 string literals.
-// Always concatenate, never spell the name out: "... , © 2026 " VERSINFO_HOLDER_NEWT
-#define VERSINFO_HOLDER_NEWT "Pavel Stupka"
+// Always concatenate, never spell the name out: "... , © 2026 " VERSINFO_HOLDER_TANDEM
+#define VERSINFO_HOLDER_TANDEM "Pavel Stupka"
 
-// Newt Commander versioning (feature 032): semantic version MAJOR.MINORA.MINORB,
+// Tandem Commander versioning (feature 032): semantic version MAJOR.MINORA.MINORB,
 // always three components ("0.1.0"), unlike the historical Salamander scheme
 // where MINORB were hundredths appended without a dot (2.53) and a zero was dropped (5.0)
 #define VERSINFO_SALAMANDER_MAJOR 0
@@ -103,7 +103,7 @@
 // 182 - 4.0 (CB182)
 // 183 - 5.0
 // 184 - 5.0 development (UTF-8 names + long paths, feature 004);
-//       carried over unchanged into Newt Commander 0.1.0 (feature 032 rebrand)
+//       carried over unchanged into Tandem Commander 0.1.0 (feature 032 rebrand)
 
 // ! DULEZITE: nova cisla buildu je nutne zapsat do vetve "default", a pak
 //             teprve do vedlejsi vetve (kompletni seznam je jen v "default" vetvi)
@@ -211,6 +211,6 @@
 //         see specs/036-plugin-dark-theme/contracts/plugin-theme-api.md
 
 #define LAST_VERSION_OF_SALAMANDER 105
-#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Newt Commander 0.1.0 build 184 (" SAL_VER_PLATFORM ") or later."
+#define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Tandem Commander 0.1.0 build 184 (" SAL_VER_PLATFORM ") or later."
 
 #endif // __SPL_VERS_H

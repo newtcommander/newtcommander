@@ -71,7 +71,7 @@ The `tools/salbreak/tasklist.cpp` mirror MUST stay byte-identical to
 | IntDir rewrite token (`Directory.Build.targets`) | `newtcommander\$(Configuration)_$(ShortPlatform)\` | `tandemcommander\$(Configuration)_$(ShortPlatform)\` — MUST equal the props segment |
 | Launcher shortcut | `newtcommander.lnk` | `tandemcommander.lnk` |
 | Installer script | `setup/newtcommander.iss` | `setup/tandemcommander.iss` |
-| Installer AppId | `{D8FDDA80-E79F-4C37-BF39-03B6486C1ED1}` | fresh GUID generated at implementation ([guid]::NewGuid()) |
+| Installer AppId | `{D8FDDA80-E79F-4C37-BF39-03B6486C1ED1}` | `{35C0B0DC-DB73-429C-AAA8-FBC41C937F66}` (generated in T003) |
 | Install dir | `{autopf}\Newt Commander` | `{autopf}\Tandem Commander` |
 | Setup package | `newtcommander-0.1.0-x64-setup` | `tandemcommander-0.1.0-x64-setup` |
 | Publisher | Pavel Stupka | **unchanged** |

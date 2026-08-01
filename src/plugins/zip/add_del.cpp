@@ -13,7 +13,7 @@
 #include "spl_gen.h"
 #include "spl_arc.h"
 #include "spl_menu.h"
-#include "spl_vers.h" // VERSINFO_HOLDER_NEWT for the default SFX vendor string
+#include "spl_vers.h" // VERSINFO_HOLDER_TANDEM for the default SFX vendor string
 #include "dbg.h"
 
 #include "array2.h"
@@ -365,8 +365,8 @@ BOOL CZipPack::LoadDefaults()
             lstrcpy(Options.SfxSettings.Title, LoadStr(IDS_DEFSFXTITLE));
             lstrcpy(Options.About, "Version 1.40");
             lstrcpy(Options.SfxSettings.ExtractBtnText, LoadStr(IDS_DEFEXTRBUTTON));
-            lstrcpy(Options.SfxSettings.Vendor, "Self-Extractor © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT);
-            lstrcpy(Options.SfxSettings.WWW, "https://newtcommander.org");
+            lstrcpy(Options.SfxSettings.Vendor, "Self-Extractor © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_TANDEM);
+            lstrcpy(Options.SfxSettings.WWW, "https://tandemcommander.org");
         }
         else
         {

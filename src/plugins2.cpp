@@ -1536,13 +1536,13 @@ void CPlugins::Load(HWND parent, HKEY regKey)
     {
         if (!AddPlugin("ZIP", "zip\\zip.spl",
                        TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, "1.32",
-                       "Copyright © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT,
-                       "ZIP archives support for Newt Commander.",
+                       "Copyright © 2000-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_TANDEM,
+                       "ZIP archives support for Tandem Commander.",
                        "ZIP", "zip;pk3;jar", NULL, FALSE, NULL, NULL) ||
             !AddPlugin("TAR", "tar\\tar.spl",
                        TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, "3.3",
-                       "Copyright © 1999-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_NEWT,
-                       "Unix archives readonly support for Newt Commander.",
+                       "Copyright © 1999-2026 Open Salamander Authors, © 2026 " VERSINFO_HOLDER_TANDEM,
+                       "Unix archives readonly support for Tandem Commander.",
                        "TAR", "tar;tgz;taz;tbz;gz;bz;bz2;z;rpm;cpio", NULL, FALSE, NULL, NULL))
         {
             HANDLES(EnterCriticalSection(&DataCS));
