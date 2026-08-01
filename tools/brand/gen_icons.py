@@ -1,4 +1,4 @@
-"""Regenerate the shipped Newt Commander brand assets from hand-swappable sources.
+"""Regenerate the shipped Tandem Commander brand assets from hand-swappable sources.
 
 Feature 035: every graphic is replaceable by swapping a file here and
 re-running this script — no source-code or project-file edits.

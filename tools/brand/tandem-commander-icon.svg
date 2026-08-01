@@ -4,12 +4,12 @@
     <linearGradient id="orangeBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D96A15"></stop><stop offset="1" stop-color="#B85306"></stop></linearGradient>
     <linearGradient id="innerBottom" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#B85306" stop-opacity="0"></stop><stop offset="1" stop-color="#8A3E04" stop-opacity="0.45"></stop></linearGradient>
     <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
-    <filter id="soft" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#02060D" flood-opacity="0.55"></feDropShadow></filter>
+    <clipPath id="backTabClip"><rect x="56" y="74" width="92" height="50" rx="16"></rect></clipPath><filter id="soft" x="-35%" y="-35%" width="170%" height="170%"><feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#02060D" flood-opacity="0.55"></feDropShadow></filter>
   </defs>
   <g transform="translate(128 133) scale(1.28 1.38) translate(-128 -133)">
     <g filter="url(#soft)">
       <rect x="56" y="74" width="92" height="50" rx="16" fill="url(#orangeBack)"></rect>
-      <rect x="56" y="74" width="92" height="22" rx="11" fill="#FFFFFF" opacity="0.22"></rect>
+      <rect x="56" y="74" width="92" height="22" fill="#FFFFFF" opacity="0.22" clip-path="url(#backTabClip)"></rect>
       <g transform="rotate(4 128 110)"><rect x="84" y="72" width="96" height="60" rx="9" fill="#EAF2FB"></rect></g>
       <g transform="rotate(-4 128 110)">
         <rect x="72" y="76" width="112" height="64" rx="9" fill="#FDFEFF"></rect>
@@ -21,7 +21,15 @@
     <rect x="50" y="104" width="156" height="44" rx="22" fill="url(#gloss)"></rect>
     <rect x="58" y="108" width="140" height="12" rx="6" fill="#FFFFFF" opacity="0.3"></rect>
     <rect x="50" y="104" width="156" height="88" rx="22" fill="url(#innerBottom)"></rect>
-    <rect x="76" y="140" width="64" height="14" rx="7" fill="#FFD9AE"></rect>
-    <circle cx="164" cy="147" r="7" fill="#FFC98F"></circle>
+    <rect x="66" y="122" width="58" height="54" rx="9" fill="#FFFFFF" opacity="0.22"></rect>
+    <rect x="132" y="122" width="58" height="54" rx="9" fill="#FFFFFF" opacity="0.22"></rect>
+    <rect x="74" y="130" width="40" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
+    
+    
+    <rect x="74" y="143" width="30" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
+<rect x="74" y="156" width="42" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
+    <rect x="140" y="130" width="40" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
+    <rect x="140" y="143" width="30" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
+    <rect x="140" y="156" width="42" height="6" rx="3" fill="#FFE3C2" opacity="0.85"></rect>
   </g>
 </svg>
