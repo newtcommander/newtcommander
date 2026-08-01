@@ -155,7 +155,7 @@ salamand.sln
 ## Output Directory Structure
 
 ```
-%OPENSAL_BUILD_DIR%newtcommander\
+%OPENSAL_BUILD_DIR%tandemcommander\
 ├── Debug_x86\
 │   ├── salamand.exe              Main application
 │   ├── lang\english.slg          Main language resources

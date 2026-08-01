@@ -22,7 +22,7 @@ COMMENT,"Versiunea romana"
 
 [STRINGTABLE 1]
 48,1,"Afișează fișierele Markdown (.md) atunci când apeși tasta F3."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"A apărut o excepție în pluginul Markdown Viewer. Vă rugăm să informați autorii și, dacă este posibil, să atașați fișierul .md pe care îl vizualizați."
 53,1,"Sunt deschise câteva ferestre ale vizualizatorului Markdown. Doriți să le închideți?"
 55,1,"Număr invalid!"

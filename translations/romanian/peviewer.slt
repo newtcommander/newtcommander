@@ -30,9 +30,9 @@ COMMENT,"Versiunea romana"
 10100,1,"Vizualizator Executabil Portabil"
 10101,1,"Nu pot deschide fisierul %s."
 10102,1,"Crearea fisierului temporar a esuat."
-10103,1,"A aparut o exceptie.\n\nFisierul vizualizat: %s\n\nDaca tu consideri ca fisierul vizualizat nu este corupt, te rog trimite acest fisier la www.newtcommander.org.\nVom reface si fixa defectul vizualizatorului. Multumiri pentru cooperare!"
+10103,1,"A aparut o exceptie.\n\nFisierul vizualizat: %s\n\nDaca tu consideri ca fisierul vizualizat nu este corupt, te rog trimite acest fisier la www.tandemcommander.org.\nVom reface si fixa defectul vizualizatorului. Multumiri pentru cooperare!"
 10104,1,"Afiseaza informatii despre fisiere Executabile Portabile cum ar fi EXE, DLL, etc."
 
 [STRINGTABLE 2]
-10118,1,"Nici o sectiune Portabila Executabila selectata in configuratia plugin-ului nu a fost gasita.\nFoloseste meniul Optiuni > Configurare Plugin >Vizualizator Portabil Executabil\nin Newt Commander fereastra principala pentru a seta sectiunile vizibile."
+10118,1,"Nici o sectiune Portabila Executabila selectata in configuratia plugin-ului nu a fost gasita.\nFoloseste meniul Optiuni > Configurare Plugin >Vizualizator Portabil Executabil\nin Tandem Commander fereastra principala pentru a seta sectiunile vizibile."
 

@@ -88,7 +88,7 @@ class Module:
         ``plugins/<name>/<name>.spl`` -- not directly under ``plugins/``.
         """
         if self.is_app:
-            return out_dir / "newtcommander.exe"
+            return out_dir / "tandemcommander.exe"
         return out_dir / "plugins" / self.name / f"{self.name}.spl"
 
 

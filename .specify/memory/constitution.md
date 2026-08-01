@@ -1,13 +1,15 @@
 <!--
 Sync Impact Report
 ===================
-Version change: 1.1.0 → 2.0.0 (project rebranded to Newt Commander; principle II
-redefined in a backward-incompatible way — compatibility baseline re-anchored from
-Open Salamander 5.0 to Newt Commander 0.1.0 per feature 032)
+Version change: 2.0.0 → 3.0.0 (project renamed to Tandem Commander; principle II
+redefined in a backward-incompatible way — the product identity anchor moved from
+Newt Commander 0.1.0 to Tandem Commander 0.1.0 per feature 046)
 Modified principles:
-  - II. Backward Compatibility — baseline is now Newt Commander 0.1.0; the break
-    with Open Salamander 5.0 (registry, IPC names, shell-extension identity,
-    binary name) is recorded as a deliberate, documented, one-time decision
+  - II. Backward Compatibility — the identity (binary name, registry root,
+    inter-process object names, shell-extension IPC identity) is now Tandem
+    Commander's; the Newt → Tandem rename is recorded as the second deliberate,
+    documented, one-time identity change (feature 046), with no configuration
+    migration; the plugin ABI (interface version 105) carried over unchanged
 Added sections: N/A
 Removed sections: N/A
 Templates requiring updates:
@@ -20,9 +22,11 @@ Prior history:
   - 0.0.0 → 1.0.0 (initial adoption): Core Principles (5), Technical
     Constraints, Development Workflow, Governance
   - 1.0.0 → 1.1.0: added principle VI. UI Consistency
+  - 1.1.0 → 2.0.0: project rebranded to Newt Commander; principle II
+    re-anchored from Open Salamander 5.0 to Newt Commander 0.1.0 (feature 032)
 -->
 
-# Newt Commander Constitution
+# Tandem Commander Constitution
 
 ## Core Principles
 
@@ -41,28 +45,31 @@ reliable build. Without reproducible builds, all subsequent work
 
 ### II. Backward Compatibility
 
-The compatibility baseline is **Newt Commander 0.1.0**. Existing
-Newt Commander functionality MUST NOT regress unless explicitly
+The compatibility baseline is **Tandem Commander 0.1.0**. Existing
+Tandem Commander functionality MUST NOT regress unless explicitly
 deprecated with documented justification. User-facing behavior
 changes MUST be opt-in or gated behind version checks. Plugin API
 changes MUST maintain binary compatibility or provide a clear
 migration path with a deprecation cycle of at least one minor
 release.
 
-Newt Commander is deliberately NOT compatible with the upstream
-Open Salamander product identity: it uses its own binary name
-(`newtcommander.exe`), registry root (`HKCU\Software\Newt
+Tandem Commander is deliberately NOT compatible with its
+predecessors' product identities: it uses its own binary name
+(`tandemcommander.exe`), registry root (`HKCU\Software\Tandem
 Commander`), inter-process object names, and shell-extension
-identity, and it never reads or writes Open Salamander
-configuration. This break with Open Salamander 5.0 was made once,
-by design, in feature 032 (`specs/032-newt-commander-rebrand/`)
-and MUST NOT be reintroduced piecemeal. The plugin ABI (version
-104) was carried over unchanged.
+identity, and it never reads or writes Open Salamander or Newt
+Commander configuration. Identity changes are wholesale, one-time,
+documented decisions and MUST NOT be reintroduced piecemeal: the
+break with Open Salamander 5.0 was made in feature 032
+(`specs/032-newt-commander-rebrand/`), and the Newt Commander →
+Tandem Commander rename in feature 046
+(`specs/046-tandem-commander-rebrand/`). The plugin ABI (interface
+version 105) was carried over unchanged both times.
 
 **Rationale**: From version 0.1.0 on, all modifications,
 extensions, and new functionality are developed as the open-source
-application Newt Commander. Trust is maintained by preserving the
-behavior Newt Commander users depend on; identity separation
+application Tandem Commander. Trust is maintained by preserving the
+behavior Tandem Commander users depend on; identity separation
 protects both products' users from cross-corruption of settings.
 
 ### III. Incremental Modernization
@@ -81,14 +88,14 @@ feature delivery.
 
 ### IV. Windows Platform Commitment
 
-Newt Commander is a pure WinAPI application. All features MUST
+Tandem Commander is a pure WinAPI application. All features MUST
 target Windows 11 and newer. No cross-platform abstraction layers
 (Qt, wxWidgets, etc.) are permitted. Third-party dependencies MUST
 be Windows-compatible and MUST NOT introduce licensing conflicts
 with GPLv2. Visual Studio 2022 with the C++ Desktop workload is
 the required toolchain.
 
-**Rationale**: Newt Commander's value proposition is deep Windows
+**Rationale**: Tandem Commander's value proposition is deep Windows
 integration. Abstracting the platform would dilute this strength
 and add complexity with no user benefit.
 
@@ -172,4 +179,4 @@ versioning rules below.
 changes align with this constitution's principles. Violations
 MUST be flagged and resolved before merge.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-07-17
+**Version**: 3.0.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-08-01

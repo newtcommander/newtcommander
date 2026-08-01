@@ -150,7 +150,7 @@ class Client:
             headers={
                 "Authorization": "DeepL-Auth-Key " + self.key,
                 "Content-Type": "application/json",
-                "User-Agent": "NewtCommander-translate/0.1",
+                "User-Agent": "TandemCommander-translate/0.1",
             },
         )
         delay = 2.0

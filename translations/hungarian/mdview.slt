@@ -22,7 +22,7 @@ COMMENT,"Magyar változat"
 
 [STRINGTABLE 1]
 48,1,"Az F3 gomb lenyomására megjeleníti a Markdown (.md) fájlokat."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"Kivétel történt a Markdown Viewer bővítményben. Kérjük, értesítse a fejlesztőket, és ha lehetséges, csatolja a megtekintett .md fájlt."
 53,1,"Néhány Markdown Viewer ablak nyitva van. Bezárja őket?"
 55,1,"Érvénytelen szám!"

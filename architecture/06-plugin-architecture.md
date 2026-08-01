@@ -87,7 +87,7 @@ Release builds substitute `plugin_release.props` for `plugin_debug.props`.
 
 Defined in `src/plugins/shared/vcxproj/plugin_base.props`:
 
-- **Output directory**: `$(OPENSAL_BUILD_DIR)newtcommander\$(Configuration)_$(ShortPlatform)\plugins\$(ProjectName)\`
+- **Output directory**: `$(OPENSAL_BUILD_DIR)tandemcommander\$(Configuration)_$(ShortPlatform)\plugins\$(ProjectName)\`
 - **Target extension**: `.spl`
 - **Compiler flags**: `/MP` (multi-process compilation), `/J` (default char is unsigned)
 - **Include path**: `..\..\shared` (the shared plugin SDK headers)

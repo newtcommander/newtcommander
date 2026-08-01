@@ -22,7 +22,7 @@ COMMENT,"简体中文版"
 
 [STRINGTABLE 1]
 48,1,"按下 F3 键时，会渲染 Markdown (.md) 文件。"
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"Markdown 查看器插件中发生了一个异常。请通知作者，并在可能的情况下附上您当时正在查看的 .md 文件。"
 53,1,"当前有几个 Markdown 查看器窗口处于打开状态。是否要关闭它们？"
 55,1,"号码无效！"

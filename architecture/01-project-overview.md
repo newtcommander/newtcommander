@@ -2,7 +2,7 @@
 
 > **Historical note (2026, feature 032)**: these architecture documents describe
 > the Open Salamander codebase this project derives from. The product now ships
-> as **Newt Commander** (`newtcommander.exe`, version 0.1.0) with its own
+> as **Tandem Commander** (`tandemcommander.exe`, version 0.1.0) with its own
 > registry root and visual identity; source files, project names, and internal
 > identifiers described below intentionally keep their upstream names.
 

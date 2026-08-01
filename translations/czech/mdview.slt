@@ -22,7 +22,7 @@ COMMENT,"Česká verze"
 
 [STRINGTABLE 1]
 48,1,"Po stisknutí klávesy F3 se soubory ve formátu Markdown (.md) vykreslí."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"V pluginu Markdown Viewer došlo k výjimce. Informujte prosím autory a pokud je to možné, přiložte soubor .md, který jste si prohlíželi."
 53,1,"Jsou otevřena některá okna prohlížeče Markdownu. Chcete je zavřít?"
 55,1,"Neplatné číslo!"

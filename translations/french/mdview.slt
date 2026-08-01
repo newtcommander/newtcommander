@@ -22,7 +22,7 @@ COMMENT,"Version française"
 
 [STRINGTABLE 1]
 48,1,"Affiche les fichiers Markdown (.md) quand tu appuies sur F3."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"Une exception s'est produite dans le plugin Markdown Viewer. Merci d'en informer les auteurs et, si possible, de joindre le fichier .md que tu étais en train de consulter."
 53,1,"Il y a des fenêtres du visualiseur Markdown ouvertes. Tu veux les fermer ?"
 55,1,"Numéro invalide !"

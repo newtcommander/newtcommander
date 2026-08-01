@@ -1,4 +1,4 @@
-"""Offline translation tooling for Newt Commander (feature 038).
+"""Offline translation tooling for Tandem Commander (feature 038).
 
 This package is **never** invoked by the build. It is hand-run by a maintainer
 to produce translation source, whose output is committed to ``translations/``

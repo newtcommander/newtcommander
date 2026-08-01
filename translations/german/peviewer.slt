@@ -30,9 +30,9 @@ COMMENT,"Deutsche Version"
 10100,1,"PE Dateibetrachter"
 10101,1,"Fehler beim Öffnen der Datei %s."
 10102,1,"Fehler beim Erzeugen der temporären Datei."
-10103,1,"Ausnahmefehler aufgetreten.\n\nAngesehene Datei: %s\n\nWenn die angezeigte Datei nach Ihrer Meinung nicht defekt ist, senden Sie uns bitte die Datei an www.newtcommander.org.\nWir werden den Fehler im Betrachter beseitigen. Vielen Dank für die Kooperation!"
+10103,1,"Ausnahmefehler aufgetreten.\n\nAngesehene Datei: %s\n\nWenn die angezeigte Datei nach Ihrer Meinung nicht defekt ist, senden Sie uns bitte die Datei an www.tandemcommander.org.\nWir werden den Fehler im Betrachter beseitigen. Vielen Dank für die Kooperation!"
 10104,1,"Zeigt Informationen über ausführbare Dateien an (EXE, DLL, usw.)."
 
 [STRINGTABLE 2]
-10118,1,"Es wurde kein ausgewählter PE Bereich in der Pluginkonfiguration gefunden.\nGehe zu Optionen > Pluginkonfiguration > PE Dateibetrachter\nim Newt Commander Hauptfenster, um sichtbare Bereiche einzurichten."
+10118,1,"Es wurde kein ausgewählter PE Bereich in der Pluginkonfiguration gefunden.\nGehe zu Optionen > Pluginkonfiguration > PE Dateibetrachter\nim Tandem Commander Hauptfenster, um sichtbare Bereiche einzurichten."
 

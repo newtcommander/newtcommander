@@ -22,7 +22,7 @@ COMMENT,"Deutsche Version"
 
 [STRINGTABLE 1]
 48,1,"Rendert Markdown-Dateien (.md), wenn du F3 drückst."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"Im Markdown-Viewer-Plugin ist eine Ausnahme aufgetreten. Bitte informiere die Autoren und füge, wenn möglich, die .md-Datei bei, die du gerade angesehen hast."
 53,1,"Es sind einige Markdown-Viewer-Fenster geöffnet. Möchtest du sie schließen?"
 55,1,"Ungültige Nummer!"

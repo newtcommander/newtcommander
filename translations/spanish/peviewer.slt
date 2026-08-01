@@ -30,9 +30,9 @@ COMMENT,"Versión en español"
 10100,1,"Visor de ejecutable portátil"
 10101,1,"Imposible abrir el fichero %s."
 10102,1,"Ha fallado la creación de un fichero temporal."
-10103,1,"Ha sucedido una excepción.\n\nFichero visto: %s\n\nSi cree que el fichero visto no está corrupto, envíe este fichero a www.newtcommander.org.\nLo reproduciremos y corregiremos el fallo. ¡Gracias por su cooperación!"
+10103,1,"Ha sucedido una excepción.\n\nFichero visto: %s\n\nSi cree que el fichero visto no está corrupto, envíe este fichero a www.tandemcommander.org.\nLo reproduciremos y corregiremos el fallo. ¡Gracias por su cooperación!"
 10104,1,"Presenta información sobre ficheros ejecutables portátiles como EXE, DLL, etc."
 
 [STRINGTABLE 2]
-10118,1,"No se encontró sección de ejecutable portátil en la configuración del plugin.\nUse menú Opciones > Configuración del plugin > Visor de ejecutable portátil\nen la ventana principal de Newt Commander para configurar secciones visibles."
+10118,1,"No se encontró sección de ejecutable portátil en la configuración del plugin.\nUse menú Opciones > Configuración del plugin > Visor de ejecutable portátil\nen la ventana principal de Tandem Commander para configurar secciones visibles."
 

@@ -22,7 +22,7 @@ COMMENT,"Slovenská verzia"
 
 [STRINGTABLE 1]
 48,1,"Po stlačení klávesy F3 sa súbory Markdown (.md) zobrazia."
-49,1,"www.newtcommander.org"
+49,1,"www.tandemcommander.org"
 50,1,"V doplnku Markdown Viewer došlo k výnimke. Informujte, prosím, autorov a ak je to možné, priložte súbor .md, ktorý ste si prezerali."
 53,1,"Máte otvorené niektoré okná prehliadača Markdown. Chcete ich zatvoriť?"
 55,1,"Neplatné číslo!"

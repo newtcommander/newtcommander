@@ -1,8 +1,11 @@
-"""Rewrites the predecessor's product identity out of translated text.
+"""Rewrites the predecessors' product identity out of translated text.
 
 The legacy translations were written for Altap/Open Salamander and carry its
 product name, its vendor's name, and links to that vendor's sites. None of that
-may reach a Newt Commander user (spec FR-018, FR-019, FR-020, FR-021).
+may reach a Tandem Commander user (spec FR-018, FR-019, FR-020, FR-021).
+Feature 046 added a second predecessor: the committed translations were
+rebranded to Newt Commander in feature 038, so its name, binary and URLs are
+rewritten to Tandem Commander by the same suffix-preserving mechanism.
 
 What the real data contains (1,361 brand occurrences in 14 forms across the ten
 committed languages, plus four distinct URLs):
@@ -19,8 +22,8 @@ committed languages, plus four distinct URLs):
 **Inflection is handled by keeping the suffix.** ``Salamander`` and
 ``Commander`` are both masculine nouns ending in *-er*, so they take the same
 declension in the Slavic languages here, and the Germanic/Hungarian endings
-carry over too: ``Salamandera -> Newt Commandera``, ``Salamanders -> Newt
-Commanders``, ``Salamandert -> Newt Commandert``. That keeps the grammar of the
+carry over too: ``Salamandera -> Tandem Commandera``, ``Salamanders -> Tandem
+Commanders``, ``Salamandert -> Tandem Commandert``. That keeps the grammar of the
 surrounding sentence intact, which a bare replacement would break.
 
 It is not perfect -- a few sentences will still read stiffly, and a preposition
@@ -34,13 +37,27 @@ import re
 
 from .validate import reinsert_accel, split_accel
 
-PRODUCT = "Newt Commander"
-PROJECT = "Newt Commander Project"
-WEB = "www.newtcommander.org"
+PRODUCT = "Tandem Commander"
+PROJECT = "Tandem Commander Project"
+WEB = "www.tandemcommander.org"
 
 #: Applied in order. Longest and most specific first, so that "Open Salamander"
 #: is consumed before the bare "Salamander" rule can see it.
 _RULES: list[tuple[re.Pattern, object]] = [
+    # --- the previous identity (feature 046): Newt Commander -> Tandem
+    # Commander. URLs first so the name rules cannot mangle them, then the old
+    # binary, then the name keeping any inflectional suffix ("Newt Commanderu"
+    # -> "Tandem Commanderu" -- both are masculine *-er* nouns, the declension
+    # carries over exactly as it did for Salamander -> Commander). -----------
+    (re.compile(r"github\.com/newtcommander/newtcommander"), "github.com/tandemcommander/tandemcommander"),
+    (re.compile(r"(?:https?://)?www\.newtcommander\.org(?:/[\w\-./?=&#%]*)?", re.I), WEB),
+    (re.compile(r"(?:https?://)?newtcommander\.org(?:/[\w\-./?=&#%]*)?", re.I), WEB),
+    (re.compile(r"NEWTCOMMANDER\.EXE\b"), "TANDEMCOMMANDER.EXE"),
+    (re.compile(r"newtcommander\.exe\b"), "tandemcommander.exe"),
+    (re.compile(r"NewtCommander\.exe\b"), "TandemCommander.exe"),
+    (re.compile(r"\bNEWT COMMANDER(\w*)"), lambda m: PRODUCT.upper() + m.group(1)),
+    (re.compile(r"\bNewt Commander(\w*)"), lambda m: PRODUCT + m.group(1)),
+    (re.compile(r"\bnewt commander(\w*)"), lambda m: PRODUCT.lower() + m.group(1)),
     # --- e-mail addresses before URLs: the domain rules below would otherwise
     # rewrite only the host part and leave a broken "support@..." behind. -----
     (re.compile(r"\b[\w.+\-]+@(?:altap\.cz|pictview\.com)\b", re.I), WEB),
@@ -55,9 +72,9 @@ _RULES: list[tuple[re.Pattern, object]] = [
     # No leading \b: the usage text starts with the escape "\n", so the
     # character before "SALAMAND" is the letter "n" and a word boundary would
     # never match there.
-    (re.compile(r"SALAMAND\.EXE\b"), "NEWTCOMMANDER.EXE"),
-    (re.compile(r"salamand\.exe\b"), "newtcommander.exe"),
-    (re.compile(r"Salamand\.exe\b"), "NewtCommander.exe"),
+    (re.compile(r"SALAMAND\.EXE\b"), "TANDEMCOMMANDER.EXE"),
+    (re.compile(r"salamand\.exe\b"), "tandemcommander.exe"),
+    (re.compile(r"Salamand\.exe\b"), "TandemCommander.exe"),
     # --- full product names, including the French abbreviation ---------------
     (re.compile(r"\bAltap\s+Sal\."), PRODUCT),
     (re.compile(r"\b(?:Open|Altap)\s+SALAMANDER\b"), PRODUCT.upper()),
@@ -117,7 +134,9 @@ def find_residue(text: str) -> list[str]:
     Used as the SC-007 gate: shipped text must contain none of this.
     """
     hits = re.findall(
-        r"\b\w*(?:[Ss]alamand|SALAMAND|[Aa]ltap|ALTAP)\w*|\baltap\.cz\S*|\bpictview\.com\S*",
+        r"\b\w*(?:[Ss]alamand|SALAMAND|[Aa]ltap|ALTAP)\w*|\baltap\.cz\S*|\bpictview\.com\S*"
+        r"|\b(?:Newt|NEWT|newt)\s+(?:Commander|COMMANDER|commander)\w*"
+        r"|\b(?:NewtCommander|NEWTCOMMANDER|newtcommander)\S*",
         text,
     )
     return hits

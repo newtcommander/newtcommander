@@ -30,9 +30,9 @@ COMMENT,"Version française"
 10100,1,"Visualiseur de fichier exécutable"
 10101,1,"Impossible d'ouvrir le fichier %s."
 10102,1,"La création d'un fichier temporaire a échoué."
-10103,1,"Une exception s'est produite.\n\nFichier visualisé: %s\n\nSi vous pensez que le fichier visualisé n'est pas corrompu, veuillez l'envoyer à www.newtcommander.org.\nNous reproduirons et réparerons le bogue du visualiseur. Merci de votre coopération!"
+10103,1,"Une exception s'est produite.\n\nFichier visualisé: %s\n\nSi vous pensez que le fichier visualisé n'est pas corrompu, veuillez l'envoyer à www.tandemcommander.org.\nNous reproduirons et réparerons le bogue du visualiseur. Merci de votre coopération!"
 10104,1,"Affiche des informations sur les fichiers exécutables de type EXE, DLL, etc."
 
 [STRINGTABLE 2]
-10118,1,"Aucune section d'exécutable n'a été sélectionnée dans la configuration du module.\nUtilisez le menu Options > Configuration de module > Visualiseur de fichier exécutable\ndans la feznêtre principale d'Newt Commander pour définir les sections visibles."
+10118,1,"Aucune section d'exécutable n'a été sélectionnée dans la configuration du module.\nUtilisez le menu Options > Configuration de module > Visualiseur de fichier exécutable\ndans la feznêtre principale d'Tandem Commander pour définir les sections visibles."
 

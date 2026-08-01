@@ -1,28 +1,31 @@
-# Newt Commander — Project Context
+# Tandem Commander — Project Context
 
 ## What Is This?
 
-Newt Commander is a two-panel file manager for Windows, derived from
+Tandem Commander is a two-panel file manager for Windows, derived from
 Open Salamander (open-sourced under GPLv2 in 2023). It is a pure
 WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 
-## Product Identity (since feature 032)
+## Product Identity (established in feature 032, renamed in feature 046)
 
-- **Product name**: Newt Commander, version **0.1.0** (internal build 184)
-- **Binary**: `newtcommander.exe` (set via `<TargetName>` in `salamand.vcxproj`)
-- **Registry root**: `HKCU\Software\Newt Commander\0.1` — never reads or
-  writes Open Salamander/Altap registry keys (no config import)
-- **Websites**: https://newtcommander.org · repo github.com/newtcommander/newtcommander
+- **Product name**: Tandem Commander, version **0.1.0** (internal build 184);
+  known as Newt Commander before feature 046 — the rename covered every
+  user/OS-visible surface, kernel-object/IPC names, URLs, translations and the
+  installer (new AppId), with **no** config import from the old registry root
+- **Binary**: `tandemcommander.exe` (set via `<TargetName>` in `salamand.vcxproj`)
+- **Registry root**: `HKCU\Software\Tandem Commander\0.1` — never reads or
+  writes Open Salamander/Altap/Newt Commander registry keys (no config import)
+- **Websites**: https://tandemcommander.org · repo github.com/tandemcommander/tandemcommander
 - **Copyright rule**: years up to 2026 → "Open Salamander Authors",
   2026 onward → **Pavel Stupka** (sftp+mdview plugins are solely his).
-  The holder name is defined **once**, as `VERSINFO_HOLDER_NEWT` in
+  The holder name is defined **once**, as `VERSINFO_HOLDER_TANDEM` in
   `src/plugins/shared/spl_vers.h`; every notice concatenates it
-  (`"… , © 2026 " VERSINFO_HOLDER_NEWT`) and never spells it out — that
+  (`"… , © 2026 " VERSINFO_HOLDER_TANDEM`) and never spells it out — that
   covers all 30 `versinfo.rh2` files, the standalone `.rc` files
   (salmon, shellext, zip sfx trio, fcremote, salpvenv) and the two
   hardcoded strings in `plugins2.cpp` / `zip/add_del.cpp`. The two
   notices shown in the About dialog and on the splash screen live in
-  `src/versinfo.rh2` (`VERSINFO_COPYRIGHT_NEWT` above
+  `src/versinfo.rh2` (`VERSINFO_COPYRIGHT_TANDEM` above
   `VERSINFO_COPYRIGHT_OPENSAL`) and are never translated — the About
   controls carry an empty caption in `lang.rc`. Do not look for this
   text in the language files (feature 040).
@@ -161,10 +164,11 @@ Property sheets: `plugins/shared/vcxproj/plugin_base.props` + debug/release vari
 ## Constitution
 
 Project principles are in `.specify/memory/constitution.md`
-("Newt Commander Constitution", v2.0.0): build reproducibility,
-backward compatibility (baseline Newt Commander 0.1.0 — the break
-with Open Salamander 5.0 is deliberate and one-time, see feature
-032), incremental modernization, Windows platform commitment,
+("Tandem Commander Constitution", v3.0.0): build reproducibility,
+backward compatibility (baseline Tandem Commander 0.1.0 — the break
+with Open Salamander 5.0 was made in feature 032, the Newt→Tandem
+rename in feature 046; both deliberate, documented, one-time),
+incremental modernization, Windows platform commitment,
 plugin architecture preservation, UI consistency.
 
 <!-- MANUAL ADDITIONS START -->
@@ -182,3 +186,4 @@ plugin architecture preservation, UI consistency.
 - 002-msvc-x64-build-script: Added Windows Batch script (.cmd) + MSBuild (from VS2022), vswhere.exe
 - 038-translations-build-integration: 12 shipped languages (English + 10 existing + new machine-translated Ukrainian) x 20 enabled modules; `.slt` import is strictly positional, so translation source is always regenerated from a current-structure English template
 - 039-language-build-policy: which languages ship is now a committed policy (`enabled = on|off` in `translations/languages.cfg`), honoured by the build on every run; 3 non-Latin-script languages disabled pending a menu rendering defect, source retained
+- 046-tandem-commander-rebrand: product renamed Newt Commander → Tandem Commander (`tandemcommander.exe`, registry root `HKCU\Software\Tandem Commander\0.1`, TandemCommander*/TCExten_* kernel/IPC names, tandemcommander.org, new installer AppId, new icon/artwork from `tools/brand/`); no config migration; upstream `salamand*`/`SALAMANDER_*` names retained

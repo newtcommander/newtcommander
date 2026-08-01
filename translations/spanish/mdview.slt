@@ -22,7 +22,7 @@ COMMENT,"Versión en español"
 
 [STRINGTABLE 1]
 48,1,"Genera archivos Markdown (.md) cuando pulsas F3."
-49,1,"www.newtcommander.org te cuento"
+49,1,"www.tandemcommander.org te cuento"
 50,1,"Se ha producido un error en el complemento «Markdown Viewer». Por favor, avisa a los autores y, si puedes, adjunta el archivo .md que estabas viendo."
 53,1,"Hay algunas ventanas del visor de Markdown abiertas. ¿Quieres cerrarlas?"
 55,1,"¡Número incorrecto!"

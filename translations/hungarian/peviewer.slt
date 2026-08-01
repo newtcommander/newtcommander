@@ -30,9 +30,9 @@ COMMENT,"Magyar változat"
 10100,1,"Hordozható futtatható néző"
 10101,1,"A(z) %s nem nyitható meg."
 10102,1,"Ideiglenes fájl létrehozása sikertelen."
-10103,1,"Kivétel lépett fel.\n\nNézett fájl: %s\n\nHa biztos, hogy a megnézett fájl nem sérült, küldje el a fájlt a www.newtcommander.org címre.\nÚjra előidézzük és kijavítjuk a hibát. Köszönjük az együttműködését!"
+10103,1,"Kivétel lépett fel.\n\nNézett fájl: %s\n\nHa biztos, hogy a megnézett fájl nem sérült, küldje el a fájlt a www.tandemcommander.org címre.\nÚjra előidézzük és kijavítjuk a hibát. Köszönjük az együttműködését!"
 10104,1,"Olyan futtatható fájlok információinak megjelenítése, mint EXE, DLL, stb."
 
 [STRINGTABLE 2]
-10118,1,"Nincs Hordozható végrehajtható fájl szekció kijelölve a plugin beállításokban.\nBeállítások > Plugin beállítás > Hordozható végrehajtható fájl néző\naz Newt Commander főablakának menüjében, a látható szekciók megadásához."
+10118,1,"Nincs Hordozható végrehajtható fájl szekció kijelölve a plugin beállításokban.\nBeállítások > Plugin beállítás > Hordozható végrehajtható fájl néző\naz Tandem Commander főablakának menüjében, a látható szekciók megadásához."
 

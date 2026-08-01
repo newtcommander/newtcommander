@@ -55,7 +55,7 @@ Only stage 3 runs on every build.
 |---|---|
 | `config.py` | Reads `translations/languages.cfg` and `plugins.cfg`; enumerates the (module × language) matrix. `load_languages()` returns **enabled languages only** unless asked otherwise — see the language policy below |
 | `slt.py` | `.slt` reader/writer with byte-exact round-trip; `--verify` mode |
-| `rebrand.py` | Predecessor product/vendor names and legacy URLs → Newt Commander identity |
+| `rebrand.py` | Predecessor product/vendor names and legacy URLs → Tandem Commander identity |
 | `validate.py` | Placeholder / accelerator / shortcut-label preservation checks |
 | `translate.py` | Anthropic Batches API driver (`claude-opus-5`) |
 | `merge.py` | Orchestrates: template + legacy + machine → committed `.slt` |
