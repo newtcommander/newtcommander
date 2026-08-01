@@ -144,7 +144,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "CHECKVER");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     // load-on-start
     SalGeneral->SetFlagLoadOnSalamanderStart(TRUE);

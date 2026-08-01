@@ -304,7 +304,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "MMVIEWER");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     return &PluginInterface;
 }

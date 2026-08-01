@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-const char* DB_ROOT_KEY = "Software\\Newt Commander\\Bug Reporter";
+const char* DB_ROOT_KEY = "Software\\Tandem Commander\\Bug Reporter";
 const char* CONFIG_EMAIL_REG = "Email";
 
 CConfiguration Config;

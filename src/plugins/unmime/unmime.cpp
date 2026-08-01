@@ -107,7 +107,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "UnMIME" /* neprekladat! */, "eml;b64;uue;xxe;hqx;ntx;cnm");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     return &PluginInterface;
 }

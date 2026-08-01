@@ -156,7 +156,7 @@ const DWORD THIS_CONFIG_VERSION = 105;
 // !!! Keep the corresponding lines in SalamanderConfigurationVersions up to date
 const char* SalamanderConfigurationRoots[SALCFG_ROOTS_COUNT + 1] =
     {
-        "Software\\Newt Commander\\0.1" // Newt Commander 0.1.0 (feature 032): single root, no legacy import chain
+        "Software\\Tandem Commander\\0.1" // Tandem Commander 0.1.0 (feature 032): single root, no legacy import chain
 };
 const char* SalamanderConfigurationVersions[SALCFG_ROOTS_COUNT] =
     {
@@ -713,7 +713,7 @@ BOOL GetUpgradeInfo(BOOL* autoImportConfig, char* autoImportConfigFromKey, int a
                                  "configuration for the new version. You can use this existing configuration (the configuration of "
                                  "the old version remains in registry, so you can import it later). Or you can overwrite "
                                  "this existing configuration (it would be lost) with the configuration of the old version. "
-                                 "Or you can exit Newt Commander and solve this problem later.",
+                                 "Or you can exit Tandem Commander and solve this problem later.",
                             keyName, SALAMANDER_TEXT_VERSION);
                     params.Text = buf;
                     char aliasBtnNames[200];

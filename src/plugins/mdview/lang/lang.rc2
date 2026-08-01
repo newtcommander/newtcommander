@@ -20,7 +20,7 @@ STRINGTABLE
  IDS_PLUGINNAME,          "Markdown Viewer"
  IDS_ABOUT,               "About Plugin"
  IDS_PLUGIN_DESCRIPTION,  "Renders Markdown (.md) files when you press F3."
- IDS_PLUGIN_HOME,         "www.newtcommander.org"
+ IDS_PLUGIN_HOME,         "www.tandemcommander.org"
  IDS_PLUGIN_BUGREP,       "An exception occurred in the Markdown Viewer plugin. Please inform the authors and, if possible, attach the .md file you were viewing."
  IDS_PLUGIN_EMAIL,        ""
  IDS_VIEWER_OPENWNDS,     "Some Markdown Viewer windows are open. Do you want to close them?"

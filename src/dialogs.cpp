@@ -2070,7 +2070,7 @@ CBetaExpiredDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         hl = new CHyperLink(HWindow, IDC_BETAEXPIREDURL);
         if (hl != NULL)
         {
-            const char* url = "https://github.com/newtcommander/newtcommander/releases";
+            const char* url = "https://github.com/tandemcommander/tandemcommander/releases";
 
             SetDlgItemText(HWindow, IDC_BETAEXPIREDURL, url + 8);
             hl->SetActionOpen(url);

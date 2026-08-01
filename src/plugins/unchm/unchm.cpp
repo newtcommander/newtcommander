@@ -142,7 +142,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "UnCHM" /* do not translate! */, "chm");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     return &PluginInterface;
 }

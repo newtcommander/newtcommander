@@ -83,7 +83,7 @@ void X64StressTestAlloc()
     // kontrola uspechu
     void* testNew = new char; // new jede pres alloc, ale radeji take overime
     if (testNew <= (LPVOID)(UINT_PTR)0x00000000ffffffff)
-        MessageBox(NULL, "new address <= 0x00000000ffffffff!\nPlease report this information at github.com/newtcommander/newtcommander/issues.", "X64_STRESS_TEST", MB_OK | MB_ICONEXCLAMATION);
+        MessageBox(NULL, "new address <= 0x00000000ffffffff!\nPlease report this information at github.com/tandemcommander/tandemcommander/issues.", "X64_STRESS_TEST", MB_OK | MB_ICONEXCLAMATION);
     delete testNew;
 }
 
@@ -105,7 +105,7 @@ int MyEntryPoint()
         ret = WinMainCRTStartup();
     }
     else
-        MessageBox(NULL, "Newt Commander Bug Reporter (salmon.exe) initialization has failed. Please reinstall Newt Commander.",
+        MessageBox(NULL, "Tandem Commander Bug Reporter (salmon.exe) initialization has failed. Please reinstall Tandem Commander.",
                    SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONSTOP);
 
     // sem uz mi debugger nechodi, sestreli nas v RTL (testovano pod VC 2008 s nasim RTL)
@@ -213,8 +213,8 @@ const char* SALCF_FAKE_REALPATH = "SalFakeRealPath";
 const char* SALCF_FAKE_SRCTYPE = "SalFakeSrcType";
 const char* SALCF_FAKE_SRCFSPATH = "SalFakeSrcFSPath";
 
-const char* MAINWINDOW_NAME = "Newt Commander";
-const char* CMAINWINDOW_CLASSNAME = "NewtCommanderMainWindowVer01";
+const char* MAINWINDOW_NAME = "Tandem Commander";
+const char* CMAINWINDOW_CLASSNAME = "TandemCommanderMainWindowVer01";
 const char* SAVEBITS_CLASSNAME = "SalamanderSaveBits";
 const char* SHELLEXECUTE_CLASSNAME = "SalamanderShellExecute";
 
@@ -3965,7 +3965,7 @@ FIND_NEW_SLG_FILE:
         if (slgDialog.GetLanguagesCount() == 0)
         {
             MessageBox(NULL, "Unable to find any language file (.SLG) in subdirectory LANG.\n"
-                             "Please reinstall Newt Commander.",
+                             "Please reinstall Tandem Commander.",
                        SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
             goto EXIT_1a;
         }
@@ -4026,7 +4026,7 @@ FIND_NEW_SLG_FILE:
             HANDLES(FreeLibrary(HLanguage));
         if (!newSLGFile) // zapamatovany .SLG soubor prestal nejspis existovat, zkusime najit jiny
         {
-            sprintf(errorText, "File %s was not found or is not valid language file.\nNewt Commander "
+            sprintf(errorText, "File %s was not found or is not valid language file.\nTandem Commander "
                                "will try to search for some other language file (.SLG).",
                     path);
             MessageBox(NULL, errorText, SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
@@ -4036,9 +4036,9 @@ FIND_NEW_SLG_FILE:
         else // nemelo by vubec nastat - .SLG soubor jiz byl otestovan
         {
             sprintf(errorText, "File %s was not found or is not valid language file.\n"
-                               "Please run Newt Commander again and try to choose some other language file.",
+                               "Please run Tandem Commander again and try to choose some other language file.",
                     path);
-            MessageBox(NULL, errorText, "Newt Commander", MB_OK | MB_ICONERROR);
+            MessageBox(NULL, errorText, "Tandem Commander", MB_OK | MB_ICONERROR);
             goto EXIT_1a;
         }
     }
@@ -4646,7 +4646,7 @@ MENU_TEMPLATE_ITEM MsgBoxButtons[] =
                                         HWND hParent = NULL;
                                         if (MainWindow != NULL)
                                             hParent = MainWindow->HWindow;
-                                        MessageBox(hParent, "_CrtCheckMemory failed. Look to the Trace Server for details.", "Newt Commander", MB_OK | MB_ICONERROR);
+                                        MessageBox(hParent, "_CrtCheckMemory failed. Look to the Trace Server for details.", "Tandem Commander", MB_OK | MB_ICONERROR);
                                     }
                                     LastCrtCheckMemoryTime = GetTickCount();
                                 }

@@ -572,7 +572,7 @@ public:
     {
         LanguageID = 0x0409;
         lstrcpyW(Author, L"Open Salamander");
-        lstrcpyW(Web, L"www.newtcommander.org");
+        lstrcpyW(Web, L"www.tandemcommander.org");
         lstrcpyW(Comment, L"");
         lstrcpyW(HelpDir, L"");
         lstrcpyW(SLGIncomplete, L"");

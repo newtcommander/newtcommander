@@ -21,21 +21,21 @@
 
 #include "versinfo.rh2"
 
-// Newt Commander brand palette (feature 032, see tools/brand/README.md);
+// Tandem Commander brand palette (feature 032, see tools/brand/README.md);
 // the wordmark is drawn with GDI so no font has to be installed/shipped
-#define NC_COLOR_NAVY RGB(0x0A, 0x14, 0x24)           // brand navy background
-#define NC_COLOR_TEXT_DARKBG RGB(0xEA, 0xF2, 0xFB)    // "Newt" + regular text on dark background
-#define NC_COLOR_ORANGE_DARKBG RGB(0xF9, 0x73, 0x16)  // "Commander" on dark background
-#define NC_COLOR_MUTED_DARKBG RGB(0x8F, 0xA6, 0xC4)   // version/tagline on dark background
-#define NC_COLOR_TEXT_LIGHTBG RGB(0x0A, 0x14, 0x24)   // "Newt" + regular text on light background
-#define NC_COLOR_ORANGE_LIGHTBG RGB(0xEA, 0x6A, 0x0B) // "Commander" on light background
-#define NC_COLOR_MUTED_LIGHTBG RGB(0x5D, 0x82, 0xB8)  // version/tagline on light background
+#define TC_COLOR_NAVY RGB(0x0A, 0x14, 0x24)           // brand navy background
+#define TC_COLOR_TEXT_DARKBG RGB(0xEA, 0xF2, 0xFB)    // "Tandem" + regular text on dark background
+#define TC_COLOR_ORANGE_DARKBG RGB(0xF9, 0x73, 0x16)  // "Commander" on dark background
+#define TC_COLOR_MUTED_DARKBG RGB(0x8F, 0xA6, 0xC4)   // version/tagline on dark background
+#define TC_COLOR_TEXT_LIGHTBG RGB(0x0A, 0x14, 0x24)   // "Tandem" + regular text on light background
+#define TC_COLOR_ORANGE_LIGHTBG RGB(0xEA, 0x6A, 0x0B) // "Commander" on light background
+#define TC_COLOR_MUTED_LIGHTBG RGB(0x5D, 0x82, 0xB8)  // version/tagline on light background
 
-// draws the "Newt Commander" wordmark into 'r' (left-aligned, vertically centered);
+// draws the "Tandem Commander" wordmark into 'r' (left-aligned, vertically centered);
 // shrinks the font until both parts fit the rect width
-static void NCDrawWordmark(HDC hDC, const RECT* r, COLORREF newtClr, COLORREF commanderClr)
+static void TCDrawWordmark(HDC hDC, const RECT* r, COLORREF tandemClr, COLORREF commanderClr)
 {
-    const char* part1 = "Newt ";
+    const char* part1 = "Tandem ";
     const char* part2 = "Commander";
     int rectW = r->right - r->left;
     int rectH = r->bottom - r->top;
@@ -70,7 +70,7 @@ static void NCDrawWordmark(HDC hDC, const RECT* r, COLORREF newtClr, COLORREF co
     }
 
     int y = r->top + (rectH - s1.cy) / 2;
-    COLORREF oldClr = SetTextColor(hDC, newtClr);
+    COLORREF oldClr = SetTextColor(hDC, tandemClr);
     TextOut(hDC, r->left, y, part1, (int)strlen(part1));
     SetTextColor(hDC, commanderClr);
     TextOut(hDC, r->left + s1.cx, y, part2, (int)strlen(part2));
@@ -206,7 +206,7 @@ BOOL CSplashScreen::PrepareBitmap()
 
     // the splash always uses the brand dark look (theme configuration may not be
     // loaded yet this early during startup)
-    SetBkColor(hDC, NC_COLOR_NAVY);
+    SetBkColor(hDC, TC_COLOR_NAVY);
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
     CSVGSprite svgGrad;
@@ -226,14 +226,14 @@ BOOL CSplashScreen::PrepareBitmap()
     svgGrad.AlphaBlend(hDC, 0, GradientY, gradSize.cx, max(2, gradSize.cy), SVGSTATE_ORIGINAL);
     pngLogo.AlphaBlend(hDC, Width - logoSize.cx - 8, 6, logoSize.cx, logoSize.cy);
 
-    // product wordmark drawn with GDI (no font dependency, see NCDrawWordmark)
-    NCDrawWordmark(hDC, &OpenSalR, NC_COLOR_TEXT_DARKBG, NC_COLOR_ORANGE_DARKBG);
+    // product wordmark drawn with GDI (no font dependency, see TCDrawWordmark)
+    TCDrawWordmark(hDC, &OpenSalR, TC_COLOR_TEXT_DARKBG, TC_COLOR_ORANGE_DARKBG);
 
     // fixed texts
     PaintText(SALAMANDER_TEXT_VERSION,
               VersionR.left,
               VersionR.top,
-              FALSE, NC_COLOR_MUTED_DARKBG);
+              FALSE, TC_COLOR_MUTED_DARKBG);
 
     // the copyright has two authorship parts; a single line does not fit the
     // splash width, so each part gets its own line (feature 035). Order is
@@ -242,12 +242,12 @@ BOOL CSplashScreen::PrepareBitmap()
     PaintText(VERSINFO_COPYRIGHT_TANDEM,
               CopyrightR.left,
               CopyrightR.top,
-              TRUE, NC_COLOR_TEXT_DARKBG);
+              TRUE, TC_COLOR_TEXT_DARKBG);
 
     PaintText(VERSINFO_COPYRIGHT_OPENSAL,
               Copyright2R.left,
               Copyright2R.top,
-              TRUE, NC_COLOR_TEXT_DARKBG);
+              TRUE, TC_COLOR_TEXT_DARKBG);
 
     // backup of the bitmap without text
     BitBlt(OriginalBitmap->HMemDC, 0, 0, Width, Height, Bitmap->HMemDC, 0, 0, SRCCOPY);
@@ -394,7 +394,7 @@ CAboutDialog::CAboutDialog(HWND parent)
     : CCommonDialog(HLanguage, IDD_ABOUT, parent)
 {
     // must match the dialog background painted in AboutAndEvalDlgCreateBkgnd
-    HGradientBkBrush = HANDLES(CreateSolidBrush(IsDarkThemeActive() ? NC_COLOR_NAVY : RGB(255, 255, 255)));
+    HGradientBkBrush = HANDLES(CreateSolidBrush(IsDarkThemeActive() ? TC_COLOR_NAVY : RGB(255, 255, 255)));
     BackgroundBitmap = NULL;
 }
 
@@ -444,7 +444,7 @@ AboutAndEvalDlgCreateBkgnd(HWND hWindow)
 
     // theme-aware background (feature 032: About follows the application theme)
     BOOL dark = IsDarkThemeActive();
-    SetBkColor(hDC, dark ? NC_COLOR_NAVY : RGB(255, 255, 255));
+    SetBkColor(hDC, dark ? TC_COLOR_NAVY : RGB(255, 255, 255));
     ExtTextOut(hDC, 0, 0, ETO_OPAQUE, &r, "", 0, NULL);
 
     CSVGSprite svgGrad;
@@ -464,9 +464,9 @@ AboutAndEvalDlgCreateBkgnd(HWND hWindow)
     pngLogo.AlphaBlend(hDC, r.right - r.left - logoSize.cx, 0, logoSize.cx, logoSize.cy);
 
     // product wordmark drawn with GDI (no font dependency)
-    NCDrawWordmark(hDC, &opensalR,
-                   dark ? NC_COLOR_TEXT_DARKBG : NC_COLOR_TEXT_LIGHTBG,
-                   dark ? NC_COLOR_ORANGE_DARKBG : NC_COLOR_ORANGE_LIGHTBG);
+    TCDrawWordmark(hDC, &opensalR,
+                   dark ? TC_COLOR_TEXT_DARKBG : TC_COLOR_TEXT_LIGHTBG,
+                   dark ? TC_COLOR_ORANGE_DARKBG : TC_COLOR_ORANGE_LIGHTBG);
 
     return bitmap;
 }
@@ -494,7 +494,7 @@ CAboutDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         hl = new CHyperLink(HWindow, IDC_ABOUT_WWW);
         if (hl != NULL)
         {
-            const char* url = "https://newtcommander.org";
+            const char* url = "https://tandemcommander.org";
             SetDlgItemText(HWindow, IDC_ABOUT_WWW, url + 8);
             hl->SetActionOpen(url);
         }
@@ -518,17 +518,17 @@ CAboutDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HWND hwndStatic = (HWND)lParam;
         int resID = GetWindowLong(hwndStatic, GWL_ID);
         BOOL dark = IsDarkThemeActive();
-        COLORREF textClr = dark ? NC_COLOR_TEXT_DARKBG : RGB(70, 70, 70);
+        COLORREF textClr = dark ? TC_COLOR_TEXT_DARKBG : RGB(70, 70, 70);
         switch (resID)
         {
         case IDC_STATIC_6:
         case IDC_STATIC_7:
         case IDC_STATIC_8:
-            textClr = dark ? NC_COLOR_MUTED_DARKBG : RGB(128, 128, 128);
+            textClr = dark ? TC_COLOR_MUTED_DARKBG : RGB(128, 128, 128);
             break;
         }
         SetTextColor(hdcStatic, textClr);
-        SetBkColor(hdcStatic, dark ? NC_COLOR_NAVY : RGB(255, 255, 255));
+        SetBkColor(hdcStatic, dark ? TC_COLOR_NAVY : RGB(255, 255, 255));
         return (BOOL)(UINT_PTR)GetStockObject(NULL_BRUSH);
     }
 

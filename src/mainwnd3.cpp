@@ -2568,7 +2568,7 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
 */
         case CM_FORUM:
         {
-            ShellExecute(HWindow, "open", "https://github.com/newtcommander/newtcommander/issues", NULL, NULL, SW_SHOWNORMAL);
+            ShellExecute(HWindow, "open", "https://github.com/tandemcommander/tandemcommander/issues", NULL, NULL, SW_SHOWNORMAL);
             return 0;
         }
 

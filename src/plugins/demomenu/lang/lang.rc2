@@ -25,6 +25,6 @@ STRINGTABLE
  IDS_PLUGINNAME,             "DemoMenu"
  IDS_ABOUT,                  "About Plugin"
  IDS_PLUGIN_DESCRIPTION,     "This plugin should help you to make your own menu extension plugin."
- IDS_PLUGIN_HOME,            "www.newtcommander.org"
+ IDS_PLUGIN_HOME,            "www.tandemcommander.org"
  IDS_TESTCMD,                "&Test Command"
 }

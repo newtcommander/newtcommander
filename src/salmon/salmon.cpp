@@ -15,7 +15,7 @@ extern TDirectArray<CBugReport> BugReports(1, 10);
 char LatestBugReport[MAX_PATH] = {0}; // name of the most recent bug report (name only, without extension)
 BOOL ReportOldBugs = TRUE;            // the user allowed uploading old reports as well
 
-const char* APP_NAME = "Newt Commander Bug Reporter";
+const char* APP_NAME = "Tandem Commander Bug Reporter";
 
 // ****************************************************************************
 
@@ -308,7 +308,7 @@ HINSTANCE LoadSLG(const char* slgName)
         }
     }
     if (hSLG == NULL)
-        MessageBox(NULL, "Internal error: cannot load any language file. please report it at github.com/newtcommander/newtcommander/issues.", APP_NAME, MB_OK | MB_ICONEXCLAMATION | MB_SETFOREGROUND);
+        MessageBox(NULL, "Internal error: cannot load any language file. please report it at github.com/tandemcommander/tandemcommander/issues.", APP_NAME, MB_OK | MB_ICONEXCLAMATION | MB_SETFOREGROUND);
     return hSLG;
 }
 
@@ -321,14 +321,14 @@ BOOL RestartSalamander(HWND hParent)
 {
     char path[MAX_PATH];
     GetModuleFileName(NULL, path, MAX_PATH);
-    *(strrchr(path, '\\')) = '\0'; // strip \newtcommander.exe
+    *(strrchr(path, '\\')) = '\0'; // strip \tandemcommander.exe
     char* p = strrchr(path, '\\'); // strip \plugins
     if (p != NULL)
     {
         *p = 0;
         char initDir[MAX_PATH];
         strcpy(initDir, path);
-        strcat(path, "\\newtcommander.exe");
+        strcat(path, "\\tandemcommander.exe");
         SHELLEXECUTEINFO se;
         memset(&se, 0, sizeof(SHELLEXECUTEINFO));
         se.cbSize = sizeof(SHELLEXECUTEINFO);
@@ -756,7 +756,7 @@ BOOL GetStringSid(LPTSTR* stringSid)
     return TRUE;
 }
 
-#define SALMON_MAINDLG_MUTEX_NAME "NewtCommanderSalmonMainDialog"
+#define SALMON_MAINDLG_MUTEX_NAME "TandemCommanderSalmonMainDialog"
 
 class CMainDialogMutex
 {

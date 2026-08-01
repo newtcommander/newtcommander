@@ -8,8 +8,8 @@
 
 STRING(STR_WELCOME_MESSAGE,
        "\n"
-       "Zip2Sfx 2.9  Copyright (c) 2000-2023 Open Salamander Authors   Home page: newtcommander.org\n"
-       "                                             github.com/newtcommander/newtcommander\n\n")
+       "Zip2Sfx 2.9  Copyright (c) 2000-2023 Open Salamander Authors   Home page: tandemcommander.org\n"
+       "                                             github.com/tandemcommander/tandemcommander\n\n")
 STRING(STR_HELP,
        "Usage:\tzip2sfx [options] zipfile [exefile]\n"
        "\n"

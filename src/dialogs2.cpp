@@ -649,9 +649,9 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
             if (ConfigurationExist[i])
             {
                 // detect the product family the configuration root belongs to
-                BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
+                BOOL tandemCommander = StrIStr(SalamanderConfigurationRoots[i], "Tandem Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = newtCommander    ? "Newt Commander %s"
+                const char* name = tandemCommander    ? "Tandem Commander %s"
                                    : openSalamander ? "Open Salamander %s"
                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
@@ -681,9 +681,9 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 lvi.state = 0;
 
                 // detect the product family the configuration root belongs to
-                BOOL newtCommander = StrIStr(SalamanderConfigurationRoots[i], "Newt Commander") != NULL;
+                BOOL tandemCommander = StrIStr(SalamanderConfigurationRoots[i], "Tandem Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = newtCommander    ? "Newt Commander %s"
+                const char* name = tandemCommander    ? "Tandem Commander %s"
                                    : openSalamander ? "Open Salamander %s"
                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
@@ -1091,7 +1091,7 @@ CLanguageSelectorDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (PluginName != NULL && LOWORD(wParam) == IDCANCEL)
             return 0;
         if (LOWORD(wParam) == IDB_GETMORELANGS)
-            ShellExecute(HWindow, "open", "https://github.com/newtcommander/newtcommander", NULL, NULL, SW_SHOWNORMAL);
+            ShellExecute(HWindow, "open", "https://github.com/tandemcommander/tandemcommander", NULL, NULL, SW_SHOWNORMAL);
         if (LOWORD(wParam) == IDB_REFRESHLANGS)
         {
             ListView_DeleteAllItems(HListView);
@@ -1103,7 +1103,7 @@ CLanguageSelectorDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (GetLanguagesCount() == 0) // should not happen because this dialog is loaded from the .slg module (that .slg cannot be deleted)
             {
                 MessageBox(HWindow, "Unable to find any language file (.SLG) in subdirectory LANG.\n"
-                                    "Please reinstall Newt Commander.",
+                                    "Please reinstall Tandem Commander.",
                            SALAMANDER_TEXT_VERSION, MB_OK | MB_ICONERROR);
                 TRACE_E("CLanguageSelectorDialog: unexpected situation (no language file): calling ExitProcess(667).");
                 //          ExitProcess(667);

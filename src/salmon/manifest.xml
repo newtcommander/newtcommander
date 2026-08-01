@@ -1,12 +1,12 @@
 ﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 <assemblyIdentity
-    name="NewtCommander.BugReporter"
+    name="TandemCommander.BugReporter"
     processorArchitecture="*"
     type="win32"
     version="1.0.3.0">
 </assemblyIdentity>
-<description>Newt Commander Bug Reporter</description>
+<description>Tandem Commander Bug Reporter</description>
 <dependency>
     <dependentAssembly>
         <assemblyIdentity

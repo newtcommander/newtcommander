@@ -453,7 +453,7 @@ CMainDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (CompressParams.Result)
                 {
-                    // uploading is disabled in Newt Commander (feature 032): the compressed
+                    // uploading is disabled in Tandem Commander (feature 032): the compressed
                     // report stays on disk; show it to the user so they can attach it to
                     // a GitHub issue, then finish exactly like the old upload-success path
                     ShowChilds(dteDialog, TRUE);

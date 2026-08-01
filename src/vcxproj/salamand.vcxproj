@@ -93,8 +93,8 @@
   <PropertyGroup Label="UserMacros">
   </PropertyGroup>
   <PropertyGroup>
-    <!-- feature 032: the product ships as newtcommander.exe; project/source names stay salamand* -->
-    <TargetName>newtcommander</TargetName>
+    <!-- feature 032: the product ships as tandemcommander.exe; project/source names stay salamand* -->
+    <TargetName>tandemcommander</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

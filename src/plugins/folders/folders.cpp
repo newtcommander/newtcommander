@@ -104,7 +104,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    LoadStr(IDS_PLUGIN_DESCRIPTION),
                                    "FOLDERS" /* do not translate */, NULL, "fld");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     // obtain our FS name (it may not be "fld", Salamander can adjust it)
     SalamanderGeneral->GetPluginFSName(AssignedFSName, 0);

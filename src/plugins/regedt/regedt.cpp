@@ -258,7 +258,7 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
                                    NULL,
                                    "reg");
 
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     // obtain our FS name (it may differ from "reg"; Salamander can adjust it)
     SG->GetPluginFSName(AssignedFSName, 0);

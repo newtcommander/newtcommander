@@ -85,7 +85,7 @@ static std::wstring UserDataFolder()
     if (SUCCEEDED(SHGetFolderPathW(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, path)))
     {
         std::wstring p = path;
-        p += L"\\Newt Commander\\mdview.WebView2";
+        p += L"\\Tandem Commander\\mdview.WebView2";
         return p;
     }
     return std::wstring();

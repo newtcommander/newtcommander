@@ -884,7 +884,9 @@ void WriteStrToFile(HANDLE file, const char* str, DWORD* err)
 }
 
 // texts in the file with an exported "server type" (extension .STR)
-const char* STR_FILE_HEADER = "Newt Commander - FTP Client - Exported Server Type";
+const char* STR_FILE_HEADER = "Tandem Commander - FTP Client - Exported Server Type";
+// pre-rebrand signature (feature 046): files exported before the rename must keep importing
+const char* STR_FILE_HEADER_OLD = "Newt Commander - FTP Client - Exported Server Type";
 const char* STR_FILE_TYPENAME = "Type Name:";
 const char* STR_FILE_ADCOND = "Autodetect Condition:";
 const char* STR_FILE_COLUMNS = "Columns:";
@@ -1192,10 +1194,13 @@ BOOL CServerType::ImportFromFile(HANDLE file, DWORD* err, int* errResID)
             BOOL isNULLStr = FALSE;
             switch (i)
             {
-            case 0: // signature
+            case 0: // signature (current or pre-rebrand, see STR_FILE_HEADER_OLD)
             {
-                if ((int)strlen(STR_FILE_HEADER) != lineEnd - lineBeg ||
-                    strncmp(STR_FILE_HEADER, lineBeg, lineEnd - lineBeg) != 0) // bad signature, not an STR file
+                BOOL sigNew = (int)strlen(STR_FILE_HEADER) == lineEnd - lineBeg &&
+                              strncmp(STR_FILE_HEADER, lineBeg, lineEnd - lineBeg) == 0;
+                BOOL sigOld = (int)strlen(STR_FILE_HEADER_OLD) == lineEnd - lineBeg &&
+                              strncmp(STR_FILE_HEADER_OLD, lineBeg, lineEnd - lineBeg) == 0;
+                if (!sigNew && !sigOld) // bad signature, not an STR file
                 {
                     *errResID = IDS_SRVTYPEIMPNOTSTRFILE;
                     ret = FALSE;

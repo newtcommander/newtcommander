@@ -126,7 +126,7 @@ CPluginInterfaceAbstract*
         NULL);
 
     // Setup plugin home page.
-    salamander->SetPluginHomePageURL("www.newtcommander.org");
+    salamander->SetPluginHomePageURL("www.tandemcommander.org");
 
     return &g_oAutomationPlugin;
 }

@@ -745,7 +745,7 @@ BOOL CCallStack::CreateBugReportFile(EXCEPTION_POINTERS* Exception, DWORD thread
             {
                 __try
                 {
-                    PrintBugReportLine((void*)file, "Newt Commander Bug Report File", FALSE);
+                    PrintBugReportLine((void*)file, "Tandem Commander Bug Report File", FALSE);
                     PrintBugReportLine((void*)file, "", FALSE);
 
 #ifndef CALLSTK_DISABLE
