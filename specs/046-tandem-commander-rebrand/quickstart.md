@@ -12,8 +12,11 @@
 ## 1. Static gates (no build needed)
 
 ```powershell
-# G1 — old identity gone from tracked files (allowed only in specs/ history)
-git grep -iIl -e "newt commander" -e "newtcommander" -- ':!specs'
+# G1 — old identity gone from tracked files (allowed only in specs/ history and
+# the four deliberate predecessor references: the FTP .str import-compat
+# constant (FR-013), rebrand.py's rewrite rules for the old identity, and the
+# rename history recorded in CLAUDE.md + the constitution)
+git grep -iIl -e "newt commander" -e "newtcommander" -- ':!specs' ':!src/plugins/ftp/ftp2.cpp' ':!tools/translate/rebrand.py' ':!CLAUDE.md' ':!.specify/memory/constitution.md'
 # expected: no output
 
 # G2 — brand-derived identifiers renamed (FR-017)
