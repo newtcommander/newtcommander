@@ -1,13 +1,13 @@
-#define MyAppName "Newt Commander"
+#define MyAppName "Tandem Commander"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Pavel Stupka"
-#define MyAppURL "https://newtcommander.org/"
-#define MyAppExeName "newtcommander.exe"
+#define MyAppURL "https://tandemcommander.org/"
+#define MyAppExeName "tandemcommander.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{D8FDDA80-E79F-4C37-BF39-03B6486C1ED1}
+AppId={{35C0B0DC-DB73-429C-AAA8-FBC41C937F66}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -33,7 +33,7 @@ LicenseFile=license.txt
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=output
-OutputBaseFilename=newtcommander-{#MyAppVersion}-x64-setup
+OutputBaseFilename=tandemcommander-{#MyAppVersion}-x64-setup
 SetupIconFile=setup.ico
 SolidCompression=yes
 WizardStyle=modern
@@ -52,8 +52,8 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\build\newtcommander\Release_x64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\newtcommander\Release_x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\build\tandemcommander\Release_x64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\tandemcommander\Release_x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
