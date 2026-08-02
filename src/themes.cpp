@@ -779,6 +779,29 @@ static LRESULT CALLBACK ThemeGrayscaleRemapSubclassProc(HWND hWnd, UINT uMsg, WP
         return TRUE; // WM_PAINT covers the whole client area
     }
 
+    case WM_NCPAINT:
+    {
+        // the WS_EX_CLIENTEDGE border is non-client - the client remap below
+        // never touches it and it stays light (hotkey control in the Plugin
+        // Keyboard Shortcuts dialog); redraw it with the dark bevel pair
+        // (the 044 Find WM_NCPAINT precedent)
+        if (!IsDarkThemeActive())
+            break;
+        DWORD exStyle = (DWORD)GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+        if ((exStyle & WS_EX_CLIENTEDGE) == 0)
+            break;
+        HDC hDC = GetWindowDC(hWnd);
+        if (hDC != NULL)
+        {
+            RECT r;
+            GetWindowRect(hWnd, &r);
+            OffsetRect(&r, -r.left, -r.top);
+            ThemeDrawEdge(hDC, &r, EDGE_SUNKEN, BF_RECT);
+            ReleaseDC(hWnd, hDC);
+        }
+        return 0;
+    }
+
     case WM_PAINT:
     {
         if (!IsDarkThemeActive())

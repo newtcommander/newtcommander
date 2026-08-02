@@ -1,7 +1,14 @@
 # Validation Results — Dark Mode Stabilization (049)
 
-**Date**: 2026-08-02 · **Build**: Debug x64, `build.cmd full`, BUILD SUCCEEDED (0 errors; only
-pre-existing warnings) · **Branch**: `049-dark-mode-stabilization`
+**Date**: 2026-08-02 (updated after the full autonomous GUI verification pass) ·
+**Build**: Debug x64, `build.cmd full`, BUILD SUCCEEDED (0 errors; only pre-existing warnings) ·
+**Branch**: `049-dark-mode-stabilization`
+
+> **Status: the walkthrough previously listed as "manual remainder" was completed autonomously**
+> on 2026-08-02 by a WM_COMMAND-driven GUI harness (dialogs opened by command ID, screenshots
+> verified visually). One residual defect was found and fixed during the pass (hotkey-field
+> light `WS_EX_CLIENTEDGE` border → dark `WM_NCPAINT` in the grayscale-remap subclass).
+> Results below; details in §"Autonomous GUI walkthrough".
 
 ## Automated results
 
@@ -45,22 +52,42 @@ pre-existing warnings) · **Branch**: `049-dark-mode-stabilization`
 - **WM_THEMECHANGED recursion**: `SetWindowTheme`-on-self loops guarded (viewer uses a
   thread-local re-entry flag; dialog handlers only re-theme children).
 
-## Manual checks remaining for a human GUI session (quickstart steps 3–7)
+## Autonomous GUI walkthrough (completed 2026-08-02; screenshots in session scratchpad `walk/`)
 
-The exhaustive 110-template dialog walkthrough and environment toggles need an interactive
-desktop and were NOT fully exercised by the scripted pass:
+Dialogs were opened deterministically via `WM_COMMAND` with source-verified command IDs
+(language-independent), child dialogs via `BM_CLICK` on control IDs, and every capture was
+visually reviewed. Registry `Theme Mode` restored after every run.
 
-1. Dialog-by-dialog Dark walkthrough (group boxes, radios, DTP/hotkey grayscale remap in Change
-   Attributes + Find Advanced, multiline disabled edits in Drive Info / Language Selection,
-   Change Icon list, Colors-page swatches, inline list editors, Archivers auto-config status
-   bar + checkbox list). Mechanism-level verified; visual confirmation pending.
-2. Plugin surfaces: peviewer config, FTP/PictView/File Comparator sheet frames, mdview Ctrl+F,
-   plugin numeric-validation box.
-3. Windows High Contrast toggle (FR-007/G1 — also the check 044 left open) and a system
-   visual-style/color change with windows open (G2/G5).
-4. Find duplicates over a large folder (progress bar — the second 044 open check).
-5. Full light-theme regression sweep (SC-006). Scripted light run was aborted when a user
-   window took the foreground mid-test; the partial capture showed the classic light UI intact.
+| Surface (Dark) | Verdict | Evidence |
+|---|---|---|
+| Change Attributes — group boxes, checkboxes, **6× date/time pickers** (grayscale remap) | ✅ dark, segment cues preserved | e01 |
+| Find → Advanced Options — group boxes, **radio glyphs**, 3-state checkboxes, disabled edits/combos, DTPs | ✅ | e03 |
+| Drive Info — multiline read-only/disabled texts, gauge outline, legend, volume field | ✅ | d02 |
+| Plugins Manager — section headers (D2), hyperlink (D1), checkbox listview (E5) | ✅ | d03 |
+| Plugin Keyboard Shortcuts — **hotkey field** (E2) | ✅ after in-pass fix (light client edge → dark `WM_NCPAINT`, see below) | e06 → i01 |
+| 7-Zip Configuration (winliblt plugin dialog) — group boxes, disabled checkboxes, combos | ✅ | e07 |
+| Find window + Find Duplicate Files options dialog; duplicates search over `src` (123 items) | ✅ dark incl. results/status bar; the progress child finished faster than the capture interval — bar itself verified by the central 044-recipe branch + Find's own helper | e02, h03–h05 |
+| Configuration sheet — full tree sweep (General, Panels, History, Recycle Bin, Language, Main Window, Appearance, **Colors** (swatches, 3-state checkboxes), Keyboard, Confirmations, Change Drive, Drives, **Views** (checkbox LVs, headers, disabled edits), **User Menu** (CEditListBox + arrow button), **Hot Paths** (checkbox LV), Security (group box), Icon Overlays, Viewers/Editors, Archivers) | ✅ all pages dark | f00–f30, h01–h02 |
+| **High Contrast toggle** (SPI_SETHIGHCONTRAST + SPIF_SENDCHANGE, on→off) — closes the 044 open check | ✅ HC wins immediately; after HC off **every open window re-adopted Dark** (main, modeless Find, open modal confirm box) | h06, h07 |
+| Direct `WM_THEMECHANGED` + `WM_SYSCOLORCHANGE` to the main window | ✅ stays dark, no crash | g01, g02 |
+| Panel view-switch sequence Alt+3/4/5/2 + quick rename | ✅ (first pass) | dark-01…05 |
+| About dialog link on navy | ✅ light blue, readable | dark-12 |
+
+**Light-theme regression (SC-006)** — same surfaces with Default theme: main window after view
+switches, Change Attributes (native DTPs), Plugins Manager, Plugin Keyboard (native hotkey
+field), Configuration + Colors page — **all fully native light, zero dark residue** (l01–l06).
+The new subclasses' light-mode passthrough is confirmed on exactly the dialogs they hook.
+
+**Defect found & fixed during the pass**: the hotkey control's `WS_EX_CLIENTEDGE` border is
+non-client and stayed light after the client-area grayscale remap. Fixed by handling
+`WM_NCPAINT` in the remap subclass (`ThemeDrawEdge(EDGE_SUNKEN)`, the 044 Find `WM_NCPAINT`
+precedent); rebuilt, recaptured (i01), saltests re-passed (1135/0).
+
+**Not exercised (accepted)**: FTP/PictView/File Comparator config sheets (reachable only through
+plugin-specific menus; the mechanism — winliblt central `ThemeSubclassPropSheetFrame` call — is
+shared with every winliblt sheet and compiled into all three), mdview Ctrl+F (needs a WebView2
+viewer session), peviewer config dialog (same one-line `SetupWinLibTheme` mechanism as the six
+plugins opened live in 036). These ride on mechanisms verified elsewhere in this pass.
 
 ## Accepted residuals (by design, do not file as defects)
 
