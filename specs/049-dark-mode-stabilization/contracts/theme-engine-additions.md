@@ -39,7 +39,11 @@ void ThemeApplyToTooltip(HWND hTooltip);
 
 Subclass ID registry after 049: 1 propsheet frame, 2 disabled static, 3 etched static,
 4 disabled edit (incl. multiline), 5 status bar, **6 group box, 7 radio glyph, 8 grayscale
-remap**. New subclasses handle `WM_PAINT`/`WM_ERASEBKGND` only; all else `DefSubclassProc`.
+remap (incl. dark `WM_NCPAINT` client edge), 9 listview header labels** (installed on the
+listview; answers the header's `NM_CUSTOMDRAW` with the 044 Find light-text recipe — closes
+the black-on-dark "Name"/"Hot Key" header class app-wide). New subclasses handle paint-class
+messages only (`WM_PAINT`/`WM_ERASEBKGND`/`WM_NCPAINT`/the header `NM_CUSTOMDRAW` reply); all
+else `DefSubclassProc`.
 
 ## 3. Call-site obligations (main app)
 

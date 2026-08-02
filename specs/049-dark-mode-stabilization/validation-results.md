@@ -78,10 +78,20 @@ switches, Change Attributes (native DTPs), Plugins Manager, Plugin Keyboard (nat
 field), Configuration + Colors page — **all fully native light, zero dark residue** (l01–l06).
 The new subclasses' light-mode passthrough is confirmed on exactly the dialogs they hook.
 
-**Defect found & fixed during the pass**: the hotkey control's `WS_EX_CLIENTEDGE` border is
-non-client and stayed light after the client-area grayscale remap. Fixed by handling
-`WM_NCPAINT` in the remap subclass (`ThemeDrawEdge(EDGE_SUNKEN)`, the 044 Find `WM_NCPAINT`
-precedent); rebuilt, recaptured (i01), saltests re-passed (1135/0).
+**Defects found & fixed during the pass**:
+1. The hotkey control's `WS_EX_CLIENTEDGE` border is non-client and stayed light after the
+   client-area grayscale remap. Fixed by handling `WM_NCPAINT` in the remap subclass
+   (`ThemeDrawEdge(EDGE_SUNKEN)`, the 044 Find `WM_NCPAINT` precedent); recaptured (i01).
+2. **Listview header labels black-on-dark app-wide** (user-reported on the Hot Paths page:
+   "Name"/"Hot Key" unreadable): the `DarkMode_ItemsView` header paints a dark background but
+   keeps black label text without the undocumented dark-mode APIs — the exact class 044
+   documented and fixed for Find only. Now fixed centrally: new subclass ID 9
+   (`ThemeListViewHeaderSubclassProc`) installed on every listview by the engine sweep answers
+   the header's `NM_CUSTOMDRAW` with the 044 light-text recipe — covers Hot Paths, Views,
+   Plugins Manager, Plugin Keyboard, Archivers auto-config and every plugin listview with no
+   per-site code. Verified dark (j-dark-hotpaths/views/pluginmgr) and light-regression clean
+   (j-light-*); saltests re-passed (1135/0). Subclass ID registry extended: **9 = listview
+   header labels (049)**.
 
 **Not exercised (accepted)**: FTP/PictView/File Comparator config sheets (reachable only through
 plugin-specific menus; the mechanism — winliblt central `ThemeSubclassPropSheetFrame` call — is

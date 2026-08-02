@@ -5,6 +5,7 @@
 
 #include <dwmapi.h>
 #include <uxtheme.h>
+#include <vssym32.h> // HP_HEADERITEM/HIS_* for the header label repaint (049)
 
 #include "cfgdlg.h"
 #include "usermenu.h"
@@ -878,6 +879,91 @@ static LRESULT CALLBACK ThemeGrayscaleRemapSubclassProc(HWND hWnd, UINT uMsg, WP
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+// The DarkMode_ItemsView header paints a dark background but keeps the light
+// theme's BLACK label text (the app deliberately avoids the undocumented
+// SetPreferredAppMode), so every listview header rendered "Name"/"Hot Key"
+// etc. unreadably dark-on-dark. 044 fixed this for the Find window only, via
+// its parent's NM_CUSTOMDRAW; feature 049 centralizes the same recipe: the
+// listview (the header's parent) is subclassed and answers the header's
+// NM_CUSTOMDRAW with a light-text repaint. The Default theme passes through.
+static LRESULT CALLBACK ThemeListViewHeaderSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam,
+                                                        LPARAM lParam, UINT_PTR uIdSubclass,
+                                                        DWORD_PTR dwRefData)
+{
+    switch (uMsg)
+    {
+    case WM_NOTIFY:
+    {
+        if (!IsDarkThemeActive())
+            break;
+        LPNMHDR nmh = (LPNMHDR)lParam;
+        HWND hHeader = ListView_GetHeader(hWnd);
+        if (hHeader == NULL || nmh->hwndFrom != hHeader || nmh->code != NM_CUSTOMDRAW)
+            break;
+        LPNMCUSTOMDRAW cd = (LPNMCUSTOMDRAW)lParam;
+        if (cd->dwDrawStage == CDDS_PREPAINT)
+            return CDRF_NOTIFYITEMDRAW;
+        if (cd->dwDrawStage == CDDS_ITEMPREPAINT)
+        {
+            HDC hDC = cd->hdc;
+            RECT r = cd->rc;
+
+            // background: the header's own (dark) theme part, so hover and
+            // pressed states match the default-painted area past the last column
+            int state = HIS_NORMAL;
+            if (cd->uItemState & CDIS_SELECTED)
+                state = HIS_PRESSED;
+            else if (cd->uItemState & CDIS_HOT)
+                state = HIS_HOT;
+            HTHEME hTheme = OpenThemeData(nmh->hwndFrom, L"Header");
+            if (hTheme != NULL)
+            {
+                DrawThemeBackground(hTheme, hDC, HP_HEADERITEM, state, &r, NULL);
+                CloseThemeData(hTheme);
+            }
+            else
+                FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+
+            WCHAR text[260];
+            text[0] = 0;
+            HDITEMW hdi;
+            memset(&hdi, 0, sizeof(hdi));
+            hdi.mask = HDI_TEXT | HDI_FORMAT;
+            hdi.pszText = text;
+            hdi.cchTextMax = _countof(text);
+            SendMessage(nmh->hwndFrom, HDM_GETITEMW, cd->dwItemSpec, (LPARAM)&hdi);
+
+            HFONT hFont = (HFONT)SendMessage(nmh->hwndFrom, WM_GETFONT, 0, 0);
+            HFONT hOldFont = hFont != NULL ? (HFONT)SelectObject(hDC, hFont) : NULL;
+            int oldBkMode = SetBkMode(hDC, TRANSPARENT);
+            COLORREF oldClr = SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
+            RECT tr = r;
+            tr.left += 6;
+            tr.right -= 6;
+            UINT dt = DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS;
+            if ((hdi.fmt & HDF_JUSTIFYMASK) == HDF_RIGHT)
+                dt |= DT_RIGHT;
+            else if ((hdi.fmt & HDF_JUSTIFYMASK) == HDF_CENTER)
+                dt |= DT_CENTER;
+            DrawTextW(hDC, text, -1, &tr, dt);
+            SetTextColor(hDC, oldClr);
+            SetBkMode(hDC, oldBkMode);
+            if (hOldFont != NULL)
+                SelectObject(hDC, hOldFont);
+            return CDRF_SKIPDEFAULT;
+        }
+        return CDRF_DODEFAULT;
+    }
+
+    case WM_NCDESTROY:
+    {
+        RemoveWindowSubclass(hWnd, ThemeListViewHeaderSubclassProc, 9);
+        break;
+    }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
 {
     BOOL dark = (BOOL)lParam;
@@ -1016,7 +1102,17 @@ static BOOL CALLBACK ThemeApplyChildEnumProc(HWND hChild, LPARAM lParam)
         ListView_SetTextColor(hChild, tx);
         HWND hHeader = ListView_GetHeader(hChild);
         if (hHeader != NULL)
+        {
             SetWindowTheme(hHeader, dark ? L"DarkMode_ItemsView" : NULL, NULL);
+            // the DarkMode_ItemsView header keeps black label text; repaint
+            // the labels via the header's NM_CUSTOMDRAW answered at the
+            // listview level (see the subclass above)
+            if (dark)
+                SetWindowSubclass(hChild, ThemeListViewHeaderSubclassProc, 9, 0);
+            else
+                RemoveWindowSubclass(hChild, ThemeListViewHeaderSubclassProc, 9);
+            InvalidateRect(hHeader, NULL, TRUE);
+        }
         // the native LVS_EX_CHECKBOXES state glyphs are light-theme bitmaps;
         // swap in the theme-aware generated pair (feature 049). Only dark
         // installs it and only a previously darkened listview is restored,
