@@ -1210,6 +1210,7 @@ STRINGTABLE
  IDS_HOTPATH_NAME, "Name"
  IDS_HOTPATH_HOTKEY, "Hot Key"
  IDS_COLUMN_NAME, "Name"
+ IDS_HOTPATH_NAMEWITHOUTPATH, "The Hot Path has a name but no path. Please enter the path or clear the name."
 
  IDS_CUSTOMIZE_HOTPATHS, "Customize..."
 

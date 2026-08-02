@@ -312,6 +312,7 @@ CIconList* LockFrames = NULL; // pro jednoduchost deklaruji a nacitam jako throb
 
 HICON HGroupIcon = NULL;
 HICON HFavoritIcon = NULL;
+HICON HHotPathIcons[HOT_PATH_ICON_COUNT] = {0}; // feature 047: [0] aliases HFavoritIcon
 HICON HSlowFileIcon = NULL;
 
 RGBQUAD ColorTable[256] = {0};
@@ -2354,6 +2355,21 @@ BOOL InitializeGraphics(BOOL colorsOnly)
 
         HGroupIcon = SalLoadImage(4, 20, IconSizes[ICONSIZE_16], IconSizes[ICONSIZE_16], IconLRFlags);
         HFavoritIcon = (HICON)HANDLES(LoadImage(Shell32DLL, MAKEINTRESOURCE(319), IMAGE_ICON, IconSizes[ICONSIZE_16], IconSizes[ICONSIZE_16], IconLRFlags));
+        // feature 047: hot path icon gallery - index 0 is the default (HFavoritIcon),
+        // 1.. are the color variants from our resources; loaded/reloaded together
+        // with HFavoritIcon so consumers always hold live handles after color/DPI
+        // changes; a failed variant falls back to the default icon
+        HHotPathIcons[0] = HFavoritIcon;
+        for (int hpi = 1; hpi < HOT_PATH_ICON_COUNT; hpi++)
+        {
+            HHotPathIcons[hpi] = (HICON)HANDLES(LoadImage(HInstance, MAKEINTRESOURCE(IDI_HOTPATH_1 + hpi - 1),
+                                                          IMAGE_ICON, IconSizes[ICONSIZE_16], IconSizes[ICONSIZE_16], IconLRFlags));
+            if (HHotPathIcons[hpi] == NULL)
+            {
+                TRACE_E("Unable to load hot path icon variant " << hpi);
+                HHotPathIcons[hpi] = HFavoritIcon;
+            }
+        }
         if (HSharedOverlays[ICONSIZE_16] == NULL ||
             HSharedOverlays[ICONSIZE_32] == NULL ||
             HSharedOverlays[ICONSIZE_48] == NULL ||
@@ -2686,6 +2702,15 @@ void ReleaseGraphics(BOOL colorsOnly)
         {
             HANDLES(DestroyIcon(HGroupIcon));
             HGroupIcon = NULL;
+        }
+
+        // feature 047: destroy the gallery variants before HFavoritIcon; [0] and
+        // any failed variant alias HFavoritIcon and must not be destroyed twice
+        for (int hpi = 0; hpi < HOT_PATH_ICON_COUNT; hpi++)
+        {
+            if (HHotPathIcons[hpi] != NULL && HHotPathIcons[hpi] != HFavoritIcon)
+                HANDLES(DestroyIcon(HHotPathIcons[hpi]));
+            HHotPathIcons[hpi] = NULL;
         }
 
         if (HFavoritIcon != NULL)

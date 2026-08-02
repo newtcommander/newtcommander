@@ -6,6 +6,12 @@
 
 #define HOT_PATHS_COUNT 30
 
+// feature 047: number of icons in the hot path icon gallery; index 0 is the
+// default (HFavoritIcon), 1..HOT_PATH_ICON_COUNT-1 are the color variants
+// (HHotPathIcons in consts.h); the order is append-only because the index is
+// persisted in the configuration
+#define HOT_PATH_ICON_COUNT 10
+
 #define TASKBAR_ICON_ID 0x0000
 
 extern const int SPLIT_LINE_WIDTH;
@@ -76,15 +82,18 @@ struct CHotPathItem
 {
     // Name and Path are allocated to save memory (people expect unlimited hot paths)
     // moreover, in the case of Path, MAX_PATH would be too small (escaping + variables)
-    char* Name;   // name under which the path appears in the menu
-    char* Path;   // path escaped (double '$' characters) for variables like $(SalDir), etc.
-    BOOL Visible; // is the path present in the ChangeDrive menu
+    char* Name;    // optional custom display name; empty = surfaces show the path (feature 047)
+    char* Path;    // path escaped (double '$' characters) for variables like $(SalDir), etc.;
+                   // non-empty Path is what makes the slot assigned (feature 047)
+    BOOL Visible;  // is the path present in the ChangeDrive menu
+    int IconIndex; // feature 047: gallery icon index (0 = default HFavoritIcon)
 
     CHotPathItem()
     {
         Name = NULL;
         Path = NULL;
         Visible = TRUE;
+        IconIndex = 0;
     }
 
     void CopyFrom(const CHotPathItem* src)
@@ -93,6 +102,7 @@ struct CHotPathItem
         Name = DupStr(src->Name);
         Path = DupStr(src->Path);
         Visible = src->Visible;
+        IconIndex = src->IconIndex;
     }
 
     void Empty()
@@ -108,6 +118,7 @@ struct CHotPathItem
             Path = NULL;
         }
         Visible = TRUE;
+        IconIndex = 0;
     }
 };
 
@@ -163,6 +174,33 @@ public:
     {
         Items[index].Visible = visible;
     }
+
+    // feature 047: sets only the custom name; empty name is valid (path is displayed)
+    void SetName(DWORD index, const char* name)
+    {
+        if (Items[index].Name != NULL)
+            free(Items[index].Name);
+        Items[index].Name = DupStr(name);
+    }
+
+    // feature 047: gallery icon index; out-of-range values fall back to the default icon
+    void SetIconIndex(DWORD index, int iconIndex)
+    {
+        if (iconIndex < 0 || iconIndex >= HOT_PATH_ICON_COUNT)
+            iconIndex = 0;
+        Items[index].IconIndex = iconIndex;
+    }
+
+    int GetIconIndex(int index)
+    {
+        if (index < 0 || index >= HOT_PATHS_COUNT)
+            return 0;
+        return Items[index].IconIndex;
+    }
+
+    // feature 047: the label every surface displays - the custom name if set,
+    // otherwise the path in its user-visible form ('$$' collapsed to '$')
+    void GetDisplayName(int index, char* buffer, int bufferSize);
 
     void GetName(int index, char* buffer, int bufferSize)
     {

@@ -163,6 +163,8 @@
 #define IDC_HOTPATH_PATH                373
 #define IDC_HOTPATH_AUTOCONFIG          374
 #define IDC_HOTPATH_HEADER              375
+#define IDC_HOTPATH_NAME                376
+#define IDC_HOTPATH_ICON                377
 #define IDD_CFGPAGE_REGIONAL            385
 #define IDC_SORTUSESLOCALE              386
 #define IDB_LANGUAGE                    387

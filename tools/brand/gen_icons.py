@@ -14,6 +14,11 @@ Inputs (all in tools/brand/):
                                 splash screen (copied verbatim to
                                 src/res/logo.png; alpha supported; scaled to
                                 fit at draw time, aspect preserved)
+    hotpath-master.png REQUIRED square PNG, edge >= 256 px; grayscale bookmark
+                                motif (white fill, dark outline, alpha) for the
+                                hot path icon gallery (feature 047); the RGB
+                                channels are multiplied by each gallery color,
+                                so keep the fill white/light for clean tinting
 
 Usage (from anywhere; paths are resolved relative to this file):
 
@@ -36,6 +41,7 @@ REPO_ROOT = BRAND_DIR.parent.parent
 
 MASTER = BRAND_DIR / "icon-master.png"
 ABOUT = BRAND_DIR / "about.png"
+HOTPATH_MASTER = BRAND_DIR / "hotpath-master.png"
 
 ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
 MASTER_MIN_EDGE = 256
@@ -49,6 +55,25 @@ ICO_TARGETS = (
 )
 
 LOGO_PNG = "src/res/logo.png"
+
+# Feature 047: hot path icon gallery color variants. The tuple order is
+# APPEND-ONLY - hotpath<N>.ico is gallery index N and the index is persisted
+# in the user's configuration (gallery index 0 is the system default icon and
+# is not generated here). Sizes cover the 16 px base at 100-200 % DPI.
+HOTPATH_SIZES = (16, 20, 24, 32)
+HOTPATH_TINTS = (
+    ("red", (229, 72, 77)),
+    ("orange", (247, 107, 21)),
+    ("yellow", (245, 176, 0)),
+    ("green", (70, 167, 88)),
+    ("teal", (18, 165, 148)),
+    ("blue", (62, 99, 221)),
+    ("purple", (142, 78, 198)),
+    ("pink", (214, 64, 159)),
+    ("gray", (141, 141, 141)),
+)
+HOTPATH_TARGETS = tuple(
+    f"src/res/hotpath{i}.ico" for i in range(1, len(HOTPATH_TINTS) + 1))
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
@@ -93,13 +118,29 @@ def load_sources():
         fail(f"{ABOUT} is missing")
     load_png(ABOUT)  # decodability check only; the file is copied verbatim
 
-    return master, overrides
+    hotpath = load_png(HOTPATH_MASTER)
+    w, h = hotpath.size
+    if w != h:
+        fail(f"{HOTPATH_MASTER} is {w}x{h}, expected a square image")
+    if w < MASTER_MIN_EDGE:
+        fail(f"{HOTPATH_MASTER} is {w}x{h}, expected edge >= {MASTER_MIN_EDGE} px")
+
+    return master, overrides, hotpath
 
 
 def frame_for(size, master, overrides):
     if size in overrides:
         return overrides[size]
     return master.resize((size, size), Image.LANCZOS)
+
+
+def tint(img, rgb):
+    """Multiply the RGB channels by a color; alpha is preserved."""
+    r, g, b, a = img.split()
+    r = r.point(lambda v: v * rgb[0] // 255)
+    g = g.point(lambda v: v * rgb[1] // 255)
+    b = b.point(lambda v: v * rgb[2] // 255)
+    return Image.merge("RGBA", (r, g, b, a))
 
 
 def write_ico(path, frames):
@@ -136,7 +177,7 @@ def write_ico(path, frames):
 
 
 def generate():
-    master, overrides = load_sources()
+    master, overrides, hotpath = load_sources()
     frames = [frame_for(s, master, overrides) for s in ICON_SIZES]
     for rel in ICO_TARGETS:
         out = REPO_ROOT / rel
@@ -146,41 +187,59 @@ def generate():
     logo = REPO_ROOT / LOGO_PNG
     logo.write_bytes(ABOUT.read_bytes())
     print(f"OK: wrote {LOGO_PNG} (copy of {ABOUT.name})")
+    for (name, rgb), rel in zip(HOTPATH_TINTS, HOTPATH_TARGETS):
+        colored = tint(hotpath, rgb)
+        frames = [colored.resize((s, s), Image.LANCZOS) for s in HOTPATH_SIZES]
+        write_ico(REPO_ROOT / rel, frames)
+        print(f"OK: wrote {rel} ({name}; "
+              f"{', '.join(str(s) for s in HOTPATH_SIZES)} px)")
+
+
+def check_ico(rel, sizes):
+    """Structural check of one shipped ICO; returns a list of problems."""
+    path = REPO_ROOT / rel
+    problems = []
+    try:
+        data = path.read_bytes()
+        count = struct.unpack("<H", data[4:6])[0]
+        if count != len(sizes):
+            problems.append(f"{count} entries, expected {len(sizes)}")
+        for i, size in enumerate(sizes[:count]):
+            off = 6 + 16 * i
+            w, h, _cc, _res, _planes, bpp, length, imgoff = struct.unpack(
+                "<BBBBHHII", data[off:off + 16])
+            w, h = w or 256, h or 256
+            if (w, h) != (size, size):
+                problems.append(f"entry {i}: {w}x{h}, expected {size}x{size}")
+            if bpp != 32:
+                problems.append(f"entry {i}: {bpp} bpp, expected 32")
+            payload = data[imgoff:imgoff + length]
+            if size >= 128:
+                if payload[:8] != PNG_MAGIC:
+                    problems.append(f"entry {i}: expected PNG encoding")
+            else:
+                bi_size, bi_w, bi_h, _p, bi_bpp = struct.unpack(
+                    "<IiiHH", payload[:16])
+                if (bi_size, bi_w, bi_h, bi_bpp) != (40, size, size * 2, 32):
+                    problems.append(f"entry {i}: bad BITMAPINFOHEADER")
+    except FileNotFoundError:
+        problems.append("missing file")
+    except (struct.error, IndexError):
+        problems.append("truncated/corrupt ICO")
+    return problems
 
 
 def verify():
     """Structural check of every shipped asset, no writes."""
     failures = 0
     for rel in ICO_TARGETS:
-        path = REPO_ROOT / rel
-        problems = []
-        try:
-            data = path.read_bytes()
-            count = struct.unpack("<H", data[4:6])[0]
-            if count != len(ICON_SIZES):
-                problems.append(f"{count} entries, expected {len(ICON_SIZES)}")
-            for i, size in enumerate(ICON_SIZES[:count]):
-                off = 6 + 16 * i
-                w, h, _cc, _res, _planes, bpp, length, imgoff = struct.unpack(
-                    "<BBBBHHII", data[off:off + 16])
-                w, h = w or 256, h or 256
-                if (w, h) != (size, size):
-                    problems.append(f"entry {i}: {w}x{h}, expected {size}x{size}")
-                if bpp != 32:
-                    problems.append(f"entry {i}: {bpp} bpp, expected 32")
-                payload = data[imgoff:imgoff + length]
-                if size >= 128:
-                    if payload[:8] != PNG_MAGIC:
-                        problems.append(f"entry {i}: expected PNG encoding")
-                else:
-                    bi_size, bi_w, bi_h, _p, bi_bpp = struct.unpack(
-                        "<IiiHH", payload[:16])
-                    if (bi_size, bi_w, bi_h, bi_bpp) != (40, size, size * 2, 32):
-                        problems.append(f"entry {i}: bad BITMAPINFOHEADER")
-        except FileNotFoundError:
-            problems.append("missing file")
-        except (struct.error, IndexError):
-            problems.append("truncated/corrupt ICO")
+        problems = check_ico(rel, ICON_SIZES)
+        status = "OK" if not problems else "FAIL: " + "; ".join(problems)
+        print(f"{rel}: {status}")
+        failures += bool(problems)
+
+    for rel in HOTPATH_TARGETS:
+        problems = check_ico(rel, HOTPATH_SIZES)
         status = "OK" if not problems else "FAIL: " + "; ".join(problems)
         print(f"{rel}: {status}")
         failures += bool(problems)

@@ -856,6 +856,7 @@
 #define IDS_HOTPATH_NAME             10665
 #define IDS_HOTPATH_HOTKEY           10666
 #define IDS_COLUMN_NAME              10667
+#define IDS_HOTPATH_NAMEWITHOUTPATH  10668
 
 // Directory and Status line Tooltips
 #define IDS_PANELFILTER              10671

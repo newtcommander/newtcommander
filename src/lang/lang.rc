@@ -274,12 +274,16 @@ STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD | WS_CAPTION
 CAPTION "Hot Paths"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    CONTROL         "",IDC_HOTPATH_LIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_EDITLABELS | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,1,16,295,155
-    LTEXT           "&Path:",IDC_STATIC_1,1,179,19,8
-    EDITTEXT        IDC_HOTPATH_PATH,22,177,258,12,ES_AUTOHSCROLL | WS_GROUP
-    PUSHBUTTON      "",IDC_HOTPATH_BROWSE,284,177,12,12,WS_GROUP
-    LTEXT           "Checked Hot Paths will be displayed in the Change Drive menu.",IDC_STATIC_2,1,193,215,8
-    LTEXT           "You can use Ctrl+Shift+number to assign Hot Path from panel.",IDC_STATIC_3,1,205,214,8
+    CONTROL         "",IDC_HOTPATH_LIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_EDITLABELS | LVS_NOSORTHEADER | WS_BORDER | WS_TABSTOP,1,16,295,131
+    LTEXT           "&Name:",IDC_STATIC_4,1,153,36,8
+    EDITTEXT        IDC_HOTPATH_NAME,40,151,196,12,ES_AUTOHSCROLL | WS_GROUP
+    LTEXT           "&Icon:",IDC_STATIC_5,244,153,17,8
+    COMBOBOX        IDC_HOTPATH_ICON,262,151,34,120,CBS_DROPDOWNLIST | CBS_OWNERDRAWFIXED | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "&Path:",IDC_STATIC_1,1,169,36,8
+    EDITTEXT        IDC_HOTPATH_PATH,40,167,240,12,ES_AUTOHSCROLL | WS_GROUP
+    PUSHBUTTON      "",IDC_HOTPATH_BROWSE,284,167,12,12,WS_GROUP
+    LTEXT           "Checked Hot Paths will be displayed in the Change Drive menu.",IDC_STATIC_2,1,196,215,8
+    LTEXT           "You can use Ctrl+Shift+number to assign Hot Path from panel.",IDC_STATIC_3,1,206,214,8
     CONTROL         "&Open this page when Hot Path is assigned from panel",IDC_HOTPATH_AUTOCONFIG,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,1,218,193,12
     LTEXT           "Defined &Hot Paths:",IDC_HOTPATH_HEADER,1,6,67,8

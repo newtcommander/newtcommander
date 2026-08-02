@@ -712,6 +712,9 @@ public:
 
     void LoadControls();
     void StoreControls();
+    void StoreName();                           // feature 047: stores the optional custom name
+    void RefreshItemLabel(int index);           // feature 047: list rows show name, else path
+    void SetItemIcon(int index, int iconIndex); // feature 047: list row icon preview
     void EnableControls();
     void EnableHeader();
 

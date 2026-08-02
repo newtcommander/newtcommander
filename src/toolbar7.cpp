@@ -42,17 +42,19 @@ CHotPathsBar::CHotPathsBar(HWND hNotifyWindow, CObjectOrigin origin)
     int i;
     for (i = 0; i < HOT_PATHS_COUNT; i++)
     {
-        char srcName[MAX_PATH];
-        MainWindow->HotPaths.GetName(i, srcName, MAX_PATH);
-        if (srcName[0] != 0)
+        // feature 047: an assigned slot has a non-empty path; the label is the
+        // custom name when set, otherwise the path itself
+        if (MainWindow->HotPaths.GetPathLen(i) > 0)
         {
+            char srcName[MAX_PATH];
+            MainWindow->HotPaths.GetDisplayName(i, srcName, MAX_PATH);
             tii.Mask = TLBI_MASK_STYLE | TLBI_MASK_TEXT | TLBI_MASK_ICON | TLBI_MASK_ID;
             tii.Style = TLBI_STYLE_SHOWTEXT;
             char buff[200];
             lstrcpyn(buff, srcName, 200);
             DuplicateAmpersands(buff, 200);
             tii.Text = buff;
-            tii.HIcon = HFavoritIcon;
+            tii.HIcon = HHotPathIcons[MainWindow->HotPaths.GetIconIndex(i)]; // feature 047: per-item gallery icon
             tii.ID = CM_ACTIVEHOTPATH_MIN + i;
             InsertItem2(0xFFFFFFFF, TRUE, &tii);
         }
@@ -130,7 +132,7 @@ void CHotPathsBar::OnGetToolTip(LPARAM lParam)
     tt->Buffer[0] = 0;
     if (index >= 0 && index < HOT_PATHS_COUNT)
     {
-        if (MainWindow->HotPaths.GetNameLen(index) > 0)
+        if (MainWindow->HotPaths.GetPathLen(index) > 0)
         {
             MainWindow->HotPaths.GetPath(index, tt->Buffer, TOOLTIP_TEXT_MAX);
         }

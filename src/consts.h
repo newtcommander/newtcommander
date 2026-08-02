@@ -1473,6 +1473,10 @@ extern CIconList* LockFrames;
 
 extern HICON HGroupIcon;   // skupina pro UserMenu popupy
 extern HICON HFavoritIcon; // hot path
+// feature 047: hot path icon gallery; [0] aliases HFavoritIcon (default),
+// [1..HOT_PATH_ICON_COUNT-1] are the color variants (IDI_HOTPATH_1 + i - 1);
+// reloaded together with HFavoritIcon on color/DPI changes
+extern HICON HHotPathIcons[];
 
 #define TILE_LEFT_MARGIN 4 // pocet bodu vlevo pred ikonkou
 

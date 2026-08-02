@@ -2719,7 +2719,7 @@ void CCfgPageHotPath::Validate(CTransferInfo& ti)
         for (i = 0; i < HOT_PATHS_COUNT; i++)
         {
             int errorPos1, errorPos2;
-            if (Config->GetNameLen(i) > 0)
+            if (Config->GetPathLen(i) > 0) // feature 047: the path defines the slot
             {
                 char path[HOTPATHITEM_MAXPATH];
                 Config->GetPath(i, path, HOTPATHITEM_MAXPATH);
@@ -2732,6 +2732,17 @@ void CCfgPageHotPath::Validate(CTransferInfo& ti)
                                 errorPos1, errorPos2);
                     return;
                 }
+            }
+            else if (Config->GetNameLen(i) > 0)
+            {
+                // feature 047: a name without a path is invalid
+                SetCursor(hOldCur);
+                SalMessageBox(HWindow, LoadStr(IDS_HOTPATH_NAMEWITHOUTPATH),
+                              LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+                ListView_SetItemState(HListView, i, LVIS_SELECTED, LVIS_SELECTED);
+                ListView_EnsureVisible(HListView, i, FALSE);
+                ti.ErrorOn(IDC_HOTPATH_PATH);
+                return;
             }
         }
         SetCursor(hOldCur);
@@ -2750,7 +2761,10 @@ void CCfgPageHotPath::Transfer(CTransferInfo& ti)
         Config->Load(MainWindow->HotPaths);
 
         if (EditMode)
+        {
             Config->Set(EditIndex, HotPathSetBufferName, HotPathSetBufferPath);
+            Config->SetIconIndex(EditIndex, 0); // feature 047: a fresh assignment starts with the default icon
+        }
 
         int index = 0;
         DisableNotification = TRUE;
@@ -2760,12 +2774,13 @@ void CCfgPageHotPath::Transfer(CTransferInfo& ti)
         for (i = 0; i < HOT_PATHS_COUNT; i++)
         {
             LVITEM lvi;
-            lvi.mask = LVIF_STATE;
+            lvi.mask = LVIF_STATE | LVIF_IMAGE; // feature 047: per-row gallery icon preview
             lvi.iItem = i;
             lvi.iSubItem = 0;
             lvi.state = 0;
+            lvi.iImage = Config->GetIconIndex(i);
             name[0] = 0;
-            Config->GetName(i, name, MAX_PATH);
+            Config->GetDisplayName(i, name, MAX_PATH); // feature 047: name, else path
             ListView_InsertItem(HListView, &lvi);
             SalListViewSetItemTextU8(HListView, i, 0, name); // hot-path name is UTF-8 (feature 005)
 
@@ -2804,16 +2819,32 @@ void CCfgPageHotPath::Transfer(CTransferInfo& ti)
 void CCfgPageHotPath::LoadControls()
 {
     int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
+    char name[MAX_PATH];
     char path[HOTPATHITEM_MAXPATH];
+    name[0] = 0;
     path[0] = 0;
     BOOL visible = FALSE;
     if (index != -1)
     {
+        Config->GetName(index, name, MAX_PATH); // feature 047: only the custom name; empty = unnamed
         Config->GetPath(index, path, HOTPATHITEM_MAXPATH);
         visible = Config->GetVisible(index);
     }
 
     DisableNotification = TRUE;
+    // feature 047: reflect the row's gallery icon in the combo
+    SendDlgItemMessage(HWindow, IDC_HOTPATH_ICON, CB_SETCURSEL,
+                       index != -1 ? Config->GetIconIndex(index) : 0, 0);
+    SendDlgItemMessage(HWindow, IDC_HOTPATH_NAME, EM_LIMITTEXT, MAX_PATH - 1, 0);
+    WCHAR* nameW = SalU8ToWAlloc(name); // the name is UTF-8 (feature 005)
+    if (nameW != NULL)
+    {
+        SetDlgItemTextW(HWindow, IDC_HOTPATH_NAME, nameW);
+        free(nameW);
+    }
+    else // not valid UTF-8 (transitional): keep the legacy name
+        SetDlgItemText(HWindow, IDC_HOTPATH_NAME, name);
+
     SendDlgItemMessage(HWindow, IDC_HOTPATH_PATH, EM_LIMITTEXT, HOTPATHITEM_MAXPATH - 1, 0);
     WCHAR* pathW = SalU8ToWAlloc(path); // the path is UTF-8 (feature 004)
     if (pathW != NULL)
@@ -2828,6 +2859,27 @@ void CCfgPageHotPath::LoadControls()
     EnableControls();
 }
 
+void CCfgPageHotPath::RefreshItemLabel(int index)
+{
+    if (index < 0 || index >= HOT_PATHS_COUNT)
+        return;
+    char label[MAX_PATH];
+    Config->GetDisplayName(index, label, MAX_PATH);
+    SalListViewSetItemTextU8(HListView, index, 0, label);
+}
+
+void CCfgPageHotPath::SetItemIcon(int index, int iconIndex)
+{
+    if (index < 0 || index >= HOT_PATHS_COUNT)
+        return;
+    LVITEM lvi;
+    lvi.mask = LVIF_IMAGE;
+    lvi.iItem = index;
+    lvi.iSubItem = 0;
+    lvi.iImage = iconIndex;
+    ListView_SetItem(HListView, &lvi);
+}
+
 void CCfgPageHotPath::StoreControls()
 {
     int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
@@ -2840,17 +2892,35 @@ void CCfgPageHotPath::StoreControls()
         if (SalWToU8(buffW, -1, buff, HOTPATHITEM_MAXPATH) == 0) // UTF-8 does not fit: keep the legacy A call
             GetDlgItemText(HWindow, IDC_HOTPATH_PATH, buff, HOTPATHITEM_MAXPATH);
         Config->SetPath(index, buff);
+        RefreshItemLabel(index); // unnamed rows display the path
+    }
+}
+
+void CCfgPageHotPath::StoreName()
+{
+    int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
+    if (index != -1)
+    {
+        char buff[MAX_PATH];
+        WCHAR buffW[MAX_PATH]; // the name is UTF-8 (feature 005): read as wide text
+        buffW[0] = 0;
+        GetDlgItemTextW(HWindow, IDC_HOTPATH_NAME, buffW, _countof(buffW));
+        if (SalWToU8(buffW, -1, buff, MAX_PATH) == 0) // UTF-8 does not fit: keep the legacy A call
+            GetDlgItemText(HWindow, IDC_HOTPATH_NAME, buff, MAX_PATH);
+        Config->CleanName(buff); // trims spaces; an empty result means unnamed
+        Config->SetName(index, buff);
+        RefreshItemLabel(index);
     }
 }
 
 void CCfgPageHotPath::EnableControls()
 {
     int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
-    BOOL enable = TRUE;
-    if (index == -1 || Config->GetNameLen(index) == 0)
-        enable = FALSE;
+    BOOL enable = index != -1; // feature 047: the path edit is primary, the name is optional
+    EnableWindow(GetDlgItem(HWindow, IDC_HOTPATH_NAME), enable);
     EnableWindow(GetDlgItem(HWindow, IDC_HOTPATH_PATH), enable);
     EnableWindow(GetDlgItem(HWindow, IDC_HOTPATH_BROWSE), enable);
+    EnableWindow(GetDlgItem(HWindow, IDC_HOTPATH_ICON), enable);
 }
 
 void CCfgPageHotPath::EnableHeader()
@@ -2880,10 +2950,15 @@ void CCfgPageHotPath::OnDelete()
     int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
     if (index != -1)
     {
-        Config->Set(index, "", "");
+        // feature 047: reset the whole slot - name, path, visibility and icon
+        Config->Set(index, "", "", TRUE);
+        Config->SetIconIndex(index, 0);
         char buffEmpty[] = "";
         ListView_SetItemText(HListView, index, 0, buffEmpty);
+        ListView_SetItemState(HListView, index, INDEXTOSTATEIMAGEMASK(2), LVIS_STATEIMAGEMASK);
+        SetItemIcon(index, 0);
         LoadControls();
+        Dirty = TRUE;
     }
     EnableHeader();
 }
@@ -2904,8 +2979,8 @@ void CCfgPageHotPath::OnMove(BOOL up)
     {
         char name1[MAX_PATH];
         char name2[MAX_PATH];
-        Config->GetName(index1, name1, MAX_PATH);
-        Config->GetName(index2, name2, MAX_PATH);
+        Config->GetDisplayName(index1, name1, MAX_PATH); // feature 047: rows show name, else path
+        Config->GetDisplayName(index2, name2, MAX_PATH);
         SalListViewSetItemTextU8(HListView, index1, 0, name2); // names are UTF-8 (feature 010)
         SalListViewSetItemTextU8(HListView, index2, 0, name1);
         DWORD state1 = ListView_GetItemState(HListView, index1, LVIS_STATEIMAGEMASK);
@@ -2915,6 +2990,8 @@ void CCfgPageHotPath::OnMove(BOOL up)
         ListView_SetItemState(HListView, index2, state1, LVIS_STATEIMAGEMASK | LVIS_FOCUSED | LVIS_SELECTED);
         ListView_EnsureVisible(HListView, index2, FALSE);
         Config->SwapItems(index1, index2);
+        SetItemIcon(index1, Config->GetIconIndex(index1)); // feature 047: icons travel with the entries
+        SetItemIcon(index2, Config->GetIconIndex(index2));
         LoadControls();
     }
     DisableNotification = FALSE;
@@ -2979,9 +3056,68 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         ChangeToArrowButton(HWindow, IDC_HOTPATH_BROWSE);
 
+        // feature 047: per-row gallery icon preview in the list
+        int iconSize = GetIconSizeForSystemDPI(ICONSIZE_16);
+        HIMAGELIST hIcons = ImageList_Create(iconSize, iconSize, ILC_COLOR32 | ILC_MASK,
+                                             HOT_PATH_ICON_COUNT, 1);
+        if (hIcons != NULL)
+        {
+            int i;
+            for (i = 0; i < HOT_PATH_ICON_COUNT; i++)
+                ImageList_AddIcon(hIcons, HHotPathIcons[i]);
+            // no LVS_SHAREIMAGELISTS: the list view owns and destroys the image list
+            ListView_SetImageList(HListView, hIcons, LVSIL_SMALL);
+        }
+
+        // feature 047: fill the icon gallery combo (owner-drawn, no strings);
+        // set the item height explicitly - WM_MEASUREITEM is sent during control
+        // creation, before this page's dialog procedure is attached
+        HWND hIconCombo = GetDlgItem(HWindow, IDC_HOTPATH_ICON);
+        int i;
+        for (i = 0; i < HOT_PATH_ICON_COUNT; i++)
+            SendMessage(hIconCombo, CB_ADDSTRING, 0, (LPARAM)i);
+        SendMessage(hIconCombo, CB_SETITEMHEIGHT, (WPARAM)-1, iconSize + 4); // selection field
+        SendMessage(hIconCombo, CB_SETITEMHEIGHT, 0, iconSize + 4);          // list items
+
         // dialog elements should stretch with the dialog size, set split controls
         ElasticVerticalLayout(1, IDC_HOTPATH_LIST);
 
+        break;
+    }
+
+    case WM_MEASUREITEM:
+    {
+        // feature 047: icon gallery combo item height
+        MEASUREITEMSTRUCT* mis = (MEASUREITEMSTRUCT*)lParam;
+        if (mis->CtlID == IDC_HOTPATH_ICON)
+        {
+            mis->itemHeight = GetIconSizeForSystemDPI(ICONSIZE_16) + 4;
+            return TRUE;
+        }
+        break;
+    }
+
+    case WM_DRAWITEM:
+    {
+        // feature 047: icon gallery combo items are icon swatches
+        DRAWITEMSTRUCT* dis = (DRAWITEMSTRUCT*)lParam;
+        if (dis->CtlID == IDC_HOTPATH_ICON)
+        {
+            BOOL selected = (dis->itemState & ODS_SELECTED) != 0;
+            FillRect(dis->hDC, &dis->rcItem,
+                     ThemeSysColorBrush(selected ? COLOR_HIGHLIGHT : COLOR_WINDOW));
+            if (dis->itemID != (UINT)-1 && dis->itemID < HOT_PATH_ICON_COUNT)
+            {
+                int iconSize = GetIconSizeForSystemDPI(ICONSIZE_16);
+                int x = dis->rcItem.left + 3;
+                int y = (dis->rcItem.top + dis->rcItem.bottom - iconSize) / 2;
+                DrawIconEx(dis->hDC, x, y, HHotPathIcons[dis->itemID],
+                           iconSize, iconSize, 0, NULL, DI_NORMAL);
+            }
+            if (dis->itemState & ODS_FOCUS)
+                DrawFocusRect(dis->hDC, &dis->rcItem);
+            return TRUE;
+        }
         break;
     }
 
@@ -3070,13 +3206,11 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                         lstrcpyn(name, nmhd->item.pszText, MAX_PATH);
                     Config->CleanName(name);
                     int index = nmhd->item.iItem;
-                    char path[HOTPATHITEM_MAXPATH];
-                    path[0] = 0;
-                    if (strlen(name) != 0)
-                        Config->GetPath(index, path, HOTPATHITEM_MAXPATH);
-                    Config->Set(index, name, path);
+                    // feature 047: in-place edit changes only the custom name; an empty
+                    // result is valid and means the row displays its path again
+                    Config->SetName(index, name);
+                    RefreshItemLabel(index);
                     LoadControls();
-                    SalListViewSetItemTextU8(HListView, index, 0, name);
                     Dirty = TRUE;
                     break;
                 }
@@ -3095,6 +3229,33 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 StoreControls();
                 Dirty = TRUE;
+            }
+            return TRUE;
+        }
+
+        if (HIWORD(wParam) == EN_CHANGE && LOWORD(wParam) == IDC_HOTPATH_NAME)
+        {
+            if (!DisableNotification)
+            {
+                StoreName();
+                Dirty = TRUE;
+            }
+            return TRUE;
+        }
+
+        if (HIWORD(wParam) == CBN_SELCHANGE && LOWORD(wParam) == IDC_HOTPATH_ICON)
+        {
+            // feature 047: store the picked gallery icon and update the row preview
+            if (!DisableNotification)
+            {
+                int index = ListView_GetNextItem(HListView, -1, LVNI_SELECTED);
+                int sel = (int)SendDlgItemMessage(HWindow, IDC_HOTPATH_ICON, CB_GETCURSEL, 0, 0);
+                if (index != -1 && sel != CB_ERR)
+                {
+                    Config->SetIconIndex(index, sel);
+                    SetItemIcon(index, sel);
+                    Dirty = TRUE;
+                }
             }
             return TRUE;
         }

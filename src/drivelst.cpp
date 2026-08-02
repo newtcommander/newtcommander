@@ -2154,10 +2154,12 @@ BOOL CDrivesList::BuildData(BOOL noTimeout, TDirectArray<CDriveData>* copyDrives
     {
         if (MainWindow->HotPaths.GetVisible(i))
         {
-            char srcName[MAX_PATH];
-            MainWindow->HotPaths.GetName(i, srcName, MAX_PATH);
-            if (srcName[0] != 0 && MainWindow->HotPaths.GetPathLen(i) > 0)
+            // feature 047: membership requires only a path; the label is the custom
+            // name when set, otherwise the path itself
+            if (MainWindow->HotPaths.GetPathLen(i) > 0)
             {
+                char srcName[MAX_PATH];
+                MainWindow->HotPaths.GetDisplayName(i, srcName, MAX_PATH);
                 if (addSeparator)
                 {
                     // adding separator
@@ -2177,6 +2179,7 @@ BOOL CDrivesList::BuildData(BOOL noTimeout, TDirectArray<CDriveData>* copyDrives
                 {
                     drv.DriveType = drvtHotPath;
                     drv.Param = i;
+                    drv.HIcon = HHotPathIcons[MainWindow->HotPaths.GetIconIndex(i)]; // feature 047: per-item gallery icon
                     drv.DriveText = alloc;
                     drv.Accessible = TRUE;
                     drv.Shared = FALSE;

@@ -57,6 +57,38 @@ void RefreshToolTip()
 const char* SALAMANDER_HOTPATHS_NAME = "Name";
 const char* SALAMANDER_HOTPATHS_PATH = "Path";
 const char* SALAMANDER_HOTPATHS_VISIBLE = "Visible";
+const char* SALAMANDER_HOTPATHS_ICON = "Icon"; // feature 047: gallery icon index (absent = default)
+
+// feature 047: converts a stored (escaped) hot path to its user-visible form:
+// collapses the doubled '$' characters ("$$" -> "$")
+static void UnescapeHotPathDollars(const char* src, char* dst, int dstSize)
+{
+    if (dstSize <= 0)
+        return;
+    const char* s = src;
+    char* d = dst;
+    char* end = dst + dstSize - 1;
+    while (*s != 0 && d < end)
+    {
+        if (s[0] == '$' && s[1] == '$')
+            s++;
+        *d++ = *s++;
+    }
+    *d = 0;
+}
+
+void CHotPathItems::GetDisplayName(int index, char* buffer, int bufferSize)
+{
+    if (bufferSize <= 0)
+        return;
+    buffer[0] = 0;
+    if (index < 0 || index >= HOT_PATHS_COUNT)
+        return;
+    if (Items[index].Name != NULL && Items[index].Name[0] != 0)
+        lstrcpyn(buffer, Items[index].Name, bufferSize);
+    else if (Items[index].Path != NULL)
+        UnescapeHotPathDollars(Items[index].Path, buffer, bufferSize);
+}
 
 BOOL CHotPathItems::SwapItems(int index1, int index2)
 {
@@ -82,7 +114,7 @@ void CHotPathItems::FillHotPathsMenu(CMenuPopup* menu, int minCommand, BOOL empt
     int i;
     for (i = 0; i < HOT_PATHS_COUNT; i++)
     {
-        BOOL assigned = GetPathLen(i) > 0 && GetNameLen(i) > 0;
+        BOOL assigned = GetPathLen(i) > 0; // feature 047: the path defines the slot
         if (i >= 10)
         {
             if (emptyItems)
@@ -91,7 +123,7 @@ void CHotPathItems::FillHotPathsMenu(CMenuPopup* menu, int minCommand, BOOL empt
         if (emptyItems || assigned)
         {
             menuIsEmpty = FALSE;
-            GetName(i, name, MAX_PATH);
+            GetDisplayName(i, name, MAX_PATH);
             DuplicateAmpersands(name, MAX_PATH);
             if (i < 10)
             {
@@ -105,7 +137,7 @@ void CHotPathItems::FillHotPathsMenu(CMenuPopup* menu, int minCommand, BOOL empt
                 sprintf(root, "%s", name);
             mii.ID = minCommand + i;
             mii.String = root;
-            mii.HIcon = assigned ? HFavoritIcon : NULL;
+            mii.HIcon = assigned ? HHotPathIcons[GetIconIndex(i)] : NULL; // feature 047: per-item gallery icon
             menu->InsertItem(0xFFFFFFFF, TRUE, &mii);
         }
     }
@@ -156,7 +188,7 @@ int CHotPathItems::GetUnassignedHotPathIndex()
 {
     for (int i = 10; i < HOT_PATHS_COUNT; i++)
     {
-        BOOL assigned = GetPathLen(i) > 0 && GetNameLen(i) > 0;
+        BOOL assigned = GetPathLen(i) > 0; // feature 047: the path defines the slot
         if (!assigned)
             return i;
     }
@@ -188,15 +220,13 @@ BOOL CHotPathItems::Save(HKEY hKey)
         HKEY actKey;
         if (CreateKey(hKey, keyName, actKey))
         {
-            const char* name = "";
-            if (GetNameLen(i) > 0)
-                name = Items[i].Name;
             const char* path = "";
             if (GetPathLen(i) > 0)
                 path = Items[i].Path;
             DWORD visible = Items[i].Visible;
+            DWORD iconIndex = Items[i].IconIndex;
 
-            if (*name == 0 && *path == 0 && visible == TRUE)
+            if (*path == 0 && GetNameLen(i) == 0 && visible == TRUE && iconIndex == 0)
             {
                 // optimization: don't clutter the registry unless needed
                 // not ready for configuration merging, but neither is the rest of our configuration
@@ -206,9 +236,18 @@ BOOL CHotPathItems::Save(HKEY hKey)
             }
             else
             {
+                // feature 047: the Name value keeps its pre-047 on-disk meaning - the
+                // effective label (custom name, otherwise the user-visible path text) -
+                // so older builds read this configuration without any loss
+                char name[HOTPATHITEM_MAXPATH];
+                GetDisplayName(i, name, HOTPATHITEM_MAXPATH);
                 SetValue(actKey, SALAMANDER_HOTPATHS_NAME, REG_SZ, name, -1);
                 SetValue(actKey, SALAMANDER_HOTPATHS_PATH, REG_SZ, path, -1);
                 SetValue(actKey, SALAMANDER_HOTPATHS_VISIBLE, REG_DWORD, &visible, sizeof(DWORD));
+                if (iconIndex != 0)
+                    SetValue(actKey, SALAMANDER_HOTPATHS_ICON, REG_DWORD, &iconIndex, sizeof(DWORD));
+                else
+                    DeleteValue(actKey, SALAMANDER_HOTPATHS_ICON);
                 CloseKey(actKey);
             }
         }
@@ -242,8 +281,22 @@ BOOL CHotPathItems::Load(HKEY hKey)
                     DuplicateDollars(path, HOTPATHITEM_MAXPATH); // if the path is long and contains '$', the end might be truncated; we ignore it
             }
             GetValue(actKey, SALAMANDER_HOTPATHS_VISIBLE, REG_DWORD, &visible, sizeof(DWORD));
+            DWORD iconIndex = 0;
+            GetValue(actKey, SALAMANDER_HOTPATHS_ICON, REG_DWORD, &iconIndex, sizeof(DWORD));
+
+            // feature 047: a stored name identical to the user-visible path text is the
+            // historical auto-fill (and what Save writes for unnamed slots) - such an
+            // entry is unnamed and its label keeps following the path
+            if (name[0] != 0)
+            {
+                char pathText[HOTPATHITEM_MAXPATH];
+                UnescapeHotPathDollars(path, pathText, HOTPATHITEM_MAXPATH);
+                if (strcmp(name, pathText) == 0)
+                    name[0] = 0;
+            }
 
             Set(index, name, path, visible);
+            SetIconIndex(index, (int)iconIndex); // clamps out-of-range values to the default
             CloseKey(actKey);
         }
     }
@@ -268,7 +321,7 @@ BOOL CHotPathItems::Load1_52(HKEY hKey)
         if (GetValue(hKey, keyName, REG_SZ, path, MAX_PATH))
         {
             DuplicateDollars(path, MAX_PATH); // if the path is long and contains '$', the end might be truncated; ignore it
-            strcpy(name, path);
+            // feature 047: no name auto-fill - unnamed entries display their path
         }
 
         Set(i == 0 ? 9 : i - 1, name, path, visible);
@@ -1248,7 +1301,8 @@ void CMainWindow::SetUnescapedHotPath(int index, const char* path)
     if (Configuration.HotPathAutoConfig)
     {
         // switch to the buffer so that Cancel works
-        lstrcpyn(HotPathSetBufferName, path, MAX_PATH);
+        // feature 047: no name auto-fill - the entry displays its path until named
+        HotPathSetBufferName[0] = 0;
         lstrcpyn(HotPathSetBufferPath, path, HOTPATHITEM_MAXPATH);
         DuplicateDollars(HotPathSetBufferPath, HOTPATHITEM_MAXPATH);
         // open the HotPaths page and edit item index
@@ -1257,12 +1311,12 @@ void CMainWindow::SetUnescapedHotPath(int index, const char* path)
     else
     {
         // push the value directly
+        // feature 047: no name auto-fill - the entry displays its path until named
         char buff[HOTPATHITEM_MAXPATH];
         lstrcpyn(buff, path, HOTPATHITEM_MAXPATH);
-        char nameBuff[MAX_PATH];
-        lstrcpyn(nameBuff, path, MAX_PATH);
         DuplicateDollars(buff, HOTPATHITEM_MAXPATH);
-        HotPaths.Set(index, nameBuff, buff);
+        HotPaths.Set(index, "", buff);
+        HotPaths.SetIconIndex(index, 0); // feature 047: a fresh assignment starts with the default icon
         // a change occurred, rebuild the Hot Path Bar
         if (HPToolBar != NULL && HPToolBar->HWindow != NULL)
             HPToolBar->CreateButtons();

@@ -222,7 +222,7 @@ HRESULT AddTasksToList(ICustomDestinationList* pcdl)
                 char path[HOTPATHITEM_MAXPATH];
                 name[0] = 0;
                 path[0] = 0;
-                MainWindow->HotPaths.GetName(i, name, MAX_PATH);
+                MainWindow->HotPaths.GetDisplayName(i, name, MAX_PATH); // feature 047: name, else path
                 MainWindow->HotPaths.GetPath(i, path, HOTPATHITEM_MAXPATH);
                 if (name[0] != 0 && path[0] != 0)
                 {

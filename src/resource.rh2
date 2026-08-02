@@ -341,6 +341,19 @@
 #define IDI_DROPBOX         982
 #define IDI_ONEDRIVE        983
 
+// feature 047: hot path icon gallery color variants (indices 1..9; index 0 is
+// HFavoritIcon); the IDs must stay consecutive - they are addressed as
+// IDI_HOTPATH_1 + i
+#define IDI_HOTPATH_1      1011
+#define IDI_HOTPATH_2      1012
+#define IDI_HOTPATH_3      1013
+#define IDI_HOTPATH_4      1014
+#define IDI_HOTPATH_5      1015
+#define IDI_HOTPATH_6      1016
+#define IDI_HOTPATH_7      1017
+#define IDI_HOTPATH_8      1018
+#define IDI_HOTPATH_9      1019
+
 // bitmaps
 #define IDB_LOCK            990
 #define IDB_TOOLBAR_16      991
