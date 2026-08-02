@@ -72,6 +72,14 @@ void SetupWinLibHelp(FWinLibLTHelpCallback helpCallback)
     WinLibLTHelpCallback = helpCallback;
 }
 
+// feature 049: WinLib validation boxes routed through the themed message box
+static int WinLibLTThemeMessageBox(HWND hParent, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType)
+{
+    if (WinLibThemeProvider != NULL)
+        return WinLibThemeProvider->SalMessageBox(hParent, lpText, lpCaption, uType);
+    return MessageBox(hParent, lpText, lpCaption, uType);
+}
+
 void SetupWinLibTheme(CSalamanderGeneralAbstract* salamander)
 {
     WinLibThemeProvider = salamander;
@@ -524,7 +532,7 @@ CDialog::CDialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 TRACE_E("Error during creating of dialog.");
                 return TRUE;
             }
-            dlg->NotifDlgJustCreated(); // zavedeno jako misto pro upravu layoutu dialogu
+            dlg->NotifDlgJustCreated();      // zavedeno jako misto pro upravu layoutu dialogu
             if (WinLibThemeProvider != NULL) // feature 036: dark title bar + control theming
                 WinLibThemeProvider->ThemeApplyToDialog(hwndDlg);
         }
@@ -789,9 +797,15 @@ CPropSheetPage::CPropSheetPageProc(HWND hwndDlg, UINT uMsg, WPARAM wParam,
                 TRACE_E("Error during creating of dialog.");
                 return TRUE;
             }
-            dlg->NotifDlgJustCreated(); // zavedeno jako misto pro upravu layoutu dialogu
+            dlg->NotifDlgJustCreated();      // zavedeno jako misto pro upravu layoutu dialogu
             if (WinLibThemeProvider != NULL) // feature 036: dark title bar + control theming
+            {
                 WinLibThemeProvider->ThemeApplyToDialog(hwndDlg);
+                // feature 049 (interface version 106): darken the comctl-owned
+                // sheet FRAME around the pages (tab strip, buttons row,
+                // background); idempotent, safe to call from every page
+                WinLibThemeProvider->ThemeSubclassPropSheetFrame(::GetParent(hwndDlg));
+            }
         }
         break;
     }
@@ -1177,8 +1191,8 @@ void CTransferInfo::EditLine(int ctrlID, double& value, char* format, BOOL selec
                     {
                         if (*s < '0' || *s > '9')
                         {
-                            MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                                       MB_OK | MB_ICONEXCLAMATION);
+                            WinLibLTThemeMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                                    MB_OK | MB_ICONEXCLAMATION);
                             ErrorOn(ctrlID);
                             break;
                         }
@@ -1224,8 +1238,8 @@ void CTransferInfo::EditLine(int ctrlID, int& value, BOOL select)
             {
                 if (*s < '0' || *s > '9')
                 {
-                    MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                               MB_OK | MB_ICONEXCLAMATION);
+                    WinLibLTThemeMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                            MB_OK | MB_ICONEXCLAMATION);
                     ErrorOn(ctrlID);
                     break;
                 }

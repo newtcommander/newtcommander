@@ -264,6 +264,17 @@ CCommonDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     switch (uMsg)
     {
+    case WM_THEMECHANGED:
+    case WM_SYSCOLORCHANGE:
+    {
+        // a visual-style refresh resets SetWindowTheme state and a system
+        // color change may retint controls; re-apply the per-child theming
+        // for open dialogs (feature 049, defects G2/G5; idempotent, strict
+        // no-op for dialogs never darkened)
+        ThemeApplyToDialog(HWindow);
+        break;
+    }
+
     case WM_INITDIALOG:
     {
         // prevent panels from refreshing on the background of modal dialogs or messageboxes
@@ -351,6 +362,11 @@ CCommonPropSheetPage::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     INT_PTR themeResult;
     if (ThemeHandleCtlColor(uMsg, wParam, lParam, &themeResult))
         return themeResult;
+
+    // feature 049 (defect G2): re-apply after a visual-style refresh resets
+    // the SetWindowTheme state (idempotent; no-op for never-darkened pages)
+    if (uMsg == WM_THEMECHANGED)
+        ThemeApplyToDialog(HWindow);
 
     return CPropSheetPage::DialogProc(uMsg, wParam, lParam);
 }
@@ -651,7 +667,7 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 // detect the product family the configuration root belongs to
                 BOOL tandemCommander = StrIStr(SalamanderConfigurationRoots[i], "Tandem Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = tandemCommander    ? "Tandem Commander %s"
+                const char* name = tandemCommander  ? "Tandem Commander %s"
                                    : openSalamander ? "Open Salamander %s"
                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);
@@ -683,7 +699,7 @@ void CImportConfigDialog::Transfer(CTransferInfo& ti)
                 // detect the product family the configuration root belongs to
                 BOOL tandemCommander = StrIStr(SalamanderConfigurationRoots[i], "Tandem Commander") != NULL;
                 BOOL openSalamander = StrIStr(SalamanderConfigurationRoots[i], "Open Salamander") != NULL;
-                const char* name = tandemCommander    ? "Tandem Commander %s"
+                const char* name = tandemCommander  ? "Tandem Commander %s"
                                    : openSalamander ? "Open Salamander %s"
                                                     : "Salamander %s";
                 sprintf(buff, name, SalamanderConfigurationVersions[i]);

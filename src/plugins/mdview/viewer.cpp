@@ -337,12 +337,22 @@ BOOL WINAPI CPluginInterfaceForViewer::ViewFile(const char* name, int left, int 
 
 static INT_PTR CALLBACK FindDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    // feature 049: raw dialog proc - the two-touchpoint theme pattern
+    // (WM_INITDIALOG apply + WM_CTLCOLOR* fallback; the SFTP/ZIP precedent)
+    if (msg >= WM_CTLCOLORMSGBOX && msg <= WM_CTLCOLORSTATIC)
+    {
+        INT_PTR brush;
+        if (SalamanderGeneral->ThemeHandleCtlColor(msg, wParam, lParam, &brush))
+            return brush;
+    }
+
     switch (msg)
     {
     case WM_INITDIALOG:
         SetWindowLongPtr(hDlg, DWLP_USER, (LONG_PTR)lParam);
         if (lParam)
             SetDlgItemTextW(hDlg, IDC_FIND_TEXT, (const WCHAR*)lParam);
+        SalamanderGeneral->ThemeApplyToDialog(hDlg);
         SetFocus(GetDlgItem(hDlg, IDC_FIND_TEXT));
         return FALSE;
     case WM_COMMAND:

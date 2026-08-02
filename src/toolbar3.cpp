@@ -519,7 +519,11 @@ CTBCustomizeDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             if (focused)
             {
-                SetTextColor(hDC, RGB(0, 0, 0));
+                // DrawFocusRect derives its dot pattern from the DC colors;
+                // pair them with the theme like every other focus-rect site
+                // (feature 049; light theme: BTNTEXT == black, unchanged)
+                SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
+                SetBkColor(hDC, ThemeSysColor(COLOR_BTNFACE));
                 DrawFocusRect(hDC, &r);
             }
         }

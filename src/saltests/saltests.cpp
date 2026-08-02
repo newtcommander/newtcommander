@@ -648,6 +648,14 @@ static void TestDarkThemePalette()
     CHECK(ContrastRatio(chrome[COLOR_GRAYTEXT], chrome[COLOR_BTNFACE]) >= 3.0);
     CHECK(ContrastRatio(chrome[COLOR_GRAYTEXT], chrome[COLOR_WINDOW]) >= 3.0);
 
+    // feature 049: input/content surfaces sit LIGHTER than the dialog face
+    // (Windows 11 dark convention; kills the "black hole" field look)
+    CHECK(Luminance(chrome[COLOR_WINDOW]) > Luminance(chrome[COLOR_BTNFACE]));
+
+    // feature 049: the hyperlink color must stay readable on the About
+    // dialog's branded navy background (TC_COLOR_NAVY in src/logo.cpp)
+    CHECK(ContrastRatio(chrome[COLOR_HOTLIGHT], RGB(0x0A, 0x14, 0x24)) >= 4.5);
+
     // --- panel palette: exact index count (positional integrity vs consts.h
     // is additionally static_assert-ed inside the application build)
     CHECK(DP_COUNT == 34);

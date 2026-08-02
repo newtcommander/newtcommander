@@ -1359,8 +1359,8 @@ CCfgPageView::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_SYSCOLORCHANGE:
     {
-        ListView_SetBkColor(HListView, GetSysColor(COLOR_WINDOW));
-        ListView_SetBkColor(HListView2, GetSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView, ThemeSysColor(COLOR_WINDOW));
+        ListView_SetBkColor(HListView2, ThemeSysColor(COLOR_WINDOW));
         break;
     }
 
@@ -1490,6 +1490,9 @@ CCfgPageView::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                     LabelEdit = TRUE;
                     EnableHeader();
+                    // the in-place label edit is created after the dialog's
+                    // theming pass (feature 049, defect A4)
+                    ThemeApplyToWindowTree(ListView_GetEditControl(HListView));
                 }
                 else
                 {
@@ -3186,6 +3189,9 @@ CCfgPageHotPath::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 LabelEdit = TRUE;
                 EnableHeader();
+                // the in-place label edit is created after the dialog's
+                // theming pass (feature 049, defect A4)
+                ThemeApplyToWindowTree(ListView_GetEditControl(HListView));
                 break;
             }
 
@@ -3678,20 +3684,23 @@ void CCfgPageColors::EnableControls()
     EnableWindow(GetDlgItem(HWindow, IDC_C_ENCRYPTED), validItem);
     EnableWindow(GetDlgItem(HWindow, IDC_C_DIRECTORY), validItem);
 
+    // blank (no selection) swatch: white in the light theme, dialog face in
+    // the dark theme - white-on-white swatches glare on the dark page (049)
+    COLORREF blank = IsDarkThemeActive() ? ThemeSysColor(COLOR_BTNFACE) : RGB(255, 255, 255);
     if (!validItem)
-        Masks[0]->SetColor(RGB(255, 255, 255), RGB(255, 255, 255));
+        Masks[0]->SetColor(blank, blank);
     EnableWindow(GetDlgItem(HWindow, IDC_C_MASK1_C), validItem);
     if (!validItem)
-        Masks[1]->SetColor(RGB(255, 255, 255), RGB(255, 255, 255));
+        Masks[1]->SetColor(blank, blank);
     EnableWindow(GetDlgItem(HWindow, IDC_C_MASK2_C), validItem);
     if (!validItem)
-        Masks[2]->SetColor(RGB(255, 255, 255), RGB(255, 255, 255));
+        Masks[2]->SetColor(blank, blank);
     EnableWindow(GetDlgItem(HWindow, IDC_C_MASK3_C), validItem);
     if (!validItem)
-        Masks[3]->SetColor(RGB(255, 255, 255), RGB(255, 255, 255));
+        Masks[3]->SetColor(blank, blank);
     EnableWindow(GetDlgItem(HWindow, IDC_C_MASK4_C), validItem);
     if (!validItem)
-        Masks[4]->SetColor(RGB(255, 255, 255), RGB(255, 255, 255));
+        Masks[4]->SetColor(blank, blank);
     EnableWindow(GetDlgItem(HWindow, IDC_C_MASK5_C), validItem);
 }
 

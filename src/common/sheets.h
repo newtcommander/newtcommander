@@ -14,6 +14,11 @@ class CTreePropHolderDlg;
 // library (translator, tserver, ...) are unaffected.
 extern COLORREF (*SheetsGetSysColorHook)(int index);
 
+// Optional hook: returns TRUE while the host's dark theme is active, so the
+// tree control gets its dark visual style straight at creation instead of
+// relying on a later theming pass (feature 049). NULL (default) = light.
+extern BOOL (*SheetsIsDarkHook)();
+
 struct CElasticLayoutCtrl
 {
     HWND HCtrl; // handl prvku, ktery mame posouvat

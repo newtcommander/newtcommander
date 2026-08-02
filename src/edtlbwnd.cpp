@@ -484,6 +484,9 @@ void CEditListBox::OnBeginEdit(int start, int end)
                      EditLine);
 
     SendMessage(EditLine->HWindow, WM_SETFONT, SendMessage(HWindow, WM_GETFONT, 0, 0), TRUE);
+    // the inline editor is created long after the dialog's theming pass
+    // (feature 049, defect A3)
+    ThemeApplyToWindowTree(EditLine->HWindow);
     SetFocus(EditLine->HWindow);
     if (index != ItemsCount)
     {
@@ -549,10 +552,44 @@ BOOL CEditListBox::OnSaveEdit()
 void CEditListBox::PaintButton()
 {
     HDC hDC = HANDLES(GetDC(HWindow));
-    DWORD flags = DFCS_SCROLLRIGHT;
-    if (ButtonPressed)
-        flags |= DFCS_PUSHED;
-    DrawFrameControl(hDC, &ButtonRect, DFC_SCROLL, flags);
+    if (IsDarkThemeActive())
+    {
+        // DrawFrameControl paints with real system colors (light 3D button
+        // on the dark list); draw a flat dark button instead (feature 049)
+        RECT r = ButtonRect;
+        FillRect(hDC, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+        ThemeDrawEdge(hDC, &r, ButtonPressed ? BDR_SUNKENOUTER : BDR_RAISEDINNER, BF_RECT);
+        int cx = (r.left + r.right) / 2 + (ButtonPressed ? 1 : 0);
+        int cy = (r.top + r.bottom) / 2 + (ButtonPressed ? 1 : 0);
+        int a = (r.bottom - r.top) / 6;
+        if (a < 2)
+            a = 2;
+        POINT arrow[3];
+        arrow[0].x = cx - a / 2;
+        arrow[0].y = cy - a;
+        arrow[1].x = cx - a / 2;
+        arrow[1].y = cy + a;
+        arrow[2].x = cx - a / 2 + a;
+        arrow[2].y = cy;
+        HBRUSH hBrush = ThemeSysColorBrush(COLOR_BTNTEXT);
+        HPEN hPen = HANDLES(CreatePen(PS_SOLID, 1, ThemeSysColor(COLOR_BTNTEXT)));
+        if (hPen != NULL)
+        {
+            HPEN hOldPen = (HPEN)SelectObject(hDC, hPen);
+            HBRUSH hOldBrush = (HBRUSH)SelectObject(hDC, hBrush);
+            Polygon(hDC, arrow, 3);
+            SelectObject(hDC, hOldPen);
+            SelectObject(hDC, hOldBrush);
+            HANDLES(DeleteObject(hPen));
+        }
+    }
+    else
+    {
+        DWORD flags = DFCS_SCROLLRIGHT;
+        if (ButtonPressed)
+            flags |= DFCS_PUSHED;
+        DrawFrameControl(hDC, &ButtonRect, DFC_SCROLL, flags);
+    }
     HANDLES(ReleaseDC(HWindow, hDC));
 }
 

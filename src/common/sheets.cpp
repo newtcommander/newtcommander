@@ -26,8 +26,12 @@ extern CWinLibHelp* WinLibHelp;
 
 // see sheets.h: optional theme hook (defaults to plain GetSysColor so other
 // consumers of this library keep their behavior)
-COLORREF (*SheetsGetSysColorHook)
+COLORREF(*SheetsGetSysColorHook)
 (int index) = NULL;
+
+// see sheets.h: optional dark-theme predicate (defaults to light)
+BOOL(*SheetsIsDarkHook)
+() = NULL;
 
 static COLORREF SheetsGetSysColor(int index)
 {
@@ -699,7 +703,12 @@ CTreePropHolderDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HTreeView = GetDlgItem(HWindow, _TPD_IDC_TREE);
         BOOL appIsThemed = IsAppThemed();
         if (appIsThemed)
-            SetWindowTheme(HTreeView, L"explorer", NULL);
+        {
+            // dark-aware from creation (feature 049): the light "explorer"
+            // theme flashed until the page-driven theming pass replaced it
+            BOOL sheetsDark = SheetsIsDarkHook != NULL && SheetsIsDarkHook();
+            SetWindowTheme(HTreeView, sheetsDark ? L"DarkMode_Explorer" : L"explorer", NULL);
+        }
 
         int treeIndent = 0;
         if (appIsThemed)

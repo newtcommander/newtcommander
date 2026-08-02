@@ -109,6 +109,8 @@ CPluginInterfaceAbstract* WINAPI SalamanderPluginEntry(CSalamanderPluginEntryAbs
     // Obtain Salamander's general interface.
     SalGeneral = salamander->GetSalamanderGeneral();
 
+    SetupWinLibTheme(SalGeneral); // feature 049: dark theme for WinLib dialogs
+
     // Set the basic plugin information.
     salamander->SetBasicPluginData(LoadStr(IDS_PLUGIN_NAME),
                                    FUNCTION_CONFIGURATION | FUNCTION_LOADSAVECONFIGURATION | FUNCTION_VIEWER,

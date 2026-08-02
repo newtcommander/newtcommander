@@ -95,6 +95,10 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         GetLayoutParams();
         // layout the window
         LayoutControls();
+        // the status bar above was created after NotifDlgJustCreated's
+        // theming pass; re-apply so it gets the dark status-bar subclass
+        // (feature 049, defect A5; idempotent - the Find precedent)
+        ThemeApplyToDialog(HWindow);
         break;
     }
     case WM_COMMAND:
@@ -273,7 +277,7 @@ CPackACDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (IsIconic(HWindow))
             ShowWindow(HWindow, SW_RESTORE);
         // and display the error
-        MessageBox(HWindow, (char*)wParam, LoadStr(IDS_ERRORFINDINGFILE), MB_OK | MB_ICONEXCLAMATION);
+        SalMessageBox(HWindow, (char*)wParam, LoadStr(IDS_ERRORFINDINGFILE), MB_OK | MB_ICONEXCLAMATION); // themed (feature 049)
         return TRUE;
     }
     case WM_USER_ACSEARCHING:

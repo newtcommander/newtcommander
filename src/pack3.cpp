@@ -2027,6 +2027,15 @@ CExecuteWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HDC dc = (HDC)wParam;
         RECT r;
         GetClientRect(HWindow, &r);
+        if (IsDarkThemeActive())
+        {
+            // the shared SAVEBITS window class keeps its light system brush;
+            // without this fill the near-white text below lands on the light
+            // background - unreadable (feature 049, defect C5; the
+            // CWaitWindow precedent)
+            FillRect(dc, &r, ThemeSysColorBrush(COLOR_BTNFACE));
+            ret = TRUE;
+        }
         if (Text != NULL)
         {
             HFONT hOldFont = (HFONT)SelectObject(dc, EnvFont);

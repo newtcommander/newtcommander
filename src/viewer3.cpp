@@ -575,6 +575,9 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             SendMessage(HToolTip, TTM_SETDELAYTIME, TTDT_INITIAL, 500);
             SendMessage(HToolTip, TTM_SETDELAYTIME, TTDT_AUTOPOP, 10000);
             SetWindowPos(HToolTip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            // tooltips are WS_POPUP - the per-dialog child sweep never
+            // reaches them (feature 049, defect E4)
+            ThemeApplyToTooltip(HToolTip);
         }
 
         DragAcceptFiles(HWindow, TRUE);
@@ -699,6 +702,26 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
 
+    case WM_THEMECHANGED:
+    {
+        // feature 049 (G2): a visual-style refresh resets SetWindowTheme
+        // state; re-apply. The SetWindowTheme call below sends another
+        // WM_THEMECHANGED to this window - guard against the recursion
+        // (thread_local: each viewer window runs on its own thread)
+        static thread_local BOOL inThemeChanged = FALSE;
+        if (!inThemeChanged && IsDarkThemeActive())
+        {
+            inThemeChanged = TRUE;
+            ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
+            ThemeApplyToTopLevel(HWindow);
+            SetWindowTheme(HWindow, L"DarkMode_Explorer", NULL);
+            ThemeApplyToTooltip(HToolTip);
+            InvalidateRect(HWindow, NULL, TRUE);
+            inThemeChanged = FALSE;
+        }
+        break; // DefWindowProc must still see WM_THEMECHANGED
+    }
+
     case WM_USER_CFGCHANGED:
     {
         ReleaseViewerBrushs();
@@ -709,6 +732,7 @@ CViewerWindow::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
         ThemeApplyToTopLevel(HWindow);
         SetWindowTheme(HWindow, IsDarkThemeActive() ? L"DarkMode_Explorer" : NULL, NULL);
+        ThemeApplyToTooltip(HToolTip); // feature 049 (E4)
         InvalidateRect(HWindow, NULL, TRUE);
         ConfigHasChanged();
         return 0;

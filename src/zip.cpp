@@ -5290,6 +5290,11 @@ BOOL CSalamanderGeneral::ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lP
     return ::ThemeHandleCtlColor(uMsg, wParam, lParam, result);
 }
 
+void CSalamanderGeneral::ThemeSubclassPropSheetFrame(HWND hFrame)
+{
+    ::ThemeSubclassPropSheetFrame(hFrame);
+}
+
 //
 // ****************************************************************************
 // CSalamanderForOperations

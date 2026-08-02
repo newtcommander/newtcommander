@@ -822,7 +822,9 @@ void CToolBar::DrawInsertMark(HDC hDC)
             x += item->Width;
     }
     x -= 1;
-    HPEN hPen = HANDLES(CreatePen(PS_SOLID, 0, RGB(0, 0, 0)));
+    // black is invisible on the dark toolbar face; BTNTEXT is black in the
+    // light theme, so the light rendering is unchanged (feature 049)
+    HPEN hPen = HANDLES(CreatePen(PS_SOLID, 0, ThemeSysColor(COLOR_BTNTEXT)));
     HPEN hOldPen = (HPEN)SelectObject(hDC, hPen);
     // vrchni dve vodorovne cary
     MoveToEx(hDC, x - 2, 0, NULL);

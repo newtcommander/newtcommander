@@ -1143,7 +1143,11 @@ CStaticText::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             if (hParent != NULL)
                 SendMessage(hParent, WM_CTLCOLORSTATIC, (WPARAM)hDC, (LPARAM)HWindow);
             if (Flags & STF_HYPERLINK_COLOR)
-                SetTextColor(hDC, RGB(0, 0, 255));
+            {
+                // COLOR_HOTLIGHT is the palette's contrast-tested hyperlink
+                // color (feature 049); the light theme keeps the classic blue
+                SetTextColor(hDC, IsDarkThemeActive() ? ThemeSysColor(COLOR_HOTLIGHT) : RGB(0, 0, 255));
+            }
             BOOL enabled = IsWindowEnabled(HWindow);
             if (!enabled)
                 SetTextColor(hDC, ThemeSysColor(COLOR_GRAYTEXT));
@@ -1569,9 +1573,10 @@ void CColorGraph::PaintFace(HDC hdc)
     double elX = elX0 + elA * cos(beta);
     double elY = elB * sin(beta);
 
-    // draw the bottom part
+    // draw the bottom part; the black outline disappears on the dark face,
+    // use the readable secondary gray there (feature 049, defect D4)
     HBRUSH hOldBrush = (HBRUSH)GetCurrentObject(hdc, OBJ_BRUSH);
-    HPEN hBlackPen = HANDLES(CreatePen(PS_SOLID, 0, RGB(0, 0, 0)));
+    HPEN hBlackPen = HANDLES(CreatePen(PS_SOLID, 0, IsDarkThemeActive() ? ThemeSysColor(COLOR_GRAYTEXT) : RGB(0, 0, 0)));
     HPEN hOldPen = (HPEN)SelectObject(hdc, hBlackPen);
 
     if (UsedProc < 0.5)
@@ -2866,6 +2871,9 @@ void CToolbarHeader::OnPaint(HDC hDC, BOOL hideAccel, BOOL prefixOnly)
     char buff[100];
     GetWindowText(HWindow, buff, 100);
     SetBkMode(hDC, TRANSPARENT);
+    // the DC text color defaults to black - unreadable on the dark face
+    // (feature 049; the defect class 044 recorded as R10 / future sweep)
+    SetTextColor(hDC, ThemeSysColor(COLOR_BTNTEXT));
     HFONT hOldFont = (HFONT)SelectObject(hDC, (HFONT)SendMessage(HWindow, WM_GETFONT, 0, 0));
     DWORD dtFlags = DT_SINGLELINE | DT_LEFT | DT_VCENTER;
     if (hideAccel)

@@ -47,6 +47,15 @@ TCHAR WinLibStrings[WLS_COUNT][101] = {
     _T("Invalid number!"),
     _T("Error")};
 
+// see winlib.h: optional themed message-box hook (feature 049)
+int (*WinLibMessageBoxHook)(HWND hParent, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType) = NULL;
+
+static int WinLibShowMessageBox(HWND hParent, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType)
+{
+    return WinLibMessageBoxHook != NULL ? WinLibMessageBoxHook(hParent, lpText, lpCaption, uType)
+                                        : MessageBox(hParent, lpText, lpCaption, uType);
+}
+
 //
 // ****************************************************************************
 
@@ -1298,8 +1307,8 @@ void CTransferInfo::EditLine(int ctrlID, double& value, TCHAR* format, BOOL sele
                     {
                         if (*s < _T('0') || *s > _T('9'))
                         {
-                            MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                                       MB_OK | MB_ICONEXCLAMATION);
+                            WinLibShowMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                                 MB_OK | MB_ICONEXCLAMATION);
                             ErrorOn(ctrlID);
                             break;
                         }
@@ -1349,8 +1358,8 @@ void CTransferInfo::EditLine(int ctrlID, int& value, BOOL select)
             {
                 if (*s < _T('0') || *s > _T('9'))
                 {
-                    MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                               MB_OK | MB_ICONEXCLAMATION);
+                    WinLibShowMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                         MB_OK | MB_ICONEXCLAMATION);
                     ErrorOn(ctrlID);
                     break;
                 }
@@ -1407,8 +1416,8 @@ void CTransferInfo::EditLine(int ctrlID, __int64& value, BOOL select, BOOL unsig
                 {
                     if (!quiet)
                     {
-                        MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                                   MB_OK | MB_ICONEXCLAMATION);
+                        WinLibShowMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                             MB_OK | MB_ICONEXCLAMATION);
                     }
                     ErrorOn(ctrlID);
                     break;
@@ -1473,8 +1482,8 @@ void CTransferInfo::EditLine(int ctrlID, __int64& value, BOOL select, BOOL unsig
                 {
                     if (!quiet)
                     {
-                        MessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
-                                   MB_OK | MB_ICONEXCLAMATION);
+                        WinLibShowMessageBox(HWindow, WinLibStrings[WLS_INVALID_NUMBER], WinLibStrings[WLS_ERROR],
+                                             MB_OK | MB_ICONEXCLAMATION);
                     }
                     ErrorOn(ctrlID);
                 }

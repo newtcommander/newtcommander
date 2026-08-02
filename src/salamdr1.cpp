@@ -1882,6 +1882,10 @@ BOOL InitializeConstGraphics()
     // feature 028: the shared property-sheet library draws its caption/tree
     // through this hook so it follows the application theme
     SheetsGetSysColorHook = ThemeSysColor;
+    // feature 049: the tree control picks its dark visual style at creation
+    SheetsIsDarkHook = IsDarkThemeActive;
+    // feature 049: WinLib validation boxes use the themed message box
+    WinLibMessageBoxHook = SalMessageBox;
 
     // feature 028: these used to be system brushes (GetSysColorBrush); they are
     // now app-owned so the Dark theme can substitute its palette and a theme
@@ -3140,7 +3144,11 @@ void ColorsChanged(BOOL refresh, BOOL colorsOnly, BOOL reloadUMIcons)
     ReleaseGraphics(colorsOnly);
     InitializeGraphics(colorsOnly);
     ItemBitmap.ReCreateForScreenDC();
-    UpdateViewerColors(ViewerColors);
+    // feature 049 (G4): the theme-engine contract mandates the CURRENT
+    // array here; in the Default theme it aliases ViewerColors (unchanged
+    // behavior), in Dark it points at DarkViewerColors whose entries carry
+    // no SCF_DEFAULT flags, so the seeding is a deliberate no-op
+    UpdateViewerColors(CurrentViewerColors);
     if (!colorsOnly)
         ShellIconOverlays.ColorsChanged();
 

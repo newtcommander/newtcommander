@@ -86,7 +86,13 @@ void CFilesBox::SetMode(CViewModeEnum mode, BOOL headerLine)
     BOOL change = ShowHideChilds();
     LayoutChilds(change);
     if (change)
+    {
+        // ShowHideChilds destroys and recreates the scrollbar/bottom-bar
+        // children; SetWindowTheme state is per-HWND, so the fresh windows
+        // would come up light in the Dark theme (feature 049, defect A1)
+        ThemeApplyToWindowTree(HWindow);
         InvalidateRect(HWindow, &FilesRect, FALSE);
+    }
 }
 
 void CFilesBox::SetItemWidthHeight(int width, int height)
@@ -1254,6 +1260,17 @@ CFilesBox::WindowProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         HPrivateDC = NOHANDLES(GetDC(HWindow));
+        break;
+    }
+
+    case WM_CTLCOLOREDIT:
+    {
+        // the quick-rename edit is a direct child of the panel; without this
+        // routing DefWindowProc hands back the light COLOR_WINDOW brush in
+        // the Dark theme (feature 049, defect A2); light theme falls through
+        INT_PTR result;
+        if (ThemeHandleCtlColor(uMsg, wParam, lParam, &result))
+            return result;
         break;
     }
 

@@ -1268,10 +1268,38 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
         return 0;
     }
 
+    case WM_THEMECHANGED:
+    {
+        // a visual-style refresh silently resets every SetWindowTheme
+        // assignment comctl32 tracks; re-apply the per-child dark theming
+        // (feature 049, defect G2; idempotent, no-op in the Default theme)
+        ThemeApplyToDialog(HWindow);
+        break; // DefWindowProc must still see WM_THEMECHANGED
+    }
+
     case WM_SETTINGCHANGE:
     {
         if (IgnoreWM_SETTINGCHANGE || LeftPanel == NULL || RightPanel == NULL) // a bug report showed that WM_SETTINGCHANGE was delivered immediately from WM_CREATE of the main window (panels didn't exist yet, causing a NULL access)
             return 0;
+
+        // feature 049 (defect G1): SPI_SETHIGHCONTRAST arrives as
+        // WM_SETTINGCHANGE; if this Windows build does not also send
+        // WM_SYSCOLORCHANGE, the cached High Contrast state would go stale
+        // and the High-Contrast-wins invariant would silently break -
+        // run the same sequence as WM_SYSCOLORCHANGE (idempotent if both
+        // notifications arrive)
+        if (wParam == SPI_SETHIGHCONTRAST)
+        {
+            UserMenuIconBkgndReader.SetSysColorsChanged();
+            RefreshThemeHighContrastState();
+            UpdateCurrentColorsForTheme();
+            ThemeUpdateWindowClassBackground(HWindow, COLOR_WINDOW);
+            ThemeApplyToTopLevel(HWindow);
+            if (HTopRebar != NULL)
+                SendMessage(HTopRebar, WM_SYSCOLORCHANGE, 0, 0);
+            ColorsChanged(TRUE, FALSE, TRUE);
+            return 0;
+        }
 
         // detection based on EXPLORER.EXE on NT4
         if (lParam != 0 && stricmp((LPCTSTR)lParam, "Environment") == 0)
@@ -5111,6 +5139,9 @@ MENU_TEMPLATE_ITEM AddToSystemMenu[] =
                                               NULL);
                 ToolTipWindow.AttachToWindow(toolTip);
                 ToolTipWindow.SetToolWindow(HWindow);
+                // tooltips are WS_POPUP - the per-dialog child sweep never
+                // reaches them (feature 049, defect E4)
+                ThemeApplyToTooltip(toolTip);
                 TOOLINFO ti;
                 ti.cbSize = sizeof(TOOLINFO);
                 ti.uFlags = TTF_SUBCLASS | TTF_ABSOLUTE | TTF_TRACK;

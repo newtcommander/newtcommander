@@ -2764,6 +2764,10 @@ void CFilesWindow::QuickRenameBegin(int index, const RECT* labelRect)
         // encoding-check: allow utf8-to-legacy-sink - documented legacy fallback, reached only when the name is NOT valid UTF-8; the wide path above covers the normal case
         SetWindowText(hWnd, formatedFileName);
 
+    // created after any theming pass over the panel children (feature 049,
+    // defect A2); colors come from the panel's WM_CTLCOLOREDIT routing
+    ThemeApplyToWindowTree(hWnd);
+
     BeginSuspendMode(TRUE); // snooper takes a break
 
     // font the same as the panel

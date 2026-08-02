@@ -3501,6 +3501,15 @@ public:
     // omezeni: thread vlastnici okno dialogu
     virtual BOOL WINAPI ThemeHandleCtlColor(UINT uMsg, WPARAM wParam, LPARAM lParam,
                                             INT_PTR* result) = 0;
+
+    // dark-themes a property-sheet FRAME window (the comctl-owned dialog
+    // hosting the pages): subclasses it so WM_CTLCOLOR*/WM_ERASEBKGND use
+    // the dark palette (tab strip area, button row, background). Call once,
+    // from the first page's WM_INITDIALOG, with GetParent(page hwnd);
+    // idempotent, no-op in the Default theme. Pages themselves still use
+    // ThemeApplyToDialog. (feature 049, interface version 106)
+    // omezeni: thread vlastnici okno 'hFrame'
+    virtual void WINAPI ThemeSubclassPropSheetFrame(HWND hFrame) = 0;
 };
 
 #ifdef _MSC_VER

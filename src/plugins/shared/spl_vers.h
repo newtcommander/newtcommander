@@ -209,8 +209,14 @@
 //         ThemeHandleCtlColor); pure vtable append - plugins built for 104
 //         keep loading and running unchanged (they just stay light in Dark mode),
 //         see specs/036-plugin-dark-theme/contracts/plugin-theme-api.md
+//   106 - 0.1.0 build 184: dark mode stabilization (feature 049):
+//         ThemeSubclassPropSheetFrame appended at the end of
+//         CSalamanderGeneralAbstract (dark property-sheet frames for plugin
+//         configuration dialogs); pure vtable append - plugins built for
+//         104/105 keep loading and running unchanged, see
+//         specs/049-dark-mode-stabilization/contracts/plugin-theme-api-v106.md
 
-#define LAST_VERSION_OF_SALAMANDER 105
+#define LAST_VERSION_OF_SALAMANDER 106
 #define REQUIRE_LAST_VERSION_OF_SALAMANDER "This plugin requires Tandem Commander 0.1.0 build 184 (" SAL_VER_PLATFORM ") or later."
 
 #endif // __SPL_VERS_H

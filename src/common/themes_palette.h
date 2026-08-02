@@ -11,6 +11,9 @@
 //
 // Design targets (specs/028-visual-themes, SC-005): standard text >= 4.5:1
 // contrast against its background, disabled/secondary text >= 3:1.
+// Feature 049: input/content surfaces (COLOR_WINDOW) sit LIGHTER than the
+// dialog face (COLOR_BTNFACE) - the Windows 11 dark convention; saltests
+// enforces the ordering.
 
 // ---------------------------------------------------------------------------
 // Dark chrome palette: ENTRY(sysColorIndex, r, g, b)
@@ -21,7 +24,7 @@
     ENTRY(COLOR_ACTIVECAPTION, 38, 79, 120) \
     ENTRY(COLOR_INACTIVECAPTION, 45, 45, 45) \
     ENTRY(COLOR_MENU, 45, 45, 45) \
-    ENTRY(COLOR_WINDOW, 32, 32, 32) \
+    ENTRY(COLOR_WINDOW, 56, 56, 56) \
     ENTRY(COLOR_WINDOWFRAME, 85, 85, 85) \
     ENTRY(COLOR_MENUTEXT, 240, 240, 240) \
     ENTRY(COLOR_WINDOWTEXT, 240, 240, 240) \

@@ -58,6 +58,20 @@ void ThemeApplyToTopLevel(HWND hWindow);
 // again after switching back to the Default theme
 void ThemeApplyToDialog(HWND hDialog);
 
+// re-applies per-HWND dark theming (SetWindowTheme variants + engine
+// subclasses + control colors) to 'hWnd' itself and every descendant; use
+// after creating or recreating controls at runtime (panel view-mode
+// switches, inline editors, late-created children). Idempotent; a no-op in
+// the Default theme (fresh controls are already native). Does NOT touch the
+// DWM title bar - that stays with ThemeApplyToTopLevel/ThemeApplyToDialog.
+// Feature 049. Restriction: thread owning 'hWnd'.
+void ThemeApplyToWindowTree(HWND hWnd);
+
+// applies/removes dark colors on a native tooltips_class32 window (tooltips
+// are WS_POPUP - the per-dialog child sweep never reaches them); call once
+// after creating the tooltip and again on theme changes (feature 049)
+void ThemeApplyToTooltip(HWND hTooltip);
+
 // swaps the background class brush (GCLP_HBRBACKGROUND) of 'hWindow's window
 // class between the original system brush and the dark brush; 'lightSysColor'
 // is the COLOR_* index the class was registered with (e.g. COLOR_WINDOW)

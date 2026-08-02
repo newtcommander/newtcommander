@@ -2765,7 +2765,7 @@ BOOL CFilesWindow::ChangePathToPluginFS(const char* fsName, const char* fsUserPa
     {
         if (failReason != NULL)
             *failReason = CHPPFR_INVALIDPATH;
-        MessageBox(HWindow, LoadStr(IDS_TOOLONGPATH), LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+        SalMessageBox(HWindow, LoadStr(IDS_TOOLONGPATH), LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONEXCLAMATION); // themed (feature 049)
         return FALSE;
     }
     // make backup copies

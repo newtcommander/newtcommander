@@ -1710,8 +1710,11 @@ CDriveInfo::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         HDC hdc = HANDLES(GetDC(HWindow));
         int devCaps = GetDeviceCaps(hdc, NUMCOLORS);
         HANDLES(ReleaseDC(HWindow, hdc));
-        if (devCaps == -1) // more than 256 colors
+        if (devCaps == -1 || IsDarkThemeActive()) // more than 256 colors
         {
+            // the dark theme forces the truecolor constants even on
+            // low-color devices: the reduced set reuses pure blue/navy,
+            // both near-invisible on the dark face (feature 049, defect D4)
             FreeLight = RGB(35, 245, 156);
             FreeDark = RGB(9, 159, 96);
             UsedLight = RGB(74, 163, 234);
@@ -2388,9 +2391,9 @@ CChangeIconDialog::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             RECT r = lpdis->rcItem;
 
-            // draw the background
+            // draw the background (theme-aware brush - feature 049)
             DWORD bkColor = (lpdis->itemState & ODS_SELECTED) ? COLOR_HIGHLIGHT : COLOR_WINDOW;
-            FillRect(lpdis->hDC, &r, (HBRUSH)(DWORD_PTR)(bkColor + 1));
+            FillRect(lpdis->hDC, &r, ThemeSysColorBrush(bkColor));
 
             // draw the icon
             DrawIconEx(lpdis->hDC, r.left + 4, r.top + 4, Icons[lpdis->itemID], 32, 32, 0, NULL, DI_NORMAL);

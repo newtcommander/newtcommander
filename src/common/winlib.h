@@ -18,6 +18,11 @@ enum CWLS
 void SetWinLibStrings(const TCHAR* invalidNumber, // "neni cislo" (u transferbufferu cisel)
                       const TCHAR* error);        // titulek "chyba" (u transferbufferu cisel)
 
+// Optional hook: the host application may route WinLib's validation message
+// boxes through its own themed message box (feature 049). NULL (default) =
+// plain ::MessageBox, so other consumers of this library are unaffected.
+extern int (*WinLibMessageBoxHook)(HWND hParent, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType);
+
 extern HINSTANCE HInstance;
 extern const TCHAR* CWINDOW_CLASSNAME;  // jmeno tridy universalniho okna
 extern const TCHAR* CWINDOW_CLASSNAME2; // jmeno tridy universalniho okna - nema CS_VREDRAW | CS_HREDRAW
