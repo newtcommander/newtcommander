@@ -896,6 +896,80 @@ static PVCODE WINAPI WicGetHandles2(LPPVHandle Img, LPPVImageHandles* pHandles)
 
 //*****************************************************************************
 //
+// Raw pixel export - backs the panel-thumbnail path (feature 048)
+//
+
+// The panel thumbnail loader (thumbs.cpp CreateThumbnail) asks PVSaveImage
+// for the decoded image as raw 32bpp rows pushed through pSii->WriteFunc at
+// natural size; the core's CSalamanderThumbnailMaker does the shrinking.
+// Exactly that subset is implemented here. Encoder formats, scaling and
+// cropping stay unsupported, so Save As, print preview and the batch JPEG
+// thumbnail operation keep their pre-048 behavior (PVC_UNSUP_OUT_PARAMS).
+static PVCODE WINAPI WicSaveImage(LPPVHandle Img, const char* OutFName, LPPVSaveImageInfo pSii,
+                                  TProgressProc Progress, void* AppSpecific, int ImageIndex)
+{
+    UNREFERENCED_PARAMETER(OutFName); // user-defined output only
+
+    CWicImage* img = (CWicImage*)Img;
+    if (img == NULL)
+        return PVC_INVALID_HANDLE;
+    if (pSii == NULL)
+        return PVC_INCORRECT_PARAMETER;
+
+    // Salamander-proprietary decode-speed hint set by thumbs.cpp for heavily
+    // oversized images (PVSF_SUPERFAST there); accepted and ignored
+    const DWORD PVSF_SUPERFAST_HINT = 0x8000000;
+
+    if ((pSii->Flags & PVSF_USERDEFINED_OUTPUT) == 0 || pSii->WriteFunc == NULL ||
+        pSii->Format != PVF_RAW || pSii->Colors != PV_COLOR_TC32 ||
+        pSii->Width != 0 || pSii->Height != 0 ||         // no scaling in this subset
+        pSii->CropWidth != 0 || pSii->CropHeight != 0 || // no cropping either
+        (pSii->Flags & ~(PVSF_USERDEFINED_OUTPUT | PVSF_FLIP_VERT | PVSF_SUPERFAST_HINT)) != 0)
+        return PVC_UNSUP_OUT_PARAMS;
+
+    // decoded rows are opaque BGRX composited over BkColor - the exact
+    // PV_COLOR_TC32 row layout the consumer expects (see print.cpp usage)
+    PVCODE code = DecodeFrame(img, ImageIndex, Progress, AppSpecific);
+    if (code != PVC_OK)
+        return code;
+    if (img->DibBits == NULL || img->Width <= 0 || img->Height <= 0)
+        return PVC_INVALID_DIMENSIONS;
+
+    DWORD stride = (DWORD)img->Width * 4;
+    // whole rows per WriteFunc call; bounded batches keep the consumer's
+    // cancellation (short write) responsive on large images
+    int rowsPerBatch = (int)(256 * 1024 / stride);
+    if (rowsPerBatch < 1)
+        rowsPerBatch = 1;
+    BOOL flip = (pSii->Flags & PVSF_FLIP_VERT) != 0;
+    if (flip)
+        rowsPerBatch = 1; // rows leave in reverse order -> one row per call
+
+    int y = 0;
+    while (y < img->Height)
+    {
+        // between batches only: the consumer's progress hook probes its own
+        // completion state and would report a false error after the last row
+        if (y > 0 && Progress != NULL && Progress(MulDiv(y, 100, img->Height), AppSpecific))
+            return PVC_OK; // consumer cancel; it judges completeness itself
+
+        int rows = min(rowsPerBatch, img->Height - y);
+        BYTE* p = img->DibBits + (size_t)(flip ? img->Height - y - 1 : y) * stride;
+        DWORD bytes = (DWORD)rows * stride;
+        if (pSii->WriteFunc(AppSpecific, p, bytes) != bytes)
+        {
+            // short write is the normal end: the thumbnail maker returns FALSE
+            // (-> 0 bytes) both on cancellation and after consuming the final
+            // rows, and ThumbnailReady() arbitrates which one it was
+            return PVC_OK;
+        }
+        y += rows;
+    }
+    return PVC_OK;
+}
+
+//*****************************************************************************
+//
 // Graceful stubs - operations with no engine backing (feature 006 scope)
 //
 
@@ -906,18 +980,6 @@ static PVCODE WINAPI WicLoadFromClipboard(LPPVHandle* Img, LPPVImageInfo pInfo, 
     if (Img != NULL)
         *Img = NULL;
     return PVC_UNSUP_FILE_TYPE;
-}
-
-static PVCODE WINAPI WicSaveImage(LPPVHandle Img, const char* OutFName, LPPVSaveImageInfo pSii,
-                                  TProgressProc Progress, void* AppSpecific, int ImageIndex)
-{
-    UNREFERENCED_PARAMETER(Img);
-    UNREFERENCED_PARAMETER(OutFName);
-    UNREFERENCED_PARAMETER(pSii);
-    UNREFERENCED_PARAMETER(Progress);
-    UNREFERENCED_PARAMETER(AppSpecific);
-    UNREFERENCED_PARAMETER(ImageIndex);
-    return PVC_UNSUP_OUT_PARAMS;
 }
 
 static DWORD WINAPI WicIsOutCombSupported(int Fmt, int Compr, int Colors, int ColorModel)

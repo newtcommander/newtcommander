@@ -1020,7 +1020,9 @@ BOOL CPluginInterfaceForThumbLoader::LoadThumbnail(LPCTSTR filename, int thumbWi
         free(thumbData);
         PVW32DLL.PVCloseImage(hPVImage);
     }
-    return TRUE;
+    // PVC_OK covers both full delivery and a consumer-side stop; real decode/
+    // export failures must fall through so the core can try another loader
+    return code == PVC_OK;
 }
 
 PVCODE CreateThumbnail(LPPVHandle hPVImage, LPPVSaveImageInfo pSii, int imageIndex, DWORD imgWidth, DWORD imgHeight,
