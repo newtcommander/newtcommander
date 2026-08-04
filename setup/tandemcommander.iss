@@ -1,4 +1,4 @@
-#define MyAppName "Tandem Commander"
+﻿#define MyAppName "Tandem Commander"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Pavel Stupka"
 #define MyAppURL "https://tandemcommander.org/"
@@ -55,6 +55,43 @@ Name: "hungarian"; MessagesFile: "compiler:Languages\Hungarian.isl"
 Name: "slovak"; MessagesFile: "compiler:Languages\Slovak.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
+[CustomMessages]
+; Disclaimer page chrome, localized per installer language; the disclaimer
+; BODY itself intentionally stays English (single wording everywhere).
+; Unprefixed entries are the English defaults / fallback.
+DisclaimerCaption=Disclaimer
+DisclaimerDescription=Please read the following important information before continuing
+DisclaimerSubCaption=By continuing, you acknowledge the disclaimer below:
+DisclaimerAccept=I understand and accept this disclaimer
+czech.DisclaimerCaption=Prohlášení o vyloučení odpovědnosti
+czech.DisclaimerDescription=Než budete pokračovat, přečtěte si prosím následující důležité informace
+czech.DisclaimerSubCaption=Pokračováním berete na vědomí níže uvedené prohlášení:
+czech.DisclaimerAccept=Rozumím a souhlasím s tímto prohlášením
+dutch.DisclaimerCaption=Disclaimer
+dutch.DisclaimerDescription=Lees de volgende belangrijke informatie voordat u verdergaat
+dutch.DisclaimerSubCaption=Door verder te gaan, erkent u de onderstaande disclaimer:
+dutch.DisclaimerAccept=Ik begrijp en aanvaard deze disclaimer
+french.DisclaimerCaption=Avertissement
+french.DisclaimerDescription=Veuillez lire les informations importantes suivantes avant de continuer
+french.DisclaimerSubCaption=En continuant, vous reconnaissez l'avertissement ci-dessous :
+french.DisclaimerAccept=Je comprends et j'accepte cet avertissement
+german.DisclaimerCaption=Haftungsausschluss
+german.DisclaimerDescription=Bitte lesen Sie die folgenden wichtigen Informationen, bevor Sie fortfahren
+german.DisclaimerSubCaption=Indem Sie fortfahren, erkennen Sie den nachstehenden Haftungsausschluss an:
+german.DisclaimerAccept=Ich habe den Haftungsausschluss verstanden und akzeptiere ihn
+hungarian.DisclaimerCaption=Felelősségkizáró nyilatkozat
+hungarian.DisclaimerDescription=Kérjük, olvassa el az alábbi fontos információkat, mielőtt folytatná
+hungarian.DisclaimerSubCaption=A folytatással tudomásul veszi az alábbi nyilatkozatot:
+hungarian.DisclaimerAccept=Megértettem és elfogadom ezt a nyilatkozatot
+slovak.DisclaimerCaption=Vyhlásenie o vylúčení zodpovednosti
+slovak.DisclaimerDescription=Skôr než budete pokračovať, prečítajte si nasledujúce dôležité informácie
+slovak.DisclaimerSubCaption=Pokračovaním beriete na vedomie nižšie uvedené vyhlásenie:
+slovak.DisclaimerAccept=Rozumiem a súhlasím s týmto vyhlásením
+spanish.DisclaimerCaption=Descargo de responsabilidad
+spanish.DisclaimerDescription=Lea la siguiente información importante antes de continuar
+spanish.DisclaimerSubCaption=Al continuar, usted acepta el siguiente descargo de responsabilidad:
+spanish.DisclaimerAccept=Entiendo y acepto este descargo de responsabilidad
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -75,9 +112,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [Code]
 { AI disclaimer page: shown right after the GPL license page and gated by a
-  checkbox - Next stays disabled until the user explicitly accepts. English
-  only by decision (single wording for all installer languages). Silent
-  installs skip wizard pages by Inno Setup design, like the license page. }
+  checkbox - Next stays disabled until the user explicitly accepts. The page
+  chrome (title, subtitle, checkbox) is localized via [CustomMessages]; the
+  disclaimer body itself intentionally stays English. Silent installs skip
+  wizard pages by Inno Setup design, like the license page. }
 var
   DisclaimerPage: TOutputMsgMemoWizardPage;
   DisclaimerAcceptedCheck: TNewCheckBox;
@@ -90,9 +128,9 @@ end;
 procedure InitializeWizard;
 begin
   DisclaimerPage := CreateOutputMsgMemoPage(wpLicense,
-    'Disclaimer',
-    'Please read the following important information before continuing',
-    'By continuing, you acknowledge the disclaimer below:',
+    CustomMessage('DisclaimerCaption'),
+    CustomMessage('DisclaimerDescription'),
+    CustomMessage('DisclaimerSubCaption'),
     'DISCLAIMER' + #13#10 + #13#10 +
     'Tandem Commander was created using AI-assisted, agentic software ' +
     'development. Large portions of its source code, documentation, and ' +
@@ -116,7 +154,7 @@ begin
     DisclaimerPage.RichEditViewer.Height + ScaleY(8);
   DisclaimerAcceptedCheck.Width := DisclaimerPage.RichEditViewer.Width;
   DisclaimerAcceptedCheck.Height := ScaleY(17);
-  DisclaimerAcceptedCheck.Caption := 'I understand and accept this disclaimer';
+  DisclaimerAcceptedCheck.Caption := CustomMessage('DisclaimerAccept');
   DisclaimerAcceptedCheck.Checked := False;
   DisclaimerAcceptedCheck.OnClick := @DisclaimerCheckClick;
 end;
