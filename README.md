@@ -2,13 +2,35 @@
 
 Tandem Commander is a fast, keyboard-friendly two-panel file manager for Windows. It is based on [Open Salamander](https://github.com/OpenSalamander/salamander), the GPLv2 open-source release of the long-lived Altap Salamander file manager. Everything about the original project — its history, features, documentation, and community — lives in the upstream repository; this README covers what makes Tandem Commander different and how to build it.
 
+**Website**: [tandemcommander.org](https://tandemcommander.org) 
+
+**Issues**: [github.com/tandemcommander/tandemcommander/issues](https://github.com/tandemcommander/tandemcommander/issues)
+
+## Why This Project Exists — A Personal Note
+
+Whenever I have worked on Windows, there has always been a Salamander close at hand. First Servant Salamander, later Altap Salamander — in my view one of the finest pieces of software I have ever worked with. But the last released version of Altap Salamander dates back to 2019, and it still carries a few aches inherited from the original versions: incomplete encoding support, missing long directory and file path support, and quite a few others. At the same time, many of my friends and family members use Altap Salamander every day, both at work and at home.
+
+The moment Salamander was released as Open Salamander, I had a clear vision: I would adapt it for myself so I could simply keep using it. That vision quickly ran into hard reality — even though I am a very experienced software engineer, developer, and architect, I was missing the one factor a project of this scale demands above all else: time.
+
+That has changed, essentially within the last few months, with the overall shift in how software can now be — not programmed, but *created* — with agentic systems. To be clear, I am emphatically not talking about "vibe coding"; I consider that a bit of a buzzword and I do not like it. The term I would choose is **Full Agentic Spec-Driven Development**: clearly defined procedures not just for producing code, but for producing the entire project — documentation and artifacts included. This project is deliberately built with the spec-driven approach on top of GitHub SpecKit, using the best agentic models available at the time — currently Fable 5, with reviews also carried out by GPT-5.6 Sol and others.
+
+Tandem Commander is, of course, not perfect. But thanks to this approach I ended up with a genuinely usable tool — one that I hope can serve others as well.
+
 ## A New Era of Development
 
 Tandem Commander explores what happens when a mature, quarter-century-old C++ codebase meets the new era of agentic programming. Development follows Spec-Driven Development principles built on [GitHub SpecKit](https://github.com/github/spec-kit): every change begins as a written specification that is clarified, planned, and decomposed into tasks before any code is touched. The implementation itself is carried out by a combination of agentic coding frameworks using the best models available at the time — currently Anthropic Fable 5.
 
 > **A note on naming**: since version 0.1.0 the application itself carries the Tandem Commander identity — the binary is `tandemcommander.exe`, the window titles, About dialog, and icons use the new name and visual style, and configuration lives under its own registry root (`HKCU\Software\Tandem Commander`), fully separate from any Open Salamander installation. Source files, internal identifiers, and the solution name (`salamand.sln`) intentionally keep their upstream names. The HTML help is not yet rebranded.
 
-**Website**: [tandemcommander.org](https://tandemcommander.org) · **Issues**: [github.com/tandemcommander/tandemcommander/issues](https://github.com/tandemcommander/tandemcommander/issues)
+## About the Name: Tandem Commander
+
+The original name *Servant* Salamander carried a philosophy I fully identify with: the program is there to **serve** the user, never the other way around. Still, a new name was needed — I did not want to trade on the original one, and I also wanted the project to sit more recognizably among the other two-panel file managers, the "commanders".
+
+I read *Commander* accordingly: it is a tool through which the **user commands the files** — not a program that commands the user. And *Tandem* simply felt fitting and unique — two panels working side by side, in tandem.
+
+## Thank You, Open Salamander Authors
+
+None of this would exist without the people who built Servant Salamander, Altap Salamander, and finally Open Salamander. Over a quarter of a century they created and refined a program that countless people — me, my friends, my family — have trusted with their daily work, and it shows in every detail: the speed, the keyboard-first design, the plugin architecture, the sheer care in the code this repository inherited. Their decision to release it under an open-source license was an act of real generosity that gave this remarkable software a second life. Tandem Commander stands entirely on their shoulders, and I hope it honors what they built. To all the original authors and contributors, listed in [AUTHORS](AUTHORS): thank you.
 
 ## Building
 
