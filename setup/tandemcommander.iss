@@ -37,6 +37,13 @@ OutputBaseFilename=tandemcommander-{#MyAppVersion}-x64-setup
 SetupIconFile=setup.ico
 SolidCompression=yes
 WizardStyle=modern
+; Feature 050: signing is strictly opt-in. build_setup.cmd sign compiles with
+; /DSIGN=1 and defines the "tcsign" tool on the ISCC command line (/Stcsign=...),
+; so an unsigned compile has no dependency on any certificate or sign tool.
+#ifdef SIGN
+SignTool=tcsign
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -53,7 +60,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\build\tandemcommander\Release_x64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\tandemcommander\Release_x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Feature 050 (FR-014): never package linker byproducts, even if a stale
+; build tree still contains them (the release build keeps the tree clean
+; on its own - this Excludes is an independent safety net).
+Source: "..\build\tandemcommander\Release_x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb,*.lib,*.exp"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

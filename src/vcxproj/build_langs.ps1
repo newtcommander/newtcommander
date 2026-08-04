@@ -130,6 +130,57 @@ function Invoke-Translator {
 }
 
 # ---------------------------------------------------------------------------
+# Authenticode strip (feature 050)
+# ---------------------------------------------------------------------------
+# Every language module is seeded as a copy of english.slg, and english.slg
+# is code-signed in a signed release tree. The translator then patches the
+# copy in place, which leaves a stale, malformed certificate table behind -
+# signtool refuses to (re-)sign such a file (0x800700C1, bad exe format).
+# Stripping the signature from the seed right after the copy keeps the
+# produced module a clean, signable PE. No-op for unsigned seeds.
+
+function Remove-PeSignature([string]$Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -lt 64) { return }
+    $peOff = [System.BitConverter]::ToInt32($bytes, 60)
+    if ($peOff -le 0 -or $peOff + 176 -gt $bytes.Length) { return }
+    $magic = [System.BitConverter]::ToUInt16($bytes, $peOff + 24)
+    $ddBase = if ($magic -eq 0x20B) { $peOff + 24 + 112 } else { $peOff + 24 + 96 }
+    $entry = $ddBase + 4 * 8   # IMAGE_DIRECTORY_ENTRY_SECURITY
+    if ($entry + 8 -gt $bytes.Length) { return }
+    $certOff = [System.BitConverter]::ToInt32($bytes, $entry)
+    $certSize = [System.BitConverter]::ToInt32($bytes, $entry + 4)
+    if ($certOff -le 0 -or $certSize -le 0) { return }
+    # Truncating the certificate table off the end is only safe when the
+    # directory entry really points at one: a stale entry (left behind by a
+    # tool that rewrote the file) can point into live data. Require a
+    # plausible WIN_CERTIFICATE header (dwLength == directory size, known
+    # wRevision) AND that no section's raw data lies beyond the cut;
+    # otherwise only clear the directory entry and leave the bytes alone.
+    $newLen = $bytes.Length
+    $plausible = $false
+    if (($certOff + 8) -le $bytes.Length -and ($certOff + $certSize) -eq $bytes.Length) {
+        $dwLength = [System.BitConverter]::ToInt32($bytes, $certOff)
+        $wRevision = [System.BitConverter]::ToUInt16($bytes, $certOff + 4)
+        $plausible = ($dwLength -eq $certSize -and ($wRevision -eq 0x0200 -or $wRevision -eq 0x0100))
+    }
+    if ($plausible) {
+        $numSec = [System.BitConverter]::ToUInt16($bytes, $peOff + 6)
+        $optSize = [System.BitConverter]::ToUInt16($bytes, $peOff + 20)
+        $secBase = $peOff + 24 + $optSize
+        for ($i = 0; $i -lt $numSec; $i++) {
+            $rawSize = [System.BitConverter]::ToInt32($bytes, $secBase + $i * 40 + 16)
+            $rawPtr = [System.BitConverter]::ToInt32($bytes, $secBase + $i * 40 + 20)
+            if (($rawPtr + $rawSize) -gt $certOff) { $plausible = $false; break }
+        }
+    }
+    if ($plausible) { $newLen = $certOff }
+    for ($i = 0; $i -lt 8; $i++) { $bytes[$entry + $i] = 0 }
+    $fs = [System.IO.File]::Open($Path, [System.IO.FileMode]::Create)
+    try { $fs.Write($bytes, 0, $newLen) } finally { $fs.Close() }
+}
+
+# ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
@@ -286,8 +337,11 @@ foreach ($m in $modules) {
             }
         }
 
-        # 1. seed -- Save() patches a copy, and "none" suppresses the prompt
+        # 1. seed -- Save() patches a copy, and "none" suppresses the prompt.
+        # Strip any code signature from the seed (feature 050): patching a
+        # signed copy would corrupt its certificate table beyond repair.
         Copy-Item -LiteralPath $englishSlg -Destination $targetSlg -Force
+        Remove-PeSignature $targetSlg
 
         # 2. project
         $atp = & (Join-Path $scriptDir 'gen_atp.ps1') -Module $m -Language $lang.Folder `

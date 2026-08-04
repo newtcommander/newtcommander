@@ -35,6 +35,75 @@ build.cmd full release   :: complete Release x64 build
 
 Arguments can be combined in any order (`build.cmd help` shows the full usage). The set of plugins that is compiled and shipped is controlled by [`plugins.cfg`](plugins.cfg) in the repository root — one `name=on|off` line per plugin.
 
+## Release, Code Signing & Installer
+
+Release builds are code-signed and packaged **strictly on demand** — a plain
+`build.cmd full release` never signs anything, never contacts a timestamp
+server, and behaves exactly like a development build. Signing and installer
+packaging are extra arguments:
+
+```batch
+build.cmd full release sign          :: complete Release build, then sign every
+                                     ::   shipped binary (exe, dll, spl, slg)
+build.cmd full release sign setup    :: one-command signed release: signed build
+                                     ::   + signed Inno Setup installer
+setup\build_setup.cmd                :: unsigned installer from an existing
+                                     ::   Release tree (development test)
+setup\build_setup.cmd sign           :: sign the Release tree if needed, then
+                                     ::   build a signed installer + uninstaller
+```
+
+### Additional prerequisites for releases
+
+- The maintainer's code-signing certificate installed in the Windows
+  certificate store (current user, `My`); its SHA-1 thumbprint and the
+  timestamp authority are committed in
+  [`tools/codesign/codesign.cfg`](tools/codesign/codesign.cfg) — the private
+  key never enters the repository
+- [Inno Setup 7](https://jrsoftware.org/isinfo.php) for the installer
+  (`ISCC.exe` is located automatically; it does not need to be on `PATH`)
+
+### How signing works
+
+The signing core is `tools\codesign\sign_release.ps1` (Windows PowerShell
+5.1). It sweeps the Release output tree, signs every PE artifact
+(`*.exe`, `*.dll`, `*.spl`, `*.slg`) with the configured certificate —
+SHA-256 digests, RFC 3161 timestamp — and ends with a verification pass. The
+sweep is **idempotent**: files already signed by the configured certificate
+are skipped, so re-running after a network hiccup only finishes what is
+missing, and a re-run over a fully signed tree completes in seconds. Files
+signed by an *older* certificate are re-signed automatically.
+
+```batch
+:: sign an existing build without rebuilding:
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\codesign\sign_release.ps1 ^
+    -Root "build\tandemcommander\Release_x64"
+
+:: audit signing state without modifying anything:
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\codesign\sign_release.ps1 ^
+    -Root "build\tandemcommander\Release_x64" -VerifyOnly
+```
+
+The signed installer is produced by `setup\build_setup.cmd sign`, which first
+runs the same sweep (a signed installer can never package unsigned binaries)
+and then compiles `setup\tandemcommander.iss` with `/DSIGN=1`, so Inno Setup
+signs both the installer and the uninstaller it deploys. The result lands in
+`setup\output\`.
+
+Release output trees contain only distribution files: linker byproducts
+(`.pdb`, `.lib`, `.exp`) are redirected outside the tree at build time (PDBs
+are preserved under the `obj\` intermediate root for crash-dump
+symbolication), and the installer excludes those file types independently as
+a safety net.
+
+### Certificate rotation
+
+1. Install the new certificate into the Windows certificate store.
+2. Update `thumbprint` in `tools\codesign\codesign.cfg` (one line).
+3. Re-run any signing command — every artifact still carrying the old
+   certificate is re-signed; timestamps keep previously released binaries
+   valid after the old certificate expires.
+
 ## Development Process
 
 Features are developed one at a time through the SpecKit workflow: **specify → clarify → plan → tasks → implement**. Each feature lives in the [`specs/`](specs/) directory with its full paper trail — specification, implementation plan, task breakdown, research notes, and contracts — committed alongside the code, so the repository records not only what changed but why. Project-wide rules (build reproducibility, backward compatibility, incremental modernization, Windows platform commitment, plugin architecture preservation) are codified in the project constitution at `.specify/memory/constitution.md`.

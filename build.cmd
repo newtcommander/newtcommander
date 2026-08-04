@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :: Open Salamander Build Script
-:: Usage: build.cmd [rebuild] [release] [full]
+:: Usage: build.cmd [rebuild] [release] [full] [sign] [setup]
 ::   (no args)       Incremental Debug x64 build
 ::   rebuild         Full clean + rebuild
 ::   release         Release x64 build
@@ -11,6 +11,13 @@ setlocal enabledelayedexpansion
 ::                   plus runtime data files (conversion tables, toolbars,
 ::                   sample scripts) and plugins\plugins.ver so that all
 ::                   built plugins auto-register in Plugin Manager
+::   sign            Release only: after the build, code-sign every shipped
+::                   binary in the output tree (certificate + timestamp
+::                   authority from tools\codesign\codesign.cfg) and verify
+::                   them; without this argument nothing is ever signed
+::   setup           Release only: after the build (and signing, if
+::                   requested), compile the Inno Setup installer via
+::                   setup\build_setup.cmd (signed iff 'sign' was given)
 ::   help            Show this help message
 
 if /i "%~1"=="help" goto :show_help
@@ -25,12 +32,29 @@ set "BUILD_TARGET=build"
 set "BUILD_CONFIG=Debug"
 set "BUILD_PLATFORM=x64"
 set "BUILD_FULL=0"
+set "BUILD_SIGN=0"
+set "BUILD_SETUP=0"
 
 :: Parse all arguments (order-independent)
 for %%a in (%*) do (
     if /i "%%~a"=="rebuild" set "BUILD_TARGET=rebuild"
     if /i "%%~a"=="release" set "BUILD_CONFIG=Release"
     if /i "%%~a"=="full" set "BUILD_FULL=1"
+    if /i "%%~a"=="sign" set "BUILD_SIGN=1"
+    if /i "%%~a"=="setup" set "BUILD_SETUP=1"
+)
+
+:: Code signing and the installer package the Release output; Debug builds
+:: are never signed or shipped (feature 050). Reject early, before any work.
+if "%BUILD_SIGN%"=="1" if /i not "%BUILD_CONFIG%"=="Release" (
+    echo ERROR: 'sign' requires 'release' - Debug builds are never signed.
+    echo   Example: build.cmd full release sign
+    exit /b 1
+)
+if "%BUILD_SETUP%"=="1" if /i not "%BUILD_CONFIG%"=="Release" (
+    echo ERROR: 'setup' requires 'release' - the installer packages the Release output.
+    echo   Example: build.cmd full release sign setup
+    exit /b 1
 )
 
 :: ============================================================
@@ -213,6 +237,8 @@ echo  Mode          : %BUILD_TARGET%
 echo  Plugin policy : %ENABLED_COUNT% plugins enabled ^(plugins.cfg^)
 echo  Lang policy   : %ENABLED_LANGS% of %REGISTERED_LANGS% languages enabled ^(languages.cfg^)
 if "%BUILD_FULL%"=="1" echo  Full build    : runtime data files + plugins.ver
+if "%BUILD_SIGN%"=="1" echo  Code signing  : requested ^(tools\codesign\codesign.cfg^)
+if "%BUILD_SETUP%"=="1" echo  Installer     : requested ^(setup\build_setup.cmd^)
 echo  Output        : %OPENSAL_BUILD_DIR%tandemcommander\%BUILD_CONFIG%_%BUILD_PLATFORM%\
 echo  MSBuild       : %MSBUILD_PATH%
 echo ============================================================
@@ -255,6 +281,43 @@ if %BUILD_EXIT% equ 0 if not "%BUILD_FULL%"=="1" if exist "%OUT_DIR%\plugins\plu
 :: (e.g. an incremental build over a pre-existing tree) left behind.
 if %BUILD_EXIT% equ 0 if /i "%BUILD_CONFIG%"=="Release" call :clean_release_tree
 
+:: Code signing (feature 050): strictly on demand - only the 'sign' argument
+:: triggers it. Signs every shipped PE artifact (*.exe, *.dll, *.spl, *.slg)
+:: in the output tree with the certificate from tools\codesign\codesign.cfg,
+:: timestamped, idempotently (already-signed files are skipped, files signed
+:: by an old certificate are re-signed). Ends with a verification pass; any
+:: failure fails the build.
+set "SIGN_RESULT="
+if %BUILD_EXIT% equ 0 if "%BUILD_SIGN%"=="1" (
+    echo.
+    echo Signing release output: %OUT_DIR%
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\codesign\sign_release.ps1" -Root "%OUT_DIR%"
+    if errorlevel 1 (
+        set "SIGN_RESULT=FAILED"
+        set "BUILD_EXIT=1"
+    ) else (
+        set "SIGN_RESULT=OK"
+    )
+)
+
+:: Installer (feature 050, FR-015): 'setup' chains the Inno Setup compile
+:: after a successful build - signed iff 'sign' was requested too.
+set "SETUP_RESULT="
+if %BUILD_EXIT% equ 0 if "%BUILD_SETUP%"=="1" (
+    echo.
+    if "%BUILD_SIGN%"=="1" (
+        call "%~dp0setup\build_setup.cmd" sign
+    ) else (
+        call "%~dp0setup\build_setup.cmd"
+    )
+    if errorlevel 1 (
+        set "SETUP_RESULT=FAILED"
+        set "BUILD_EXIT=1"
+    ) else (
+        set "SETUP_RESULT=OK"
+    )
+)
+
 :: Record end time
 set "END_TIME=%time%"
 
@@ -262,14 +325,15 @@ set "END_TIME=%time%"
 :: Calculate duration
 :: ============================================================
 
-:: Parse start time (HH:MM:SS.CC)
+:: Parse start time (HH:MM:SS.CC). The "1%%a %% 100" form keeps set /a from
+:: reading zero-padded tokens like "08"/"09" as (invalid) octal constants.
 for /f "tokens=1-4 delims=:,." %%a in ("%START_TIME: =0%") do (
-    set /a "START_S=%%a*3600 + %%b*60 + %%c"
+    set /a "START_S=(1%%a %% 100)*3600 + (1%%b %% 100)*60 + (1%%c %% 100)"
 )
 
 :: Parse end time
 for /f "tokens=1-4 delims=:,." %%a in ("%END_TIME: =0%") do (
-    set /a "END_S=%%a*3600 + %%b*60 + %%c"
+    set /a "END_S=(1%%a %% 100)*3600 + (1%%b %% 100)*60 + (1%%c %% 100)"
 )
 
 :: Handle midnight crossing
@@ -298,6 +362,8 @@ if %BUILD_EXIT% equ 0 if "%BUILD_FULL%"=="1" (
     echo  Plugins       : %PLUG_COUNT% registered in plugins.ver ^(version %NEW_VER%^)
     echo  Languages     : %LANG_COUNT% language modules
 )
+if defined SIGN_RESULT echo  Code signing  : %SIGN_RESULT%
+if defined SETUP_RESULT echo  Installer     : %SETUP_RESULT% ^(setup\output\^)
 echo ============================================================
 echo.
 
@@ -432,7 +498,7 @@ echo   plugins.ver version %NEW_VER%: %PLUG_COUNT% plugins registered for auto-i
 exit /b 0
 
 :: ============================================================
-:: Release output tree cleanup (feature 023)
+:: Release output tree cleanup (features 023 + 050)
 :: ============================================================
 :: Removes build scaffolding from the shipped Release output tree: any
 :: directory named Intermediate (at any depth) and the saltests directory.
@@ -440,11 +506,18 @@ exit /b 0
 :: %OPENSAL_BUILD_DIR%obj\ (outside %OUT_DIR%) by src\Directory.Build.targets,
 :: so this sweep only ever deletes stale or empty scaffolding, never the live
 :: cache. Release only; Debug intentionally keeps its Intermediate directories.
+::
+:: Feature 050 (FR-013): also deletes linker byproducts (*.pdb, *.lib, *.exp)
+:: from the tree. New builds no longer put them there (Directory.Build.targets
+:: redirects ImportLibrary/ProgramDatabaseFile into the relocated IntDir), so
+:: this only cleans pre-existing trees and acts as a safety net - deleting
+:: files the linker did not declare as outputs does not invalidate MSBuild's
+:: up-to-date checks, unlike deleting live link outputs would.
 
 :clean_release_tree
 echo.
 echo Cleaning release output tree ^(removing build scaffolding^): %OUT_DIR%
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$out='%OUT_DIR%'; if (Test-Path -LiteralPath $out) { Get-ChildItem -LiteralPath $out -Directory -Recurse -Force -Filter 'Intermediate' | Sort-Object { $_.FullName.Length } -Descending | ForEach-Object { if (Test-Path -LiteralPath $_.FullName) { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue } }; $st = Join-Path $out 'saltests'; if (Test-Path -LiteralPath $st) { Remove-Item -LiteralPath $st -Recurse -Force -ErrorAction SilentlyContinue } }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$out='%OUT_DIR%'; if (Test-Path -LiteralPath $out) { Get-ChildItem -LiteralPath $out -Directory -Recurse -Force -Filter 'Intermediate' | Sort-Object { $_.FullName.Length } -Descending | ForEach-Object { if (Test-Path -LiteralPath $_.FullName) { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue } }; $st = Join-Path $out 'saltests'; if (Test-Path -LiteralPath $st) { Remove-Item -LiteralPath $st -Recurse -Force -ErrorAction SilentlyContinue }; Get-ChildItem -LiteralPath $out -Recurse -Force -File | Where-Object { '.pdb','.lib','.exp' -contains $_.Extension.ToLower() } | Remove-Item -Force -ErrorAction SilentlyContinue }"
 exit /b 0
 
 :: ============================================================
@@ -465,6 +538,12 @@ echo   full             Complete build: app + all plugins + language modules,
 echo                    plus runtime data files (conversion tables, toolbars,
 echo                    sample scripts) and plugins\plugins.ver so that all
 echo                    built plugins appear in Plugin Manager on next start
+echo   sign             Release only: code-sign every shipped binary in the
+echo                    output tree with the certificate configured in
+echo                    tools\codesign\codesign.cfg (timestamped, verified);
+echo                    idempotent - already-signed files are skipped
+echo   setup            Release only: compile the Inno Setup installer after
+echo                    the build (signed when 'sign' is also given)
 echo   help             Show this help message
 echo.
 echo   Arguments can be combined in any order.
@@ -481,5 +560,7 @@ echo   build.cmd rebuild          Debug clean rebuild
 echo   build.cmd rebuild release  Release clean rebuild
 echo   build.cmd full             Complete Debug build (plugins in Plugin Manager)
 echo   build.cmd full release     Complete Release build
+echo   build.cmd full release sign        Complete signed Release build
+echo   build.cmd full release sign setup  Complete signed release + installer
 echo.
 exit /b 0

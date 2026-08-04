@@ -35,4 +35,26 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <IntDir>$(IntDir.Replace('tandemcommander\$(Configuration)_$(ShortPlatform)\', 'obj\$(Configuration)_$(ShortPlatform)\'))</IntDir>
   </PropertyGroup>
+  <!--
+    Feature 050: keep linker byproducts out of the shipped Release tree.
+
+    The import library (and the .exp the linker always emits next to it) and
+    the PDB default to $(OutDir), i.e. straight into the shipped output tree.
+    Nothing in the solution links against these import libraries by path
+    (sqlite.dll/7za.dll are loaded dynamically), so they are pure byproducts
+    there; the PDBs are wanted for crash-dump symbolication but must not
+    ship. Redirect both into $(IntDir) - already relocated OUTSIDE the
+    shipped tree by the IntDir rewrite above - instead of deleting them
+    post-build: .lib/.pdb are tracked link outputs, and deleting them would
+    mark every DLL project out-of-date and force a full LTCG relink on each
+    incremental Release build. build.cmd :clean_release_tree still deletes
+    any stray *.pdb/*.lib/*.exp as a safety net for pre-existing trees.
+    Debug is intentionally untouched, like the IntDir rewrite above.
+  -->
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Release'">
+    <Link>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+    </Link>
+  </ItemDefinitionGroup>
 </Project>
