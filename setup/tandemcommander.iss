@@ -73,3 +73,57 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
+[Code]
+{ AI disclaimer page: shown right after the GPL license page and gated by a
+  checkbox - Next stays disabled until the user explicitly accepts. English
+  only by decision (single wording for all installer languages). Silent
+  installs skip wizard pages by Inno Setup design, like the license page. }
+var
+  DisclaimerPage: TOutputMsgMemoWizardPage;
+  DisclaimerAcceptedCheck: TNewCheckBox;
+
+procedure DisclaimerCheckClick(Sender: TObject);
+begin
+  WizardForm.NextButton.Enabled := DisclaimerAcceptedCheck.Checked;
+end;
+
+procedure InitializeWizard;
+begin
+  DisclaimerPage := CreateOutputMsgMemoPage(wpLicense,
+    'Disclaimer',
+    'Please read the following important information before continuing',
+    'By continuing, you acknowledge the disclaimer below:',
+    'DISCLAIMER' + #13#10 + #13#10 +
+    'Tandem Commander was created using AI-assisted, agentic software ' +
+    'development. Large portions of its source code, documentation, and ' +
+    'release tooling were produced by AI agents following a spec-driven ' +
+    'process, under human direction and review.' + #13#10 + #13#10 +
+    'This software is provided "AS IS", without warranty of any kind, ' +
+    'express or implied. The author assumes NO responsibility or liability ' +
+    'for the use of this software, or for any damage or data loss that may ' +
+    'result from it. You install and use this software entirely AT YOUR ' +
+    'OWN RISK.' + #13#10 + #13#10 +
+    'If you do not agree with these terms, please cancel the installation.');
+
+  { make room for the acceptance checkbox below the memo }
+  DisclaimerPage.RichEditViewer.Height :=
+    DisclaimerPage.RichEditViewer.Height - ScaleY(28);
+
+  DisclaimerAcceptedCheck := TNewCheckBox.Create(DisclaimerPage);
+  DisclaimerAcceptedCheck.Parent := DisclaimerPage.Surface;
+  DisclaimerAcceptedCheck.Left := DisclaimerPage.RichEditViewer.Left;
+  DisclaimerAcceptedCheck.Top := DisclaimerPage.RichEditViewer.Top +
+    DisclaimerPage.RichEditViewer.Height + ScaleY(8);
+  DisclaimerAcceptedCheck.Width := DisclaimerPage.RichEditViewer.Width;
+  DisclaimerAcceptedCheck.Height := ScaleY(17);
+  DisclaimerAcceptedCheck.Caption := 'I understand and accept this disclaimer';
+  DisclaimerAcceptedCheck.Checked := False;
+  DisclaimerAcceptedCheck.OnClick := @DisclaimerCheckClick;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = DisclaimerPage.ID then
+    WizardForm.NextButton.Enabled := DisclaimerAcceptedCheck.Checked;
+end;
+
