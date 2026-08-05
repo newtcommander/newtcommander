@@ -100,3 +100,117 @@ def widen(section: Section, english: dict[int, str]) -> list[Widening]:
             changes.append(Widening(section.number, cid, cx, new_cx, row.text))
 
     return changes
+
+
+# ---------------------------------------------------------------------------
+# Accelerator de-duplication
+# ---------------------------------------------------------------------------
+
+def _accel_index(body: str) -> int | None:
+    """Index of the accelerator letter (the char after a single ``&``)."""
+    i = 0
+    while i < len(body) - 1:
+        if body[i] == "&":
+            if body[i + 1] == "&":
+                i += 2
+                continue
+            return i + 1
+        i += 1
+    return None
+
+
+def _candidates(body: str, taken: set[str]) -> list[int]:
+    """Positions of usable replacement letters, word-initial ones first.
+
+    ASCII letters and digits come before accented ones: an accelerator the user
+    cannot type on their own keyboard layout is not much of an accelerator.
+    """
+    plain = body.replace("&", "")
+    word_start: list[int] = []
+    inner: list[int] = []
+    prev_sep = True
+    for i, ch in enumerate(plain):
+        if not ch.isalnum():
+            prev_sep = True
+            continue
+        if ch.lower() not in taken:
+            (word_start if prev_sep else inner).append(i)
+        prev_sep = False
+
+    def rank(i: int) -> tuple[int, int]:
+        ch = plain[i]
+        return (0 if ch.isascii() else 1, i)
+
+    return sorted(word_start, key=rank) + sorted(inner, key=rank)
+
+
+def dedupe_accelerators(section: Section) -> list[str]:
+    """Give every accelerated row in one section a distinct accelerator letter.
+
+    Windows cycles between controls sharing an accelerator instead of activating
+    one, so a duplicate is a real keyboard-navigation defect (spec SC-006) - and
+    machine translation produces them routinely, because it picks each word
+    without seeing the rest of the dialog. Moving the marker onto another letter
+    of the text the translator already chose changes no wording, so it is done
+    automatically.
+
+    The assignment is solved for the whole section at once (bipartite matching,
+    Kuhn's algorithm) rather than row by row: with a dialog of ~20 accelerated
+    controls the later rows often have no free letter left, while an earlier one
+    could have moved. Each row prefers its current letter, then the initial of
+    each word, then any other letter; ASCII before accented, since an
+    accelerator the user cannot type is no accelerator. Rows that end up
+    unmatched keep what they had and are reported by
+    :func:`validate.duplicate_accelerators`.
+
+    Returns a description of each changed row, for the coverage report.
+    """
+    rows: list[tuple[Row, str, str, list[int], str]] = []
+    for row in section.rows:
+        body, tail = split_shortcut(row.text)
+        at = _accel_index(body)
+        if at is None:
+            continue
+        plain = body.replace("&", "", 1)
+        # Position of the current accelerator inside 'plain' (one '&' removed).
+        rows.append((row, plain, tail, _candidates(body, set()), at - 1))
+
+    # letter -> row index it is currently assigned to
+    owner: dict[str, int] = {}
+    assigned: dict[int, int] = {}  # row index -> position in its plain text
+
+    def try_assign(idx: int, blocked: set[str]) -> bool:
+        row, plain, _tail, spots, at_plain = rows[idx]
+        # Preference: keep exactly the letter the translation already marks (so a
+        # section with no duplicates is left byte-for-byte alone, and a
+        # hand-curated choice survives), then other spellings of the same
+        # letter, then any free letter.
+        current = plain[at_plain].lower() if at_plain < len(plain) else ""
+        order = [at_plain] if at_plain < len(plain) else []
+        order += [p for p in range(len(plain))
+                  if p != at_plain and plain[p].lower() == current]
+        order += [p for p in spots if p not in order]
+        for pos in order:
+            letter = plain[pos].lower()
+            if letter in blocked:
+                continue
+            held = owner.get(letter)
+            if held is None or try_assign(held, blocked | {letter}):
+                owner[letter] = idx
+                assigned[idx] = pos
+                return True
+        return False
+
+    for idx in range(len(rows)):
+        try_assign(idx, set())
+
+    changed: list[str] = []
+    for idx, (row, plain, tail, _spots, _at) in enumerate(rows):
+        pos = assigned.get(idx)
+        if pos is None:
+            continue
+        new_text = plain[:pos] + "&" + plain[pos:] + tail
+        if new_text != row.text:
+            changed.append(f"{row.entry_id}: {row.text!r} -> {new_text!r}")
+            row.text = new_text
+    return changed

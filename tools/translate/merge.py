@@ -5,7 +5,9 @@ For one (module, language) pair:
 1. the **template** exported from the current ``english.slg`` defines the
    structure -- it is reproduced exactly, because ``.slt`` import is positional;
 2. each entry is filled from the **legacy** translation where the ID matches;
-3. whatever is left is **machine-translated**;
+3. whatever is left is **machine-translated**, together with a description of
+   *where* each string is used (see :mod:`translate.uicontext`) -- without it a
+   bare ``Host:`` came back as the Czech word for a talk-show host;
 4. everything is validated, rebranded, and written to
    ``translations/<language>/<module>.slt`` plus an ``.origin`` sidecar.
 
@@ -25,12 +27,20 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import Language, Module, load_enabled_modules, load_languages
-from .layout import widen
+from . import TRANSLATIONS_DIR
+from .config import (
+    ConfigError,
+    Language,
+    Module,
+    load_enabled_modules,
+    load_languages,
+)
+from .layout import dedupe_accelerators, widen
 from .deepl import TARGET_CODES, Client, DeepLError, load_key
 from .match import CAPTION_KEY, entry_key, index_entries, match
 from .rebrand import find_residue, rebrand
 from .slt import Section, SltFile, load
+from .uicontext import build_contexts, load_symbols
 from .validate import check, duplicate_accelerators, repair
 
 DEFAULT_TEMPLATES = "build/tandemcommander/translator/templates"
@@ -52,6 +62,7 @@ class Coverage:
     discarded: int = 0
     rebranded: int = 0
     widened: int = 0
+    reaccel: int = 0
     invalid: list[str] = field(default_factory=list)
     dup_accel: list[str] = field(default_factory=list)
 
@@ -116,17 +127,56 @@ def load_origin(
 # ran before.
 
 
+OVERRIDES_FILE = "ui-overrides.json"
+
+
+def load_overrides(language: Language, module: Module) -> dict[str, str]:
+    """Hand-curated texts for one (language, module), if any.
+
+    Lives in ``translations/ui-overrides.json``:
+
+    .. code-block:: json
+
+        {"sftp": {"czech": {"IDT_HOSTADDRESS": "&Adresa:", "#&New": "&Nová"}}}
+
+    Keys are either a resource symbol from the module's ``.rh`` files, or
+    ``#`` followed by the exact English text (for entries whose symbol is
+    shared or absent). This exists because context cannot fix everything: a
+    lone ``&New`` still needs a gender in Czech, and only a human knows which
+    noun it agrees with.
+    """
+    path = TRANSLATIONS_DIR / OVERRIDES_FILE
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise ConfigError(f"{path}: {e}") from e
+    return dict(data.get(module.name, {}).get(language.folder, {}))
+
+
 def build_slt(
     template: SltFile,
     legacy: SltFile | None,
     language: Language,
-    translations: dict[str, str],
+    translations: dict[tuple[str, str], str],
     cov: Coverage,
     prev_origin: dict[str, str] | None = None,
+    contexts: dict[tuple[str, int], str] | None = None,
+    overrides: dict[str, str] | None = None,
+    module: Module | None = None,
 ) -> tuple[SltFile, dict[str, str]]:
-    """Produce the merged ``.slt`` and its per-entry provenance map."""
+    """Produce the merged ``.slt`` and its per-entry provenance map.
+
+    ``contexts`` maps a section to the description sent to the translator, and
+    is what the ``translations`` keys were built from. ``overrides`` holds
+    hand-curated texts keyed by ``<SYMBOL>`` or ``#<english>`` (see
+    :func:`load_overrides`); they win over anything the engine produced.
+    """
     plan, stats = match(template, legacy, prev_origin)
     cov.total, cov.skip, cov.discarded = stats.total, stats.untranslatable, stats.discarded
+
+    symbols: dict[int, str] = load_symbols(module) if module is not None else {}
 
     legacy_index = index_entries(legacy) if legacy is not None else {}
     legacy_sections = {s.key: s for s in legacy.sections} if legacy is not None else {}
@@ -179,7 +229,14 @@ def build_slt(
                 cov.human += 1
             else:  # gap
                 english = value
-                candidate = translations.get(english)
+                ctx = (contexts or {}).get((tpl_section.kind, tpl_section.number), "")
+                candidate = translations.get((ctx, english))
+                if candidate is None:
+                    # A run that translated the text under another context (or
+                    # with none) is still better than falling back to English.
+                    candidate = next(
+                        (v for (c, t), v in translations.items() if t == english), None
+                    )
                 if candidate:
                     candidate = repair(english, candidate)
                     verdict = check(english, candidate)
@@ -197,6 +254,27 @@ def build_slt(
                     numbers[-1] = 0
                     cov.fallback += 1
 
+            # Hand-curated override wins over engine output (and over a
+            # carried-over machine entry): it is the only way to fix a label
+            # the engine cannot get right from context alone.
+            if overrides:
+                symbol = symbols.get(tpl_row.entry_id) if tpl_row.entry_id is not None else None
+                forced = None
+                if symbol is not None and symbol in overrides:
+                    forced = overrides[symbol]
+                elif f"#{tpl_row.text}" in overrides:
+                    forced = overrides[f"#{tpl_row.text}"]
+                if forced is not None and forced != text:
+                    if kind == MACHINE:
+                        cov.machine -= 1
+                    elif kind == FALLBACK:
+                        cov.fallback -= 1
+                    elif kind == HUMAN:
+                        cov.human -= 1
+                    text, kind = forced, HUMAN
+                    numbers[-1] = 1
+                    cov.human += 1
+
             rebranded = rebrand(text)
             if rebranded != text:
                 cov.rebranded += 1
@@ -205,15 +283,19 @@ def build_slt(
             section.rows.append(type(tpl_row)(numbers=numbers, text=text))
             origin[f"{key[0]}:{key[1]}:{key[2]}"] = kind
 
-        # Windows cycles between controls that share an accelerator instead of
-        # activating one, so a duplicate within a dialog or menu is a real
-        # keyboard-navigation defect (spec SC-006). Reported, not auto-fixed:
-        # choosing a different letter is a judgement call about the wording.
         # Grow controls the translation outgrew, before the accelerator check.
         if section.kind == "DIALOG":
             cov.widened += len(widen(section, {}))
 
-        if section.kind in ("DIALOG", "MENU"):
+        # Windows cycles between controls that share an accelerator instead of
+        # activating one, so a duplicate within a dialog or menu is a real
+        # keyboard-navigation defect (spec SC-006), and machine translation
+        # produces them routinely - it picks each word without seeing the rest
+        # of the dialog. Moving the marker to another letter of the same word
+        # changes no wording, so it is done automatically; whatever cannot be
+        # resolved that way is still reported for a human to reword.
+        if section.kind in ("DIALOG", "MENU", "STRINGTABLE"):
+            cov.reaccel += len(dedupe_accelerators(section))
             dups = duplicate_accelerators([r.text for r in section.rows])
             if dups:
                 cov.dup_accel.append(
@@ -230,19 +312,31 @@ def collect_gaps(
     language: Language,
     modules: list[Module],
     redo_accelerators: bool = False,
-) -> list[str]:
-    """Unique English texts needing translation for this language."""
-    texts: set[str] = set()
+    retranslate: bool = False,
+) -> list[tuple[str, str]]:
+    """``(context, english)`` pairs needing translation for this language.
+
+    The same English text appearing in two different dialogs yields two pairs:
+    that is deliberate, because the right word can differ (a "Host:" field
+    label and a "Host" column heading are not the same thing).
+    """
+    pairs: set[tuple[str, str]] = set()
     for module in modules:
+        template = templates[module.name]
+        contexts = build_contexts(module, template)
         legacy_path = language.directory / f"{module.name}.slt"
         legacy = load(legacy_path) if legacy_path.is_file() else None
         plan, _ = match(
-            templates[module.name],
-            legacy,
-            load_origin(language, module, templates[module.name], redo_accelerators),
+            template,
+            None if retranslate else legacy,
+            None if retranslate
+            else load_origin(language, module, template, redo_accelerators),
         )
-        texts.update(v for (src, v) in plan.values() if src == "gap")
-    return sorted(texts)
+        for key, (src, value) in plan.items():
+            if src != "gap":
+                continue
+            pairs.add((contexts.get((key[0], key[1]), ""), value))
+    return sorted(pairs)
 
 
 def run(
@@ -253,6 +347,7 @@ def run(
     key_file: Path | None,
     budget: int | None,
     redo_accelerators: bool = False,
+    retranslate: bool = False,
 ) -> int:
     missing = [m.name for m in modules if not (templates_dir / f"{m.name}.slt").is_file()]
     if missing:
@@ -283,11 +378,11 @@ def run(
             print(f"skip {language.folder}: no DeepL target code", file=sys.stderr)
             continue
 
-        gaps = collect_gaps(templates, language, modules, redo_accelerators)
-        est = sum(len(g) for g in gaps)
+        gaps = collect_gaps(templates, language, modules, redo_accelerators, retranslate)
+        est = sum(len(text) for _, text in gaps)
         print(f"\n=== {language.folder} ({code}) -- {len(gaps)} unique gaps, ~{est:,} chars")
 
-        translations: dict[str, str] = {}
+        translations: dict[tuple[str, str], str] = {}
         if gaps and not dry_run:
             if budget is not None and spent + est > budget:
                 print(f"  budget cap reached ({budget:,}); stopping before {language.folder}")
@@ -311,8 +406,17 @@ def run(
             legacy = load(legacy_path) if legacy_path.is_file() else None
             cov = Coverage(language=language.folder, module=module.name)
             merged, origin = build_slt(
-                templates[module.name], legacy, language, translations, cov,
-                load_origin(language, module, templates[module.name], redo_accelerators),
+                templates[module.name],
+                None if retranslate else legacy,
+                language,
+                translations,
+                cov,
+                None if retranslate
+                else load_origin(language, module, templates[module.name],
+                                 redo_accelerators),
+                contexts=build_contexts(module, templates[module.name]),
+                overrides=load_overrides(language, module),
+                module=module,
             )
             reports.append(cov)
 
@@ -365,7 +469,11 @@ def print_report(reports: list[Coverage], dry_run: bool) -> None:
         f"rebranded entries: {total_rebrand}   discarded legacy: {total_discard}   "
         f"validation failures: {total_invalid}   duplicate accelerators: {total_dups}"
     )
-    print(f"controls widened to fit: {total_widen}")
+    total_reaccel = sum(a.reaccel for a in by_lang.values())
+    print(
+        f"controls widened to fit: {total_widen}   "
+        f"accelerators reassigned: {total_reaccel}"
+    )
     if total_invalid:
         print("\nvalidation failures (kept English):")
         shown = 0
@@ -396,6 +504,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--templates", type=Path, default=None)
     ap.add_argument("--key-file", type=Path, default=None)
     ap.add_argument("--budget", type=int, default=None, help="stop before exceeding N characters")
+    ap.add_argument(
+        "--retranslate",
+        action="store_true",
+        help="ignore existing translations and translate the selected modules "
+             "from scratch (use after changing the context descriptions)",
+    )
     ap.add_argument(
         "--redo-accelerators",
         action="store_true",
@@ -441,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
     templates_dir = args.templates or (REPO_ROOT / DEFAULT_TEMPLATES)
     return run(
         languages, modules, templates_dir, args.dry_run, args.key_file,
-        args.budget, args.redo_accelerators,
+        args.budget, args.redo_accelerators, args.retranslate,
     )
 
 

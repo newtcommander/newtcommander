@@ -1,0 +1,42 @@
+{
+  "_readme": [
+    "Hand-curated UI texts that win over machine translation.",
+    "Shape: { module: { language folder: { key: text } } }.",
+    "A key is either a resource symbol from the module's .rh files (preferred,",
+    "e.g. IDT_HOSTADDRESS) or '#' followed by the exact English text.",
+    "Use this for what context cannot fix: grammatical gender of a lone button",
+    "label, a domain term the engine renders literally, or two different",
+    "English words that must not collapse into one word in the target language.",
+    "Applied by tools/translate/merge.py (load_overrides) and reported as",
+    "'human' in the coverage table. Accelerators (&) must stay unique within a",
+    "dialog - merge.py reports duplicates."
+  ],
+  "sftp": {
+    "czech": {
+      "IDT_HOSTADDRESS": "&Adresa:",
+      "IDT_USERNAME": "Uži&vatel:",
+      "IDT_PASSWORD": "Hes&lo:",
+      "IDT_KEYFILE": "Soubor s klíč&em:",
+      "IDT_PASSPHRASE": "Heslo ke klí&či:",
+      "IDT_INITIALPATH": "Počáteční ces&ta:",
+      "IDC_AUTHKEY": "Privátní &klíč",
+      "IDC_SAVEPASSPHRASE": "Uložit heslo ke klíč&i",
+      "IDB_NEWBOOKMARK": "&Nová",
+      "IDB_COPYBOOKMARK": "D&uplikovat",
+      "IDB_RENAMEBOOKMARK": "Pře&jmenovat",
+      "IDB_SAVEBOOKMARK": "Ulo&žit",
+      "IDS_HOSTKEY_ABORT": "Přeruš&it",
+      "IDS_HOSTKEY_ONCE": "Přip&ojit jednou",
+      "IDS_ENTERPASSPHRASE": "Zadejte heslo ke klíči %s:",
+      "IDS_ENTERPASSPHRASE_RETRY": "Zadaným heslem se klíč %s nepodařilo odemknout.\\nZadejte heslo ke klíči znovu:",
+      "IDS_ERR_KEYUNLOCK": "Privátní klíč se nepodařilo odemknout - heslo ke klíči je nesprávné, nebo je klíč poškozený.",
+      "IDS_ERR_KEYFILEMISSING": "Soubor s privátním klíčem nebyl nalezen:\\n%s",
+      "IDS_ERR_AUTHKEY": "Přihlášení selhalo: server odmítl privátní klíč.",
+      "IDS_ERR_KEYPUTTY": "Privátní klíče PuTTY (.ppk) nejsou podporovány. Převeďte klíč do formátu OpenSSH (v PuTTYgenu: Conversions > Export OpenSSH key).",
+      "IDS_ERR_KEYPKCS8": "Privátní klíče ve formátu PKCS#8 („BEGIN PRIVATE KEY“) tato verze nepodporuje. Převeďte klíč do formátu OpenSSH nebo klasického PEM, například: ssh-keygen -p -m PEM -f <soubor s klíčem>",
+      "IDS_ERR_KEYTYPEUNSUP": "Privátní klíč používá algoritmus %s, který tato verze nepodporuje (lze použít pouze klíče RSA a ECDSA). Použijte klíč RSA nebo ECDSA.",
+      "IDS_CONNECTING": "Připojování k %s...",
+      "IDS_DOWNLOADINGFILE": "Stahování %s..."
+    }
+  }
+}

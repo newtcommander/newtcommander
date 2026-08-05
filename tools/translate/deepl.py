@@ -188,11 +188,16 @@ class Client:
             u = json.load(r)
         return Usage(count=u.get("character_count", 0), limit=u.get("character_limit", 0))
 
-    def translate(self, texts: list[str], target: str) -> list[str]:
+    def translate(self, texts: list[str], target: str, context: str = "") -> list[str]:
         """Translate up to :data:`BATCH_SIZE` texts into ``target``.
 
         Placeholders are protected via XML ignore tags, so DeepL may reposition
         them (word order differs per language) but cannot rewrite them.
+
+        ``context`` describes where the strings are used (see
+        :mod:`translate.uicontext`). DeepL uses it to disambiguate and never
+        translates or returns it; without it a bare ``Host:`` came back as the
+        Czech word for a talk-show host.
         """
         if not texts:
             return []
@@ -224,6 +229,12 @@ class Client:
             # register reads correctly for languages that distinguish it.
             "formality": "prefer_less",
         }
+        if context:
+            # The request is parsed with tag_handling=xml, so the context has to
+            # be XML-clean too - a stray "&" or "<" rejects the whole batch.
+            payload["context"] = (
+                context.replace("&", "and").replace("<", "(").replace(">", ")")
+            )
         out = self._post("/v2/translate", payload)
         got = [t["text"] for t in out.get("translations", [])]
         if len(got) != len(texts):
@@ -233,13 +244,34 @@ class Client:
             for g, (_, letter), (_, tail) in zip(got, stripped, split)
         ]
 
-    def translate_all(self, texts: list[str], target: str, progress=None) -> dict[str, str]:
-        """Translate a list of unique texts, returning ``{english: translated}``."""
-        result: dict[str, str] = {}
-        for i in range(0, len(texts), BATCH_SIZE):
-            chunk = texts[i : i + BATCH_SIZE]
-            for src, dst in zip(chunk, self.translate(chunk, target)):
-                result[src] = dst
-            if progress:
-                progress(min(i + BATCH_SIZE, len(texts)), len(texts))
+    def translate_all(
+        self,
+        items: list[tuple[str, str]],
+        target: str,
+        progress=None,
+    ) -> dict[tuple[str, str], str]:
+        """Translate ``(context, english)`` pairs.
+
+        Returns ``{(context, english): translated}``. Requests are grouped by
+        context, because DeepL takes one context per request -- so a dialog
+        costs one request, not one per control. The same English text can
+        legitimately get different translations in different contexts, which is
+        the whole point of keying on the pair.
+        """
+        by_context: dict[str, list[str]] = {}
+        for context, text in items:
+            bucket = by_context.setdefault(context, [])
+            if text not in bucket:
+                bucket.append(text)
+
+        result: dict[tuple[str, str], str] = {}
+        done = 0
+        for context, texts in by_context.items():
+            for i in range(0, len(texts), BATCH_SIZE):
+                chunk = texts[i : i + BATCH_SIZE]
+                for src, dst in zip(chunk, self.translate(chunk, target, context)):
+                    result[(context, src)] = dst
+                done += len(chunk)
+                if progress:
+                    progress(done, len(items))
         return result

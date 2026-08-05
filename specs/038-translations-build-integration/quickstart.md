@@ -80,16 +80,30 @@ What `merge` does per (language, module):
 
 1. loads the stage-1 template (the authoritative structure);
 2. fills each entry from the legacy `.slt` where the ID matches → marked `human`;
-3. batches everything still empty to `claude-opus-5` via the Message Batches API
-   → marked `machine`;
-4. validates placeholders / accelerators / `\t`-shortcuts against the English
+3. sends everything still empty to the engine **together with a description of
+   where each string is used** (feature 051, `translate/uicontext.py`) → marked
+   `machine`. The description names the product, the containing dialog and the
+   role of every control, derived from the module's `.rh` symbols
+   (`IDT_HOSTADDRESS` → "static text labelling the neighbouring input field for
+   host address"). Without it a bare `Host:` came back in Czech as
+   "Moderátor" — a talk-show host;
+4. applies hand-curated texts from `translations/ui-overrides.json` → marked
+   `human`. That file is for what context cannot fix: the grammatical gender of
+   a lone `&New`, or two English words (`Password` / `Passphrase`) that the
+   engine collapses into a single target word;
+5. validates placeholders / accelerators / `\t`-shortcuts against the English
    source; failures retry once, then fall back to English and are reported;
-5. applies the rebrand pass (product/vendor names, legacy URLs);
-6. writes the merged `.slt` plus its `.origin` sidecar.
+6. gives every accelerated control in a section a **distinct** accelerator
+   letter, solved as a bipartite matching per section — the marker moves within
+   the words the translator already chose, so no wording changes (feature 051);
+7. applies the rebrand pass (product/vendor names, legacy URLs);
+8. writes the merged `.slt` plus its `.origin` sidecar.
 
-Batch jobs take up to an hour. Results are keyed by `custom_id`, never by
-position. Re-running is safe and incremental — already-filled entries are not
-re-translated.
+Re-running is safe and incremental — already-filled entries are not
+re-translated, and step 6 leaves a section with no duplicates byte-for-byte
+alone. Use `--retranslate` to discard existing translations for the selected
+modules and translate them again; that is what a change to the context
+descriptions calls for, since carried-over entries would otherwise be kept.
 
 Then review and commit:
 
