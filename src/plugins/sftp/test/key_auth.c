@@ -29,6 +29,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libssh2.h>
+#ifdef _DEBUG
+#include <crtdbg.h> /* leak check: the plugin ships in a Debug build that
+                       reports leaks on exit, so the harness must catch a
+                       leaking key path here first (feature 051) */
+#endif
 
 #define WATCHDOG_SECONDS 90
 #define SESSION_TIMEOUT_MS 15000
@@ -43,7 +48,7 @@ static const char* g_passphrase = "tandem123"; /* for tctest_rsa_pass */
 
 /* --------------------------------------------------------------- watchdog */
 
-static volatile LONG g_scenarioStart;    /* GetTickCount at scenario start */
+static volatile LONG g_scenarioStart; /* GetTickCount at scenario start */
 static const char* volatile g_scenarioName = "startup";
 
 static DWORD WINAPI WatchdogProc(LPVOID unused)
@@ -126,10 +131,10 @@ static SOCKET TcpConnect(const char* host, const char* port)
 /* Result of one authentication attempt. */
 typedef struct
 {
-    int connected;   /* TCP + handshake reached auth */
-    int rc;          /* libssh2 rc of the auth call */
-    int errcode;     /* libssh2_session_last_errno */
-    char msg[512];   /* libssh2 error text */
+    int connected; /* TCP + handshake reached auth */
+    int rc;        /* libssh2 rc of the auth call */
+    int errcode;   /* libssh2_session_last_errno */
+    char msg[512]; /* libssh2 error text */
 } AuthResult;
 
 /* Runs handshake + publickey_frommemory exactly like the plugin. */
@@ -432,12 +437,19 @@ static const Scenario g_scenarios[] = {
 static void Usage(const char* exe)
 {
     printf("usage: %s [--host H] [--port P] [--user U] [--keydir DIR]\n"
-           "          [--passphrase P] [--scenario NAME|all] [--list]\n", exe);
+           "          [--passphrase P] [--scenario NAME|all] [--list]\n",
+           exe);
 }
 
 int main(int argc, char** argv)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
+#ifdef _DEBUG
+    /* Dump any still-allocated block (with file/line) to stdout at exit. */
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
+#endif
 
     const char* profile = getenv("USERPROFILE");
     _snprintf_s(g_keydir, sizeof(g_keydir), _TRUNCATE, "%s\\.ssh\\tandem-sftp-test",
@@ -447,25 +459,42 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; i++)
     {
         int hasVal = (i + 1 < argc);
-        if (!strcmp(argv[i], "--host") && hasVal) g_host = argv[++i];
-        else if (!strcmp(argv[i], "--port") && hasVal) g_port = argv[++i];
-        else if (!strcmp(argv[i], "--user") && hasVal) g_user = argv[++i];
-        else if (!strcmp(argv[i], "--passphrase") && hasVal) g_passphrase = argv[++i];
+        if (!strcmp(argv[i], "--host") && hasVal)
+            g_host = argv[++i];
+        else if (!strcmp(argv[i], "--port") && hasVal)
+            g_port = argv[++i];
+        else if (!strcmp(argv[i], "--user") && hasVal)
+            g_user = argv[++i];
+        else if (!strcmp(argv[i], "--passphrase") && hasVal)
+            g_passphrase = argv[++i];
         else if (!strcmp(argv[i], "--keydir") && hasVal)
             _snprintf_s(g_keydir, sizeof(g_keydir), _TRUNCATE, "%s", argv[++i]);
-        else if (!strcmp(argv[i], "--scenario") && hasVal) only = argv[++i];
+        else if (!strcmp(argv[i], "--scenario") && hasVal)
+            only = argv[++i];
         else if (!strcmp(argv[i], "--list"))
         {
             for (int k = 0; k < SCENARIO_COUNT; k++)
                 printf("%s\n", g_scenarios[k].name);
             return 0;
         }
-        else { Usage(argv[0]); return 2; }
+        else
+        {
+            Usage(argv[0]);
+            return 2;
+        }
     }
 
     WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) { printf("WSAStartup failed\n"); return 2; }
-    if (libssh2_init(0) != 0) { printf("libssh2_init failed\n"); return 2; }
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    {
+        printf("WSAStartup failed\n");
+        return 2;
+    }
+    if (libssh2_init(0) != 0)
+    {
+        printf("libssh2_init failed\n");
+        return 2;
+    }
 
     HANDLE wd = CreateThread(NULL, 0, WatchdogProc, NULL, 0, NULL);
     (void)wd;
@@ -483,7 +512,8 @@ int main(int argc, char** argv)
         if (probe == INVALID_SOCKET)
         {
             printf("ENV: cannot reach %s:%s - start the reference server "
-                   "(docker start tandem-sftp)\n", g_host, g_port);
+                   "(docker start tandem-sftp)\n",
+                   g_host, g_port);
             return 2;
         }
         closesocket(probe);
@@ -505,7 +535,10 @@ int main(int argc, char** argv)
         InterlockedExchange(&g_scenarioStart, 0);
         printf("%s %s %lu%s%s\n", ok ? "PASS" : "FAIL", g_scenarios[k].name,
                (unsigned long)ms, detail[0] ? " " : "", detail);
-        if (ok) passed++; else failed++;
+        if (ok)
+            passed++;
+        else
+            failed++;
     }
 
     libssh2_exit();

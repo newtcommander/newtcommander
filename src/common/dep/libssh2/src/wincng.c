@@ -2581,6 +2581,15 @@ _libssh2_wincng_ecdh_gen_k(OUT _libssh2_bn **secret,
         return LIBSSH2_ERROR_INVAL;
     }
 
+    /* Tandem Commander local patch (feature 051): the caller hands in a
+       bignum it allocated with _libssh2_bn_init() (kex.c ecdh_sha2_nistp);
+       overwriting the pointer leaked that bignum on every ECDH key exchange,
+       i.e. once per SSH session - which the Debug build reports as a memory
+       leak on exit. Release it before taking ownership of *secret. */
+    if(*secret) {
+        _libssh2_wincng_bignum_free(*secret);
+    }
+
     *secret = NULL;
 
     /* Decode the public key */
@@ -2665,8 +2674,13 @@ _libssh2_wincng_ecdh_gen_k(OUT _libssh2_bn **secret,
     result = LIBSSH2_ERROR_NONE;
 
 cleanup:
-    if(result != LIBSSH2_ERROR_NONE && agreed_secret_handle) {
+    /* Tandem Commander local patch (feature 051): NULL the pointer after
+       freeing it - the caller's own cleanup (ecdh_exchange_state_cleanup)
+       frees *secret too, so leaving it dangling was a double free on this
+       failure path. */
+    if(result != LIBSSH2_ERROR_NONE) {
         _libssh2_wincng_bignum_free(*secret);
+        *secret = NULL;
     }
 
     if(result != LIBSSH2_ERROR_NONE && agreed_secret_handle) {

@@ -36,6 +36,17 @@ Defaults target the reference environment; `--keydir` defaults to
   **124** and prints `WATCHDOG: <scenario> hung`.
 - A hang is a FAIL — never a skip.
 
+## Leak check
+
+- The harness is built against the **debug CRT** (`/MDd`, `_DEBUG`) with
+  `_CRTDBG_LEAK_CHECK_DF`, so any block still allocated when the process exits
+  is dumped to stdout.
+- `run_keyauth.cmd` greps that output and fails the run (`FAIL leak-check`)
+  when the CRT reports leaks. The dump happens after `main` returns, so the
+  program's own exit code cannot carry the verdict — the script must.
+- Rationale: the plugin ships in a Debug build that pops up "Detected memory
+  leaks!" on exit, so a leaking session path has to fail here first.
+
 ## Exit codes
 
 | Code | Meaning |

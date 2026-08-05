@@ -245,6 +245,31 @@ stays well under SC-003's 60 s ceiling.
 | U12 | `sftp/keyload.cpp` (`KeyFileLooksEncrypted` reads the container cipher) + `session.cpp`/`Connect` passphrase retry |
 | U14 | `sftp/fs.cpp` — bookmark lookup before defaulting to password |
 
+## Post-delivery finding: F8 — bignum leak in WinCNG ECDH (fixed)
+
+Reported after the first successful key connect: closing the application
+raised the Debug build's "Detected memory leaks!" popup.
+
+**Not a regression from this feature.** `kex.c`'s `ecdh_sha2_nistp` allocates
+`exchange_state->k` with `_libssh2_bn_init()` and passes its *address* to
+`_libssh2_ecdh_gen_k`; the WinCNG implementation
+(`_libssh2_wincng_ecdh_gen_k`, wincng.c) did `*secret = NULL` and allocated a
+fresh bignum, discarding the caller's — leaking one 16-byte bignum **per ECDH
+key exchange, i.e. per SSH session**. Its failure path also freed `*secret`
+without clearing it, so the caller's `ecdh_exchange_state_cleanup` freed the
+same pointer a second time.
+
+Evidence: the leak reproduces identically with **password** authentication
+(`sftp_smoke.c`, a path this feature never touched) and does not reproduce for
+a session that never completes the handshake (`timeout-silent`). A stack trace
+captured at the leaking allocation named `_libssh2_wincng_bignum_init` ←
+`ecdh_sha2_nistp` (kex.c:1906) ← `libssh2_session_handshake`.
+
+Fixed by freeing the incoming bignum and NULLing `*secret` after the failure
+free. The harness now builds against the debug CRT and `run_keyauth.cmd`
+**fails the run** when the CRT reports leaked blocks, so this class cannot
+return unnoticed — the same reason the hang watchdog exists.
+
 ## Implementation notes & deviations (recorded during execution)
 
 - **D4 scope note (FR-002)**: the connect sequence now runs on a worker thread

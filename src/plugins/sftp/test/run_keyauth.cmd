@@ -40,7 +40,10 @@ set "L2SRC="
 for %%f in (agent bcrypt_pbkdf channel comp chacha cipher-chachapoly crypt crypto global hostkey keepalive kex knownhost mac misc packet pem poly1305 publickey scp session sftp transport userauth userauth_kbd_packet version) do set "L2SRC=!L2SRC! "%LIBSSH2%\src\%%f.c""
 
 pushd "%WORK%"
-cl /nologo /W3 /MD /Od /Zi /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS ^
+:: Debug CRT (/MDd + _DEBUG) so the harness reports leaked blocks with
+:: file/line at exit, matching the plugin's Debug build (feature 051).
+:: /RTC must stay OFF for the libssh2 sources - see libssh2\readme.txt.
+cl /nologo /W3 /MDd /Od /Zi /D_DEBUG /D_CRT_SECURE_NO_WARNINGS /DWIN32 /D_WINDOWS ^
    /DLIBSSH2_WINCNG /DLIBSSH2_ECDSA_WINCNG /DLIBSSH2_API= ^
    /I"%LIBSSH2%\include" /I"%LIBSSH2%\src" ^
    "%HERE%key_auth.c" !L2SRC! ^
@@ -49,8 +52,17 @@ set "CLEXIT=%errorlevel%"
 if %CLEXIT% neq 0 ( popd & echo COMPILE FAILED & exit /b 2 )
 
 :: absolute path: some environments set NoDefaultCurrentDirectoryInExePath
-"%WORK%\key_auth.exe" %*
+"%WORK%\key_auth.exe" %* > "%WORK%\out.txt" 2>&1
 set "RUNEXIT=%errorlevel%"
+type "%WORK%\out.txt"
+:: The CRT dumps leaked blocks after main returns, so the exit code cannot
+:: carry that verdict - fail the run here instead. A leaked block per session
+:: is what surfaces as the Debug build's "Detected memory leaks!" popup.
+findstr /c:"Detected memory leaks!" "%WORK%\out.txt" >nul
+if not errorlevel 1 (
+    echo FAIL leak-check the CRT reported leaked blocks - see the dump above
+    set "RUNEXIT=1"
+)
 popd
 
 rmdir /s /q "%WORK%" 2>nul

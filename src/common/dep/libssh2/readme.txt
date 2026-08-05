@@ -82,6 +82,16 @@ Local patches (re-apply when updating; marked "Tandem Commander local patch"):
         KEYFILE_AUTH_FAILED) instead of returning bare -1; the sftp
         plugin classifies failures by these codes.
     Verified by src\plugins\sftp\test\run_keyauth.cmd (7 scenarios).
+  - feature 051, src\wincng.c: _libssh2_wincng_ecdh_gen_k() frees the
+    bignum the caller passed in before allocating its own, and NULLs
+    *secret after freeing it on the failure path. kex.c's ecdh_sha2_nistp
+    allocates exchange_state->k via _libssh2_bn_init() and passes its
+    address; the function simply overwrote the pointer, leaking one
+    16-byte bignum per ECDH key exchange - i.e. per SSH session, which the
+    Debug build reports as "Detected memory leaks!" on exit - and left a
+    dangling pointer that the caller's cleanup freed a second time. An
+    upstream defect in the WinCNG ECDH support, independent of the
+    key-format work above; found by the harness's CRT leak check.
 
 How to update:
   1. git clone --depth 1 --branch libssh2-<ver> https://github.com/libssh2/libssh2
