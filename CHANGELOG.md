@@ -9,7 +9,7 @@ not restate Open Salamander's own history. Versions follow
 also carries an internal build number shared by the application and every
 plugin.
 
-## [0.1.1] — unreleased
+## [0.1.1] — 2026-08-05
 
 **Build 185.** Bug-fix release: private-key authentication in the SFTP plugin,
 plugin stability, and contextual UI translations.
@@ -62,7 +62,10 @@ plugin stability, and contextual UI translations.
   engine a description of each string's location and role, hand-curated texts
   override it where wording still needs a human, and duplicate keyboard
   accelerators within a dialog are resolved automatically (Windows cycles
-  between controls that share one instead of activating either).
+  between controls that share one instead of activating either). **Scope**: the
+  SFTP plugin's texts were re-translated this way in all eight shipped
+  languages; the other modules keep the translations they had and will improve
+  when they are next re-translated.
 
 ### Changed
 
