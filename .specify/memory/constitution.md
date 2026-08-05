@@ -1,6 +1,21 @@
 <!--
 Sync Impact Report
 ===================
+Version change: 3.0.0 → 3.1.0 (new guidance added, no principle redefined)
+Added sections:
+  - Development Workflow ▸ Release Documentation — CHANGELOG.md in the repository
+    root is mandatory and must be updated in the same change that bumps the
+    version and build number; entries are user-facing, truthful about scope, and
+    the plugin interface version is explicitly decoupled from the product version
+Modified principles: none
+Templates requiring updates:
+  - .specify/templates/plan-template.md — ✅ no update needed (generic Constitution Check gate)
+  - .specify/templates/spec-template.md — ✅ no update needed
+  - .specify/templates/tasks-template.md — ✅ no update needed
+Follow-up TODOs: none
+
+Prior report (2.0.0 → 3.0.0)
+===================
 Version change: 2.0.0 → 3.0.0 (project renamed to Tandem Commander; principle II
 redefined in a backward-incompatible way — the product identity anchor moved from
 Newt Commander 0.1.0 to Tandem Commander 0.1.0 per feature 046)
@@ -45,7 +60,8 @@ reliable build. Without reproducible builds, all subsequent work
 
 ### II. Backward Compatibility
 
-The compatibility baseline is **Tandem Commander 0.1.0**. Existing
+The compatibility baseline is **Tandem Commander 0.1.0** — the first
+public release, recorded in `CHANGELOG.md`. Existing
 Tandem Commander functionality MUST NOT regress unless explicitly
 deprecated with documented justification. User-facing behavior
 changes MUST be opt-in or gated behind version checks. Plugin API
@@ -159,6 +175,40 @@ style while the rest of the app stayed classic.
 - Commits MUST have descriptive messages in English referencing
   the issue or feature being addressed.
 
+### Release Documentation
+
+`CHANGELOG.md` in the repository root is the user-facing record of what
+changed between released versions, and it MUST be kept current:
+
+- Every user-visible change MUST appear in `CHANGELOG.md` under the
+  version that ships it, grouped as Added / Changed / Fixed / Removed.
+  Changes with no user-visible effect (refactoring, test scaffolding,
+  internal tooling) are recorded only when they change what a user or a
+  plugin author can rely on.
+- Entries MUST describe the change in the user's terms — the symptom
+  that is gone, the capability that is new — not the internal mechanism.
+  Naming the cause is welcome; naming only the source file is not.
+- Entries MUST be truthful about scope: a fix that is partial, a
+  limitation that remains, or a defect that predates the release is
+  stated as such. A changelog that oversells is worse than none.
+- **Releasing a version MUST bump the version and the build number in
+  the same change** as the changelog entry: `VERSINFO_SALAMANDER_*` and
+  `VERSINFO_BUILDNUMBER` in `src/plugins/shared/spl_vers.h` (the build
+  number carries a comment naming its version), `MyAppVersion` in
+  `setup/tandemcommander.iss`, and the version stated in `CLAUDE.md`.
+  The plugin interface version (`LAST_VERSION_OF_SALAMANDER`) changes
+  only when the plugin API changes — never merely because the product
+  version did.
+- The version in the registry root (`HKCU\Software\Tandem Commander\0.1`)
+  tracks `MAJOR.MINORA` only, so a MINORB release MUST NOT move
+  configuration or require migration.
+
+**Rationale**: users of a file manager decide whether to upgrade based on
+what changed, and a bug they reported must be findable in the release
+that fixed it. Tying the version bump to the changelog entry keeps the
+two from drifting apart, which is the failure mode every stale changelog
+starts with.
+
 ## Governance
 
 This constitution is the authoritative source for project-wide
@@ -179,4 +229,4 @@ versioning rules below.
 changes align with this constitution's principles. Violations
 MUST be flagged and resolved before merge.
 
-**Version**: 3.0.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-08-01
+**Version**: 3.1.0 | **Ratified**: 2026-03-20 | **Last Amended**: 2026-08-05

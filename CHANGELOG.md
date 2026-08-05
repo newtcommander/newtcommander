@@ -1,0 +1,127 @@
+# Changelog
+
+All notable changes to Tandem Commander are recorded here, newest first.
+
+Tandem Commander is derived from Open Salamander, which was open-sourced under
+GPLv2 in 2023; this file starts at the first Tandem Commander release and does
+not restate Open Salamander's own history. Versions follow
+`MAJOR.MINORA.MINORB` (see `src/plugins/shared/spl_vers.h`), and each release
+also carries an internal build number shared by the application and every
+plugin.
+
+## [0.1.1] — unreleased
+
+**Build 185.** Bug-fix release: private-key authentication in the SFTP plugin,
+plugin stability, and contextual UI translations.
+
+### Fixed
+
+- **SFTP: connecting with a private key froze the whole application.** With a
+  key in the OpenSSH format — what `ssh-keygen` has produced by default since
+  OpenSSH 7.8 — the application became unresponsive and had to be killed. Three
+  defects compounded: the bundled libssh2 could not stop scanning for a PEM
+  header that was never there (its line reader could not report the end of the
+  buffer), the Windows CNG key loader only understood classic RSA/DSA PEM while
+  the plugin's format check accepted OpenSSH keys anyway, and the whole connect
+  sequence ran on the user-interface thread, so the resulting spin took the
+  application down with it.
+- **SFTP: OpenSSH-format RSA and ECDSA keys now work**, both for authentication
+  and for signing, and so do classic PEM keys protected by a passphrase — the
+  passphrase used to be discarded before it reached the decryption step, so even
+  a correct one failed.
+- **SFTP: a key the application cannot use is now refused up front** with the
+  reason and the remedy, instead of failing later with a low-level error:
+  PKCS#8 keys, PuTTY `.ppk` files, and ed25519 keys (unsupported by the Windows
+  CNG backend this build uses).
+- **SFTP: a wrong or missing passphrase now re-prompts** instead of ending the
+  attempt, and a key the *server* rejects now offers password authentication
+  when the server permits it.
+- **SFTP: authentication failures are reported accurately.** Failures were
+  classified by matching words in the underlying library's message, which never
+  matched its actual wording, so a key that could not be read was reported as
+  "server rejected the key".
+- **SFTP: a lost connection is noticed.** After a network drop or a server
+  restart the session still looked alive, so every following operation failed
+  with a raw error and the only way out was to close the panel. The session is
+  now marked dead and the next operation reconnects.
+- **SFTP: no operation can hang the application any more.** Connecting runs on
+  a worker thread with a wait window that cancels within about a second; every
+  network wait is bounded (the session timeout was silently not enforced
+  before); viewing a remote file with F3 can be aborted; keepalive and
+  disconnect no longer stall on a server that went silent; the connect timeout
+  is now a budget for all of a host's addresses instead of per address.
+- **SFTP: a memory leak on every connection.** The key exchange leaked a small
+  block per session, which the Debug build reported as "Detected memory leaks!"
+  on exit. This one predates the release and affected password logins too.
+- **Translations: UI labels are translated for the place they appear in.**
+  Short labels were machine-translated from the word alone, so the Czech SFTP
+  connect dialog labelled the server address field "Moderátor" (a talk-show
+  host), the key file field "Klíčový" (a dangling adjective) and the New
+  bookmark button "Novinka" (a news item), and both the password and the
+  passphrase field read "Heslo:". The translation pipeline now sends the
+  engine a description of each string's location and role, hand-curated texts
+  override it where wording still needs a human, and duplicate keyboard
+  accelerators within a dialog are resolved automatically (Windows cycles
+  between controls that share one instead of activating either).
+
+### Changed
+
+- The SFTP plugin's test harness exercises the code path the product actually
+  uses, runs its scenarios under a watchdog that fails on a hang, and fails on
+  a memory leak. The defect above escaped precisely because the harness tested
+  a different, safe code path.
+
+## [0.1.0] — 2026-08-05
+
+**Build 184.** First public release: Tandem Commander's own identity, a
+reproducible build, Unicode and long-path support throughout, and two new
+plugins.
+
+### Added
+
+- **Own product identity.** Binary `tandemcommander.exe`, its own registry root
+  (`HKCU\Software\Tandem Commander\0.1`), inter-process and shell-extension
+  names, website and installer. Configuration is never read from or written to
+  an Open Salamander installation, so the two can coexist. Icons and About/
+  splash artwork are generated from hand-swappable sources in `tools/brand/`.
+- **SFTP plugin** — connect to SSH servers, browse, transfer, rename, delete,
+  change permissions and ownership, create symbolic links, bookmarks with
+  optionally stored credentials, host-key verification on first connect,
+  per-session logs. Built on a bundled libssh2 using Windows CNG for
+  cryptography, so no OpenSSL is required.
+- **Markdown viewer plugin (mdview)** — renders Markdown files in the viewer.
+- **Visual themes, including a dark mode** across the application, its
+  dialogs, toolbars and file panels, extended to plugin dialogs through six new
+  plugin-interface methods (interface version 106).
+- **Reproducible one-command build.** `build.cmd` drives the whole build from
+  the repository root; which plugins ship is a committed policy
+  (`plugins.cfg`, 18 of 28 enabled), and so is which languages ship
+  (`translations/languages.cfg`).
+- **Translations built from committed source.** Eight languages ship (English,
+  Czech, German, French, Dutch, Hungarian, Romanian, Slovak, Spanish); the
+  translation text lives in the repository and language modules are produced by
+  the build. Simplified Chinese, Russian and Ukrainian are held back pending a
+  menu rendering defect; their translation source is retained.
+- **On-demand code signing** for release builds and the installer
+  (`build.cmd full release sign setup`).
+
+### Changed
+
+- **UTF-8 file names and long paths throughout.** File names are handled as
+  UTF-8 and paths beyond `MAX_PATH` work across browsing, file operations, the
+  viewer, Find, rename, archives and the information line. This was an ABI
+  break for plugins (interface version 104), so third-party plugins built for
+  older versions are refused at load; a migration guide is in
+  `doc/plugin-vnext-migration.md`.
+- **Copyright attribution.** Work up to 2026 stays credited to the Open
+  Salamander Authors; 2026 onward to Pavel Stupka. The SFTP and mdview plugins
+  are solely his.
+- **Eight obsolete plugins removed** (pak, unarj, unlha, unfat, wmobile,
+  ieviewer, splitcbn, winscp); the PictView plugin now uses the Windows
+  imaging engine and no longer needs an external converter DLL.
+
+### Known limitations
+
+- The HTML help is not yet rebranded.
+- Two plugins have unresolved external dependencies: unrar needs `unrar.dll`,
+  the FTP plugin needs OpenSSL.

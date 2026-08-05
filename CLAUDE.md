@@ -8,7 +8,15 @@ WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 
 ## Product Identity (established in feature 032, renamed in feature 046)
 
-- **Product name**: Tandem Commander, version **0.1.0** (internal build 184);
+- **Product name**: Tandem Commander, version **0.1.1** (internal build 185);
+  released versions and what changed in each are recorded in `CHANGELOG.md`
+  (mandatory per the constitution: a release bumps
+  `VERSINFO_SALAMANDER_MINORB` + `VERSINFO_BUILDNUMBER` in
+  `src/plugins/shared/spl_vers.h`, `MyAppVersion` in
+  `setup/tandemcommander.iss`, and this line, in the same change as the
+  changelog entry; the plugin interface version
+  `LAST_VERSION_OF_SALAMANDER` is independent and changes only with the
+  plugin API). Version 0.1.0 was the first public release;
   known as Newt Commander before feature 046 — the rename covered every
   user/OS-visible surface, kernel-object/IPC names, URLs, translations and the
   installer (new AppId), with **no** config import from the old registry root

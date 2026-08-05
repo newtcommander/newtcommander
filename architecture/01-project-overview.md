@@ -2,9 +2,10 @@
 
 > **Historical note (2026, feature 032)**: these architecture documents describe
 > the Open Salamander codebase this project derives from. The product now ships
-> as **Tandem Commander** (`tandemcommander.exe`, version 0.1.0) with its own
-> registry root and visual identity; source files, project names, and internal
-> identifiers described below intentionally keep their upstream names.
+> as **Tandem Commander** (`tandemcommander.exe`; first public release 0.1.0,
+> see `CHANGELOG.md` for the current version) with its own registry root and
+> visual identity; source files, project names, and internal identifiers
+> described below intentionally keep their upstream names.
 
 ## What is Open Salamander?
 
