@@ -52,6 +52,9 @@
 #define IDS_ENTERPASSPHRASE             54
 #define IDS_ERR_KEYPUTTY                55
 #define IDS_ERR_TOODEEP                 56
+#define IDS_ERR_KEYPKCS8                57
+#define IDS_ERR_KEYTYPEUNSUP            58
+#define IDS_ENTERPASSPHRASE_RETRY       59
 
 // host key (TOFU)
 #define IDS_HOSTKEY_NEWTITLE            60
@@ -84,6 +87,8 @@
 #define IDS_ERR_NOTADIR                 97
 #define IDS_RECONNECTING                98
 #define IDS_SYMLINK_DIR_SKIPPED         99
+#define IDS_CONNECTING                  100
+#define IDS_DOWNLOADINGFILE             101
 
 // columns
 #define IDS_COL_RIGHTS                  110

@@ -1220,9 +1220,13 @@ int _libssh2_pem_parse(LIBSSH2_SESSION * session,
                        const char *headerend,
                        const unsigned char *passphrase,
                        FILE * fp, unsigned char **data, size_t *datalen);
+/* Tandem Commander local patch (feature 051): passphrase parameter added
+   so the memory variant can decrypt classic encrypted PEM like
+   _libssh2_pem_parse does. */
 int _libssh2_pem_parse_memory(LIBSSH2_SESSION * session,
                               const char *headerbegin,
                               const char *headerend,
+                              const unsigned char *passphrase,
                               const char *filedata, size_t filedata_len,
                               unsigned char **data, size_t *datalen);
  /* OpenSSL keys */

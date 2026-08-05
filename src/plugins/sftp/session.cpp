@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Pavel Stupka
+﻿// SPDX-FileCopyrightText: 2026 Pavel Stupka
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -87,7 +87,12 @@ extern "C" void kbd_callback(const char* name, int name_len,
                              LIBSSH2_USERAUTH_KBDINT_RESPONSE* responses,
                              void** abstract)
 {
-    (void)name; (void)name_len; (void)instruction; (void)instruction_len; (void)prompts; (void)abstract;
+    (void)name;
+    (void)name_len;
+    (void)instruction;
+    (void)instruction_len;
+    (void)prompts;
+    (void)abstract;
     // answer every prompt with the stored password; the common case is a single
     // "Password:" prompt on servers that only offer keyboard-interactive
     for (int i = 0; i < num_prompts; i++)
@@ -117,12 +122,19 @@ CSFTPSession::CSFTPSession()
     Connected = FALSE;
     LogUID = -1;
     LastErrorText[0] = 0;
+    Prompt = cpNone;
+    memset(&HostKeyInfo, 0, sizeof(HostKeyInfo));
+    TrustHostKeyOnce = FALSE;
+    ServerOffersPassword = FALSE;
+    CancelRequested = 0;
+    InitializeCriticalSection(&SocketLock);
 }
 
 CSFTPSession::~CSFTPSession()
 {
     Disconnect();
     Params.WipeSecrets();
+    DeleteCriticalSection(&SocketLock);
 }
 
 void CSFTPSession::Log(const char* text)
@@ -152,11 +164,14 @@ void CSFTPSession::SetLastErrorFromSsh(const char* prefix)
     _snprintf_s(LastErrorText, _TRUNCATE, "%s%s%s", prefix != NULL ? prefix : "",
                 (prefix != NULL && prefix[0]) ? ": " : "",
                 msg != NULL ? msg : "unknown error");
+    // feature 051 (U7): every failure funnels through here, so this is the one
+    // place that reliably notices the transport died (Connect's own failures run
+    // before Connected is set, so they cannot be misread as a lost session).
+    NoteTransportError(0);
 }
 
-BOOL CSFTPSession::OpenSocket(HWND parent, CSFTPConnectResult* result)
+BOOL CSFTPSession::OpenSocket(CSFTPConnectResult* result)
 {
-    (void)parent;
     char portStr[16];
     _snprintf_s(portStr, _TRUNCATE, "%d", Params.Port);
 
@@ -175,8 +190,18 @@ BOOL CSFTPSession::OpenSocket(HWND parent, CSFTPConnectResult* result)
         return FALSE;
     }
 
+    // feature 051 (U4): the connect timeout is a budget for the WHOLE candidate
+    // list, not per address - a dual-stack host with several dead addresses used
+    // to cost ConnectTimeoutSec each. The wait is sliced so a user cancel is
+    // noticed promptly instead of after the full timeout (SC-004).
+    const DWORD totalBudgetMs = (DWORD)(Params.ConnectTimeoutSec > 0 ? Params.ConnectTimeoutSec : 20) * 1000;
+    const DWORD sliceMs = 250;
+    const DWORD startTick = GetTickCount();
+
     SOCKET s = INVALID_SOCKET;
-    for (struct addrinfo* p = ai; p != NULL; p = p->ai_next)
+    BOOL cancelled = FALSE;
+    BOOL timedOut = FALSE;
+    for (struct addrinfo* p = ai; p != NULL && !cancelled && !timedOut; p = p->ai_next)
     {
         s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (s == INVALID_SOCKET)
@@ -192,23 +217,42 @@ BOOL CSFTPSession::OpenSocket(HWND parent, CSFTPConnectResult* result)
         }
         else if (WSAGetLastError() == WSAEWOULDBLOCK)
         {
-            fd_set wfds;
-            FD_ZERO(&wfds);
-            FD_SET(s, &wfds);
-            struct timeval tv;
-            tv.tv_sec = Params.ConnectTimeoutSec > 0 ? Params.ConnectTimeoutSec : 20;
-            tv.tv_usec = 0;
-            int sel = select(0, NULL, &wfds, NULL, &tv);
-            if (sel <= 0)
+            BOOL connectedOk = FALSE;
+            for (;;)
             {
-                closesocket(s);
-                s = INVALID_SOCKET;
-                continue;
+                if (IsCancelRequested())
+                {
+                    cancelled = TRUE;
+                    break;
+                }
+                DWORD elapsed = GetTickCount() - startTick;
+                if (elapsed >= totalBudgetMs)
+                {
+                    timedOut = TRUE;
+                    break;
+                }
+                DWORD remaining = totalBudgetMs - elapsed;
+                fd_set wfds, efds;
+                FD_ZERO(&wfds);
+                FD_SET(s, &wfds);
+                FD_ZERO(&efds);
+                FD_SET(s, &efds);
+                struct timeval tv;
+                DWORD waitMs = remaining < sliceMs ? remaining : sliceMs;
+                tv.tv_sec = (long)(waitMs / 1000);
+                tv.tv_usec = (long)((waitMs % 1000) * 1000);
+                int sel = select(0, NULL, &wfds, &efds, &tv);
+                if (sel < 0)
+                    break; // socket error - try the next address
+                if (sel == 0)
+                    continue; // slice expired, keep waiting within the budget
+                int soErr = 0;
+                int soLen = sizeof(soErr);
+                getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soErr, &soLen);
+                connectedOk = (soErr == 0);
+                break;
             }
-            int soErr = 0;
-            int soLen = sizeof(soErr);
-            getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soErr, &soLen);
-            if (soErr != 0)
+            if (!connectedOk)
             {
                 closesocket(s);
                 s = INVALID_SOCKET;
@@ -221,25 +265,65 @@ BOOL CSFTPSession::OpenSocket(HWND parent, CSFTPConnectResult* result)
             s = INVALID_SOCKET;
             continue;
         }
-        // back to blocking mode for libssh2 blocking API
-        nonblock = 0;
-        ioctlsocket(s, FIONBIO, &nonblock);
+        // feature 051 (D4/F3): the socket deliberately STAYS non-blocking. With a
+        // blocking OS socket, libssh2's blocking API never enters
+        // _libssh2_wait_socket, so libssh2_session_set_timeout is not enforced and
+        // recv() can block forever on a black-holed connection. Keeping the socket
+        // non-blocking makes every later libssh2 call honour that timeout.
         break;
     }
     freeaddrinfo(ai);
 
     if (s == INVALID_SOCKET)
     {
+        if (cancelled)
+        {
+            lstrcpynA(LastErrorText, LoadStr(IDS_CANCELLED), sizeof(LastErrorText));
+            if (result != NULL)
+                *result = crCancelled;
+            return FALSE;
+        }
+        if (timedOut)
+        {
+            lstrcpynA(LastErrorText, LoadStr(IDS_ERR_TIMEOUT), sizeof(LastErrorText));
+            if (result != NULL)
+                *result = crTimeout;
+            return FALSE;
+        }
         _snprintf_s(LastErrorText, _TRUNCATE, LoadStr(IDS_ERR_CONNECT), Params.Host, Params.Port);
         if (result != NULL)
             *result = crConnectFailed;
         return FALSE;
     }
+    EnterCriticalSection(&SocketLock);
     Socket = s;
+    LeaveCriticalSection(&SocketLock);
+    // A cancel that arrived while the socket was being created would have found
+    // no socket to shut down - honour it here instead of starting the handshake.
+    if (IsCancelRequested())
+    {
+        lstrcpynA(LastErrorText, LoadStr(IDS_CANCELLED), sizeof(LastErrorText));
+        if (result != NULL)
+            *result = crCancelled;
+        return FALSE;
+    }
     return TRUE;
 }
 
-BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
+// feature 051 (FR-003/SC-004): abort whatever the session is waiting for.
+// Closing the socket is the only reliable way to make an in-flight libssh2
+// blocking call return at once; the worker then unwinds through its normal
+// error paths.
+void CSFTPSession::RequestCancel()
+{
+    InterlockedExchange(&CancelRequested, 1);
+    EnterCriticalSection(&SocketLock);
+    if (Socket != INVALID_SOCKET)
+        shutdown(Socket, SD_BOTH); // wakes a pending recv/send; handle stays valid
+    LeaveCriticalSection(&SocketLock);
+}
+
+BOOL CSFTPSession::EvaluateHostKey(CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
 {
     size_t keyLen = 0;
     int keyType = 0;
@@ -255,12 +339,24 @@ BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFT
     const char* typeName = "ssh-unknown";
     switch (keyType)
     {
-    case LIBSSH2_HOSTKEY_TYPE_RSA: typeName = "ssh-rsa"; break;
-    case LIBSSH2_HOSTKEY_TYPE_DSS: typeName = "ssh-dss"; break;
-    case LIBSSH2_HOSTKEY_TYPE_ECDSA_256: typeName = "ecdsa-sha2-nistp256"; break;
-    case LIBSSH2_HOSTKEY_TYPE_ECDSA_384: typeName = "ecdsa-sha2-nistp384"; break;
-    case LIBSSH2_HOSTKEY_TYPE_ECDSA_521: typeName = "ecdsa-sha2-nistp521"; break;
-    case LIBSSH2_HOSTKEY_TYPE_ED25519: typeName = "ssh-ed25519"; break;
+    case LIBSSH2_HOSTKEY_TYPE_RSA:
+        typeName = "ssh-rsa";
+        break;
+    case LIBSSH2_HOSTKEY_TYPE_DSS:
+        typeName = "ssh-dss";
+        break;
+    case LIBSSH2_HOSTKEY_TYPE_ECDSA_256:
+        typeName = "ecdsa-sha2-nistp256";
+        break;
+    case LIBSSH2_HOSTKEY_TYPE_ECDSA_384:
+        typeName = "ecdsa-sha2-nistp384";
+        break;
+    case LIBSSH2_HOSTKEY_TYPE_ECDSA_521:
+        typeName = "ecdsa-sha2-nistp521";
+        break;
+    case LIBSSH2_HOSTKEY_TYPE_ED25519:
+        typeName = "ssh-ed25519";
+        break;
     }
 
     char* keyB64 = Base64Encode((const unsigned char*)keyBlob, (int)keyLen);
@@ -308,22 +404,24 @@ BOOL CSFTPSession::VerifyHostKey(HWND parent, CSFTPHostKeyList* trustStore, CSFT
             free(keyB64);
             return FALSE;
         }
-        int choice = ShowHostKeyDialog(parent, m == hkmMismatch, Params.Host, Params.Port,
-                                       typeName, fingerprint, m == hkmMismatch ? storedFp : NULL);
-        if (choice == IDB_HOSTKEY_TRUST)
+        if (TrustHostKeyOnce)
         {
-            trustStore->Trust(Params.Host, Params.Port, typeName, keyB64, fingerprint);
-            LogFmt("Host key %s (%s) accepted and stored.", typeName, fingerprint);
-            ok = TRUE;
-        }
-        else if (choice == IDB_HOSTKEY_ONCE)
-        {
-            LogFmt("Host key %s (%s) accepted for this session only.", typeName, fingerprint);
+            // The user already confirmed this key on the UI thread for the current
+            // connect (feature 051: the worker re-runs the attempt afterwards).
+            LogFmt("Host key %s (%s) accepted by the user.", typeName, fingerprint);
             ok = TRUE;
         }
         else
         {
-            Log("Host key rejected by user - connection aborted.");
+            // feature 051 (D4): no dialogs on the worker thread - hand the decision
+            // to the UI thread, which prompts and retries the attempt.
+            HostKeyInfo.Changed = (m == hkmMismatch);
+            lstrcpynA(HostKeyInfo.TypeName, typeName, sizeof(HostKeyInfo.TypeName));
+            lstrcpynA(HostKeyInfo.Fingerprint, fingerprint, sizeof(HostKeyInfo.Fingerprint));
+            lstrcpynA(HostKeyInfo.StoredFingerprint, (m == hkmMismatch) ? storedFp : "",
+                      sizeof(HostKeyInfo.StoredFingerprint));
+            lstrcpynA(HostKeyInfo.KeyB64, keyB64, sizeof(HostKeyInfo.KeyB64));
+            Prompt = cpHostKey;
             lstrcpynA(LastErrorText, LoadStr(IDS_ERR_HOSTKEYDECLINED), sizeof(LastErrorText));
             if (result != NULL)
                 *result = crHostKeyRejected;
@@ -367,12 +465,50 @@ static BOOL ReadKeyFileU8(const char* u8path, char** data, DWORD* len)
     CloseHandle(h);
     if (!ok)
     {
+        // CF-14 / feature 051 (U9): the buffer may already hold part of the
+        // private key - wipe before releasing it, like the success path does.
+        SecureZeroMemory(buf, n);
         free(buf);
         return FALSE;
     }
     *data = buf;
     *len = n;
     return TRUE;
+}
+
+// feature 051 (U8): classify an authentication failure by the libssh2 error
+// CODE, not by substring-matching the message. The old heuristics were
+// case-sensitive ("unable to" never matched libssh2's "Unable to ..."), so a
+// key that could not be loaded was reported as "server rejected the key".
+enum CSFTPAuthFailure
+{
+    afKeySide,    // key could not be read/parsed/decrypted - our side
+    afServerSide, // the key was sent and the server refused it
+    afTransport,  // connection-level problem
+};
+
+static CSFTPAuthFailure ClassifyAuthFailure(int rc, int lastErrno)
+{
+    int code = (rc != 0) ? rc : lastErrno;
+    switch (code)
+    {
+    case LIBSSH2_ERROR_FILE:
+    case LIBSSH2_ERROR_KEYFILE_AUTH_FAILED:
+    case LIBSSH2_ERROR_METHOD_NOT_SUPPORTED:
+    case LIBSSH2_ERROR_DECRYPT:
+    case LIBSSH2_ERROR_ALLOC:
+        return afKeySide;
+    case LIBSSH2_ERROR_SOCKET_SEND:
+    case LIBSSH2_ERROR_SOCKET_RECV:
+    case LIBSSH2_ERROR_SOCKET_TIMEOUT:
+    case LIBSSH2_ERROR_SOCKET_DISCONNECT:
+    case LIBSSH2_ERROR_TIMEOUT:
+        return afTransport;
+    case LIBSSH2_ERROR_AUTHENTICATION_FAILED:
+    case LIBSSH2_ERROR_PUBLICKEY_UNVERIFIED:
+    default:
+        return afServerSide;
+    }
 }
 
 BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
@@ -404,14 +540,19 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
                 *result = crKeyFileMissing;
             return FALSE;
         }
-        // feature 017 (K1): reject an unrecognized/unsupported key file up front
-        // with a clear message, instead of handing it to libssh2 and surfacing a
-        // cryptic low-level error. (Wires DetectKeyFormat/KeyFormatSupported,
-        // which were previously dead code.)
+        // feature 017 (K1) / feature 051 (FR-007): reject a key file this build
+        // cannot use up front - format AND, for OpenSSH containers, the algorithm
+        // inside - instead of handing it to libssh2 and surfacing a cryptic
+        // low-level error (or, before the pem.c fix, hanging on it).
         int keyReason = 0;
-        if (!KeyFormatSupported(DetectKeyFormat(Params.KeyFile), &keyReason))
+        char keyType[64] = "";
+        if (!KeyFileSupported(Params.KeyFile, &keyReason, keyType, sizeof(keyType)))
         {
-            lstrcpynA(LastErrorText, LoadStr(keyReason != 0 ? keyReason : IDS_ERR_AUTHKEY), sizeof(LastErrorText));
+            if (keyReason == IDS_ERR_KEYTYPEUNSUP && keyType[0] != 0)
+                _snprintf_s(LastErrorText, _TRUNCATE, LoadStr(keyReason), keyType);
+            else
+                lstrcpynA(LastErrorText, LoadStr(keyReason != 0 ? keyReason : IDS_ERR_AUTHKEY),
+                          sizeof(LastErrorText));
             if (result != NULL)
                 *result = crAuthKey;
             return FALSE;
@@ -428,6 +569,7 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
                 *result = crAuthKey;
             return FALSE;
         }
+
         int rc = libssh2_userauth_publickey_frommemory(
             Ssh, Params.User, strlen(Params.User), NULL, 0, keyData, keyDataLen,
             Params.Passphrase[0] ? Params.Passphrase : NULL);
@@ -438,23 +580,40 @@ BOOL CSFTPSession::Authenticate(HWND parent, CSFTPConnectResult* result)
             Log("Authenticated with private key.");
             return TRUE;
         }
-        // distinguish "key could not be unlocked" from "server rejected key"
-        char* msg = NULL;
-        int len = 0;
-        libssh2_session_last_error(Ssh, &msg, &len, 0);
-        if (rc == LIBSSH2_ERROR_FILE ||
-            (msg != NULL && (strstr(msg, "passphrase") != NULL || strstr(msg, "decrypt") != NULL ||
-                             strstr(msg, "unable to") != NULL)))
+
+        // feature 051: this runs on the connect worker, so it never prompts - it
+        // classifies the failure and tells the UI thread what to ask for (D5).
+        CSFTPAuthFailure failure = ClassifyAuthFailure(rc, libssh2_session_last_errno(Ssh));
+        if (failure == afKeySide)
         {
+            // FR-005: a key that cannot be decrypted is not a rejected key.
+            Log("Private key could not be loaded or unlocked.");
             lstrcpynA(LastErrorText, LoadStr(IDS_ERR_KEYUNLOCK), sizeof(LastErrorText));
             if (result != NULL)
                 *result = crKeyUnlock;
+            if (KeyFileLooksEncrypted(Params.KeyFile))
+                Prompt = cpPassphrase; // ask for the passphrase and retry
+            return FALSE;
         }
-        else
+        if (failure == afTransport)
         {
-            lstrcpynA(LastErrorText, LoadStr(IDS_ERR_AUTHKEY), sizeof(LastErrorText));
+            lstrcpynA(LastErrorText, LoadStr(IDS_ERR_CONNLOST), sizeof(LastErrorText));
             if (result != NULL)
-                *result = crAuthKey;
+                *result = crTimeout;
+            return FALSE;
+        }
+
+        // FR-006: the server refused the key. When it also offers password
+        // authentication, the UI thread offers that instead of sending the user
+        // back into the connection profile.
+        Log("Server rejected the private key.");
+        lstrcpynA(LastErrorText, LoadStr(IDS_ERR_AUTHKEY), sizeof(LastErrorText));
+        if (result != NULL)
+            *result = crAuthKey;
+        if (hasPassword)
+        {
+            ServerOffersPassword = TRUE;
+            Prompt = cpPassword;
         }
         return FALSE;
     }
@@ -514,18 +673,20 @@ static void ApplyAlgorithmPreferences(LIBSSH2_SESSION* ssh)
                                 "rsa-sha2-256,rsa-sha2-512");
 }
 
-BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
-                           CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
+// feature 051 (D4): one complete NON-INTERACTIVE connect attempt. Runs on the
+// connect worker thread, so it must never show UI: when the user has to decide
+// something it stops and sets 'Prompt', and the UI thread retries the attempt
+// with the answer applied.
+BOOL CSFTPSession::ConnectAttempt(CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
 {
     if (result != NULL)
         *result = crOk;
-
-    if (params != &Params)
-        Params = *params;
+    Prompt = cpNone;
+    ServerOffersPassword = FALSE;
 
     LogFmt("Connecting to %s:%d as %s ...", Params.Host, Params.Port, Params.User);
 
-    if (!OpenSocket(parent, result))
+    if (!OpenSocket(result))
     {
         Log(LastErrorText);
         return FALSE;
@@ -559,14 +720,14 @@ BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
         return FALSE;
     }
 
-    if (!VerifyHostKey(parent, trustStore, result))
+    if (!EvaluateHostKey(trustStore, result))
     {
         Log(LastErrorText);
         Disconnect();
         return FALSE;
     }
 
-    if (!Authenticate(parent, result))
+    if (!Authenticate(NULL, result))
     {
         Log(LastErrorText);
         Disconnect();
@@ -592,6 +753,160 @@ BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
     return TRUE;
 }
 
+// ---------------------------------------------------------------------------
+// feature 051 (D4): connect on a worker thread, prompt+decide on the UI thread
+// ---------------------------------------------------------------------------
+
+struct CSFTPConnectThreadCtx
+{
+    CSFTPSession* Session;
+    CSFTPHostKeyList* TrustStore;
+    CSFTPConnectResult Result;
+    BOOL Ok;
+};
+
+unsigned __stdcall SFTPConnectThreadProc(void* param)
+{
+    CSFTPConnectThreadCtx* ctx = (CSFTPConnectThreadCtx*)param;
+    CALL_STACK_MESSAGE_NONE
+    ctx->Ok = ctx->Session->ConnectAttempt(ctx->TrustStore, &ctx->Result);
+    return 0;
+}
+
+// Runs one attempt on a worker thread. The UI thread shows the plugin's standard
+// wait window and polls its Close button; pressing it cancels the attempt by
+// shutting the socket down, so a stalled server can no longer freeze the app
+// (FR-002) and cancel takes effect in about a second (SC-004).
+BOOL CSFTPSession::RunConnectAttemptOnWorker(HWND parent, CSFTPHostKeyList* trustStore,
+                                             CSFTPConnectResult* result)
+{
+    InterlockedExchange(&CancelRequested, 0);
+
+    CSFTPConnectThreadCtx ctx;
+    ctx.Session = this;
+    ctx.TrustStore = trustStore;
+    ctx.Result = crOk;
+    ctx.Ok = FALSE;
+
+    uintptr_t th = _beginthreadex(NULL, 0, SFTPConnectThreadProc, &ctx, 0, NULL);
+    if (th == 0)
+    {
+        // cannot spawn the worker - fall back to a direct attempt so the feature
+        // still works (it is then as blocking as it was before this change)
+        return ConnectAttempt(trustStore, result);
+    }
+
+    HANDLE hThread = (HANDLE)th;
+    char waitText[512];
+    _snprintf_s(waitText, _TRUNCATE, LoadStr(IDS_CONNECTING), Params.Host);
+    SalamanderGeneral->CreateSafeWaitWindow(waitText, LoadStr(IDS_PLUGINNAME), 500, TRUE,
+                                            SalamanderGeneral->GetMainWindowHWND());
+    for (;;)
+    {
+        if (WaitForSingleObject(hThread, 100) == WAIT_OBJECT_0)
+            break;
+        if (SalamanderGeneral->GetSafeWaitWindowClosePressed())
+        {
+            if (!IsCancelRequested())
+                Log("Connect cancelled by the user.");
+            // Re-issued every poll: the socket may not have existed yet when the
+            // first cancel arrived (worker still resolving/connecting).
+            RequestCancel();
+        }
+    }
+    SalamanderGeneral->DestroySafeWaitWindow();
+    ::CloseHandle(hThread); // the Win32 one - CSFTPSession has its own CloseHandle
+
+    if (result != NULL)
+        *result = ctx.Result;
+    if (!ctx.Ok && IsCancelRequested())
+    {
+        lstrcpynA(LastErrorText, LoadStr(IDS_CANCELLED), sizeof(LastErrorText));
+        if (result != NULL)
+            *result = crCancelled;
+    }
+    (void)parent;
+    return ctx.Ok;
+}
+
+// UI-side orchestrator: repeats the non-interactive attempt, servicing whatever
+// the previous one asked the user for (host key, passphrase, password fallback).
+// Every dialog is shown here, on the UI thread; the worker never prompts.
+BOOL CSFTPSession::Connect(HWND parent, const CSFTPConnectParams* params,
+                           CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
+{
+    if (params != NULL && params != &Params)
+        Params = *params;
+
+    TrustHostKeyOnce = FALSE;
+    const int MAX_ROUNDS = 5; // host key + passphrase retries + password fallback
+    for (int round = 0; round < MAX_ROUNDS; round++)
+    {
+        CSFTPConnectResult res = crOk;
+        if (RunConnectAttemptOnWorker(parent, trustStore, &res))
+        {
+            if (result != NULL)
+                *result = crOk;
+            return TRUE;
+        }
+        if (result != NULL)
+            *result = res;
+        if (res == crCancelled || Prompt == cpNone || parent == NULL)
+            return FALSE;
+
+        if (Prompt == cpHostKey)
+        {
+            int choice = ShowHostKeyDialog(parent, HostKeyInfo.Changed, Params.Host, Params.Port,
+                                           HostKeyInfo.TypeName, HostKeyInfo.Fingerprint,
+                                           HostKeyInfo.Changed ? HostKeyInfo.StoredFingerprint : NULL);
+            if (choice == IDB_HOSTKEY_TRUST)
+            {
+                trustStore->Trust(Params.Host, Params.Port, HostKeyInfo.TypeName,
+                                  HostKeyInfo.KeyB64, HostKeyInfo.Fingerprint);
+                LogFmt("Host key %s (%s) accepted and stored.", HostKeyInfo.TypeName,
+                       HostKeyInfo.Fingerprint);
+            }
+            else if (choice != IDB_HOSTKEY_ONCE)
+            {
+                Log("Host key rejected by user - connection aborted.");
+                lstrcpynA(LastErrorText, LoadStr(IDS_ERR_HOSTKEYDECLINED), sizeof(LastErrorText));
+                if (result != NULL)
+                    *result = crHostKeyRejected;
+                return FALSE;
+            }
+            TrustHostKeyOnce = TRUE; // accepted for the remainder of this connect
+            continue;
+        }
+
+        if (Prompt == cpPassphrase)
+        {
+            // FR-005: the key could not be unlocked - ask again and retry.
+            char prompt[1024];
+            _snprintf_s(prompt, _TRUNCATE,
+                        LoadStr(Params.Passphrase[0] ? IDS_ENTERPASSPHRASE_RETRY : IDS_ENTERPASSPHRASE),
+                        Params.KeyFile);
+            SecureZeroMemory(Params.Passphrase, sizeof(Params.Passphrase));
+            if (!ShowPasswordPrompt(parent, prompt, Params.Passphrase, sizeof(Params.Passphrase)))
+                return FALSE; // cancelled: keep the key-unlock error
+            continue;
+        }
+
+        if (Prompt == cpPassword)
+        {
+            // FR-006: the server refused the key but offers password auth.
+            char prompt[512];
+            _snprintf_s(prompt, _TRUNCATE, LoadStr(IDS_ENTERPASSWORD), Params.User);
+            SecureZeroMemory(Params.Password, sizeof(Params.Password));
+            if (!ShowPasswordPrompt(parent, prompt, Params.Password, sizeof(Params.Password)))
+                return FALSE; // declined: the attempt ends with the key error
+            Params.AuthMethod = saPassword;
+            continue;
+        }
+        return FALSE;
+    }
+    return FALSE;
+}
+
 BOOL CSFTPSession::Reconnect(HWND parent, CSFTPHostKeyList* trustStore, CSFTPConnectResult* result)
 {
     Disconnect();
@@ -601,6 +916,16 @@ BOOL CSFTPSession::Reconnect(HWND parent, CSFTPHostKeyList* trustStore, CSFTPCon
 
 void CSFTPSession::Disconnect()
 {
+    // feature 051 (U5): tearing a session down talks to the server three times
+    // (sftp_shutdown, session_disconnect, session_free). On a host that went
+    // silent each of those used to wait out the full operation timeout, so
+    // closing a panel could stall for a minute and a half. Give teardown a short
+    // deadline - and none at all once the session is known dead or cancelled.
+    if (Ssh != NULL)
+    {
+        long teardownMs = (Connected && !IsCancelRequested()) ? 2000L : 1L;
+        libssh2_session_set_timeout(Ssh, teardownMs);
+    }
     if (Sftp != NULL)
     {
         libssh2_sftp_shutdown(Sftp);
@@ -612,11 +937,13 @@ void CSFTPSession::Disconnect()
         libssh2_session_free(Ssh);
         Ssh = NULL;
     }
+    EnterCriticalSection(&SocketLock);
     if (Socket != INVALID_SOCKET)
     {
         closesocket(Socket);
         Socket = INVALID_SOCKET;
     }
+    LeaveCriticalSection(&SocketLock);
     Connected = FALSE;
 }
 
@@ -899,7 +1226,10 @@ __int64 CSFTPSession::Read(LIBSSH2_SFTP_HANDLE* h, char* buf, int len)
 {
     if (h == NULL)
         return -1;
-    return libssh2_sftp_read(h, buf, len);
+    __int64 n = libssh2_sftp_read(h, buf, len);
+    if (n < 0)
+        NoteTransportError((int)n); // feature 051 (U7): notice a dropped transport
+    return n;
 }
 
 __int64 CSFTPSession::Write(LIBSSH2_SFTP_HANDLE* h, const char* buf, int len)
@@ -907,7 +1237,10 @@ __int64 CSFTPSession::Write(LIBSSH2_SFTP_HANDLE* h, const char* buf, int len)
     if (h == NULL)
         return -1;
     // libssh2_sftp_write may accept only part of the buffer; caller loops
-    return libssh2_sftp_write(h, buf, len);
+    __int64 n = libssh2_sftp_write(h, buf, len);
+    if (n < 0)
+        NoteTransportError((int)n);
+    return n;
 }
 
 void CSFTPSession::CloseHandle(LIBSSH2_SFTP_HANDLE* h)
@@ -920,7 +1253,46 @@ void CSFTPSession::Keepalive(int* secondsToNext)
 {
     int next = 0;
     if (Ssh != NULL)
-        libssh2_keepalive_send(Ssh, &next);
+    {
+        // feature 051 (U3): the keepalive runs on the UI thread from the FS timer.
+        // On a peer that vanished silently the send used to stall for the whole
+        // operation timeout, once per tick. Bound it tightly - a keepalive is
+        // worth at most a moment, and losing one tick is harmless.
+        long saved = (Params.OperationTimeoutSec > 0 ? Params.OperationTimeoutSec : 30) * 1000L;
+        libssh2_session_set_timeout(Ssh, 2000);
+        int rc = libssh2_keepalive_send(Ssh, &next);
+        libssh2_session_set_timeout(Ssh, saved);
+        if (rc != 0)
+            NoteTransportError(rc); // a dead transport must not look alive
+    }
     if (secondsToNext != NULL)
         *secondsToNext = next;
+}
+
+// feature 051 (U7): mark the session dead when a libssh2 call reports a
+// transport-level failure. 'Connected' used to be cleared only by Disconnect(),
+// so after a cable pull or server restart IsConnected() kept returning TRUE,
+// EnsureConnected() short-circuited, and every following operation failed with a
+// raw libssh2 error and no way to recover short of closing the panel.
+void CSFTPSession::NoteTransportError(int rc)
+{
+    int code = rc;
+    if (code == 0 && Ssh != NULL)
+        code = libssh2_session_last_errno(Ssh);
+    switch (code)
+    {
+    case LIBSSH2_ERROR_SOCKET_SEND:
+    case LIBSSH2_ERROR_SOCKET_RECV:
+    case LIBSSH2_ERROR_SOCKET_TIMEOUT:
+    case LIBSSH2_ERROR_SOCKET_DISCONNECT:
+    case LIBSSH2_ERROR_TIMEOUT:
+        if (Connected)
+        {
+            Log("Connection to the server was lost.");
+            Connected = FALSE; // EnsureConnected() will offer to reconnect
+        }
+        break;
+    default:
+        break;
+    }
 }

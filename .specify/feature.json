@@ -1,3 +1,1 @@
-{
-  "feature_directory": "specs/050-code-signing"
-}
+{"feature_directory": "specs/051-fix-sftp-keyauth-hang"}

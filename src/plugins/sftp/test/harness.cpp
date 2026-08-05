@@ -10,20 +10,37 @@
 #include <windows.h>
 #include <stdio.h>
 #include "sftputils.h"
+#include "keyload.h"
 
 static int g_fail = 0;
 static int g_pass = 0;
 
-#define CHECK(cond)                                                     \
-    do {                                                                \
-        if (cond) { g_pass++; }                                         \
-        else { g_fail++; printf("FAIL: %s (line %d)\n", #cond, __LINE__); } \
+#define CHECK(cond) \
+    do \
+    { \
+        if (cond) \
+        { \
+            g_pass++; \
+        } \
+        else \
+        { \
+            g_fail++; \
+            printf("FAIL: %s (line %d)\n", #cond, __LINE__); \
+        } \
     } while (0)
 
-#define CHECK_STR(a, b)                                                 \
-    do {                                                                \
-        if (strcmp((a), (b)) == 0) { g_pass++; }                        \
-        else { g_fail++; printf("FAIL: \"%s\" != \"%s\" (line %d)\n", (a), (b), __LINE__); } \
+#define CHECK_STR(a, b) \
+    do \
+    { \
+        if (strcmp((a), (b)) == 0) \
+        { \
+            g_pass++; \
+        } \
+        else \
+        { \
+            g_fail++; \
+            printf("FAIL: \"%s\" != \"%s\" (line %d)\n", (a), (b), __LINE__); \
+        } \
     } while (0)
 
 static void TestRights()
@@ -58,24 +75,26 @@ static void TestOctal()
     CHECK(ParseOctalMode("4755", &m) && m == (unsigned long)(SFTP_S_ISUID | 0755));
     CHECK(ParseOctalMode("  700  ", &m) && m == 0700);
     CHECK(!ParseOctalMode("abc", &m));
-    CHECK(!ParseOctalMode("789", &m));   // 8,9 not octal
+    CHECK(!ParseOctalMode("789", &m)); // 8,9 not octal
     CHECK(!ParseOctalMode("", &m));
 }
 
 static void TestUtf8()
 {
     CHECK(IsValidUTF8("hello", 5));
-    CHECK(IsValidUTF8("\xC3\xA9", 2));            // e-acute
-    CHECK(IsValidUTF8("\xE6\x97\xA5", 3));        // CJK
-    CHECK(!IsValidUTF8("\xFF", 1));               // invalid lead byte
-    CHECK(!IsValidUTF8("\xC3", 1));               // truncated 2-byte
-    CHECK(!IsValidUTF8("\xC0\x80", 2));           // overlong NUL
+    CHECK(IsValidUTF8("\xC3\xA9", 2));     // e-acute
+    CHECK(IsValidUTF8("\xE6\x97\xA5", 3)); // CJK
+    CHECK(!IsValidUTF8("\xFF", 1));        // invalid lead byte
+    CHECK(!IsValidUTF8("\xC3", 1));        // truncated 2-byte
+    CHECK(!IsValidUTF8("\xC0\x80", 2));    // overlong NUL
 
     char buf[64];
     CHECK_STR(SanitizeUTF8("clean", buf, sizeof(buf)), "clean");
     CHECK_STR(SanitizeUTF8("\xC3\xA9.txt", buf, sizeof(buf)), "\xC3\xA9.txt"); // valid preserved
     // invalid byte becomes a single '?'
-    SanitizeUTF8("a\xFF" "b", buf, sizeof(buf));
+    SanitizeUTF8("a\xFF"
+                 "b",
+                 buf, sizeof(buf));
     CHECK_STR(buf, "a?b");
 }
 
@@ -122,6 +141,136 @@ static void TestAttrs()
     CHECK((a & FILE_ATTRIBUTE_DIRECTORY) != 0);
 }
 
+// feature 051: key-format detection and the capability gate. These fixtures are
+// the cheap half of the regression net around the freeze - key_auth.c covers the
+// live half. A wrong verdict here is what routed an OpenSSH-container key into
+// libssh2's classic-PEM parser in the first place.
+static const char* WriteFixture(const char* leaf, const char* content)
+{
+    static char path[MAX_PATH];
+    char tmp[MAX_PATH];
+    GetTempPathA(sizeof(tmp), tmp);
+    _snprintf_s(path, sizeof(path), _TRUNCATE, "%s%s", tmp, leaf);
+    HANDLE h = CreateFileA(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (h == INVALID_HANDLE_VALUE)
+        return path;
+    DWORD w = 0;
+    WriteFile(h, content, (DWORD)strlen(content), &w, NULL);
+    CloseHandle(h);
+    return path;
+}
+
+static void TestKeyFormats()
+{
+    const char* p;
+    int reason = 0;
+
+    p = WriteFixture("tc_fx_rsa.pem",
+                     "-----BEGIN RSA PRIVATE KEY-----\nMIIB\n-----END RSA PRIVATE KEY-----\n");
+    CHECK(DetectKeyFormat(p) == kfPEM);
+    CHECK(KeyFormatSupported(kfPEM, &reason));
+    CHECK(!KeyFileLooksEncrypted(p));
+    DeleteFileA(p);
+
+    p = WriteFixture("tc_fx_rsa_enc.pem",
+                     "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n"
+                     "DEK-Info: AES-128-CBC,0102030405060708090A0B0C0D0E0F10\n\nMIIB\n"
+                     "-----END RSA PRIVATE KEY-----\n");
+    CHECK(DetectKeyFormat(p) == kfPEM);
+    CHECK(KeyFileLooksEncrypted(p)); // classic PEM markers
+    DeleteFileA(p);
+
+    p = WriteFixture("tc_fx_pkcs8.pem",
+                     "-----BEGIN PRIVATE KEY-----\nMIIB\n-----END PRIVATE KEY-----\n");
+    CHECK(DetectKeyFormat(p) == kfPKCS8);
+    reason = 0;
+    CHECK(!KeyFormatSupported(kfPKCS8, &reason)); // no PKCS#8 path in WinCNG
+    CHECK(reason != 0);
+    DeleteFileA(p);
+
+    p = WriteFixture("tc_fx.ppk", "PuTTY-User-Key-File-3: ssh-rsa\nEncryption: none\n");
+    CHECK(DetectKeyFormat(p) == kfPuTTY);
+    reason = 0;
+    CHECK(!KeyFormatSupported(kfPuTTY, &reason));
+    CHECK(reason != 0);
+    DeleteFileA(p);
+
+    p = WriteFixture("tc_fx_unknown.txt", "hello, not a key at all\n");
+    CHECK(DetectKeyFormat(p) == kfUnknown);
+    CHECK(!KeyFormatSupported(kfUnknown, &reason));
+    DeleteFileA(p);
+
+    CHECK(DetectKeyFormat("Z:\\no\\such\\file.key") == kfUnknown);
+
+    // OpenSSH container: base64 of "openssh-key-v1\0" + string "none" (cipher) +
+    // string "none" (kdf) + string "" (kdfoptions) + u32 1 + pubkey blob whose
+    // first field is the algorithm name. Built here for "ssh-ed25519", the type
+    // that must be rejected up front (WinCNG has no ed25519).
+    {
+        unsigned char raw[128];
+        int n = 0;
+        memcpy(raw + n, "openssh-key-v1", 15);
+        n += 15; // includes the NUL
+        const char* fields[] = {"none", "none", ""};
+        for (int i = 0; i < 3; i++)
+        {
+            int len = (int)strlen(fields[i]);
+            raw[n++] = 0;
+            raw[n++] = 0;
+            raw[n++] = 0;
+            raw[n++] = (unsigned char)len;
+            memcpy(raw + n, fields[i], len);
+            n += len;
+        }
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = 1; // one key
+        const char* type = "ssh-ed25519";
+        int tlen = (int)strlen(type);
+        int blobLen = 4 + tlen;
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = (unsigned char)blobLen;
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = 0;
+        raw[n++] = (unsigned char)tlen;
+        memcpy(raw + n, type, tlen);
+        n += tlen;
+
+        DWORD b64len = 0;
+        CryptBinaryToStringA(raw, n, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, NULL, &b64len);
+        char* b64 = (char*)malloc(b64len + 1);
+        char body[1024];
+        if (b64 != NULL &&
+            CryptBinaryToStringA(raw, n, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, b64, &b64len))
+        {
+            b64[b64len] = 0;
+            _snprintf_s(body, sizeof(body), _TRUNCATE,
+                        "-----BEGIN OPENSSH PRIVATE KEY-----\n%s\n"
+                        "-----END OPENSSH PRIVATE KEY-----\n",
+                        b64);
+            p = WriteFixture("tc_fx_ed25519.key", body);
+            CHECK(DetectKeyFormat(p) == kfOpenSSH);
+            CHECK(!KeyFileLooksEncrypted(p)); // ciphername is "none"
+            char type2[64] = "";
+            CHECK(ReadOpenSSHKeyType(p, type2, sizeof(type2)));
+            CHECK_STR(type2, "ssh-ed25519");
+            reason = 0;
+            char offending[64] = "";
+            // format alone is acceptable, the algorithm is not
+            CHECK(KeyFormatSupported(kfOpenSSH, &reason));
+            CHECK(!KeyFileSupported(p, &reason, offending, sizeof(offending)));
+            CHECK_STR(offending, "ssh-ed25519");
+            DeleteFileA(p);
+        }
+        if (b64 != NULL)
+            free(b64);
+    }
+}
+
 int main()
 {
     TestRights();
@@ -130,6 +279,7 @@ int main()
     TestPaths();
     TestTime();
     TestAttrs();
+    TestKeyFormats();
 
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

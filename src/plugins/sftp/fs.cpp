@@ -270,6 +270,7 @@ CPluginFSInterface::CPluginFSInterface()
     LastFailedListPath[0] = 0;
     HasParams = FALSE;
     FatalError = FALSE;
+    WasConnected = FALSE;
     LogUID = -1;
 }
 
@@ -368,6 +369,18 @@ BOOL CPluginFSInterface::EnsureConnected(HWND parent)
     if (!HasParams)
         return FALSE;
 
+    // feature 051 (U7): a session that was established and then lost its
+    // transport comes back here with Connected == FALSE. Tear the dead session
+    // down first so the reconnect starts from a clean state (data model I3);
+    // this is the path that makes the previously dead Reconnect() reachable.
+    if (WasConnected)
+    {
+        Session.Disconnect();
+        if (LogUID >= 0)
+            Logs.AppendFmt(LogUID, LoadStr(IDS_RECONNECTING), Host);
+        WasConnected = FALSE;
+    }
+
     Params.ConnectTimeoutSec = Config.ConnectTimeout;
     Params.OperationTimeoutSec = Config.OperationTimeout;
     if (Params.KeepAliveSec == 0)
@@ -391,6 +404,7 @@ BOOL CPluginFSInterface::EnsureConnected(HWND parent)
         return FALSE;
     }
     FatalError = FALSE;
+    WasConnected = TRUE; // feature 051: a later loss of transport means reconnect
 
     // arm the keepalive timer (FSE_TIMER re-arms it); one tick per keepalive
     // interval keeps idle sessions alive behind NAT/firewalls (FR-022)
@@ -508,15 +522,40 @@ BOOL WINAPI CPluginFSInterface::ChangePath(int currentFSNameIndex, char* fsName,
         }
         else
         {
-            // reconnect from history without stored secret: build minimal params,
-            // secrets prompted on connect
-            memset(&Params, 0, sizeof(Params));
-            lstrcpynA(Params.Host, host, sizeof(Params.Host));
-            Params.Port = port;
-            lstrcpynA(Params.User, user, sizeof(Params.User));
-            Params.AuthMethod = saPassword;
-            HasParams = TRUE;
-            if (mode != 1)
+            // Reconnect from history / command line / Alt+F12 without staged
+            // params. feature 051 (U14): reuse the matching bookmark's
+            // authentication method first - defaulting to a password prompt made
+            // key-only servers (PasswordAuthentication no) impossible to reach
+            // this way, and asked for a password nobody had.
+            const CSFTPServer* known = NULL;
+            for (int i = 0; i < Config.Bookmarks.Count; i++)
+            {
+                const CSFTPServer* b = Config.Bookmarks[i];
+                if (b->Address != NULL && _stricmp(b->Address, host) == 0 &&
+                    (b->Port > 0 ? b->Port : SFTP_DEFAULT_PORT) == port &&
+                    b->UserName != NULL && strcmp(b->UserName, user) == 0)
+                {
+                    known = b;
+                    break;
+                }
+            }
+            if (known != NULL)
+            {
+                FillParamsFromServer(known, &Params);
+                HasParams = TRUE;
+            }
+            else
+            {
+                memset(&Params, 0, sizeof(Params));
+                lstrcpynA(Params.Host, host, sizeof(Params.Host));
+                Params.Port = port;
+                lstrcpynA(Params.User, user, sizeof(Params.User));
+                Params.AuthMethod = saPassword;
+                HasParams = TRUE;
+            }
+            // a password is prompted here only when that is the chosen method and
+            // none was stored; key auth prompts for a passphrase on demand instead
+            if (mode != 1 && Params.AuthMethod == saPassword && Params.Password[0] == 0)
             {
                 char prompt[512];
                 _snprintf_s(prompt, _TRUNCATE, LoadStr(IDS_ENTERPASSWORD), user);
@@ -939,11 +978,29 @@ void WINAPI CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
                 char buf[64 * 1024]; // CF-23: call-local; a static I/O buffer is a re-entrancy hazard
                 __int64 total = 0;
                 BOOL ok = TRUE;
+                // feature 051 (F7): viewing a large or slow remote file used to run
+                // to completion with no way out - no wait window, no cancel test.
+                // The total time is bounded only by size/bandwidth, so the user
+                // must be able to abort it like any other transfer.
+                char waitText[512];
+                _snprintf_s(waitText, _TRUNCATE, LoadStr(IDS_DOWNLOADINGFILE), file.Name);
+                SalamanderGeneral->CreateSafeWaitWindow(waitText, LoadStr(IDS_PLUGINNAME), 500, TRUE,
+                                                        SalamanderGeneral->GetMainWindowHWND());
                 for (;;)
                 {
+                    if (SalamanderGeneral->GetSafeWaitWindowClosePressed())
+                    {
+                        ok = FALSE; // '!newFileOK' below removes the partial cache entry
+                        break;
+                    }
                     __int64 n = Session.Read(h, buf, sizeof(buf));
-                    if (n < 0) { ok = FALSE; break; }
-                    if (n == 0) break;
+                    if (n < 0)
+                    {
+                        ok = FALSE;
+                        break;
+                    }
+                    if (n == 0)
+                        break;
                     DWORD w = 0;
                     if (!WriteFile(lf, buf, (DWORD)n, &w, NULL) || w != (DWORD)n)
                     {
@@ -952,6 +1009,7 @@ void WINAPI CPluginFSInterface::ViewFile(const char* fsName, HWND parent,
                     }
                     total += n;
                 }
+                SalamanderGeneral->DestroySafeWaitWindow();
                 Session.CloseHandle(h);
                 newFileOK = ok;
                 newFileSize.SetUI64((unsigned __int64)total);

@@ -52,14 +52,15 @@ protected:
     char Host[256];
     int Port;
     char User[256];
-    char Path[3072];  // current remote absolute path (POSIX, UTF-8)
+    char Path[3072];               // current remote absolute path (POSIX, UTF-8)
     char LastFailedListPath[3072]; // last path ListCurrentPath could not list
                                    // (loop-breaker: ChangePath shortens it)
 
     CSFTPSession Session;
     CSFTPConnectParams Params;
-    BOOL HasParams;   // Params filled from a bookmark/quick-connect
-    BOOL FatalError;
+    BOOL HasParams;    // Params filled from a bookmark/quick-connect
+    BOOL FatalError;   // last connect attempt failed (no usable session)
+    BOOL WasConnected; // feature 051 (U7): a session existed and was lost -> reconnect
     int LogUID;
 
 public:

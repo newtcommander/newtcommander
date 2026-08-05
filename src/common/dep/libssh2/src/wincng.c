@@ -956,20 +956,31 @@ _libssh2_wincng_load_private_memory(LIBSSH2_SESSION *session,
     size_t datalen = 0;
     int ret = -1;
 
-    (void)passphrase;
-
+    /* Tandem Commander local patch (feature 051): pass the passphrase
+       through so encrypted classic PEM keys can be decrypted; the memory
+       path used to discard it ((void)passphrase). A decrypt verdict
+       (wrong/missing passphrase) is final - do not mask it by retrying
+       another PEM header. */
     if(ret && tryLoadRSA) {
         ret = _libssh2_pem_parse_memory(session,
                                         PEM_RSA_HEADER, PEM_RSA_FOOTER,
+                                        passphrase,
                                         privatekeydata, privatekeydata_len,
                                         &data, &datalen);
+        if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+            return ret;
+        }
     }
 
     if(ret && tryLoadDSA) {
         ret = _libssh2_pem_parse_memory(session,
                                         PEM_DSA_HEADER, PEM_DSA_FOOTER,
+                                        passphrase,
                                         privatekeydata, privatekeydata_len,
                                         &data, &datalen);
+        if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+            return ret;
+        }
     }
 
     if(!ret) {
@@ -1404,6 +1415,138 @@ _libssh2_wincng_rsa_new_private(libssh2_rsa_ctx **rsa,
 #endif /* HAVE_LIBCRYPT32 */
 }
 
+#ifdef HAVE_LIBCRYPT32
+/* Tandem Commander local patch (feature 051): import an RSA private key
+   parsed from an OpenSSH-container (openssh-key-v1) private-key section.
+   The container carries n, e, d, iqmp, p, q but not d mod (p-1) /
+   d mod (q-1), so the key is imported as BCRYPT_RSAPRIVATE_BLOB (e, n, p,
+   q), from which CNG derives the remaining private parameters itself. */
+static int
+_libssh2_wincng_rsa_new_private_openssh(libssh2_rsa_ctx **rsa,
+                                        LIBSSH2_SESSION *session,
+                                        struct string_buf *decrypted)
+{
+    BCRYPT_KEY_HANDLE hKey;
+    BCRYPT_RSAKEY_BLOB *rsakey;
+    ULONG keylen, offset;
+    unsigned char *n, *e, *d, *p, *q, *coeff;
+    size_t nlen, elen, dlen, plen, qlen, coefflen;
+    NTSTATUS status;
+
+    /* Private-key section layout (OpenSSH PROTOCOL.key): string "ssh-rsa"
+       (already consumed by the caller), mpint n, e, d, iqmp, p, q,
+       string comment. _libssh2_get_bignum_bytes strips leading zeros. */
+    if(_libssh2_get_bignum_bytes(decrypted, &n, &nlen) ||
+       _libssh2_get_bignum_bytes(decrypted, &e, &elen) ||
+       _libssh2_get_bignum_bytes(decrypted, &d, &dlen) ||
+       _libssh2_get_bignum_bytes(decrypted, &coeff, &coefflen) ||
+       _libssh2_get_bignum_bytes(decrypted, &p, &plen) ||
+       _libssh2_get_bignum_bytes(decrypted, &q, &qlen) ||
+       nlen == 0 || elen == 0 || plen == 0 || qlen == 0) {
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Malformed OpenSSH RSA private key data");
+    }
+
+    (void)d;
+    (void)dlen;
+    (void)coeff;
+    (void)coefflen;
+
+    offset = sizeof(BCRYPT_RSAKEY_BLOB);
+    keylen = offset + (ULONG)(elen + nlen + plen + qlen);
+    rsakey = (BCRYPT_RSAKEY_BLOB *)malloc(keylen);
+    if(!rsakey) {
+        return _libssh2_error(session, LIBSSH2_ERROR_ALLOC,
+                              "Unable to allocate RSA key blob");
+    }
+
+    memset(rsakey, 0, keylen);
+
+    rsakey->Magic = BCRYPT_RSAPRIVATE_MAGIC;
+    rsakey->BitLength = (ULONG)nlen * 8;
+    rsakey->cbPublicExp = (ULONG)elen;
+    rsakey->cbModulus = (ULONG)nlen;
+    rsakey->cbPrime1 = (ULONG)plen;
+    rsakey->cbPrime2 = (ULONG)qlen;
+
+    memcpy((unsigned char *)rsakey + offset, e, elen);
+    offset += (ULONG)elen;
+    memcpy((unsigned char *)rsakey + offset, n, nlen);
+    offset += (ULONG)nlen;
+    memcpy((unsigned char *)rsakey + offset, p, plen);
+    offset += (ULONG)plen;
+    memcpy((unsigned char *)rsakey + offset, q, qlen);
+
+    status = BCryptImportKeyPair(_libssh2_wincng.hAlgRSA, NULL,
+                                 BCRYPT_RSAPRIVATE_BLOB, &hKey,
+                                 (PUCHAR)rsakey, keylen, 0);
+    if(!BCRYPT_SUCCESS(status)) {
+        _libssh2_wincng_safe_free(rsakey, keylen);
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Unable to import OpenSSH RSA private key");
+    }
+
+    *rsa = malloc(sizeof(libssh2_rsa_ctx));
+    if(!(*rsa)) {
+        BCryptDestroyKey(hKey);
+        _libssh2_wincng_safe_free(rsakey, keylen);
+        return _libssh2_error(session, LIBSSH2_ERROR_ALLOC,
+                              "Unable to allocate RSA key context");
+    }
+
+    (*rsa)->hKey = hKey;
+    (*rsa)->pbKeyObject = rsakey;
+    (*rsa)->cbKeyObject = keylen;
+
+    return 0;
+}
+
+/* Tandem Commander local patch (feature 051): load an RSA private key from
+   an OpenSSH-container ("-----BEGIN OPENSSH PRIVATE KEY-----") key held in
+   memory; the container parser also handles encrypted containers (bcrypt
+   KDF). Mirrors _libssh2_rsa_new_openssh_private in openssl.c. */
+static int
+_libssh2_wincng_rsa_new_openssh_frommemory(libssh2_rsa_ctx **rsa,
+                                           LIBSSH2_SESSION *session,
+                                           const char *filedata,
+                                           size_t filedata_len,
+                                           const unsigned char *passphrase)
+{
+    struct string_buf *decrypted = NULL;
+    unsigned char *buf;
+    size_t buf_len;
+    int ret;
+
+    ret = _libssh2_openssh_pem_parse_memory(session, passphrase,
+                                            filedata, filedata_len,
+                                            &decrypted);
+    if(ret) {
+        if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+            return _libssh2_error(session,
+                                  LIBSSH2_ERROR_KEYFILE_AUTH_FAILED,
+                                  "Unable to decrypt OpenSSH private key: "
+                                  "wrong or missing passphrase");
+        }
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Unable to parse OpenSSH private key "
+                              "from memory");
+    }
+
+    if(_libssh2_get_string(decrypted, &buf, &buf_len) ||
+       buf_len != 7 || memcmp(buf, "ssh-rsa", 7) != 0) {
+        _libssh2_string_buf_free(session, decrypted);
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Not an OpenSSH RSA private key");
+    }
+
+    ret = _libssh2_wincng_rsa_new_private_openssh(rsa, session, decrypted);
+
+    _libssh2_string_buf_free(session, decrypted);
+
+    return ret;
+}
+#endif /* HAVE_LIBCRYPT32 */
+
 int
 _libssh2_wincng_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
                                            LIBSSH2_SESSION *session,
@@ -1421,12 +1564,26 @@ _libssh2_wincng_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
     ret = _libssh2_wincng_load_private_memory(session, filedata, filedata_len,
                                               passphrase,
                                               &pbEncoded, &cbEncoded, 1, 0);
+    /* Tandem Commander local patch (feature 051): a decrypt verdict is
+       final; any other classic-PEM failure falls back to the OpenSSH
+       container format, and every failure sets a real libssh2 error. */
+    if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+        return ret;
+    }
     if(ret) {
-        return -1;
+        return _libssh2_wincng_rsa_new_openssh_frommemory(rsa, session,
+                                                          filedata,
+                                                          filedata_len,
+                                                          passphrase);
     }
 
-    return _libssh2_wincng_rsa_new_private_parse(rsa, session,
-                                                 pbEncoded, cbEncoded);
+    ret = _libssh2_wincng_rsa_new_private_parse(rsa, session,
+                                                pbEncoded, cbEncoded);
+    if(ret) {
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Unable to parse RSA private key from memory");
+    }
+    return ret;
 #else
     (void)rsa;
     (void)filedata;
@@ -2873,6 +3030,49 @@ _libssh2_wincng_ecdsa_new_private_frommemory(
 
     *key = NULL;
 
+    /* Tandem Commander local patch (feature 051): callers such as the
+       userauth sign path pass the raw PEM text of an OpenSSH-container
+       key, but this function used to expect the base64-decoded container
+       (that is how _libssh2_wincng_ecdsa_new_private calls it), so it
+       could never succeed from memory. Route PEM text through the
+       bounds-checked container parser (which also handles encrypted
+       containers) and reuse the existing private-key-section parser. */
+    if(data_len < strlen(OPENSSL_PRIVATEKEY_AUTH_MAGIC) ||
+       strncmp(data, OPENSSL_PRIVATEKEY_AUTH_MAGIC,
+               strlen(OPENSSL_PRIVATEKEY_AUTH_MAGIC)) != 0) {
+        struct string_buf *decrypted = NULL;
+
+        result = _libssh2_openssh_pem_parse_memory(session, passphrase,
+                                                   data, data_len,
+                                                   &decrypted);
+        if(result) {
+            if(result == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+                return _libssh2_error(session,
+                                      LIBSSH2_ERROR_KEYFILE_AUTH_FAILED,
+                                      "Unable to decrypt OpenSSH private "
+                                      "key: wrong or missing passphrase");
+            }
+            return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                                  "Unable to parse OpenSSH private key "
+                                  "from memory");
+        }
+
+        /* decrypted->data starts at the two check ints, exactly what
+           _libssh2_wincng_parse_ecdsa_privatekey expects */
+        result = _libssh2_wincng_parse_ecdsa_privatekey(key,
+                                                        decrypted->data,
+                                                        decrypted->len);
+        _libssh2_string_buf_free(session, decrypted);
+
+        if(result != LIBSSH2_ERROR_NONE) {
+            return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                                  "Unable to parse OpenSSH ECDSA "
+                                  "private key");
+        }
+
+        return result;
+    }
+
     if(passphrase && strlen((const char *)passphrase) > 0) {
         return _libssh2_error(
             session,
@@ -3219,6 +3419,155 @@ _libssh2_wincng_pub_priv_keyfile_parse(LIBSSH2_SESSION *session,
 
     return ret;
 }
+
+/* Tandem Commander local patch (feature 051): derive the method name and
+   the SSH wire-format public key blob from an OpenSSH-container
+   (openssh-key-v1) private key held in memory. WinCNG supports RSA and
+   ECDSA (nistp256/384/521); any other key type (e.g. ed25519) is rejected
+   immediately with LIBSSH2_ERROR_METHOD_NOT_SUPPORTED. Mirrors the
+   gen_publickey_from_*_openssh_priv_data helpers in openssl.c. */
+static int
+_libssh2_wincng_pub_priv_openssh_keyfilememory(LIBSSH2_SESSION *session,
+                                               unsigned char **method,
+                                               size_t *method_len,
+                                               unsigned char **pubkeydata,
+                                               size_t *pubkeydata_len,
+                                               const char *privatekeydata,
+                                               size_t privatekeydata_len,
+                                               const char *passphrase)
+{
+    struct string_buf *decrypted = NULL;
+    unsigned char *keytype, *key = NULL, *mth = NULL, *ptr;
+    size_t keytype_len, keylen = 0, mthlen = 0;
+    int ret;
+
+    ret = _libssh2_openssh_pem_parse_memory(session,
+                                            (const unsigned char *)passphrase,
+                                            privatekeydata,
+                                            privatekeydata_len,
+                                            &decrypted);
+    if(ret) {
+        if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+            return _libssh2_error(session,
+                                  LIBSSH2_ERROR_KEYFILE_AUTH_FAILED,
+                                  "Unable to decrypt OpenSSH private key: "
+                                  "wrong or missing passphrase");
+        }
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Unable to parse OpenSSH private key "
+                              "from memory");
+    }
+
+    if(_libssh2_get_string(decrypted, &keytype, &keytype_len) ||
+       keytype_len == 0) {
+        _libssh2_string_buf_free(session, decrypted);
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Key type not found in OpenSSH private key");
+    }
+
+    if(keytype_len == 7 && memcmp(keytype, "ssh-rsa", 7) == 0) {
+        /* private-key section: mpint n, e, d, iqmp, p, q; the public blob
+           is string "ssh-rsa", mpint e, mpint n (RFC 4253) */
+        unsigned char *n, *e;
+        size_t nlen, elen;
+
+        if(_libssh2_get_bignum_bytes(decrypted, &n, &nlen) ||
+           _libssh2_get_bignum_bytes(decrypted, &e, &elen) ||
+           nlen == 0 || elen == 0) {
+            ret = _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                                 "Malformed OpenSSH RSA private key data");
+        }
+        else {
+            /* +1 per mpint for a possible sign byte */
+            keylen = 4 + keytype_len + 4 + elen + 1 + 4 + nlen + 1;
+            key = LIBSSH2_ALLOC(session, keylen);
+            mth = LIBSSH2_ALLOC(session, keytype_len);
+            if(!key || !mth) {
+                ret = _libssh2_error(session, LIBSSH2_ERROR_ALLOC,
+                                     "Unable to allocate public key buffer");
+            }
+            else {
+                memcpy(mth, keytype, keytype_len);
+                mthlen = keytype_len;
+                ptr = key;
+                _libssh2_store_str(&ptr, (const char *)keytype, keytype_len);
+                _libssh2_store_bignum2_bytes(&ptr, e, elen);
+                _libssh2_store_bignum2_bytes(&ptr, n, nlen);
+                keylen = (size_t)(ptr - key);
+                ret = 0;
+            }
+        }
+    }
+#if LIBSSH2_ECDSA
+    else if(keytype_len == 19 &&
+            memcmp(keytype, "ecdsa-sha2-nistp", 16) == 0) {
+        /* private-key section: string curve, string Q, mpint d; the public
+           blob is string type, string curve, string Q (RFC 5656) */
+        unsigned char *curve, *point;
+        size_t curve_len, point_len;
+        char keytype_name[32];
+        libssh2_curve_type curve_type;
+
+        memcpy(keytype_name, keytype, keytype_len);
+        keytype_name[keytype_len] = '\0';
+
+        if(_libssh2_wincng_ecdsa_curve_type_from_name(keytype_name,
+                                                      &curve_type) != 0) {
+            ret = _libssh2_error(session,
+                                 LIBSSH2_ERROR_METHOD_NOT_SUPPORTED,
+                                 "Unsupported ECDSA curve in OpenSSH "
+                                 "private key");
+        }
+        else if(_libssh2_get_string(decrypted, &curve, &curve_len) ||
+                _libssh2_get_string(decrypted, &point, &point_len) ||
+                curve_len == 0 || point_len == 0) {
+            ret = _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                                 "Malformed OpenSSH ECDSA private key data");
+        }
+        else {
+            keylen = 4 + keytype_len + 4 + curve_len + 4 + point_len;
+            key = LIBSSH2_ALLOC(session, keylen);
+            mth = LIBSSH2_ALLOC(session, keytype_len);
+            if(!key || !mth) {
+                ret = _libssh2_error(session, LIBSSH2_ERROR_ALLOC,
+                                     "Unable to allocate public key buffer");
+            }
+            else {
+                memcpy(mth, keytype, keytype_len);
+                mthlen = keytype_len;
+                ptr = key;
+                _libssh2_store_str(&ptr, (const char *)keytype, keytype_len);
+                _libssh2_store_str(&ptr, (const char *)curve, curve_len);
+                _libssh2_store_str(&ptr, (const char *)point, point_len);
+                keylen = (size_t)(ptr - key);
+                ret = 0;
+            }
+        }
+    }
+#endif /* LIBSSH2_ECDSA */
+    else {
+        ret = _libssh2_error(session, LIBSSH2_ERROR_METHOD_NOT_SUPPORTED,
+                             "Unsupported OpenSSH private key type "
+                             "(WinCNG supports RSA and ECDSA)");
+    }
+
+    _libssh2_string_buf_free(session, decrypted);
+
+    if(ret) {
+        if(mth)
+            LIBSSH2_FREE(session, mth);
+        if(key)
+            LIBSSH2_FREE(session, key);
+        return ret;
+    }
+
+    *method = mth;
+    *method_len = mthlen;
+    *pubkeydata = key;
+    *pubkeydata_len = keylen;
+
+    return 0;
+}
 #endif /* HAVE_LIBCRYPT32 */
 
 int
@@ -3279,13 +3628,31 @@ _libssh2_wincng_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
                                               (const unsigned char *)
                                                   passphrase,
                                               &pbEncoded, &cbEncoded, 1, 1);
+    /* Tandem Commander local patch (feature 051): a decrypt verdict is
+       final; any other classic-PEM failure falls back to the OpenSSH
+       container format, and every failure sets a real libssh2 error. */
+    if(ret == LIBSSH2_ERROR_KEYFILE_AUTH_FAILED) {
+        return ret;
+    }
     if(ret) {
-        return -1;
+        return _libssh2_wincng_pub_priv_openssh_keyfilememory(
+                                                          session,
+                                                          method, method_len,
+                                                          pubkeydata,
+                                                          pubkeydata_len,
+                                                          privatekeydata,
+                                                          privatekeydata_len,
+                                                          passphrase);
     }
 
-    return _libssh2_wincng_pub_priv_keyfile_parse(session, method, method_len,
-                                                  pubkeydata, pubkeydata_len,
-                                                  pbEncoded, cbEncoded);
+    ret = _libssh2_wincng_pub_priv_keyfile_parse(session, method, method_len,
+                                                 pubkeydata, pubkeydata_len,
+                                                 pbEncoded, cbEncoded);
+    if(ret) {
+        return _libssh2_error(session, LIBSSH2_ERROR_FILE,
+                              "Unable to parse private key from memory");
+    }
+    return ret;
 #else
     (void)method;
     (void)method_len;

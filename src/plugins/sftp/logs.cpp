@@ -48,6 +48,20 @@ int CLogs::CreateLog(const char* name)
         return -1;
 
     EnterCriticalSection(&Lock);
+    // feature 051 (U10): logs used to be created per connection and never
+    // released, so a long-running session accumulated one log object (name plus
+    // up to LogMaxSize of text) per connect and the Logs window filled with dead
+    // entries. Keep the most recent ones and drop the oldest beyond the cap.
+    const int MAX_KEPT_LOGS = 32;
+    while (Data.Count >= MAX_KEPT_LOGS)
+    {
+        Data.Delete(0);
+        if (!Data.IsGood())
+        {
+            Data.ResetState();
+            break;
+        }
+    }
     CLogData* log = new CLogData;
     if (log == NULL)
     {

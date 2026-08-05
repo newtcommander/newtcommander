@@ -54,6 +54,9 @@ STRINGTABLE
  IDS_ENTERPASSPHRASE, "Enter passphrase for key %s:"
  IDS_ERR_KEYPUTTY, "PuTTY private keys (.ppk) are not supported. Convert the key to OpenSSH format first (in PuTTYgen: Conversions > Export OpenSSH key)."
  IDS_ERR_TOODEEP, "The directory tree is too deeply nested to process safely; the operation was stopped."
+ IDS_ERR_KEYPKCS8, "PKCS#8 private keys (""BEGIN PRIVATE KEY"") are not supported by this build. Convert the key to OpenSSH or classic PEM format first, e.g.: ssh-keygen -p -m PEM -f <keyfile>"
+ IDS_ERR_KEYTYPEUNSUP, "The private key uses the %s algorithm, which this build does not support (only RSA and ECDSA keys can be used). Use an RSA or ECDSA key instead."
+ IDS_ENTERPASSPHRASE_RETRY, "The passphrase did not unlock the key %s.\nEnter the passphrase again:"
 
  IDS_HOSTKEY_NEWTITLE, "Unknown Server - Verify Host Key"
  IDS_HOSTKEY_NEWTEXT, "The authenticity of host %s cannot be established.\nThe server's %s key fingerprint is:\n\n%s\n\nDo you want to trust this server and continue connecting?"
@@ -84,6 +87,8 @@ STRINGTABLE
  IDS_ERR_NOTADIR, "The path is not a directory."
  IDS_RECONNECTING, "Connection lost. Reconnecting to %s..."
  IDS_SYMLINK_DIR_SKIPPED, "Skipped directory symbolic link ""%s"" (not followed during recursive transfer)."
+ IDS_CONNECTING, "Connecting to %s..."
+ IDS_DOWNLOADINGFILE, "Downloading %s..."
 
  IDS_COL_RIGHTS, "Rights"
  IDS_COL_RIGHTS_DESC, "Unix access rights"

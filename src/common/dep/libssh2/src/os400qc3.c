@@ -2256,10 +2256,14 @@ _libssh2_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
     if(!ctx)
         return -1;
 
+    /* Tandem Commander local patch (feature 051): _libssh2_pem_parse_memory
+       gained a passphrase parameter; PKCS#8 decryption is handled inside
+       rsapkcs8privkey, so pass NULL to keep the previous behavior. */
     /* Try with "ENCRYPTED PRIVATE KEY" PEM armor.
        --> PKCS#8 EncryptedPrivateKeyInfo */
     ret = _libssh2_pem_parse_memory(session,
                                     beginencprivkeyhdr, endencprivkeyhdr,
+                                    NULL,
                                     filedata, filedata_len, &data, &datalen);
 
     /* Try with "PRIVATE KEY" PEM armor.
@@ -2267,6 +2271,7 @@ _libssh2_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
     if(ret)
         ret = _libssh2_pem_parse_memory(session,
                                         beginprivkeyhdr, endprivkeyhdr,
+                                        NULL,
                                         filedata, filedata_len,
                                         &data, &datalen);
 
@@ -2280,6 +2285,7 @@ _libssh2_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
            --> PKCS#1 RSAPrivateKey */
         ret = _libssh2_pem_parse_memory(session,
                                         beginrsaprivkeyhdr, endrsaprivkeyhdr,
+                                        NULL,
                                         filedata, filedata_len,
                                         &data, &datalen);
         if(!ret)
@@ -2332,10 +2338,14 @@ _libssh2_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
     *pubkeydata = NULL;
     *pubkeydata_len = 0;
 
+    /* Tandem Commander local patch (feature 051): _libssh2_pem_parse_memory
+       gained a passphrase parameter; PKCS#8 decryption is handled inside
+       rsapkcs8pubkey, so pass NULL to keep the previous behavior. */
     /* Try with "ENCRYPTED PRIVATE KEY" PEM armor.
        --> PKCS#8 EncryptedPrivateKeyInfo */
     ret = _libssh2_pem_parse_memory(session,
                                     beginencprivkeyhdr, endencprivkeyhdr,
+                                    NULL,
                                     privatekeydata, privatekeydata_len,
                                     &data, &datalen);
 
@@ -2344,6 +2354,7 @@ _libssh2_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
     if(ret)
         ret = _libssh2_pem_parse_memory(session,
                                         beginprivkeyhdr, endprivkeyhdr,
+                                        NULL,
                                         privatekeydata, privatekeydata_len,
                                         &data, &datalen);
 
@@ -2357,6 +2368,7 @@ _libssh2_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
            --> PKCS#1 RSAPrivateKey */
         ret = _libssh2_pem_parse_memory(session,
                                         beginrsaprivkeyhdr, endrsaprivkeyhdr,
+                                        NULL,
                                         privatekeydata, privatekeydata_len,
                                         &data, &datalen);
         if(!ret)
