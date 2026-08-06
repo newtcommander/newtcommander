@@ -249,8 +249,16 @@ BEGIN
     PUSHBUTTON      "Cancel", IDCANCEL, 173, 98, 50, 14
 END
 
+// feature 054: an ordinary popup dialog, like this plugin's eight other dialogs
+// and like every other plugin's settings. It used to be a WS_CHILD template shown
+// through DialogBoxParam, which made it a modal window with no caption, no frame
+// and - because MultiMonCenterWindow works in screen coordinates, which are
+// applied relative to the parent for a child window - a position outside its
+// parent, where it was clipped away entirely. The user saw nothing and the
+// application appeared frozen.
 IDD_CONFIG DIALOGEX 0, 0, 366, 250
-STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "SFTP Configuration"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     // feature 053: the label column is 176 wide - the longest shipped translations of
@@ -282,6 +290,10 @@ BEGIN
     AUTOCHECKBOX    "Enable session &logging", IDC_ENABLELOG, 7, 208, 160, 10
     LTEXT           "Log max size (KB):", IDC_STATIC_10, 173, 209, 145, 8
     EDITTEXT        IDE_LOGMAXSIZE, 320, 207, 39, 12, ES_AUTOHSCROLL | ES_NUMBER
+    // feature 054: ConfigProc has always handled IDOK/IDCANCEL - the buttons to
+    // send them were simply missing from this template
+    DEFPUSHBUTTON   "OK", IDOK, 254, 229, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 309, 229, 50, 14
 END
 
 IDD_SYMLINK DIALOGEX 0, 0, 300, 78

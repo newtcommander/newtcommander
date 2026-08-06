@@ -85,7 +85,7 @@ COMMENT,"Version française"
 2,208,156,50,14,1,"Annuler"
 
 [DIALOG 530]
-366,250,1,""
+366,250,1,"Configuration SFTP"
 3000,7,9,190,8,1,"Délai d'expiration de la connexion (s) :"
 670,199,7,40,12,1,""
 3001,7,25,190,8,1,"Délai d'expiration de l'opération (s) :"
@@ -109,6 +109,8 @@ COMMENT,"Version française"
 679,7,208,160,10,1,"Activer &la journalisation de session"
 3009,173,209,145,8,1,"Taille maximale du journal (Ko) :"
 680,320,207,39,12,1,""
+1,254,229,50,14,0,"OK"
+2,309,229,50,14,1,"Annuler"
 
 [DIALOG 540]
 300,78,1,"Créer un lien symbolique"

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Pavel Stupka
+﻿// SPDX-FileCopyrightText: 2026 Pavel Stupka
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "precomp.h"
@@ -692,9 +692,6 @@ static INT_PTR CALLBACK ConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 
 void ShowConfigDialog(HWND parent)
 {
-    // IDD_CONFIG is a child-style template; host it in a simple modal frame by
-    // temporarily giving it a caption via DS_MODALFRAME at runtime is awkward,
-    // so we reuse it directly (it works as a modal dialog under DialogBox).
     DialogBoxParam(HLanguage, MAKEINTRESOURCE(IDD_CONFIG), parent, ConfigProc, 0);
 }
 
@@ -1014,6 +1011,167 @@ static void ConnectUpdateButtons(HWND hwnd)
     ConnectSetAuthMode(hwnd, IsDlgButtonChecked(hwnd, IDC_AUTHKEY) ? saPrivateKey : saPassword);
 }
 
+// feature 054: size the label column from the language that is actually loaded.
+//
+// The template can only carry one width, so feature 053 had to size this column
+// for the longest translation of ALL shipped languages - which left every other
+// language with a wide empty band between its labels and the fields. The right
+// width is only knowable at run time (it depends on the language, the dialog
+// font and the DPI), so it is measured here: the widest label wins, plus a small
+// margin, and the field column and the dialog follow. Fields keep their width -
+// the dialog grows or shrinks instead, so nothing is ever clipped or squeezed.
+//
+// This is the only run-time relayout in the plugin; keep it here rather than
+// generalising it, and keep it to the one column it is about.
+static void ConnectFitLabelColumn(HWND hwnd)
+{
+    // the labels of the right-hand column, in the order they appear
+    static const int labelIDs[] = {IDT_HOSTADDRESS, IDT_USERNAME, IDT_PASSWORD,
+                                   IDT_KEYFILE, IDT_PASSPHRASE, IDT_INITIALPATH};
+    // everything that starts at the field column and must move with it
+    static const int fieldIDs[] = {IDE_HOSTADDRESS, IDE_USERNAME, IDC_AUTHPASSWORD,
+                                   IDC_AUTHKEY, IDE_PASSWORD, IDC_SAVEPASSWORD,
+                                   IDE_KEYFILE, IDB_BROWSEKEY, IDE_PASSPHRASE,
+                                   IDC_SAVEPASSPHRASE, IDE_INITIALPATH};
+    const int paddingPx = 12; // breathing room between a label and its field
+
+    HWND firstLabel = GetDlgItem(hwnd, labelIDs[0]);
+    HWND firstField = GetDlgItem(hwnd, fieldIDs[0]);
+    if (firstLabel == NULL || firstField == NULL)
+        return;
+
+    // Measure through a LABEL's own DC with a LABEL's own font. Measuring on the
+    // dialog's DC gave the stock system font's metrics - noticeably narrower than
+    // "MS Shell Dlg" at this size - and every label came out too small to hold its
+    // own text.
+    HFONT font = (HFONT)SendMessage(firstLabel, WM_GETFONT, 0, 0);
+    if (font == NULL)
+        font = (HFONT)SendMessage(hwnd, WM_GETFONT, 0, 0);
+    HDC dc = GetDC(firstLabel);
+    if (dc == NULL)
+        return;
+    HFONT oldFont = font != NULL ? (HFONT)SelectObject(dc, font) : NULL;
+
+    int widest = 0;
+    for (int i = 0; i < (int)(sizeof(labelIDs) / sizeof(labelIDs[0])); i++)
+    {
+        WCHAR text[256];
+        int len = GetDlgItemTextW(hwnd, labelIDs[i], text, (int)(sizeof(text) / sizeof(text[0])));
+        if (len <= 0)
+            continue;
+        // '&' marks the accelerator and is not drawn ("&&" draws as one '&'), so
+        // measuring the raw text would over-estimate every label by one character
+        WCHAR drawn[256];
+        int drawnLen = 0;
+        for (int c = 0; c < len; c++)
+        {
+            if (text[c] == L'&')
+            {
+                if (c + 1 < len && text[c + 1] == L'&')
+                    drawn[drawnLen++] = L'&', c++; // "&&" is a literal ampersand
+                continue;
+            }
+            drawn[drawnLen++] = text[c];
+        }
+        SIZE sz;
+        if (GetTextExtentPoint32W(dc, drawn, drawnLen, &sz) && sz.cx > widest)
+            widest = sz.cx;
+    }
+    if (oldFont != NULL)
+        SelectObject(dc, oldFont);
+    ReleaseDC(firstLabel, dc);
+    if (widest <= 0)
+        return;
+
+    // where the labels start and where the fields start today, in client pixels
+    RECT rc;
+    POINT labelLeft, fieldLeft;
+    GetWindowRect(firstLabel, &rc);
+    labelLeft.x = rc.left;
+    labelLeft.y = rc.top;
+    ScreenToClient(hwnd, &labelLeft);
+    GetWindowRect(firstField, &rc);
+    fieldLeft.x = rc.left;
+    fieldLeft.y = rc.top;
+    ScreenToClient(hwnd, &fieldLeft);
+
+    int wantedFieldLeft = labelLeft.x + widest + paddingPx;
+    int delta = wantedFieldLeft - fieldLeft.x; // negative shrinks, positive grows
+    if (delta == 0)
+        return;
+
+    // never let the dialog grow past the work area: clamp instead, which at worst
+    // leaves the current (already non-clipping) layout
+    if (delta > 0)
+    {
+        RECT dlgRc;
+        GetWindowRect(hwnd, &dlgRc);
+        RECT work;
+        SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
+        int room = (work.right - work.left) - (dlgRc.right - dlgRc.left);
+        if (delta > room)
+            delta = room > 0 ? room : 0;
+        if (delta == 0)
+            return;
+    }
+
+    HDWP dwp = BeginDeferWindowPos(
+        (int)(sizeof(labelIDs) / sizeof(labelIDs[0]) + sizeof(fieldIDs) / sizeof(fieldIDs[0])));
+    // widen every label to the measured width so the column stays aligned
+    for (int i = 0; i < (int)(sizeof(labelIDs) / sizeof(labelIDs[0])); i++)
+    {
+        HWND w = GetDlgItem(hwnd, labelIDs[i]);
+        if (w == NULL)
+            continue;
+        RECT r;
+        GetWindowRect(w, &r);
+        POINT pt = {r.left, r.top};
+        ScreenToClient(hwnd, &pt);
+        if (dwp != NULL)
+            dwp = DeferWindowPos(dwp, w, NULL, pt.x, pt.y, widest, r.bottom - r.top,
+                                 SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    // move the field column, keeping every field's width
+    for (int i = 0; i < (int)(sizeof(fieldIDs) / sizeof(fieldIDs[0])); i++)
+    {
+        HWND w = GetDlgItem(hwnd, fieldIDs[i]);
+        if (w == NULL)
+            continue;
+        RECT r;
+        GetWindowRect(w, &r);
+        POINT pt = {r.left, r.top};
+        ScreenToClient(hwnd, &pt);
+        if (dwp != NULL)
+            dwp = DeferWindowPos(dwp, w, NULL, pt.x + delta, pt.y, r.right - r.left,
+                                 r.bottom - r.top, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    if (dwp != NULL)
+        EndDeferWindowPos(dwp);
+
+    // the port label/field pair and the bottom buttons sit to the right of the
+    // field column, so they move with it too
+    static const int trailingIDs[] = {IDT_PORT, IDE_PORT, IDB_CONNECT, IDB_SAVEBOOKMARK, IDCANCEL};
+    for (int i = 0; i < (int)(sizeof(trailingIDs) / sizeof(trailingIDs[0])); i++)
+    {
+        HWND w = GetDlgItem(hwnd, trailingIDs[i]);
+        if (w == NULL)
+            continue;
+        RECT r;
+        GetWindowRect(w, &r);
+        POINT pt = {r.left, r.top};
+        ScreenToClient(hwnd, &pt);
+        SetWindowPos(w, NULL, pt.x + delta, pt.y, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    // finally resize the dialog by the same amount and re-centre it
+    RECT dlgRc;
+    GetWindowRect(hwnd, &dlgRc);
+    SetWindowPos(hwnd, NULL, 0, 0, (dlgRc.right - dlgRc.left) + delta,
+                 dlgRc.bottom - dlgRc.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
+}
+
 static void BrowseForKey(HWND hwnd)
 {
     // the key-file path is UTF-8 (interface 104) -> use the W common dialog (feature 010)
@@ -1072,6 +1230,11 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             ConnectSelectItemData(hwnd, QC_ITEM);
         }
         ConnectUpdateButtons(hwnd);
+        // feature 054: fit the label column to this language's texts. Runs last,
+        // after every control carries its final text, and re-centres the dialog
+        // itself - so the MultiMonCenterWindow below is only for the case where
+        // the layout needs no adjustment at all.
+        ConnectFitLabelColumn(hwnd);
         SalamanderGeneral->MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE);
         return TRUE;
     }

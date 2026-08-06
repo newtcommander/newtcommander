@@ -85,7 +85,7 @@ COMMENT,"Magyar változat"
 2,208,156,50,14,1,"Mégse"
 
 [DIALOG 530]
-366,250,1,""
+366,250,1,"SFTP-beállítások"
 3000,7,9,190,8,1,"Csatlakozási időkorlát (másodperc):"
 670,199,7,40,12,1,""
 3001,7,25,190,8,1,"Műveleti időkorlát (s):"
@@ -109,6 +109,8 @@ COMMENT,"Magyar változat"
 679,7,208,160,10,1,"Munkamenet-nap&lózás engedélyezése"
 3009,173,209,145,8,1,"A napló maximális mérete (KB):"
 680,320,207,39,12,1,""
+1,254,229,50,14,0,"OK"
+2,309,229,50,14,1,"Mégse"
 
 [DIALOG 540]
 300,78,1,"Szimbolikus link létrehozása"

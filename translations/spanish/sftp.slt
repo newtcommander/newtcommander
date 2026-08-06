@@ -85,7 +85,7 @@ COMMENT,"Versión en español"
 2,208,156,50,14,1,"Cancelar"
 
 [DIALOG 530]
-366,250,1,""
+366,250,1,"Configuración de SFTP"
 3000,7,9,190,8,1,"Tiempo de espera de conexión (s):"
 670,199,7,40,12,1,""
 3001,7,25,190,8,1,"Tiempo de espera de la operación (s):"
@@ -109,6 +109,8 @@ COMMENT,"Versión en español"
 679,7,208,160,10,1,"Habi&litar el registro de sesión"
 3009,173,209,145,8,1,"Tamaño máximo del registro (KB):"
 680,320,207,39,12,1,""
+1,254,229,50,14,0,"OK"
+2,309,229,50,14,1,"Cancelar"
 
 [DIALOG 540]
 300,78,1,"Crear enlace simbólico"

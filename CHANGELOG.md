@@ -13,6 +13,23 @@ plugin.
 
 ### Fixed
 
+- **SFTP: the plugin's settings could not be opened at all.** Pressing
+  Configure in Plugins Manager left the application unresponsive, with nothing
+  on screen to close — it had to be killed, and no SFTP setting could be
+  changed by any means. The settings window existed but had no title bar or
+  frame and was positioned outside the window it belonged to, so it was clipped
+  away entirely. It is now an ordinary window with a title and OK/Cancel, like
+  every other plugin's settings.
+- **SFTP: connecting to a host whose first address is unreachable now works.**
+  When a host name offered several addresses and the first silently dropped
+  traffic, the whole connect time was spent waiting on it and the remaining
+  addresses were never tried — typically `localhost` on a machine whose IPv6
+  loopback is filtered, which failed after the full timeout while `127.0.0.1`
+  connected instantly. Addresses are now attempted with a slight overlap and
+  the first to answer wins, so such a host connects in about a second. A host
+  that really is unreachable still fails within the configured timeout, never a
+  multiple of it.
+
 - **SFTP: text was cut off in the plugin's dialogs in every non-English
   language.** Controls were sized for English, so longer translations were
   truncated mid-word — in Czech the key-file label read "Soubor s" and the
@@ -47,6 +64,12 @@ plugin.
 
 ### Changed
 
+- **SFTP: the connect dialog is sized for the language in use.** Its labels
+  used to be given room for the longest translation of every shipped language
+  at once, which left a wide empty band between the labels and the input fields
+  in most languages. The dialog now measures the labels it is actually showing
+  and sits them next to their fields; the fields keep their width and the
+  window itself is narrower or wider depending on the language.
 - **SFTP: Quick Connect no longer remembers anything, and can no longer store a
   password.** It exists for one-off connections, so every field starts empty
   each time you open the dialog and nothing about it is written to your

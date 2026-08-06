@@ -194,85 +194,177 @@ BOOL CSFTPSession::OpenSocket(CSFTPConnectResult* result)
     // list, not per address - a dual-stack host with several dead addresses used
     // to cost ConnectTimeoutSec each. The wait is sliced so a user cancel is
     // noticed promptly instead of after the full timeout (SC-004).
+    //
+    // feature 054: the candidates are now attempted with OVERLAP instead of
+    // strictly one after another. The old loop waited on the current address
+    // until the shared budget ran out and then abandoned the whole list, so a
+    // single silently-dropped address (no RST, just nothing) made the host
+    // unreachable even when a later address was answering immediately - the
+    // reported "localhost times out but 127.0.0.1 connects" case, where the
+    // IPv6 address is black-holed. Each candidate is now started a short delay
+    // after the previous one WITHOUT giving up on it, every pending socket is
+    // waited on together, and the first to complete wins (RFC 8305 "Happy
+    // Eyeballs", which is what browsers do with dual-stack hosts). The budget
+    // is still shared, so a host where every address is dead fails in the same
+    // bounded time as before.
     const DWORD totalBudgetMs = (DWORD)(Params.ConnectTimeoutSec > 0 ? Params.ConnectTimeoutSec : 20) * 1000;
-    const DWORD sliceMs = 250;
+    const DWORD sliceMs = 250;   // also the cancel-poll cadence (see below)
+    const DWORD staggerMs = 250; // delay before bringing the next candidate in
     const DWORD startTick = GetTickCount();
 
+    // Pending candidates. FD_SETSIZE caps what one select() can watch; a host
+    // with more addresses than that simply gets them in waves as earlier ones
+    // drop out, which is still strictly better than the old behaviour.
+    struct CCandidate
+    {
+        SOCKET Socket;
+        const struct addrinfo* Addr;
+    };
+    CCandidate pending[FD_SETSIZE];
+    int pendingCount = 0;
+
     SOCKET s = INVALID_SOCKET;
+    const struct addrinfo* winner = NULL;
+    struct addrinfo* next = ai; // the next candidate not yet started
     BOOL cancelled = FALSE;
     BOOL timedOut = FALSE;
-    for (struct addrinfo* p = ai; p != NULL && !cancelled && !timedOut; p = p->ai_next)
-    {
-        s = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (s == INVALID_SOCKET)
-            continue;
+    BOOL anyRefused = FALSE; // at least one candidate answered with an error
+    DWORD lastStartTick = 0;
 
-        // apply a connect timeout via non-blocking connect + select
-        u_long nonblock = 1;
-        ioctlsocket(s, FIONBIO, &nonblock);
-        int cr = connect(s, p->ai_addr, (int)p->ai_addrlen);
-        if (cr == 0)
+    while (s == INVALID_SOCKET && !cancelled && !timedOut)
+    {
+        DWORD now = GetTickCount();
+
+        // (1) start the next candidate when it is due: immediately if nothing is
+        //     pending (so a healthy host is as fast as it ever was), otherwise
+        //     once the stagger has elapsed
+        while (next != NULL && pendingCount < FD_SETSIZE &&
+               (pendingCount == 0 || now - lastStartTick >= staggerMs))
         {
-            // connected immediately
-        }
-        else if (WSAGetLastError() == WSAEWOULDBLOCK)
-        {
-            BOOL connectedOk = FALSE;
-            for (;;)
+            struct addrinfo* p = next;
+            next = next->ai_next;
+            SOCKET cand = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+            if (cand == INVALID_SOCKET)
+                continue;
+            u_long nonblock = 1;
+            ioctlsocket(cand, FIONBIO, &nonblock);
+            lastStartTick = now;
+            int cr = connect(cand, p->ai_addr, (int)p->ai_addrlen);
+            if (cr == 0) // connected straight away
             {
-                if (IsCancelRequested())
-                {
-                    cancelled = TRUE;
-                    break;
-                }
-                DWORD elapsed = GetTickCount() - startTick;
-                if (elapsed >= totalBudgetMs)
-                {
-                    timedOut = TRUE;
-                    break;
-                }
-                DWORD remaining = totalBudgetMs - elapsed;
-                fd_set wfds, efds;
-                FD_ZERO(&wfds);
-                FD_SET(s, &wfds);
-                FD_ZERO(&efds);
-                FD_SET(s, &efds);
-                struct timeval tv;
-                DWORD waitMs = remaining < sliceMs ? remaining : sliceMs;
-                tv.tv_sec = (long)(waitMs / 1000);
-                tv.tv_usec = (long)((waitMs % 1000) * 1000);
-                int sel = select(0, NULL, &wfds, &efds, &tv);
-                if (sel < 0)
-                    break; // socket error - try the next address
-                if (sel == 0)
-                    continue; // slice expired, keep waiting within the budget
-                int soErr = 0;
-                int soLen = sizeof(soErr);
-                getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&soErr, &soLen);
-                connectedOk = (soErr == 0);
+                s = cand;
+                winner = p;
                 break;
             }
-            if (!connectedOk)
+            if (WSAGetLastError() != WSAEWOULDBLOCK)
             {
-                closesocket(s);
-                s = INVALID_SOCKET;
+                closesocket(cand); // refused or unusable - not worth waiting on
+                anyRefused = TRUE;
                 continue;
             }
+            pending[pendingCount].Socket = cand;
+            pending[pendingCount].Addr = p;
+            pendingCount++;
         }
-        else
+        if (s != INVALID_SOCKET)
+            break;
+
+        if (pendingCount == 0 && next == NULL)
+            break; // every candidate has been tried and none is still pending
+
+        // (2) wait on ALL pending candidates at once, in short slices. The slice
+        //     is what keeps cancellation prompt: RequestCancel can only shut
+        //     down the session's member socket, which does not exist yet here,
+        //     so polling is the only way a cancel is noticed during connect.
+        if (IsCancelRequested())
         {
-            closesocket(s);
-            s = INVALID_SOCKET;
-            continue;
+            cancelled = TRUE;
+            break;
         }
-        // feature 051 (D4/F3): the socket deliberately STAYS non-blocking. With a
-        // blocking OS socket, libssh2's blocking API never enters
-        // _libssh2_wait_socket, so libssh2_session_set_timeout is not enforced and
-        // recv() can block forever on a black-holed connection. Keeping the socket
-        // non-blocking makes every later libssh2 call honour that timeout.
-        break;
+        DWORD elapsed = GetTickCount() - startTick;
+        if (elapsed >= totalBudgetMs)
+        {
+            timedOut = TRUE;
+            break;
+        }
+        DWORD remaining = totalBudgetMs - elapsed;
+        DWORD waitMs = remaining < sliceMs ? remaining : sliceMs;
+        if (next != NULL && waitMs > staggerMs)
+            waitMs = staggerMs; // wake up in time to start the next candidate
+
+        fd_set wfds, efds;
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
+        for (int i = 0; i < pendingCount; i++)
+        {
+            FD_SET(pending[i].Socket, &wfds);
+            FD_SET(pending[i].Socket, &efds);
+        }
+        struct timeval tv;
+        tv.tv_sec = (long)(waitMs / 1000);
+        tv.tv_usec = (long)((waitMs % 1000) * 1000);
+        int sel = select(0, NULL, &wfds, &efds, &tv);
+        if (sel <= 0)
+            continue; // slice expired (or select failed) - keep waiting / start the next
+
+        // (3) collect the results: the first candidate that reports success wins,
+        //     the ones that report an error are dropped from the pending set
+        for (int i = 0; i < pendingCount;)
+        {
+            SOCKET cand = pending[i].Socket;
+            if (!FD_ISSET(cand, &wfds) && !FD_ISSET(cand, &efds))
+            {
+                i++;
+                continue;
+            }
+            int soErr = 0;
+            int soLen = sizeof(soErr);
+            getsockopt(cand, SOL_SOCKET, SO_ERROR, (char*)&soErr, &soLen);
+            if (soErr == 0 && s == INVALID_SOCKET)
+            {
+                s = cand;
+                winner = pending[i].Addr;
+            }
+            else
+            {
+                closesocket(cand);
+                anyRefused = TRUE;
+            }
+            pending[i] = pending[--pendingCount]; // drop it from the pending set
+        }
     }
+
+    // Close every candidate that lost the race - nothing else will collect them
+    // (Disconnect only ever closes the session's own socket).
+    for (int i = 0; i < pendingCount; i++)
+    {
+        if (pending[i].Socket != s)
+            closesocket(pending[i].Socket);
+    }
+    pendingCount = 0;
+
+    if (s != INVALID_SOCKET && winner != NULL)
+    {
+        // The address that answered is worth recording: this loop used to log
+        // nothing, which is why a host whose first address was black-holed
+        // looked like a plain timeout.
+        char addrText[NI_MAXHOST] = "";
+        if (getnameinfo(winner->ai_addr, (socklen_t)winner->ai_addrlen, addrText,
+                        sizeof(addrText), NULL, 0, NI_NUMERICHOST) != 0)
+            addrText[0] = 0;
+        LogFmt("Connected to %s:%d", addrText[0] != 0 ? addrText : Params.Host, Params.Port);
+    }
+
+    // feature 051 (D4/F3): the winning socket deliberately STAYS non-blocking.
+    // With a blocking OS socket, libssh2's blocking API never enters
+    // _libssh2_wait_socket, so libssh2_session_set_timeout is not enforced and
+    // recv() can block forever on a black-holed connection. Keeping the socket
+    // non-blocking makes every later libssh2 call honour that timeout.
+
+    // freeaddrinfo only after the loop is done with the addresses: a pending
+    // candidate holds a pointer into this list for the whole wait.
     freeaddrinfo(ai);
+    winner = NULL; // dangling past freeaddrinfo - do not use below
 
     if (s == INVALID_SOCKET)
     {
@@ -283,7 +375,11 @@ BOOL CSFTPSession::OpenSocket(CSFTPConnectResult* result)
                 *result = crCancelled;
             return FALSE;
         }
-        if (timedOut)
+        // feature 054: a budget that ran out is only a timeout when nothing ever
+        // answered. If some address did answer - with a refusal - that is the more
+        // useful thing to tell the user, even if a different address was still
+        // being waited on when the budget expired.
+        if (timedOut && !anyRefused)
         {
             lstrcpynA(LastErrorText, LoadStr(IDS_ERR_TIMEOUT), sizeof(LastErrorText));
             if (result != NULL)

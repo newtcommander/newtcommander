@@ -85,7 +85,7 @@ COMMENT,"Versiunea romana"
 2,208,156,50,14,1,"Anulare"
 
 [DIALOG 530]
-366,250,1,""
+366,250,1,"Configurarea SFTP"
 3000,7,9,190,8,1,"Timp de expirare conexiune (s):"
 670,199,7,40,12,1,""
 3001,7,25,190,8,1,"Timp de expirare a operațiunii (s):"
@@ -109,6 +109,8 @@ COMMENT,"Versiunea romana"
 679,7,208,160,10,1,"Activare jurna&lizare sesiune"
 3009,173,209,145,8,1,"Dimensiune maximă jurnal (KB):"
 680,320,207,39,12,1,""
+1,254,229,50,14,0,"OK"
+2,309,229,50,14,1,"Anulare"
 
 [DIALOG 540]
 300,78,1,"Creați o legătură simbolică"
