@@ -359,15 +359,18 @@ def run(
         return 1
     templates = {m.name: load(templates_dir / f"{m.name}.slt") for m in modules}
 
+    # The client is created on first use, not up front: a run with nothing to
+    # translate -- e.g. refreshing control geometry after a dialog template
+    # changed -- then needs no key and no network at all, and is deterministic.
     client = None
-    if not dry_run:
-        try:
+
+    def translation_client():
+        nonlocal client
+        if client is None:
             client = Client(key=load_key(key_file))
             usage = client.usage()
             print(f"DeepL quota: {usage.remaining:,} of {usage.limit:,} characters remaining")
-        except DeepLError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
+        return client
 
     reports: list[Coverage] = []
     spent = 0
@@ -392,14 +395,15 @@ def run(
                 print(f"\r  translating {done}/{total}", end="", flush=True)
 
             try:
-                translations = client.translate_all(gaps, code, progress)
+                api = translation_client()
+                translations = api.translate_all(gaps, code, progress)
             except DeepLError as e:
                 print(f"\n  error: {e}", file=sys.stderr)
                 return 1
             print(f"\r  translated {len(translations)}/{len(gaps)}   ")
             # sent_chars is cumulative on the client, so assign -- adding it
             # each round would count earlier languages again and again.
-            spent = client.sent_chars
+            spent = api.sent_chars
 
         for module in modules:
             legacy_path = language.directory / f"{module.name}.slt"

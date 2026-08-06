@@ -722,15 +722,23 @@ struct CConnectData
 // explicit content check). Eight chars -> eight bullets in the ES_PASSWORD box.
 #define SFTP_SECRET_PLACEHOLDER "********"
 
+static int ConnectSelectedItemData(HWND hwnd); // defined with the bookmark-list helpers
+
+// The auth method decides which credential controls apply. feature 053 adds a
+// second condition for the two save-secret options: only a bookmark can store a
+// secret, so they stay disabled while the transient quick-connect row is selected.
+// Every enable rule for these controls lives here, because the auth radio buttons
+// re-run this function and would otherwise undo a rule applied elsewhere.
 static void ConnectSetAuthMode(HWND hwnd, int authMethod)
 {
     BOOL pwd = (authMethod == saPassword);
+    BOOL canSaveSecrets = (ConnectSelectedItemData(hwnd) >= 0); // >= 0 == a bookmark
     EnableWindow(GetDlgItem(hwnd, IDE_PASSWORD), pwd);
-    EnableWindow(GetDlgItem(hwnd, IDC_SAVEPASSWORD), pwd);
+    EnableWindow(GetDlgItem(hwnd, IDC_SAVEPASSWORD), pwd && canSaveSecrets);
     EnableWindow(GetDlgItem(hwnd, IDE_KEYFILE), !pwd);
     EnableWindow(GetDlgItem(hwnd, IDB_BROWSEKEY), !pwd);
     EnableWindow(GetDlgItem(hwnd, IDE_PASSPHRASE), !pwd);
-    EnableWindow(GetDlgItem(hwnd, IDC_SAVEPASSPHRASE), !pwd);
+    EnableWindow(GetDlgItem(hwnd, IDC_SAVEPASSPHRASE), !pwd && canSaveSecrets);
 }
 
 static void ConnectLoadServerToFields(HWND hwnd, const CSFTPServer* s)
@@ -774,26 +782,43 @@ static BOOL ConnectReadFields(HWND hwnd, CSFTPServer* s, const CSFTPServer* sele
     GetDlgItemTextU8(hwnd, IDE_KEYFILE, keyfile, sizeof(keyfile));
     GetDlgItemTextU8(hwnd, IDE_INITIALPATH, initpath, sizeof(initpath));
     int port = GetDlgItemInt(hwnd, IDE_PORT, NULL, FALSE);
-    if (host[0] == 0)
+    // feature 053: a server address and a valid port are needed to CONNECT, not to
+    // create or save a bookmark - a user may name an entry first and fill in the
+    // details later (FR-006/FR-007). Off the connect path an empty or nonsense
+    // port becomes the default instead of being stored as 0.
+    if (forConnect)
     {
-        SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_HOSTNAMEMISSING),
-                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
-        return FALSE;
+        if (host[0] == 0)
+        {
+            SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_HOSTNAMEMISSING),
+                                             LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+            return FALSE;
+        }
+        if (port <= 0 || port > 65535)
+        {
+            SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_INVALIDPORT),
+                                             LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
+            return FALSE;
+        }
     }
-    if (port <= 0 || port > 65535)
-    {
-        SalamanderGeneral->SalMessageBox(hwnd, LoadStr(IDS_INVALIDPORT),
-                                         LoadStr(IDS_SFTPERRORTITLE), MB_OK | MB_ICONEXCLAMATION);
-        return FALSE;
-    }
+    else if (port <= 0 || port > 65535)
+        port = SFTP_DEFAULT_PORT;
 
     int authMethod = IsDlgButtonChecked(hwnd, IDC_AUTHKEY) ? saPrivateKey : saPassword;
-    s->Set(NULL, host, port, user);
+    // an empty field means "no value", the same way KeyFile and InitialPath below
+    // are stored - otherwise an empty string in memory would come back as NULL
+    // after a restart (the registry writer skips empty strings)
+    s->Set(NULL, host[0] ? host : NULL, port, user[0] ? user : NULL);
     s->AuthMethod = authMethod;
     s->SetString(&s->KeyFile, keyfile[0] ? keyfile : NULL);
     s->SetString(&s->InitialPath, initpath[0] ? initpath : NULL);
-    s->SavePassword = IsDlgButtonChecked(hwnd, IDC_SAVEPASSWORD);
-    s->SavePassphrase = IsDlgButtonChecked(hwnd, IDC_SAVEPASSPHRASE);
+    // feature 053: quick connect can never store a secret. The checkboxes are
+    // disabled for it, but EnableWindow does not change what IsDlgButtonChecked
+    // reports, so the flags are forced here as well - that is what keeps the
+    // encryption branches below (and any master-password prompt) from running.
+    BOOL canSaveSecrets = (ConnectSelectedItemData(hwnd) >= 0); // >= 0 == a bookmark
+    s->SavePassword = canSaveSecrets && IsDlgButtonChecked(hwnd, IDC_SAVEPASSWORD);
+    s->SavePassphrase = canSaveSecrets && IsDlgButtonChecked(hwnd, IDC_SAVEPASSPHRASE);
 
     if (forConnect)
     {
@@ -901,7 +926,10 @@ static void ConnectFillBookmarkList(HWND hwnd)
     for (int i = 0; i < Config.Bookmarks.Count; i++)
     {
         CSFTPServer* s = Config.Bookmarks[i];
-        const char* name = (s->ItemName != NULL && s->ItemName[0]) ? s->ItemName : (s->Address != NULL ? s->Address : "(unnamed)");
+        // feature 053: a bookmark may legitimately have no address, so the fallback
+        // checks for a non-empty one - otherwise such an entry would draw a blank row
+        const char* name = (s->ItemName != NULL && s->ItemName[0]) ? s->ItemName
+                                                                   : ((s->Address != NULL && s->Address[0]) ? s->Address : "(unnamed)");
         int idx = ListBoxAddStringU8(lb, name);
         SendMessage(lb, LB_SETITEMDATA, idx, i);
     }
@@ -962,6 +990,11 @@ static void ConnectSelectItemData(HWND hwnd, int itemData)
 
 // feature 017 (U4): Rename/Delete apply to real bookmarks only; Quick Connect
 // cannot be renamed or removed. Duplicate works on either.
+// feature 053: Save and the two save-secret options are bookmark-only too - quick
+// connect is transient, so there is nothing to save into and no secret may be
+// stored. This runs after the list selection is set, which is why the enable rules
+// live here and not in ConnectLoadServerToFields (at WM_INITDIALOG the fields are
+// loaded before the row is selected).
 static void ConnectUpdateButtons(HWND hwnd)
 {
     int data = ConnectSelectedItemData(hwnd);
@@ -969,6 +1002,16 @@ static void ConnectUpdateButtons(HWND hwnd)
     EnableWindow(GetDlgItem(hwnd, IDB_RENAMEBOOKMARK), isBookmark);
     EnableWindow(GetDlgItem(hwnd, IDB_REMOVEBOOKMARK), isBookmark);
     EnableWindow(GetDlgItem(hwnd, IDB_COPYBOOKMARK), data != LB_ERR);
+    EnableWindow(GetDlgItem(hwnd, IDB_SAVEBOOKMARK), isBookmark);
+    if (!isBookmark)
+    {
+        // uncheck as well as disable: IsDlgButtonChecked ignores EnableWindow, so a
+        // greyed-out box would still report whatever a bookmark left checked
+        CheckDlgButton(hwnd, IDC_SAVEPASSWORD, BST_UNCHECKED);
+        CheckDlgButton(hwnd, IDC_SAVEPASSPHRASE, BST_UNCHECKED);
+    }
+    // re-apply the enable rules now that the selection is known
+    ConnectSetAuthMode(hwnd, IsDlgButtonChecked(hwnd, IDC_AUTHKEY) ? saPrivateKey : saPassword);
 }
 
 static void BrowseForKey(HWND hwnd)
@@ -1005,6 +1048,10 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         d = (CConnectData*)lParam;
         SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)d);
         d->Hwnd = hwnd;
+        // feature 053: quick connect is transient - it must not carry anything over
+        // from a previous dialog session. Reset() (not Clear()) is required: Clear()
+        // would leave the last port, auth method and save-secret flags behind.
+        Config.QuickConnect.Reset();
         ConnectFillBookmarkList(hwnd);
         if (d->OrganizeMode)
         {
@@ -1200,10 +1247,16 @@ static INT_PTR CALLBACK ConnectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             CSFTPServer* entry = ConnectEntryForItemData(data);
             if (entry == NULL)
                 entry = &Config.QuickConnect; // no selection -> quick connect
-            Config.LastBookmark = (data >= 0) ? data + 1 : 0;
             if (ConnectCommitToEntry(hwnd, entry, TRUE) &&
                 d->Result != NULL && d->Result->CopyFrom(entry))
             {
+                // feature 053: remember the entry only once the fields validated -
+                // a failed connect must not make an unusable entry the one the
+                // dialog seeds next time
+                Config.LastBookmark = (data >= 0) ? data + 1 : 0;
+                // the request now lives in d->Result; quick connect keeps nothing
+                if (data == QC_ITEM || entry == &Config.QuickConnect)
+                    Config.QuickConnect.Reset();
                 EndDialog(hwnd, IDOK);
             }
             return TRUE;

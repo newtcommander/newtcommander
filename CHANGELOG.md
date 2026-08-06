@@ -13,6 +13,21 @@ plugin.
 
 ### Fixed
 
+- **SFTP: text was cut off in the plugin's dialogs in every non-English
+  language.** Controls were sized for English, so longer translations were
+  truncated mid-word — in Czech the key-file label read "Soubor s" and the
+  passphrase label "Heslo ke". It was not just the connect dialog: 26 controls
+  across six dialogs were too narrow, worst a settings checkbox with room for
+  about 60% of its text. The dialogs are now sized for the longest translation
+  that ships. **No wording changed** — the translations were always correct,
+  only their display was not.
+- **SFTP: the password prompt could not fit its own message.** The text asking
+  for a passphrase again after a wrong one, with the key file's path in it,
+  needed more room than the two lines it had.
+- **SFTP: two controls in the plugin's settings overlapped each other** — the
+  "show octal mode" option sat on top of the permissions-column choices. It is
+  now its own row.
+
 - **Plugins Manager showed garbled plugin names in non-English UI.** With the
   UI in Czech, names of plugins that were not currently loaded rendered as
   mojibake ("HromadnĂ© pĹ™ejmenovĂˇnĂ­" instead of "Hromadné přejmenování");
@@ -32,6 +47,18 @@ plugin.
 
 ### Changed
 
+- **SFTP: Quick Connect no longer remembers anything, and can no longer store a
+  password.** It exists for one-off connections, so every field starts empty
+  each time you open the dialog and nothing about it is written to your
+  settings. The "save password" and "save passphrase" options are unavailable
+  while Quick Connect is selected, as is "Save" — those belong to bookmarks. A
+  Quick Connect password saved by an earlier version is **deleted** the first
+  time this version loads the plugin. Bookmarks are unaffected: they keep their
+  values and their saved passwords exactly as before.
+- **SFTP: a bookmark can now be created and saved empty.** Previously a server
+  address was demanded the moment you created one, so you could not name an
+  entry and fill in the details later. The address and port are now required
+  only when you actually connect, with the same message as before.
 - **The ZIP plugin is named "ZIP" in every language.** Machine translation had
   turned the name into the postal code: "PSČ" (Czech, Slovak), "Code postal"
   (French), "Código postal" (Spanish), "邮编" (Simplified Chinese), and

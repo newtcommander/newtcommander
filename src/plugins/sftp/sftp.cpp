@@ -36,7 +36,14 @@ CPluginInterface PluginInterface;
 CPluginInterfaceForMenuExt InterfaceForMenuExt;
 CSFTPConfig Config;
 
-#define CURRENT_CONFIG_VERSION 1
+// version 2 (feature 053): the quick-connect entry is no longer persisted. A
+// configuration written by an older version still carries its subtree - possibly
+// including a saved password - so loading version < 2 schedules a one-time purge.
+#define CURRENT_CONFIG_VERSION 2
+
+// feature 053: set when a pre-version-2 configuration was loaded; cleared once the
+// stale quick-connect subtree has been deleted (see PurgeQuickConnectIfNeeded)
+static BOOL PurgeQuickConnectPending = FALSE;
 
 // ---------------------------------------------------------------------------
 // config registry value names
@@ -180,17 +187,65 @@ CSFTPServer::~CSFTPServer()
     Clear();
 }
 
+// feature 053: Clear() frees the strings and blobs but leaves the scalars alone,
+// so an entry it "cleared" still carries the last port, auth method and
+// save-secret flags. Reset() is what the transient quick-connect entry needs: the
+// constructor's state, i.e. genuinely empty.
+void CSFTPServer::Reset()
+{
+    Clear();
+    Port = SFTP_DEFAULT_PORT;
+    AuthMethod = saPassword;
+    SavePassword = FALSE;
+    SavePassphrase = FALSE;
+    KeepAliveSendEvery = 0;
+    KeepAliveStopAfter = 0;
+    UseCompression = FALSE;
+}
+
 void CSFTPServer::Clear()
 {
-    if (ItemName != NULL) { free(ItemName); ItemName = NULL; }
-    if (Address != NULL) { free(Address); Address = NULL; }
-    if (UserName != NULL) { free(UserName); UserName = NULL; }
-    if (KeyFile != NULL) { free(KeyFile); KeyFile = NULL; }
-    if (InitialPath != NULL) { free(InitialPath); InitialPath = NULL; }
-    if (TargetPanelPath != NULL) { free(TargetPanelPath); TargetPanelPath = NULL; }
-    if (EncryptedPassword != NULL) { free(EncryptedPassword); EncryptedPassword = NULL; }
+    if (ItemName != NULL)
+    {
+        free(ItemName);
+        ItemName = NULL;
+    }
+    if (Address != NULL)
+    {
+        free(Address);
+        Address = NULL;
+    }
+    if (UserName != NULL)
+    {
+        free(UserName);
+        UserName = NULL;
+    }
+    if (KeyFile != NULL)
+    {
+        free(KeyFile);
+        KeyFile = NULL;
+    }
+    if (InitialPath != NULL)
+    {
+        free(InitialPath);
+        InitialPath = NULL;
+    }
+    if (TargetPanelPath != NULL)
+    {
+        free(TargetPanelPath);
+        TargetPanelPath = NULL;
+    }
+    if (EncryptedPassword != NULL)
+    {
+        free(EncryptedPassword);
+        EncryptedPassword = NULL;
+    }
     EncryptedPasswordSize = 0;
-    if (EncryptedPassphrase != NULL) { free(EncryptedPassphrase); EncryptedPassphrase = NULL; }
+    if (EncryptedPassphrase != NULL)
+    {
+        free(EncryptedPassphrase);
+        EncryptedPassphrase = NULL;
+    }
     EncryptedPassphraseSize = 0;
 }
 
@@ -290,8 +345,8 @@ void CSFTPServerList::EncryptPasswords(HWND parent, BOOL encrypt)
         ReEncryptBlob(parent, &s->EncryptedPassword, &s->EncryptedPasswordSize, encrypt);
         ReEncryptBlob(parent, &s->EncryptedPassphrase, &s->EncryptedPassphraseSize, encrypt);
     }
-    ReEncryptBlob(parent, &Config.QuickConnect.EncryptedPassword, &Config.QuickConnect.EncryptedPasswordSize, encrypt);
-    ReEncryptBlob(parent, &Config.QuickConnect.EncryptedPassphrase, &Config.QuickConnect.EncryptedPassphraseSize, encrypt);
+    // feature 053: quick connect never holds a secret blob any more, so there is
+    // nothing here to re-encrypt
 }
 
 // ---------------------------------------------------------------------------
@@ -452,6 +507,31 @@ void WINAPI CPluginInterface::About(HWND parent)
     SalamanderGeneral->SalMessageBox(parent, buf, LoadStr(IDS_ABOUTPLUGINTITLE), MB_OK | MB_ICONINFORMATION);
 }
 
+// feature 053: delete a quick-connect subtree left behind by an older version.
+// It cannot be done in LoadConfiguration (that key is opened read-only) and
+// SaveConfiguration is not guaranteed to run - the application calls it on exit
+// only when auto-save is enabled - so the purge is forced through
+// CallLoadOrSaveConfiguration, which hands the callback a writable key.
+static void WINAPI PurgeQuickConnectCallback(BOOL load, HKEY regKey,
+                                             CSalamanderRegistryAbstract* registry, void* param)
+{
+    if (load || regKey == NULL)
+        return;
+    registry->DeleteKey(regKey, CFG_QUICKCONNECT);
+    RegSetDword(registry, regKey, CFG_VERSION, CURRENT_CONFIG_VERSION);
+}
+
+// Runs once per plugin load, and only for a configuration written before the
+// quick-connect entry became transient. Bounded by the plugin actually being
+// loaded - nothing plugin-side can act earlier than that.
+static void PurgeQuickConnectIfNeeded()
+{
+    if (!PurgeQuickConnectPending)
+        return;
+    PurgeQuickConnectPending = FALSE;
+    SalamanderGeneral->CallLoadOrSaveConfiguration(FALSE, PurgeQuickConnectCallback, NULL);
+}
+
 BOOL WINAPI CPluginInterface::Release(HWND parent, BOOL force)
 {
     // purge cached view copies
@@ -514,14 +594,13 @@ void WINAPI CPluginInterface::LoadConfiguration(HWND parent, HKEY regKey, CSalam
         registry->CloseKey(bmKey);
     }
 
-    // feature 017 (P1): the quick-connect entry (its fields and saved
-    // password/passphrase blobs) - lost across restarts before this
-    HKEY qcKey;
-    if (registry->OpenKey(regKey, CFG_QUICKCONNECT, qcKey))
-    {
-        LoadServer(registry, qcKey, &Config.QuickConnect);
-        registry->CloseKey(qcKey);
-    }
+    // feature 053: the quick-connect entry is deliberately NOT loaded - it is
+    // transient (see CSFTPConfig::QuickConnect). A stale subtree from an earlier
+    // version is not read at all, it is deleted; that cannot happen here because
+    // 'regKey' is opened read-only, so the purge lives in SaveConfiguration and
+    // in the one-time upgrade below.
+    if (Config.Version < 2)
+        PurgeQuickConnectPending = TRUE; // feature 053: drop the old subtree, incl. any saved secret
 
     // known hosts
     HKEY hkKey;
@@ -590,15 +669,12 @@ void WINAPI CPluginInterface::SaveConfiguration(HWND parent, HKEY regKey, CSalam
         registry->CloseKey(bmKey);
     }
 
-    // feature 017 (P1): persist the quick-connect entry (mirrors the bookmark
-    // round-trip) so a saved quick-connect password survives a restart
-    HKEY qcKey;
+    // feature 053: quick connect is transient - it is never persisted, and above
+    // all never stores a password (feature 017 did both; that is reversed here).
+    // This delete is therefore not a preparation for a write but the purge of
+    // whatever an earlier version left behind, which is why it has no companion
+    // CreateKey. See specs/053-sftp-connect-dialog/contracts/.
     registry->DeleteKey(regKey, CFG_QUICKCONNECT);
-    if (registry->CreateKey(regKey, CFG_QUICKCONNECT, qcKey))
-    {
-        SaveServer(registry, qcKey, &Config.QuickConnect);
-        registry->CloseKey(qcKey);
-    }
 
     HKEY hkKey;
     registry->DeleteKey(regKey, CFG_KNOWNHOSTS);
@@ -643,6 +719,11 @@ void WINAPI CPluginInterface::Connect(HWND parent, CSalamanderConnectAbstract* s
                             MENU_EVENT_THIS_PLUGIN_FS, 0, MENU_SKILLLEVEL_ALL);
     salamander->AddMenuItem(-1, LoadStr(IDS_MENU_SHOWLOGS), 0, SFTPCMD_SHOWLOGS, FALSE,
                             MENU_EVENT_TRUE, 0, MENU_SKILLLEVEL_ALL);
+
+    // feature 053: Connect() runs after LoadConfiguration, on the main thread, and
+    // once per plugin load - the first point at which the stale quick-connect
+    // subtree can be deleted
+    PurgeQuickConnectIfNeeded();
 }
 
 void WINAPI CPluginInterface::ReleasePluginDataInterface(CPluginDataInterfaceAbstract* pluginData)
@@ -699,8 +780,8 @@ BOOL WINAPI CPluginInterfaceForMenuExt::ExecuteMenuItem(CSalamanderForOperations
     {
         // handled contextually by the active FS
         SalamanderGeneral->SalMessageBox(parent,
-            "Select the SFTP panel and use the Create Symbolic Link command from there.",
-            LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
+                                         "Select the SFTP panel and use the Create Symbolic Link command from there.",
+                                         LoadStr(IDS_PLUGINNAME), MB_OK | MB_ICONINFORMATION);
         return FALSE;
     }
     case SFTPCMD_DEFERREDCD:

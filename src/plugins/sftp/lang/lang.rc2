@@ -118,7 +118,7 @@ STRINGTABLE
 /////////////////////////////////////////////////////////////////////////////
 // Dialogs
 
-IDD_CONNECT DIALOGEX 0, 0, 340, 250
+IDD_CONNECT DIALOGEX 0, 0, 420, 250
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Connect to SFTP Server"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
@@ -130,47 +130,56 @@ BEGIN
     PUSHBUTTON      "&Rename", IDB_RENAMEBOOKMARK, 7, 222, 52, 14
     PUSHBUTTON      "&Delete", IDB_REMOVEBOOKMARK, 63, 222, 54, 14
 
-    LTEXT           "&Host:", IDT_HOSTADDRESS, 125, 9, 40, 8
-    EDITTEXT        IDE_HOSTADDRESS, 165, 7, 120, 12, ES_AUTOHSCROLL
-    LTEXT           "P&ort:", IDT_PORT, 289, 9, 18, 8
-    EDITTEXT        IDE_PORT, 307, 7, 26, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "&User:", IDT_USERNAME, 125, 25, 40, 8
-    EDITTEXT        IDE_USERNAME, 165, 23, 120, 12, ES_AUTOHSCROLL
+    // feature 053: the label column is 100 units wide because the longest shipped
+    // translation of "Initial path:" needs ~99; the input column starts at 230 and
+    // the fields keep their width, so the dialog is wider than it was (340 -> 420).
+    // Do not narrow the label column again - every non-English language clips.
+    LTEXT           "&Host:", IDT_HOSTADDRESS, 125, 9, 100, 8
+    EDITTEXT        IDE_HOSTADDRESS, 230, 7, 120, 12, ES_AUTOHSCROLL
+    LTEXT           "P&ort:", IDT_PORT, 354, 9, 30, 8
+    EDITTEXT        IDE_PORT, 384, 7, 26, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "&User:", IDT_USERNAME, 125, 25, 100, 8
+    EDITTEXT        IDE_USERNAME, 230, 23, 120, 12, ES_AUTOHSCROLL
 
-    AUTORADIOBUTTON "&Password", IDC_AUTHPASSWORD, 125, 43, 60, 10, WS_GROUP
-    AUTORADIOBUTTON "Private &key", IDC_AUTHKEY, 190, 43, 70, 10
+    AUTORADIOBUTTON "&Password", IDC_AUTHPASSWORD, 230, 43, 60, 10, WS_GROUP
+    AUTORADIOBUTTON "Private &key", IDC_AUTHKEY, 295, 43, 80, 10
 
-    LTEXT           "Pass&word:", IDT_PASSWORD, 125, 59, 40, 8
-    EDITTEXT        IDE_PASSWORD, 165, 57, 120, 12, ES_AUTOHSCROLL | ES_PASSWORD
-    AUTOCHECKBOX    "&Save password", IDC_SAVEPASSWORD, 165, 72, 120, 10
+    LTEXT           "Pass&word:", IDT_PASSWORD, 125, 59, 100, 8
+    EDITTEXT        IDE_PASSWORD, 230, 57, 120, 12, ES_AUTOHSCROLL | ES_PASSWORD
+    AUTOCHECKBOX    "&Save password", IDC_SAVEPASSWORD, 230, 72, 180, 10
 
-    LTEXT           "Key &file:", IDT_KEYFILE, 125, 89, 40, 8
-    EDITTEXT        IDE_KEYFILE, 165, 87, 100, 12, ES_AUTOHSCROLL
-    PUSHBUTTON      "...", IDB_BROWSEKEY, 267, 87, 18, 12
-    LTEXT           "Pass&phrase:", IDT_PASSPHRASE, 125, 105, 40, 8
-    EDITTEXT        IDE_PASSPHRASE, 165, 103, 120, 12, ES_AUTOHSCROLL | ES_PASSWORD
-    AUTOCHECKBOX    "Save p&assphrase", IDC_SAVEPASSPHRASE, 165, 118, 120, 10
+    LTEXT           "Key &file:", IDT_KEYFILE, 125, 89, 100, 8
+    EDITTEXT        IDE_KEYFILE, 230, 87, 100, 12, ES_AUTOHSCROLL
+    PUSHBUTTON      "...", IDB_BROWSEKEY, 332, 87, 18, 12
+    LTEXT           "Pass&phrase:", IDT_PASSPHRASE, 125, 105, 100, 8
+    EDITTEXT        IDE_PASSPHRASE, 230, 103, 120, 12, ES_AUTOHSCROLL | ES_PASSWORD
+    AUTOCHECKBOX    "Save p&assphrase", IDC_SAVEPASSPHRASE, 230, 118, 180, 10
 
-    LTEXT           "&Initial path:", IDT_INITIALPATH, 125, 135, 40, 8
-    EDITTEXT        IDE_INITIALPATH, 165, 133, 120, 12, ES_AUTOHSCROLL
+    LTEXT           "&Initial path:", IDT_INITIALPATH, 125, 135, 100, 8
+    EDITTEXT        IDE_INITIALPATH, 230, 133, 120, 12, ES_AUTOHSCROLL
 
-    DEFPUSHBUTTON   "Co&nnect", IDB_CONNECT, 165, 222, 50, 14
-    PUSHBUTTON      "Sa&ve", IDB_SAVEBOOKMARK, 221, 222, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 283, 222, 50, 14
+    DEFPUSHBUTTON   "Co&nnect", IDB_CONNECT, 242, 222, 50, 14
+    PUSHBUTTON      "Sa&ve", IDB_SAVEBOOKMARK, 298, 222, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 360, 222, 50, 14
 END
 
-IDD_PASSWORD DIALOGEX 0, 0, 220, 66
+IDD_PASSWORD DIALOGEX 0, 0, 260, 90
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "SFTP Client"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "", IDT_PROMPTTEXT, 7, 7, 206, 18
-    EDITTEXT        IDE_PROMPTPASSWORD, 7, 28, 206, 12, ES_AUTOHSCROLL | ES_PASSWORD
-    DEFPUSHBUTTON   "OK", IDOK, 105, 46, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 163, 46, 50, 14
+    // feature 053: the prompt is filled at run time with a localized message that
+    // carries a key-file path, so the width estimator never sees it. The longest
+    // shipped passphrase-retry message alone needs ~407 units - more than the two
+    // lines it used to have - and the path is substituted on top of that. Four
+    // lines in a wider dialog give it room.
+    LTEXT           "", IDT_PROMPTTEXT, 7, 7, 246, 36
+    EDITTEXT        IDE_PROMPTPASSWORD, 7, 48, 246, 12, ES_AUTOHSCROLL | ES_PASSWORD
+    DEFPUSHBUTTON   "OK", IDOK, 145, 68, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 203, 68, 50, 14
 END
 
-IDD_HOSTKEY DIALOGEX 0, 0, 300, 150
+IDD_HOSTKEY DIALOGEX 0, 0, 340, 150
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Verify Host Key"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
@@ -180,100 +189,113 @@ BEGIN
     // Translator while exporting this dialog, and it could not resolve anyway:
     // warning.ico lives in sftp.spl while this template lives in the .slg.
     ICON            "", IDI_HOSTKEY_WARN, 7, 7, 20, 20
-    LTEXT           "", IDT_HOSTKEY_TEXT, 35, 7, 258, 96
-    DEFPUSHBUTTON   "&Trust and Store", IDB_HOSTKEY_TRUST, 35, 112, 76, 14
-    PUSHBUTTON      "Connect &Once", IDB_HOSTKEY_ONCE, 117, 112, 76, 14
-    PUSHBUTTON      "&Abort", IDCANCEL, 243, 112, 50, 14
+    LTEXT           "", IDT_HOSTKEY_TEXT, 35, 7, 298, 96
+    // feature 053: the Trust button is also re-captioned at run time (with the
+    // "accept the new key" text, ~111 units in the longest language), so it is
+    // sized for the wider of its two captions, not just the one authored here.
+    DEFPUSHBUTTON   "&Trust and Store", IDB_HOSTKEY_TRUST, 35, 112, 125, 14
+    PUSHBUTTON      "Connect &Once", IDB_HOSTKEY_ONCE, 166, 112, 105, 14
+    PUSHBUTTON      "&Abort", IDCANCEL, 283, 112, 50, 14
 END
 
-IDD_CHMOD DIALOGEX 0, 0, 210, 176
+IDD_CHMOD DIALOGEX 0, 0, 265, 176
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Change Permissions"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "", IDT_CHMODTARGET, 7, 7, 196, 8
-    LTEXT           "Owner", IDC_STATIC_1, 40, 22, 40, 8
-    LTEXT           "Group", IDC_STATIC_2, 90, 22, 40, 8
-    LTEXT           "Others", IDC_STATIC_3, 140, 22, 40, 8
-    LTEXT           "Read", IDC_STATIC_4, 7, 36, 30, 8
-    AUTOCHECKBOX    "", IDC_UR, 40, 35, 12, 10
-    AUTOCHECKBOX    "", IDC_GR, 90, 35, 12, 10
-    AUTOCHECKBOX    "", IDC_OR, 140, 35, 12, 10
-    LTEXT           "Write", IDC_STATIC_5, 7, 50, 30, 8
-    AUTOCHECKBOX    "", IDC_UW, 40, 49, 12, 10
-    AUTOCHECKBOX    "", IDC_GW, 90, 49, 12, 10
-    AUTOCHECKBOX    "", IDC_OW, 140, 49, 12, 10
-    LTEXT           "Execute", IDC_STATIC_6, 7, 64, 30, 8
-    AUTOCHECKBOX    "", IDC_UX, 40, 63, 12, 10
-    AUTOCHECKBOX    "", IDC_GX, 90, 63, 12, 10
-    AUTOCHECKBOX    "", IDC_OX, 140, 63, 12, 10
-    AUTOCHECKBOX    "Set&UID", IDC_SETUID, 7, 82, 50, 10
-    AUTOCHECKBOX    "Set&GID", IDC_SETGID, 67, 82, 50, 10
-    AUTOCHECKBOX    "S&ticky", IDC_STICKY, 127, 82, 50, 10
-    LTEXT           "&Octal:", IDC_STATIC_7, 7, 100, 30, 8
-    EDITTEXT        IDE_OCTAL, 40, 98, 40, 12, ES_AUTOHSCROLL
-    AUTOCHECKBOX    "Apply to subdirectories &recursively", IDC_RECURSE, 7, 118, 190, 10
-    AUTOCHECKBOX    "Set &modification time", IDC_SETTIME, 7, 132, 90, 10
-    EDITTEXT        IDE_MTIME, 100, 130, 100, 12, ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK", IDOK, 98, 156, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 153, 156, 50, 14
+    // feature 053: the left label column is 46 wide (longest shipped "Execute" needs
+    // ~46) and the permission columns start at 55; "Set modification time" needs ~143.
+    LTEXT           "", IDT_CHMODTARGET, 7, 7, 251, 8
+    LTEXT           "Owner", IDC_STATIC_1, 65, 22, 50, 8
+    LTEXT           "Group", IDC_STATIC_2, 120, 22, 50, 8
+    LTEXT           "Others", IDC_STATIC_3, 175, 22, 50, 8
+    LTEXT           "Read", IDC_STATIC_4, 7, 36, 56, 8
+    AUTOCHECKBOX    "", IDC_UR, 65, 35, 12, 10
+    AUTOCHECKBOX    "", IDC_GR, 120, 35, 12, 10
+    AUTOCHECKBOX    "", IDC_OR, 175, 35, 12, 10
+    LTEXT           "Write", IDC_STATIC_5, 7, 50, 56, 8
+    AUTOCHECKBOX    "", IDC_UW, 65, 49, 12, 10
+    AUTOCHECKBOX    "", IDC_GW, 120, 49, 12, 10
+    AUTOCHECKBOX    "", IDC_OW, 175, 49, 12, 10
+    LTEXT           "Execute", IDC_STATIC_6, 7, 64, 56, 8
+    AUTOCHECKBOX    "", IDC_UX, 65, 63, 12, 10
+    AUTOCHECKBOX    "", IDC_GX, 120, 63, 12, 10
+    AUTOCHECKBOX    "", IDC_OX, 175, 63, 12, 10
+    AUTOCHECKBOX    "Set&UID", IDC_SETUID, 7, 82, 70, 10
+    AUTOCHECKBOX    "Set&GID", IDC_SETGID, 82, 82, 70, 10
+    AUTOCHECKBOX    "S&ticky", IDC_STICKY, 157, 82, 70, 10
+    LTEXT           "&Octal:", IDC_STATIC_7, 7, 100, 56, 8
+    EDITTEXT        IDE_OCTAL, 65, 98, 40, 12, ES_AUTOHSCROLL
+    AUTOCHECKBOX    "Apply to subdirectories &recursively", IDC_RECURSE, 7, 118, 251, 10
+    AUTOCHECKBOX    "Set &modification time", IDC_SETTIME, 7, 132, 145, 10
+    EDITTEXT        IDE_MTIME, 155, 130, 103, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 153, 156, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 208, 156, 50, 14
 END
 
-IDD_OWNERGROUP DIALOGEX 0, 0, 220, 120
+IDD_OWNERGROUP DIALOGEX 0, 0, 230, 120
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Change Owner / Group"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "", IDT_OG_TARGET, 7, 7, 206, 8
-    AUTOCHECKBOX    "Change &owner (UID):", IDC_OG_SETOWNER, 7, 26, 108, 10
-    EDITTEXT        IDE_OG_OWNER, 120, 24, 60, 12, ES_AUTOHSCROLL | ES_NUMBER
-    AUTOCHECKBOX    "Change &group (GID):", IDC_OG_SETGROUP, 7, 44, 108, 10
-    EDITTEXT        IDE_OG_GROUP, 120, 42, 60, 12, ES_AUTOHSCROLL | ES_NUMBER
-    AUTOCHECKBOX    "Apply to subdirectories &recursively", IDC_OG_RECURSE, 7, 66, 200, 10
-    DEFPUSHBUTTON   "OK", IDOK, 108, 98, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 163, 98, 50, 14
+    // feature 053: the checkbox labels need ~127 in the longest shipped language
+    LTEXT           "", IDT_OG_TARGET, 7, 7, 216, 8
+    AUTOCHECKBOX    "Change &owner (UID):", IDC_OG_SETOWNER, 7, 26, 130, 10
+    EDITTEXT        IDE_OG_OWNER, 140, 24, 60, 12, ES_AUTOHSCROLL | ES_NUMBER
+    AUTOCHECKBOX    "Change &group (GID):", IDC_OG_SETGROUP, 7, 44, 130, 10
+    EDITTEXT        IDE_OG_GROUP, 140, 42, 60, 12, ES_AUTOHSCROLL | ES_NUMBER
+    AUTOCHECKBOX    "Apply to subdirectories &recursively", IDC_OG_RECURSE, 7, 66, 216, 10
+    DEFPUSHBUTTON   "OK", IDOK, 118, 98, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 173, 98, 50, 14
 END
 
-IDD_CONFIG DIALOGEX 0, 0, 260, 236
+IDD_CONFIG DIALOGEX 0, 0, 366, 250
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "Connect timeout (s):", IDC_STATIC_1, 7, 9, 90, 8
-    EDITTEXT        IDE_CONNECTTIMEOUT, 130, 7, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Operation timeout (s):", IDC_STATIC_2, 7, 25, 90, 8
-    EDITTEXT        IDE_OPTIMEOUT, 130, 23, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Keep-alive every (s):", IDC_STATIC_3, 7, 41, 90, 8
-    EDITTEXT        IDE_KEEPALIVE, 130, 39, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Keep-alive stop after (min):", IDC_STATIC_4, 7, 57, 110, 8
-    EDITTEXT        IDE_KEEPALIVESTOP, 130, 55, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Connect retries:", IDC_STATIC_5, 7, 73, 90, 8
-    EDITTEXT        IDE_CONNRETRIES, 130, 71, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Retry delay (s):", IDC_STATIC_6, 7, 89, 90, 8
-    EDITTEXT        IDE_RETRYDELAY, 130, 87, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Resume overlap (bytes):", IDC_STATIC_7, 7, 105, 100, 8
-    EDITTEXT        IDE_RESUMEOVERLAP, 130, 103, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
-    LTEXT           "Resume min size (bytes):", IDC_STATIC_8, 7, 121, 100, 8
-    EDITTEXT        IDE_RESUMEMINSIZE, 130, 119, 50, 12, ES_AUTOHSCROLL | ES_NUMBER
-    GROUPBOX        "Permissions column", IDC_STATIC_9, 7, 140, 246, 46
-    AUTORADIOBUTTON "Show &Unix rights (drwxr-xr-x)", IDC_COLVIEW_RIGHTS, 14, 153, 160, 10, WS_GROUP
-    AUTORADIOBUTTON "Show classic &attributes", IDC_COLVIEW_ATTR, 14, 165, 160, 10
-    AUTOCHECKBOX    "Show &octal mode in information line", IDC_SHOWOCTAL, 130, 153, 118, 10
-    AUTOCHECKBOX    "Enable session &logging", IDC_ENABLELOG, 7, 194, 120, 10
-    LTEXT           "Log max size (KB):", IDC_STATIC_10, 130, 195, 70, 8
-    EDITTEXT        IDE_LOGMAXSIZE, 205, 193, 45, 12, ES_AUTOHSCROLL | ES_NUMBER
+    // feature 053: the label column is 176 wide - the longest shipped translations of
+    // "Resume overlap (bytes):" and "Resume min size (bytes):" both need ~176 - and the
+    // value column starts at 185. The "show octal" checkbox used to sit beside the
+    // radio buttons and OVERLAPPED them by 44 units even in English; it is now a third
+    // row inside the group box, which is also what keeps the dialog from having to be
+    // ~400 wide to fit its ~208-unit translation.
+    LTEXT           "Connect timeout (s):", IDC_STATIC_1, 7, 9, 190, 8
+    EDITTEXT        IDE_CONNECTTIMEOUT, 199, 7, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Operation timeout (s):", IDC_STATIC_2, 7, 25, 190, 8
+    EDITTEXT        IDE_OPTIMEOUT, 199, 23, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Keep-alive every (s):", IDC_STATIC_3, 7, 41, 190, 8
+    EDITTEXT        IDE_KEEPALIVE, 199, 39, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Keep-alive stop after (min):", IDC_STATIC_4, 7, 57, 190, 8
+    EDITTEXT        IDE_KEEPALIVESTOP, 199, 55, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Connect retries:", IDC_STATIC_5, 7, 73, 190, 8
+    EDITTEXT        IDE_CONNRETRIES, 199, 71, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Retry delay (s):", IDC_STATIC_6, 7, 89, 190, 8
+    EDITTEXT        IDE_RETRYDELAY, 199, 87, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Resume overlap (bytes):", IDC_STATIC_7, 7, 105, 190, 8
+    EDITTEXT        IDE_RESUMEOVERLAP, 199, 103, 40, 12, ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "Resume min size (bytes):", IDC_STATIC_8, 7, 121, 190, 8
+    EDITTEXT        IDE_RESUMEMINSIZE, 199, 119, 50, 12, ES_AUTOHSCROLL | ES_NUMBER
+    GROUPBOX        "Permissions column", IDC_STATIC_9, 7, 140, 352, 60
+    AUTORADIOBUTTON "Show &Unix rights (drwxr-xr-x)", IDC_COLVIEW_RIGHTS, 14, 153, 338, 10, WS_GROUP
+    AUTORADIOBUTTON "Show classic &attributes", IDC_COLVIEW_ATTR, 14, 168, 338, 10
+    AUTOCHECKBOX    "Show &octal mode in information line", IDC_SHOWOCTAL, 14, 183, 338, 10
+    AUTOCHECKBOX    "Enable session &logging", IDC_ENABLELOG, 7, 208, 160, 10
+    LTEXT           "Log max size (KB):", IDC_STATIC_10, 173, 209, 145, 8
+    EDITTEXT        IDE_LOGMAXSIZE, 320, 207, 39, 12, ES_AUTOHSCROLL | ES_NUMBER
 END
 
-IDD_SYMLINK DIALOGEX 0, 0, 240, 78
+IDD_SYMLINK DIALOGEX 0, 0, 300, 78
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Create Symbolic Link"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    LTEXT           "Link &name:", IDT_SYMLINKNAME, 7, 9, 50, 8
-    EDITTEXT        IDE_SYMLINKNAME, 60, 7, 173, 12, ES_AUTOHSCROLL
-    LTEXT           "&Target:", IDT_SYMLINKTARGET, 7, 27, 50, 8
-    EDITTEXT        IDE_SYMLINKTARGET, 60, 25, 173, 12, ES_AUTOHSCROLL
-    DEFPUSHBUTTON   "OK", IDOK, 128, 56, 50, 14
-    PUSHBUTTON      "Cancel", IDCANCEL, 183, 56, 50, 14
+    // feature 053: "Link name:" needs ~107 in the longest shipped language
+    LTEXT           "Link &name:", IDT_SYMLINKNAME, 7, 9, 107, 8
+    EDITTEXT        IDE_SYMLINKNAME, 116, 7, 177, 12, ES_AUTOHSCROLL
+    LTEXT           "&Target:", IDT_SYMLINKTARGET, 7, 27, 107, 8
+    EDITTEXT        IDE_SYMLINKTARGET, 116, 25, 177, 12, ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "OK", IDOK, 188, 56, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 243, 56, 50, 14
 END
 
 IDD_RENAME DIALOGEX 0, 0, 240, 60

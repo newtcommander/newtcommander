@@ -54,18 +54,18 @@ enum CSFTPColumnView
 class CSFTPServer
 {
 public:
-    char* ItemName;    // bookmark display name (NULL for quick-connect)
-    char* Address;     // host name or IP
-    int Port;          // TCP port (default 22)
-    char* UserName;    // login user (may be NULL/empty -> prompt)
-    int AuthMethod;    // CSFTPAuthMethod
+    char* ItemName; // bookmark display name (NULL for quick-connect)
+    char* Address;  // host name or IP
+    int Port;       // TCP port (default 22)
+    char* UserName; // login user (may be NULL/empty -> prompt)
+    int AuthMethod; // CSFTPAuthMethod
 
     BYTE* EncryptedPassword; // password-manager blob or NULL
     int EncryptedPasswordSize;
     BOOL SavePassword;
 
-    char* KeyFile;              // private-key path (saPrivateKey)
-    BYTE* EncryptedPassphrase;  // password-manager blob or NULL
+    char* KeyFile;             // private-key path (saPrivateKey)
+    BYTE* EncryptedPassphrase; // password-manager blob or NULL
     int EncryptedPassphraseSize;
     BOOL SavePassphrase;
 
@@ -73,14 +73,15 @@ public:
     char* TargetPanelPath; // optional local path for the other panel
 
     int KeepAliveSendEvery; // seconds, 0 = use global
-    int KeepAliveStopAfter;  // minutes, 0 = use global
+    int KeepAliveStopAfter; // minutes, 0 = use global
     BOOL UseCompression;
 
 public:
     CSFTPServer();
     ~CSFTPServer();
 
-    void Clear();
+    void Clear();                          // frees strings/blobs only - scalars keep their values
+    void Reset();                          // Clear() + constructor scalars: a genuinely empty entry (feature 053)
     BOOL CopyFrom(const CSFTPServer* src); // deep copy; FALSE on low memory
     BOOL Set(const char* itemName, const char* address, int port, const char* user);
 
@@ -108,8 +109,8 @@ class CSFTPConfig
 public:
     int Version;
 
-    int ConnectTimeout;    // seconds
-    int OperationTimeout;  // seconds
+    int ConnectTimeout;     // seconds
+    int OperationTimeout;   // seconds
     int KeepAliveSendEvery; // seconds
     int KeepAliveStopAfter; // minutes
     int ConnectRetries;
@@ -118,7 +119,7 @@ public:
     int ColumnView; // CSFTPColumnView
     BOOL ShowOctal;
 
-    int ResumeOverlap;    // bytes re-read on resume
+    int ResumeOverlap;     // bytes re-read on resume
     int ResumeMinFileSize; // below this, restart instead of resume
 
     BOOL EnableLogging;
@@ -127,6 +128,11 @@ public:
     int LastBookmark; // 0 = quick connect
 
     CSFTPServerList Bookmarks;
+    // feature 053: TRANSIENT. Quick connect is a one-off connection, so this entry
+    // is never written to the registry, never holds a secret blob (its save-secret
+    // flags are forced FALSE), and is Reset() every time the connect dialog opens
+    // and again once a connection request has been handed on. See
+    // specs/053-sftp-connect-dialog/contracts/sftp-plugin-persistence.md
     CSFTPServer QuickConnect;
 
     // dialog placements
