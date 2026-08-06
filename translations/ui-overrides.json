@@ -38,5 +38,18 @@
       "IDS_CONNECTING": "Připojování k %s...",
       "IDS_DOWNLOADINGFILE": "Stahování %s..."
     }
+  },
+  "zip": {
+    "czech": { "IDS_PLUGINNAME": "ZIP" },
+    "slovak": { "IDS_PLUGINNAME": "ZIP" },
+    "german": { "IDS_PLUGINNAME": "ZIP" },
+    "french": { "IDS_PLUGINNAME": "ZIP" },
+    "spanish": { "IDS_PLUGINNAME": "ZIP" },
+    "dutch": { "IDS_PLUGINNAME": "ZIP" },
+    "hungarian": { "IDS_PLUGINNAME": "ZIP" },
+    "romanian": { "IDS_PLUGINNAME": "ZIP" },
+    "russian": { "IDS_PLUGINNAME": "ZIP" },
+    "ukrainian": { "IDS_PLUGINNAME": "ZIP" },
+    "chinesesimplified": { "IDS_PLUGINNAME": "ZIP" }
   }
 }

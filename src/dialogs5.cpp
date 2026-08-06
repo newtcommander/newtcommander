@@ -487,7 +487,9 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_INITDIALOG:
     {
         // copy the Show In Bar checkbox text into our buffer
-        GetDlgItemText(HWindow, IDC_PLUGINSHOWINBAR, ShowInBarText, 200);
+        // read as UTF-8: the label is later composed with the UTF-8 plugin name
+        // (feature 052; the composed text goes to SalSetWindowTextU8)
+        SalGetDlgItemTextU8(HWindow, IDC_PLUGINSHOWINBAR, ShowInBarText, 200);
 
         // copy the Show In Change Drive Menu checkbox text into our buffer
         GetDlgItemText(HWindow, IDC_PLUGINSHOWINCHDRV, ShowInChDrvText, 200);
@@ -785,10 +787,8 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                     if (Plugins.FindDLL(pluginName, index))
                     {
                         char buf2[MAX_PATH + 300];
-                        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                        //   encoding is not controlled by this feature and converting the template around it could
-                        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                        sprintf(buf2, LoadStr(IDS_PLUGINEXISTS), Plugins.Get(index)->Name,
+                        // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                        sprintf(buf2, LoadStrU8(IDS_PLUGINEXISTS), Plugins.Get(index)->Name,
                                 Plugins.Get(index)->DLLName);
                         //                add = SalMessageBox(HWindow, buf2, LoadStr(IDS_QUESTION),
                         //                                    MB_YESNOCANCEL | MB_ICONQUESTION | MB_DEFBUTTON2) == IDYES;
@@ -829,13 +829,10 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 strcpy(name, p->Name);
                 char buf[MAX_PATH + 100];
-                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                //   encoding is not controlled by this feature (feature 042, FR-010/FR-014)
-                // feature 043: this had been converted to LoadStrU8 by feature 042 in error - 'name' is a
-                // local copy of the ANSI p->Name, so the 042 classifier did not recognise it as plugin
-                // metadata and treated the site as a file-name composition. A UTF-8 template around an ANSI
-                // value is mixed the other way round: the plugin name renders, the localized words do not.
-                sprintf(buf, LoadStr(IDS_PLUGINREMOVEOK), name);
+                // 'name' is a local copy of p->Name, which is UTF-8 by contract
+                // (feature 052) - the 042/043 back-and-forth here is settled by
+                // the contract: UTF-8 template around a UTF-8 value
+                sprintf(buf, LoadStrU8(IDS_PLUGINREMOVEOK), name);
                 if (SalMessageBox(HWindow, buf, LoadStr(IDS_QUESTION),
                                   MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
@@ -855,10 +852,8 @@ CPluginsDlg::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
                 if (p->InitDLL(HWindow))
                 {
                     char buf[MAX_PATH + 100];
-                    // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                    //   encoding is not controlled by this feature and converting the template around it could
-                    //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                    sprintf(buf, LoadStr(IDS_PLUGINTESTOK), p->Name);
+                    // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                    sprintf(buf, LoadStrU8(IDS_PLUGINTESTOK), p->Name);
                     SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OK | MB_ICONINFORMATION);
                 }
                 RefreshListView(); // a DLL was loaded, we have fresher data ...
@@ -1205,7 +1200,8 @@ void CPluginKeys::HandleConflictWarning()
             {
                 if (HOTKEY_GET(HotKeys[i]) == hotKey)
                 {
-                    sprintf(buff, LoadStr(IDS_HOTKEY_PLUGIN_CONFLICT), Plugin->Name);
+                    // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                    sprintf(buff, LoadStrU8(IDS_HOTKEY_PLUGIN_CONFLICT), Plugin->Name);
                     break;
                 }
             }
@@ -1219,7 +1215,8 @@ void CPluginKeys::HandleConflictWarning()
             if (Plugins.FindHotKey(hotKey, TRUE, Plugin, &pluginIndex, &menuItemIndex))
             {
                 CPluginData* plugin = Plugins.Get(pluginIndex);
-                sprintf(buff, LoadStr(IDS_HOTKEY_PLUGIN_CONFLICT), plugin->Name);
+                // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                sprintf(buff, LoadStrU8(IDS_HOTKEY_PLUGIN_CONFLICT), plugin->Name);
             }
         }
     }
@@ -1333,10 +1330,8 @@ CPluginKeys::DialogProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
         case IDC_RESET:
         {
             char buf[MAX_PATH + 100];
-            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-            //   encoding is not controlled by this feature and converting the template around it could
-            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-            sprintf(buf, LoadStr(IDS_PLUGINRESETKEYS), Plugin->Name);
+            // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+            sprintf(buf, LoadStrU8(IDS_PLUGINRESETKEYS), Plugin->Name);
             if (SalMessageBox(HWindow, buf, LoadStr(IDS_INFOTITLE), MB_OKCANCEL | MB_ICONQUESTION) == IDOK)
             {
                 int i;

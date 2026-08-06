@@ -113,6 +113,52 @@ char* SalWToU8Alloc(const WCHAR* src, int srcLen)
 
 //*****************************************************************************
 //
+// SalLegacyToU8Alloc
+//
+
+char* SalLegacyToU8Alloc(const char* src, int maxBytes)
+{
+    if (src == NULL)
+        return NULL;
+
+    char* u8;
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, src, -1, NULL, 0) > 0)
+    { // already valid UTF-8 (ASCII included) - keep the bytes unchanged
+        int len = (int)strlen(src);
+        u8 = (char*)malloc(len + 1);
+        if (u8 == NULL)
+            return NULL;
+        memcpy(u8, src, len + 1);
+    }
+    else
+    {   // transitional tolerance: a not-yet-migrated producer passed ANSI bytes
+        // (the same heuristic the registry facade applies on write, see
+        // SalRegSetValueExW8)
+        int wlen = MultiByteToWideChar(CP_ACP, 0, src, -1, NULL, 0);
+        if (wlen <= 0)
+            return NULL;
+        WCHAR* w = (WCHAR*)malloc(wlen * sizeof(WCHAR));
+        if (w == NULL)
+            return NULL;
+        MultiByteToWideChar(CP_ACP, 0, src, -1, w, wlen);
+        u8 = SalWToU8Alloc(w, -1);
+        free(w);
+        if (u8 == NULL)
+            return NULL;
+    }
+
+    if (maxBytes >= 0 && (int)strlen(u8) > maxBytes)
+    { // clamp only at a UTF-8 sequence boundary so the result stays valid UTF-8
+        int cut = maxBytes;
+        while (cut > 0 && (u8[cut] & 0xC0) == 0x80)
+            cut--;
+        u8[cut] = 0;
+    }
+    return u8;
+}
+
+//*****************************************************************************
+//
 // SalWToACPLossless
 //
 

@@ -211,18 +211,23 @@ set /a REGISTERED_LANGS=ENABLED_LANGS+DISABLED_LANGS
 
 where python >nul 2>&1
 if errorlevel 1 (
-    echo  Encoding guard: SKIPPED ^(python not on PATH^)
-) else (
-    python "%~dp0tools\check_encoding.py" --strict > "%TEMP%\opensal_encguard.txt" 2>&1
-    if errorlevel 1 (
-        type "%TEMP%\opensal_encguard.txt"
-        del "%TEMP%\opensal_encguard.txt" >nul 2>&1
-        echo.
-        echo Encoding guard FAILED - a file name would be destroyed before it is drawn.
-        exit /b 1
-    )
-    del "%TEMP%\opensal_encguard.txt" >nul 2>&1
+    echo.
+    echo Encoding guard FAILED - python is not on PATH.
+    echo Python 3.x is a build prerequisite: the display-encoding guard
+    echo ^(tools\check_encoding.py^) must run on every build. A guard that can
+    echo silently not run is not a guard - feature 052 shipped a defect while
+    echo the guard reported "SKIPPED". Install Python and re-run the build.
+    exit /b 1
 )
+python "%~dp0tools\check_encoding.py" --strict > "%TEMP%\opensal_encguard.txt" 2>&1
+if errorlevel 1 (
+    type "%TEMP%\opensal_encguard.txt"
+    del "%TEMP%\opensal_encguard.txt" >nul 2>&1
+    echo.
+    echo Encoding guard FAILED - a file name would be destroyed before it is drawn.
+    exit /b 1
+)
+del "%TEMP%\opensal_encguard.txt" >nul 2>&1
 
 :: ============================================================
 :: Display build configuration

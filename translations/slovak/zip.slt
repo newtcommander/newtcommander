@@ -308,7 +308,7 @@ COMMENT,"Slovenská verzia"
 1004,1,"Nedostatok pamäti."
 1005,1,"Nie je možné pridať súbor do výpisu."
 1006,1,"Nie je možné pridať adresár do výpisu."
-1007,1,"PSČ"
+1007,1,"ZIP"
 
 [STRINGTABLE 2]
 1008,1,"Súbory väčšie ako 4GB nie sú podporované."

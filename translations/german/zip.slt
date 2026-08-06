@@ -308,7 +308,7 @@ COMMENT,"Deutsche Version"
 1004,1,"Zu wenig Speicher."
 1005,1,"Kann die Datei nicht zur Liste hinzufügen."
 1006,1,"Kann das Verzeichnis nicht zur Liste hinzugefügen."
-1007,1,"ZIP-Archiv"
+1007,1,"ZIP"
 
 [STRINGTABLE 2]
 1008,1,"Dateien die größer als 4GB sind werden nicht unterstützt."

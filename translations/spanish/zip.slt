@@ -308,7 +308,7 @@ COMMENT,"Versión en español"
 1004,1,"Memoria insuficiente."
 1005,1,"Imposible añadir fichero a la lista."
 1006,1,"Imposible añadir directorio a la lista."
-1007,1,"Código postal"
+1007,1,"ZIP"
 
 [STRINGTABLE 2]
 1008,1,"No se admiten ficheros mayores de 4GB."

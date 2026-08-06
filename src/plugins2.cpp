@@ -646,7 +646,6 @@ void CPlugins::InitMenuItems(HWND parent, CMenuPopup* root)
                           MENU_MASK_IMAGEINDEX | MENU_MASK_ID;
                 mi.Type = MENU_TYPE_STRING;
 
-
                 char pluginName[300];
                 lstrcpyn(pluginName, p->Name, 299);
                 DuplicateAmpersands(pluginName, 299); // plugin name can contain '&'
@@ -1044,8 +1043,10 @@ void CPlugins::AddNamesToListView(HWND hListView, BOOL setOnly, int* numOfLoaded
         lvi.iSubItem = 0;
         lvi.iImage = orderIndex;
         ListView_SetItem(hListView, &lvi);
-        // plugin name
-        ListView_SetItemText(hListView, i, 0, plugin->Name);
+        // plugin name is UTF-8 (encoding contract, plugins.h/feature 052); the
+        // ANSI ListView_SetItemText rendered the cached name of a not-loaded
+        // plugin as mojibake
+        SalListViewSetItemTextU8(hListView, i, 0, plugin->Name);
         // loaded
         ListView_SetItemText(hListView, i, 1,
                              LoadStr(plugin->GetLoaded() ? IDS_PLUGINS_LOADED_YES : IDS_PLUGINS_LOADED_NO));
@@ -2117,7 +2118,7 @@ void CPlugins::CheckData()
                     case 0:
                         viewerMasks->At(i)->ViewerType = VIEWER_INTERNAL;
                         break; // internal viewer
-                    case 1: // IE viewer: the IEViewer plugin was removed from the product, drop its masks
+                    case 1:    // IE viewer: the IEViewer plugin was removed from the product, drop its masks
                         viewerMasks->Delete(i--);
                         break;
                     case 2:
@@ -2937,7 +2938,6 @@ BOOL SearchForAddedSPLs(char* buf, char* s, TIndirectArray<char>& foundFiles)
         return FALSE; // nothing new
     }
 }
-
 
 BOOL CPlugins::ReadPluginsVer(HWND parent, BOOL importFromOldConfig)
 {

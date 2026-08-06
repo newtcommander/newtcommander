@@ -113,7 +113,11 @@ UTF8_IDENT = re.compile(
     r'\b('
     r'\w*[Ff]ile[Nn]ame\w*|\w*[Ff]ullName\w*|formatedFileName|editName|'
     r'\w*[Pp]ath\b|\w*[Pp]ath[A-Z]\w*|f->Name|item->Name|oneFile->Name|'
-    r'\w*[Ll]inkName\w*|\w*[Aa]rchive[A-Za-z]*|subject|Subject'
+    r'\w*[Ll]inkName\w*|\w*[Aa]rchive[A-Za-z]*|subject|Subject|'
+    # plugin metadata holds UTF-8 by CONTRACT, not convention (feature 052):
+    # specs/052-fix-plugin-name-encoding/contracts/plugin-metadata-encoding.md
+    r'plugin->Name|Plugin->Name|p->Name|pluginData->Name|pluginName|'
+    r'\w+->Description|\w+->Copyright|\w+->Extensions|\w+->ChDrvMenuFSItemName'
     r')\b')
 
 # Legacy sinks: the byte-oriented A-variants. The W and Sal*U8 forms are safe.

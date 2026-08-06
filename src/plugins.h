@@ -2412,6 +2412,17 @@ class CSalamanderDirectory;
 class CMenuPopup;
 class CToolBar;
 
+// Encoding contract (feature 052): the translated/free-text metadata strings
+// below (Name, Version, Copyright, Description, Extensions,
+// ChDrvMenuFSItemName and CPluginMenuItem::Name) hold valid UTF-8 at all
+// times, regardless of producer: plugin-supplied values are normalized in
+// SetBasicPluginData / the menu-item and change-drive-item intakes
+// (SalLegacyToU8Alloc), and the registry facade already returns UTF-8.
+// Consumers rely on this - compose with LoadStrU8 templates and render
+// through Sal*U8 sinks. DLLName, RegKeyName, FSNames, LastSLGName,
+// PluginHomePageURL and ThumbnailMasks are ASCII by nature (paths, masks,
+// identifiers, URLs) and are not normalized.
+// Details: specs/052-fix-plugin-name-encoding/contracts/plugin-metadata-encoding.md
 struct CPluginData
 {
 public:

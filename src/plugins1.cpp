@@ -1240,7 +1240,8 @@ void CSalamanderConnect::SetChangeDriveMenuItem(const char* title, int iconIndex
                 return;
             }
 
-            p->ChDrvMenuFSItemName = DupStr(title);
+            // feature 052: normalize to UTF-8 (encoding contract on CPluginData in plugins.h)
+            p->ChDrvMenuFSItemName = SalLegacyToU8Alloc(title, MAX_PATH - 1);
             if (p->ChDrvMenuFSItemName != NULL)
                 p->ChDrvMenuFSItemIconIndex = iconIndex;
         }
@@ -1579,10 +1580,8 @@ BOOL CSalamanderPluginEntry::SetBasicPluginData(const char* pluginName, DWORD fu
         Plugin->SupportFS && !supportFS)
     { // downgrading capabilities is not possible ...
         char bufText[MAX_PATH + 200];
-        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-        //   encoding is not controlled by this feature and converting the template around it could
-        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-        sprintf(bufText, LoadStr(IDS_REINSTALLPLUGIN), Plugin->Name, Plugin->DLLName);
+        // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+        sprintf(bufText, LoadStrU8(IDS_REINSTALLPLUGIN), Plugin->Name, Plugin->DLLName);
         SalMessageBox(Parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
         Error = TRUE;
         return FALSE;
@@ -1599,13 +1598,17 @@ BOOL CSalamanderPluginEntry::SetBasicPluginData(const char* pluginName, DWORD fu
     Plugin->SupportFS = supportFS;
     Plugin->SupportDynMenuExt = supportDynMenuExt;
 
-    char* s = DupStr(pluginName);
+    // feature 052: normalize plugin-supplied metadata to UTF-8 (encoding
+    // contract on CPluginData in plugins.h) - plugins pass ANSI from
+    // LoadString while the registry facade delivers UTF-8; this intake makes
+    // both producers agree
+    char* s = SalLegacyToU8Alloc(pluginName, MAX_PATH - 1);
     if (s != NULL)
     {
         free(Plugin->Name);
         Plugin->Name = s;
     }
-    s = DupStr(version);
+    s = SalLegacyToU8Alloc(version, MAX_PATH - 1);
     if (s != NULL)
     {
         free(Plugin->Version);
@@ -1613,19 +1616,19 @@ BOOL CSalamanderPluginEntry::SetBasicPluginData(const char* pluginName, DWORD fu
     }
     Plugin->SalamanderDebug.Init(Plugin->DLLName, Plugin->Version);
     Plugin->SalamanderPasswordManager.Init(Plugin->DLLName);
-    s = DupStr(copyright);
+    s = SalLegacyToU8Alloc(copyright, MAX_PATH - 1);
     if (s != NULL)
     {
         free(Plugin->Copyright);
         Plugin->Copyright = s;
     }
-    s = DupStr((supportPanelView || supportPanelEdit) ? extensions : "");
+    s = SalLegacyToU8Alloc((supportPanelView || supportPanelEdit) ? extensions : "", MAX_PATH - 1);
     if (s != NULL)
     {
         free(Plugin->Extensions);
         Plugin->Extensions = s;
     }
-    s = DupStr(description);
+    s = SalLegacyToU8Alloc(description, MAX_PATH - 1);
     if (s != NULL)
     {
         free(Plugin->Description);
@@ -1910,7 +1913,10 @@ CPluginMenuItem::CPluginMenuItem(int iconIndex, const char* name, DWORD hotKey, 
     Type = type;
     IconIndex = iconIndex;
     if (name != NULL)
-        Name = DupStr(name); // on error we will become a separator ;-)
+        // feature 052: normalized to UTF-8 (encoding contract on CPluginData in
+        // plugins.h) - covers both the plugin intake (ANSI) and the registry
+        // load (already UTF-8, kept unchanged)
+        Name = SalLegacyToU8Alloc(name); // on error we will become a separator ;-)
     else
         Name = NULL;
 #ifdef _DEBUG
@@ -2174,10 +2180,8 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
         if (DLL == NULL) // error
         {
             DWORD err = GetLastError();
-            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-            //   encoding is not controlled by this feature and converting the template around it could
-            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-            sprintf(bufText, LoadStr(IDS_UNABLETOLOADPLUGIN), Name, s, GetErrorText(err));
+            // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+            sprintf(bufText, LoadStrU8(IDS_UNABLETOLOADPLUGIN), Name, s, GetErrorText(err));
             if (!quiet)
                 SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
         }
@@ -2293,10 +2297,8 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
                         if (Name == NULL || Name[0] == 0)
                             sprintf(bufText, LoadStr(IDS_OLDPLUGINVERSION2), s);
                         else
-                            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                            //   encoding is not controlled by this feature and converting the template around it could
-                            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                            sprintf(bufText, LoadStr(IDS_OLDPLUGINVERSION), Name, s);
+                            // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                            sprintf(bufText, LoadStrU8(IDS_OLDPLUGINVERSION), Name, s);
                         if (!quiet)
                             SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
                     }
@@ -2462,10 +2464,8 @@ BOOL CPluginData::InitDLL(HWND parent, BOOL quiet, BOOL waitCursor, BOOL release
                         if (Name == NULL || Name[0] == 0)
                             sprintf(bufText, LoadStr(IDS_PLUGININVALID2), s);
                         else
-                            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                            //   encoding is not controlled by this feature and converting the template around it could
-                            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                            sprintf(bufText, LoadStr(IDS_PLUGININVALID), Name, s);
+                            // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                            sprintf(bufText, LoadStrU8(IDS_PLUGININVALID), Name, s);
                         if (!quiet)
                             SalMessageBox(parent, bufText, LoadStr(IDS_ERRORTITLE), MB_OK | MB_ICONERROR);
                     }
@@ -2626,10 +2626,8 @@ BOOL CPluginData::Remove(HWND parent, int index, BOOL canDelPluginRegKey)
             else
             {
                 char buf[MAX_PATH + 100];
-                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                //   encoding is not controlled by this feature and converting the template around it could
-                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                sprintf(buf, LoadStr(IDS_PLUGINFORCEUNLOAD), Name);
+                // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                sprintf(buf, LoadStrU8(IDS_PLUGINFORCEUNLOAD), Name);
                 if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
                     PluginIface.Release(parent, TRUE);
@@ -3042,10 +3040,8 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
             BOOL skipUnload = FALSE;
             if (SupportLoadSave && ::Configuration.AutoSave)
             { // ask if the user wants to save configuration when "save on exit" is on
-                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                //   encoding is not controlled by this feature and converting the template around it could
-                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                sprintf(buf, LoadStr(IDS_PLUGINSAVECONFIG), Name);
+                // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                sprintf(buf, LoadStrU8(IDS_PLUGINSAVECONFIG), Name);
                 if (!ask || SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                 {
                     LoadSaveToRegistryMutex.Enter();
@@ -3100,10 +3096,8 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
 
                     if (ask && salKeyDoesNotExist)
                     {
-                        // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                        //   encoding is not controlled by this feature and converting the template around it could
-                        //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                        sprintf(buf, LoadStr(IDS_PLUGINSAVEFAILED), Name);
+                        // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                        sprintf(buf, LoadStrU8(IDS_PLUGINSAVEFAILED), Name);
                         skipUnload = SalMessageBox(parent, buf, LoadStr(IDS_QUESTION),
                                                    MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) == IDNO;
                     }
@@ -3122,10 +3116,8 @@ BOOL CPluginData::Unload(HWND parent, BOOL ask)
                     ret = TRUE;
                 else
                 {
-                    // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                    //   encoding is not controlled by this feature and converting the template around it could
-                    //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                    sprintf(buf, LoadStr(IDS_PLUGINFORCEUNLOAD), Name);
+                    // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                    sprintf(buf, LoadStrU8(IDS_PLUGINFORCEUNLOAD), Name);
                     if (SalMessageBox(parent, buf, LoadStr(IDS_QUESTION), MB_YESNO | MB_ICONQUESTION) == IDYES)
                     {
                         PluginIface.Release(parent, TRUE);

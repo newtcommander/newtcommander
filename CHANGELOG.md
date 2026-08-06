@@ -9,6 +9,35 @@ not restate Open Salamander's own history. Versions follow
 also carries an internal build number shared by the application and every
 plugin.
 
+## [Unreleased]
+
+### Fixed
+
+- **Plugins Manager showed garbled plugin names in non-English UI.** With the
+  UI in Czech, names of plugins that were not currently loaded rendered as
+  mojibake ("HromadnĂ© pĹ™ejmenovĂˇnĂ­" instead of "Hromadné přejmenování");
+  loading a plugin "healed" its row until the next start. The cause: the name
+  cached in the configuration and the name obtained from a loaded plugin
+  carried two different text encodings, and the list drew the raw bytes.
+  Plugin metadata now has one defined encoding everywhere — the same fix
+  covers every message composed with a plugin name (add/remove/test plugin
+  prompts, hotkey-conflict warnings, packer/unpacker errors, the
+  "show in bar" label). Existing configurations display correctly as they
+  are; nothing is migrated or rewritten.
+- **The display-encoding guard can no longer be skipped silently.** The build
+  used to print "Encoding guard: SKIPPED" when Python was missing — the exact
+  hole this defect shipped through. A missing Python now fails the build, and
+  the guard knows plugin metadata by contract, so this class of defect fails
+  the build instead of reaching users.
+
+### Changed
+
+- **The ZIP plugin is named "ZIP" in every language.** Machine translation had
+  turned the name into the postal code: "PSČ" (Czech, Slovak), "Code postal"
+  (French), "Código postal" (Spanish), "邮编" (Simplified Chinese), and
+  Germany had "ZIP-Archiv". The name is now pinned as untranslatable, so a
+  future re-translation cannot undo it.
+
 ## [0.1.1] — 2026-08-05
 
 **Build 185.** Bug-fix release: private-key authentication in the SFTP plugin,

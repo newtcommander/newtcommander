@@ -308,7 +308,7 @@ COMMENT,"Version française"
 1004,1,"Mémoire insuffisante."
 1005,1,"Impossible d'ajouter le fichier à la liste."
 1006,1,"Impossible d'ajouter le répertoire à la liste."
-1007,1,"Code postal"
+1007,1,"ZIP"
 
 [STRINGTABLE 2]
 1008,1,"Les fichiers de plus de 4Go ne sont pas supportés."

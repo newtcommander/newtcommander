@@ -1446,10 +1446,8 @@ void CFilesWindow::Pack(CFilesWindow* target, int pluginIndex, const char* plugi
         }
         if (i == PackerConfig.GetPackersCount()) // the requested plugin was not found
         {
-            // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-            //   encoding is not controlled by this feature and converting the template around it could
-            //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-            sprintf(subject, LoadStr(IDS_PLUGINPACKERNOTFOUND), pluginName);
+            // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+            sprintf(subject, LoadStrU8(IDS_PLUGINPACKERNOTFOUND), pluginName);
             SalMessageBox(HWindow, subject, LoadStr(IDS_PACKTITLE), MB_OK | MB_ICONEXCLAMATION);
             delete[] (data.Indexes);
             EndStopRefresh(); // the snooper resumes now
@@ -1736,10 +1734,8 @@ void CFilesWindow::Unpack(CFilesWindow* target, int pluginIndex, const char* plu
             }
             if (i2 == UnpackerConfig.GetUnpackersCount()) // requested plugin not found
             {
-                // encoding-check: allow mixed-composition - plugin-supplied metadata, not a file name; its
-                //   encoding is not controlled by this feature and converting the template around it could
-                //   leave the message mixed the other way (feature 042, FR-010/FR-014)
-                sprintf(subject, LoadStr(IDS_PLUGINUNPACKERNOTFOUND), pluginName);
+                // plugin metadata is UTF-8 (feature 052) - compose with the UTF-8 template
+                sprintf(subject, LoadStrU8(IDS_PLUGINUNPACKERNOTFOUND), pluginName);
                 SalMessageBox(HWindow, subject, LoadStr(IDS_ERRORUNPACK), MB_OK | MB_ICONEXCLAMATION);
                 EndStopRefresh(); // the snooper resumes now
                 return;

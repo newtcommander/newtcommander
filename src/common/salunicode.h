@@ -48,6 +48,28 @@ char* SalWToU8Alloc(const WCHAR* src, int srcLen = -1);
 
 //*****************************************************************************
 //
+// SalLegacyToU8Alloc
+//
+// Normalize text of uncertain legacy origin to UTF-8 (feature 052).
+//
+// Returns a malloc'd copy of src: byte-identical when src already is valid
+// UTF-8 (ASCII included), otherwise converted CP_ACP -> UTF-8 - the same
+// transitional tolerance the registry facade applies on write
+// (SalRegSetValueExW8). Use at intake boundaries whose producers still emit
+// ANSI, e.g. plugin-supplied metadata (contract:
+// specs/052-fix-plugin-name-encoding/contracts/plugin-metadata-encoding.md).
+//
+// maxBytes >= 0 clamps the result to at most maxBytes bytes (terminator
+// excluded), cutting only at a UTF-8 sequence boundary; -1 = no limit.
+//
+// Return Values
+//   malloc'd string (caller frees); NULL only for NULL input or when
+//   allocation/conversion fails.
+//
+char* SalLegacyToU8Alloc(const char* src, int maxBytes = -1);
+
+//*****************************************************************************
+//
 // SalU8ToWDisplay
 //
 // LENIENT UTF-8 -> UTF-16 conversion, for DISPLAY ONLY (feature 041).

@@ -1,1 +1,3 @@
-{"feature_directory": "specs/051-fix-sftp-keyauth-hang"}
+{
+  "feature_directory": "specs/052-fix-plugin-name-encoding"
+}

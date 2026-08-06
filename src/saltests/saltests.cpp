@@ -926,6 +926,81 @@ static void TestUiTextEncoding()
     }
 }
 
+// Feature 052: the plugin metadata encoding contract. CPluginData's translated
+// strings hold UTF-8 from every producer: plugin-supplied ANSI is normalized
+// through SalLegacyToU8Alloc at the intake boundaries, and persisted values
+// cross the registry facade as UTF-8 (stored UTF-16, returned UTF-8). The
+// facade itself (SalRegSetValueExW8/SalRegQueryValueExW8, salamdr6.cpp) is not
+// linked into this exe, so what is asserted is the conversion property both
+// sides share plus the normalization helper; tools/check_encoding.py guards
+// the call sites. The reported defect: the cached name of a not-loaded plugin
+// (UTF-8 from the registry) went to the ANSI ListView_SetItemText and rendered
+// as "HromadnA(c) ..." mojibake, while a loaded plugin's name (ANSI back then)
+// rendered correctly - the same field carried two encodings.
+static void TestPluginMetadataEncoding()
+{
+    // (1) ASCII passes through byte-identical (valid UTF-8 already)
+    char* s = SalLegacyToU8Alloc("Disk Map 1.12");
+    CHECK(s != NULL && strcmp(s, "Disk Map 1.12") == 0);
+    free(s);
+
+    // (2) valid UTF-8 is kept unchanged - the registry-read producer
+    //     ("Hromadné přejmenování", the name from the bug report)
+    const char* u8Name = "Hromadn\xC3\xA9 p\xC5\x99"
+                         "ejmenov\xC3\xA1n\xC3\xAD";
+    s = SalLegacyToU8Alloc(u8Name);
+    CHECK(s != NULL && strcmp(s, u8Name) == 0);
+    free(s);
+
+    // (3) legacy ANSI is converted - the LoadStringA producer. Exact bytes can
+    //     be asserted only under CP1250 (the conversion goes through CP_ACP).
+    if (GetACP() == 1250)
+    {
+        const char* ansiName = "Hromadn\xE9 p\xF8"
+                               "ejmenov\xE1n\xED";
+        s = SalLegacyToU8Alloc(ansiName);
+        CHECK(s != NULL && strcmp(s, u8Name) == 0);
+        free(s);
+    }
+
+    // (4) whatever the codepage, the result is valid UTF-8 - the field must
+    //     never carry mixed/legacy bytes to a consumer
+    s = SalLegacyToU8Alloc("n\xE1zev \xF8"
+                           "ol");
+    CHECK(s != NULL);
+    if (s != NULL)
+    {
+        WCHAR wide[64];
+        CHECK(SalU8ToW(s, -1, wide, _countof(wide)) != 0);
+        free(s);
+    }
+
+    // (5) the persistence round trip the registry facade performs (UTF-8 ->
+    //     UTF-16 REG_SZ at rest -> UTF-8) is lossless for valid UTF-8 metadata
+    WCHAR* w = SalU8ToWAlloc(u8Name);
+    CHECK(w != NULL);
+    if (w != NULL)
+    {
+        char* back = SalWToU8Alloc(w);
+        CHECK(back != NULL && strcmp(back, u8Name) == 0);
+        free(back);
+        free(w);
+    }
+
+    // (6) clamping cuts only at a UTF-8 sequence boundary: "aé" (61 C3 A9)
+    //     limited to 2 bytes drops the whole sequence, never leaves a dangling
+    //     lead byte
+    s = SalLegacyToU8Alloc("a\xC3\xA9", 2);
+    CHECK(s != NULL && strcmp(s, "a") == 0);
+    free(s);
+    s = SalLegacyToU8Alloc("a\xC3\xA9", 3);
+    CHECK(s != NULL && strcmp(s, "a\xC3\xA9") == 0);
+    free(s);
+
+    // (7) NULL stays NULL (callers treat it as "keep the previous value")
+    CHECK(SalLegacyToU8Alloc(NULL) == NULL);
+}
+
 int main()
 {
     TestConversions();
@@ -941,6 +1016,7 @@ int main()
     TestDarkIconColorAdaptation();
     TestComposedMessageEncoding();
     TestUiTextEncoding();
+    TestPluginMetadataEncoding();
 
     printf("saltests: %d checks, %d failed\n", g_checks, g_failures);
     return g_failures;
