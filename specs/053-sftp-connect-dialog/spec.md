@@ -193,9 +193,12 @@ nothing is truncated there either.
   and impossible to turn on) whenever Quick Connect is selected.
 - **FR-003**: A secret typed for a Quick Connect session MUST be usable for
   that connection attempt and MUST NOT outlive it.
-- **FR-004**: On first run of the updated version, any Quick Connect values
-  left in stored settings by an earlier version — including stored secrets —
-  MUST be removed automatically, with no user action.
+- **FR-004**: Any Quick Connect values left in stored settings by an earlier
+  version — including stored secrets — MUST be removed automatically, with no
+  user action, the first time the plugin is loaded after the update. (Corrected
+  from "on first run of the updated version": a plugin that loads on demand
+  cannot execute any code before it is loaded, so plugin load is the earliest
+  possible moment. It always precedes the user reaching the dialog.)
 - **FR-005**: Saved bookmarks MUST keep their existing behaviour: their
   values persist and their save-password/passphrase options remain available
   and effective.

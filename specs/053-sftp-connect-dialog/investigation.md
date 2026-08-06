@@ -243,7 +243,56 @@ information line" checkbox, 118 units for text needing 208 (French).
   the logs dialog is resizable but has no `WM_SIZE` handler, so its controls
   never follow the frame.
 
-## 9. Recorded follow-up work (deliberately not done in feature 053)
+## 9. Two defects found while verifying, both pre-existing and out of scope
+
+### 9a. The plugin's configuration page never becomes visible
+
+Measured, not inferred. Clicking **Configure** for the SFTP plugin in Plugins
+Manager does create the dialog — it exists, with the right controls
+("Časový limit připojení (s):", "Sloupec oprávnění", "Maximální velikost
+protokolu (KB):" …) — but it is positioned **outside its parent** and, being a
+child window, is clipped away entirely. Nothing is drawn.
+
+| Plugin | Template style | Dialog rect | Parent rect (Plugins Manager) | Visible |
+|---|---|---|---|---|
+| SFTP | `DS_SETFONT \| DS_FIXEDSYS \| WS_CHILD` (no caption) | 1877,934 549×406 | ~923,434 595×476 | **no** — right edge 2426 vs parent 1518 |
+| 7-Zip (control) | ordinary captioned dialog | 1047,490 346×364 | 923,434 595×476 | yes, centred inside |
+
+Mechanism: `IDD_CONFIG` is a `WS_CHILD` template shown with `DialogBoxParam`
+(`ShowConfigDialog`, whose comment already flags the arrangement as a hack), and
+`ConfigProc`'s `WM_INITDIALOG` then calls
+`MultiMonCenterWindow(hwnd, GetParent(hwnd), TRUE)`. That helper computes
+**screen** coordinates, which for a child window are applied **relative to the
+parent** — so the dialog lands at roughly `parentLeft + centredScreenX`.
+
+**Size-independent, therefore pre-existing**: the child's left edge is always
+≥ `parentLeft + (parentWidth - childWidth)/2`, which for any child wider than
+about half the parent puts it past the parent's right edge. It was invisible at
+the old 260×236 units and is invisible at the new 366×250. Feature 053's label
+fix for this dialog is correct and will show once the visibility is fixed, but
+**it cannot be observed today** — which is also the likely reason eleven clipped
+controls went unnoticed there for so long.
+
+### 9b. One black-holed address consumes the whole connect timeout
+
+Connecting to `localhost` fails with "The operation timed out" while
+`127.0.0.1` connects instantly. Measured: `localhost` resolves to `::1` first,
+and `::1:2222` is black-holed here (SYN dropped, no RST — the Hyper-V firewall's
+default inbound block), while `127.0.0.1:2222` connects in 1 ms.
+
+Reading the connect loop (`session.cpp`), the inner wait keeps waiting on the
+*current* address until the **entire** budget is spent (`elapsed >=
+totalBudgetMs` → `timedOut = TRUE`), and `timedOut` then ends the outer address
+loop — so the remaining addresses are never tried. Feature 051 introduced the
+shared budget deliberately, to stop several dead addresses each costing a full
+timeout; the side effect is that one *silently* dead address starves the rest.
+A dual-stack host whose IPv6 route is black-holed therefore cannot be reached at
+all, even though its IPv4 address answers immediately.
+
+Out of scope for feature 053 (dialogs), but worth its own fix — the usual remedy
+is a per-address share of the budget, or overlapping attempts (RFC 8305).
+
+## 10. Recorded follow-up work (deliberately not done in feature 053)
 
 Each of these needs a text change, which would create translation gaps — the one
 thing this feature's FR-008 exists to prevent — or is a separate concern:

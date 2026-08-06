@@ -256,6 +256,17 @@ by the version flag so it never repeats.
 mechanism that keeps that promise for every user. It is a purge, not a
 migration: nothing is read from the old subtree before it is deleted.
 
+**Correction after verification.** The purge runs the first time the **plugin is
+loaded**, not at application start — measured: starting the application and
+killing it leaves the stale subtree in place, because a plugin that loads on
+demand has not executed any code yet. Loading the plugin (opening its connect
+dialog) and then killing the application does purge it, which proves the forced
+save path works rather than the ordinary exit save. This is the earliest moment
+any plugin code can run, so it is the strongest guarantee a plugin can offer;
+spec FR-004's "on first run" is corrected to "the first time the plugin is
+loaded". A user who has stale quick-connect data has used the plugin before, and
+the purge happens before they can interact with the dialog again.
+
 **Alternatives considered**: purge on the next ordinary save (fails FR-004 when
 auto-save is off); purge in `LoadConfiguration` (impossible — read-only key);
 delete the whole plugin config key (destroys bookmarks — unacceptable).

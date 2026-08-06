@@ -17,10 +17,46 @@
 >   every language of an **untouched** module too (verified against `renamer`),
 >   because its non-clean exit is the build watchdog killing an interactive
 >   fallback. Informational only — see research D4.
-> - **Scenarios 1–3 and the visual pass (4) are NOT yet executed** — they need a
->   human at the running application. See the note under Scenario 4.
-> - Builds green: `build.cmd`, `build.cmd full`, `build_langs.cmd --module sftp
->   --force`.
+> - **Scenario 1 (Quick Connect) — PASS.** With Quick Connect selected every field
+>   is empty and "Uložit heslo" / "Uložit heslo ke klíči" / "Uložit" are all
+>   greyed out (verified by reading each control's enabled state, not just by
+>   eye). After connecting with a typed password and exiting, the plugin's config
+>   key contains **no `QuickConnect` subkey at all** and `Version = 2`. Selecting
+>   a bookmark re-enables the same three controls — the rule follows the
+>   selection.
+> - **Purge, including with no ordinary save — PASS.** A pre-053 state was
+>   recreated (`QuickConnect` with `Save Password = 1` and a password blob,
+>   `Version = 1`); the plugin was loaded and the process then **killed**, so no
+>   ordinary configuration save could run. The subtree was gone anyway and the
+>   version was 2, while both bookmarks and the known-hosts records survived and
+>   bookmark `a2` kept its stored password. Note the purge happens on **plugin
+>   load**, not at application start — see research D5a.
+> - **Scenario 2 (bookmarks unaffected) — PASS.** Bookmark `a2` keeps
+>   `Save Password = 1` and its blob across all of the above.
+> - **Scenario 3 (empty bookmark) — PASS.** "New" with every field empty
+>   succeeded (no missing-host error), the entry shows its **name** in the list
+>   rather than a blank row, Connect on it is refused with the existing
+>   "V zadané cestě chybí název hostitele.", and after a clean exit it is in the
+>   registry as `Name='Prazdna-zalozka'` with no address and `Port=22` — the
+>   normalized default, not 0.
+> - **Full connection end to end — PASS.** Quick Connect to the reference server
+>   (`127.0.0.1:2222`, `tctest`, typed password) connected; the panel showed
+>   `sftp:tctest@127.0.0.1:2222/` with the remote root listing.
+> - **Scenario 6 (connect harness) — PASS.** `run_keyauth.cmd`: 7 passed,
+>   0 failed.
+> - **Scenario 4 visual pass — PARTIAL.** The connect dialog was verified in
+>   Czech in both states (screenshots), and every label renders in full
+>   ("Soubor s klíčem:", "Heslo ke klíči:", "Počáteční cesta:"). The other
+>   dialogs were not seen: the configuration page **cannot be opened at all**
+>   (pre-existing defect, investigation.md §9a), and chmod / owner-group /
+>   symlink / host-key / rename / logs need specific remote-file flows. Their
+>   geometry is covered mechanically (estimator 0, template check OK).
+> - Two pre-existing defects found while verifying, both out of scope and
+>   recorded: the configuration page is invisible (§9a) and one black-holed
+>   address consumes the whole connect timeout, so `localhost` fails where
+>   `127.0.0.1` works (§9b).
+> - Builds green: `build.cmd`, `build.cmd full`, clean `rebuild`,
+>   `full release`, `build_langs.cmd --module sftp --force`.
 
 ## Prerequisites
 
