@@ -123,7 +123,7 @@ sweep; nothing stale.
 - [X] T018 Finalize `specs/056-prerelease-review/review-report.md`:
       coverage map, findings ledger (confirmed/refuted/deferred), final
       gate table, version-sweep evidence, deferral list for future planning
-- [ ] T019 Mark tasks complete and make the release commit ("[056] release
+- [X] T019 Mark tasks complete and make the release commit ("[056] release
       0.1.2 …") containing stamps + changelog + report together (FR-008's
       same-change rule)
 
