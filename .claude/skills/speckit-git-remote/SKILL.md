@@ -6,7 +6,7 @@ metadata:
   author: github-spec-kit
   source: git:commands/speckit.git.remote.md
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Detect Git Remote URL
