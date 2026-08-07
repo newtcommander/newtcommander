@@ -194,8 +194,14 @@ def dedupe_accelerators(section: Section) -> list[str]:
             letter = plain[pos].lower()
             if letter in blocked:
                 continue
+            # The visited set is shared across the whole augmentation attempt
+            # (standard Kuhn), not copied per branch: a per-branch copy re-explores
+            # every letter permutation and turns a section with more accelerated
+            # rows than free letters -- salamand's large menus -- from
+            # milliseconds into hours (feature 055).
+            blocked.add(letter)
             held = owner.get(letter)
-            if held is None or try_assign(held, blocked | {letter}):
+            if held is None or try_assign(held, blocked):
                 owner[letter] = idx
                 assigned[idx] = pos
                 return True

@@ -79,6 +79,7 @@ def load_origin(
     module: Module,
     template: SltFile | None = None,
     redo_accelerators: bool = False,
+    redo_machine: bool = False,
 ) -> dict[str, str]:
     """Previous run's provenance, if any. Absent on the first run.
 
@@ -87,6 +88,11 @@ def load_origin(
     Needed once, because the first implementation protected ``&`` as an ignore
     tag -- which split the word it marks and produced fragments like
     ``"Zberegti p &assphrase"``.
+
+    ``redo_machine`` demotes *every* machine-translated entry (a superset of
+    ``redo_accelerators``), so the whole machine population is re-sent -- used
+    to refresh context-less translations after the context descriptions
+    improved (feature 055). Human and skip entries are never demoted.
     """
     path = language.directory / f"{module.name}.origin"
     if not path.is_file():
@@ -95,6 +101,9 @@ def load_origin(
         origin = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
+
+    if redo_machine:
+        return {k: (FALLBACK if v == MACHINE else v) for k, v in origin.items()}
 
     if redo_accelerators and template is not None:
         single_amp = re.compile(r"(?<!&)&(?!&)")
@@ -313,6 +322,8 @@ def collect_gaps(
     modules: list[Module],
     redo_accelerators: bool = False,
     retranslate: bool = False,
+    redo_machine: bool = False,
+    contexts_by_module: dict[str, dict] | None = None,
 ) -> list[tuple[str, str]]:
     """``(context, english)`` pairs needing translation for this language.
 
@@ -323,14 +334,16 @@ def collect_gaps(
     pairs: set[tuple[str, str]] = set()
     for module in modules:
         template = templates[module.name]
-        contexts = build_contexts(module, template)
+        contexts = (contexts_by_module or {}).get(module.name) \
+            or build_contexts(module, template)
         legacy_path = language.directory / f"{module.name}.slt"
         legacy = load(legacy_path) if legacy_path.is_file() else None
         plan, _ = match(
             template,
             None if retranslate else legacy,
             None if retranslate
-            else load_origin(language, module, template, redo_accelerators),
+            else load_origin(language, module, template, redo_accelerators,
+                             redo_machine),
         )
         for key, (src, value) in plan.items():
             if src != "gap":
@@ -348,6 +361,7 @@ def run(
     budget: int | None,
     redo_accelerators: bool = False,
     retranslate: bool = False,
+    redo_machine: bool = False,
 ) -> int:
     missing = [m.name for m in modules if not (templates_dir / f"{m.name}.slt").is_file()]
     if missing:
@@ -358,6 +372,12 @@ def run(
         )
         return 1
     templates = {m.name: load(templates_dir / f"{m.name}.slt") for m in modules}
+
+    # Contexts depend only on (module, template), never on the language, so
+    # build them exactly once. Building them inside the per-language loops --
+    # twice per (language, module) pair -- multiplied the dominant cost of a
+    # multi-language run by 16 (feature 055).
+    contexts_by_module = {m.name: build_contexts(m, templates[m.name]) for m in modules}
 
     # The client is created on first use, not up front: a run with nothing to
     # translate -- e.g. refreshing control geometry after a dialog template
@@ -381,7 +401,8 @@ def run(
             print(f"skip {language.folder}: no DeepL target code", file=sys.stderr)
             continue
 
-        gaps = collect_gaps(templates, language, modules, redo_accelerators, retranslate)
+        gaps = collect_gaps(templates, language, modules, redo_accelerators,
+                            retranslate, redo_machine, contexts_by_module)
         est = sum(len(text) for _, text in gaps)
         print(f"\n=== {language.folder} ({code}) -- {len(gaps)} unique gaps, ~{est:,} chars")
 
@@ -417,8 +438,8 @@ def run(
                 cov,
                 None if retranslate
                 else load_origin(language, module, templates[module.name],
-                                 redo_accelerators),
-                contexts=build_contexts(module, templates[module.name]),
+                                 redo_accelerators, redo_machine),
+                contexts=contexts_by_module[module.name],
                 overrides=load_overrides(language, module),
                 module=module,
             )
@@ -519,6 +540,22 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="re-translate machine entries whose English carries an accelerator",
     )
+    ap.add_argument(
+        "--redo-machine",
+        action="store_true",
+        help="re-translate every machine-provenance entry with the current "
+             "context descriptions; human and skip entries are untouched "
+             "(--retranslate dominates when both are given)",
+    )
+    ap.add_argument(
+        "--exclude-module",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="drop NAME from the module set (repeatable), e.g. "
+             "--exclude-module sftp; cross-module deduplication is kept for "
+             "the remaining modules",
+    )
     args = ap.parse_args(argv)
 
     if not (args.all or args.language or args.module or args.dry_run):
@@ -548,10 +585,24 @@ def main(argv: list[str] | None = None) -> int:
                 "processing it because you named it explicitly"
             )
             languages = disabled
+    enabled_module_names = {m.name for m in modules}
     if args.module:
         modules = [m for m in modules if m.name == args.module]
         if not modules:
             print(f"error: unknown or disabled module {args.module!r}", file=sys.stderr)
+            return 1
+    for name in args.exclude_module:
+        # Validated against the enabled registry, not the current selection, so
+        # "--module zip --exclude-module sftp" is a harmless no-op rather than
+        # an error -- but a typo like "--exclude-module sfpt" still fails loud.
+        if name not in enabled_module_names:
+            print(f"error: unknown or disabled module {name!r}", file=sys.stderr)
+            return 1
+    if args.exclude_module:
+        excluded = set(args.exclude_module)
+        modules = [m for m in modules if m.name not in excluded]
+        if not modules:
+            print("error: no modules left after --exclude-module", file=sys.stderr)
             return 1
 
     from . import REPO_ROOT
@@ -560,6 +611,7 @@ def main(argv: list[str] | None = None) -> int:
     return run(
         languages, modules, templates_dir, args.dry_run, args.key_file,
         args.budget, args.redo_accelerators, args.retranslate,
+        args.redo_machine,
     )
 
 

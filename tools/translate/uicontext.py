@@ -64,6 +64,29 @@ _DOMAINS: dict[str, str] = {
     "mdview": "a Markdown file viewer",
     "pictview": "an image viewer",
     "salamand": "a two-panel file manager for Windows",
+    "7zip": "an archive plugin that creates, browses and extracts "
+            "7-Zip archives",
+    "tar": "an archive plugin that browses and extracts tar, gzip and "
+           "bzip2 archives",
+    "uncab": "an archive plugin that browses and extracts Windows CAB "
+             "archives",
+    "uniso": "a plugin that browses and extracts CD/DVD disk images (ISO)",
+    "dbviewer": "a viewer for dBase, FoxPro and CSV database files "
+                "(tabular data)",
+    "peviewer": "a viewer showing headers, sections, imports and exports "
+                "of Windows executable (PE) files",
+    "diskmap": "a tool that shows disk-space usage of folders as a treemap",
+    "filecomp": "a tool that visually compares two text or binary files "
+                "and shows their differences",
+    "renamer": "a batch file renamer with pattern and regular-expression "
+               "rules",
+    "portables": "a plugin that browses portable devices such as phones, "
+                 "cameras and media players",
+    "regedt": "a plugin that browses and edits the Windows Registry",
+    "undelete": "a tool that recovers deleted files from FAT and NTFS "
+                "volumes",
+    "folders": "a plugin that browses Windows shell folders such as "
+               "Desktop, Control Panel and the Recycle Bin",
 }
 
 
@@ -110,6 +133,18 @@ _WORDS = sorted(
     retries retry rights save saved server session settings show size skip
     stop symlink text time timeout title too trust type unlock upload user
     username value view warn window write
+    advanced archive batch battery buffer capacity case chart checksum
+    checksums cluster codepage compare comparison compress compressed counter
+    damaged data database decrypt deleted device devices difference
+    differences digits drive drives encoding encrypt expand export
+    expression extension extensions extract field fields found free header
+    headers hive horizontal ignore image import level lost lower manual mask
+    masks media method mixed panel panels partition pattern patterns preview
+    progress properties record records recycle registry replace results
+    scan scanning search section sections sector select selected signature
+    solid space split storage subdirs subkey table target track tree
+    treemap undo unpack upper used verify version vertical viewer volume
+    volumes whitespace wipe
     """.split(),
     key=len,
     reverse=True,

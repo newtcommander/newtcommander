@@ -149,7 +149,25 @@ def match(
             has_text = hit is not None and hit.text and hit.state == 1 and hit.text != english
             was = origin.get(f"{key[0]}:{key[1]}:{key[2]}")
 
-            if has_text and was == "machine":
+            # A translation identical to its English is legitimate for proper
+            # nouns and technical tokens ("Histogram", "LZMA", "UTF-16").
+            # Without provenance it is indistinguishable from an untranslated
+            # row, so only the sidecar's word makes it count -- which stops
+            # the same ~150 entries per language being re-sent to the engine
+            # on every single run (and re-risking tokens like $(OriginalName)).
+            same_text = (
+                hit is not None and hit.text == english and hit.state == 1
+                and was in ("human", "machine")
+            )
+
+            if same_text:
+                plan[key] = (was, hit.text)
+                if was == "machine":
+                    stats.machine += 1
+                else:
+                    stats.human += 1
+                used.add(key)
+            elif has_text and was == "machine":
                 # Already machine-translated on an earlier run: keep it, do not
                 # spend quota again, but do not call it human either.
                 plan[key] = ("machine", hit.text)

@@ -22,13 +22,13 @@ the tooling package has none and the deliverable is committed data.
 **Purpose**: Establish the current-structure templates and the pre-change
 baseline every later check compares against.
 
-- [ ] T001 Export current-structure templates from the up-to-date Release
+- [X] T001 Export current-structure templates from the up-to-date Release
       tree: `src\vcxproj\build_langs.cmd --export-templates release`; verify
       `build\tandemcommander\translator\templates\<module>.slt` exists for all
       20 enabled modules
-- [ ] T002 [P] Baseline round-trip check: `python -m translate.slt --verify`
+- [X] T002 [P] Baseline round-trip check: `python -m translate.slt --verify`
       passes for every committed `translations/<lang>/<module>.slt`
-- [ ] T003 Baseline dry-run (needs T001): `python -m translate.merge --dry-run`
+- [X] T003 Baseline dry-run (needs T001): `python -m translate.merge --dry-run`
       reports **0 gaps** for all 8 enabled languages (committed `.slt` in sync
       with current resources) and record the baseline coverage table
       (human/machine/skip counts per language) for comparison in T012
@@ -42,24 +42,24 @@ baseline every later check compares against.
 **Purpose**: The merge-mode and context changes every story depends on.
 Contract: `contracts/redo-machine-cli.md`.
 
-- [ ] T004 Add `--redo-machine` to `tools/translate/merge.py`: generalize the
+- [X] T004 Add `--redo-machine` to `tools/translate/merge.py`: generalize the
       `load_origin()` demotion (all `machine` → `english_fallback` before
       matching, superset of `--redo-accelerators`), thread the flag through
       `collect_gaps()`, `run()`, and `main()`; help text documents that
       `--retranslate` dominates when combined
-- [ ] T005 Add repeatable `--exclude-module NAME` to
+- [X] T005 Add repeatable `--exclude-module NAME` to
       `tools/translate/merge.py`: applied after enabled-module resolution;
       unknown name → stderr error + exit 1; empty resulting module set →
       error + exit 1
-- [ ] T006 [P] Extend `_DOMAINS` in `tools/translate/uicontext.py` with
+- [X] T006 [P] Extend `_DOMAINS` in `tools/translate/uicontext.py` with
       one-clause descriptions for all enabled modules currently missing one
       (7zip, dbviewer, diskmap, filecomp, folders, peviewer, portables,
       regedt, renamer, tar, uncab, undelete, uniso) per research.md R3
-- [ ] T007 Extend `_WORDS` in `tools/translate/uicontext.py` with common
+- [X] T007 Extend `_WORDS` in `tools/translate/uicontext.py` with common
       vocabulary of the newly covered modules (archive, extract, compress,
       registry, rename, compare, mask, drive, volume, device, preview, …) so
       `humanize_symbol()` splits their symbols readably
-- [ ] T008 Offline contract validation (needs T004–T007):
+- [X] T008 Offline contract validation (needs T004–T007):
       `python -m translate.merge --dry-run --redo-machine --exclude-module sftp`
       → per-language gap counts equal the `.origin` machine counts
       (czech 292, dutch 559, french 403, german 366, hungarian 324,
@@ -79,7 +79,7 @@ context; product rebuilt and spot-checked.
 **Independent Test**: quickstart.md steps 3–4, 6–7 — dry-run scope, the run,
 the language build, and the Czech/Slovak spot-check.
 
-- [ ] T009 [US1] Pre-flight (needs T008): review the T008 dry-run character
+- [X] T009 [US1] Pre-flight (needs T008): review the T008 dry-run character
       estimate (expect ≈80–120k, abort threshold 350k) and confirm
       `temp\deepl_key.txt` present
 - [ ] T010 [US1] Execute the re-translation:
@@ -119,7 +119,7 @@ entries.
 **Independent Test**: quickstart.md step 5 — provenance-scoped diff of HEAD
 vs. working tree.
 
-- [ ] T015 [US2] Write the SC-002 verification script in the scratchpad
+- [X] T015 [US2] Write the SC-002 verification script in the scratchpad
       (not committed): for each (enabled language, enabled module ≠ sftp)
       load the `HEAD` `.slt`/`.origin` (via `git show`) and the working-tree
       `.slt` with `translate.slt`, key rows by `match.entry_key`, assert
