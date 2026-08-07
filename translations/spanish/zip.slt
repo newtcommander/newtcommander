@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\zip\zip.atp"
 TEXTVERSION,"1.4 (x64)"
-VERSION,"1,4,0,184"
+VERSION,"1,4,0,185"
 
 [TRANSLATION]
 LANGID,3082
@@ -117,7 +117,7 @@ COMMENT,"Versión en español"
 2,237,56,50,14,1,"Cancelar"
 
 [DIALOG 141]
-210,108,1,"Código postal"
+210,108,1,"ZIP"
 3000,13,8,193,16,1,"Este fichero es parte de un archivo multivolumen o está alterado."
 3001,13,31,193,24,1,"Si cree que debería ser parte de un archivo multivolumen, inserte un disco con la última parte del archivo o localice el fichero en el disco duro. Pulse Aceptar a continuación."
 3002,13,61,103,8,1,"&Ultima parte del archivo:"
@@ -466,7 +466,7 @@ COMMENT,"Versión en español"
 1148,0,"OK"
 1149,1,"Aceptar + Cancelar"
 1150,1,"Sí + No"
-1151,1,"Sencillo"
+1151,1,"Simple"
 
 [STRINGTABLE 11]
 1152,1,"Exclamación"

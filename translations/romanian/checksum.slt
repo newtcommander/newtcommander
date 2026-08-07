@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\checksum\checksum.atp"
 TEXTVERSION,"2.2 (x64)"
-VERSION,"2,2,0,184"
+VERSION,"2,2,0,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -38,7 +38,7 @@ COMMENT,"Versiunea romana"
 1006,42,68,101,8,0,"Progress1"
 2002,5,68,140,8,1,""
 2001,149,65,50,14,1,"&Focus"
-1004,205,65,50,14,1,"&Oprește-te"
+1004,205,65,50,14,1,"&Stop"
 
 [STRINGTABLE 0]
 1,1,"Suma de control"

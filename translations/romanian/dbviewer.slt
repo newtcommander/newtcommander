@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\dbviewer\dbviewer.atp"
 TEXTVERSION,"1.24 (x64)"
-VERSION,"1,2,4,184"
+VERSION,"1,2,4,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -118,22 +118,22 @@ COMMENT,"Versiunea romana"
 
 [STRINGTABLE 3]
 11136,1,"Necunoscut"
-11140,1,"Personaj"
+11140,1,"Caracter"
 11141,1,"Număr"
 11142,1,"Logic"
 11143,1,"Data"
-11144,1,"Notă"
-11145,1,"Zecimală mobilă"
+11144,1,"Memo"
+11145,1,"Virgulă mobilă"
 11146,1,"Binar"
-11147,1,"Generalități"
+11147,1,"General"
 11148,1,"Poza"
 11149,1,"Moneda"
 11150,1,"Data/Timp"
-11151,1,"Număr întreg"
+11151,1,"Integer"
 
 [STRINGTABLE 4]
 11152,1,"Necunoscut"
-11153,1,"Dublu"
+11153,1,"Double"
 11154,1,"Datare ora si min"
 11155,1,"AutoIncrement"
 11160,1,"Cel putin un camp trebuie sa fie vizibil."
@@ -150,7 +150,7 @@ COMMENT,"Versiunea romana"
 11170,1,"Numararea campurilor-memo"
 11171,1,"Dimensiunea antetului"
 11172,1,"Dimensiunea înregistrării"
-11173,1,"Pagina de coduri"
+11173,1,"Pagina de cod"
 
 [STRINGTABLE 6]
 11194,1,"Eroarea expresiei normale"

@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\renamer\renamer.atp"
 TEXTVERSION,"1.13 (x64)"
-VERSION,"1,1,3,184"
+VERSION,"1,1,3,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -220,7 +220,7 @@ COMMENT,"Versiunea romana"
 1067,1,"Litere Amestecate"
 1068,1,"Scoate Diacriticele"
 1069,1,"Subsir..."
-1070,1,"început"
+1070,1,"start"
 1071,1,"sfarsit"
 
 [STRINGTABLE 6]
@@ -230,7 +230,7 @@ COMMENT,"Versiunea romana"
 1075,1,"Hexazecimal (ABCDEF)"
 1076,1,"Spatii"
 1077,1,"Zero-uri"
-1078,1,"Linii de subliniere"
+1078,1,"Caractere de subliniere"
 1079,1,"Numele variabil trebuie terminat cu ')'."
 1081,1,"Variabila nu a fost gasita."
 1083,1,"Astept nume variabila in paranteze sau cararacterul '$'."
@@ -277,7 +277,7 @@ COMMENT,"Versiunea romana"
 1123,1,"Dezastru intern."
 1125,1,"Nume clasa POSIX necunoscuta."
 1126,1,"Astept doi digiti hexazecimali dupa \\x."
-1127,1,"Depășire de stivă"
+1127,1,"Depășire stivă"
 1128,1,"Expresie compilata ceruta."
 1129,1,"Nu pot porni noua insiruire."
 1130,1,"<Eroare model inlocuit: %s>"

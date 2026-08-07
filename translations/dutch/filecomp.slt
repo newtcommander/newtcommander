@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\filecomp\filecomp.atp"
 TEXTVERSION,"1.19 (x64)"
-VERSION,"1,1,9,184"
+VERSION,"1,1,9,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -23,7 +23,7 @@ COMMENT,"Nederlandse versie"
 
 [DIALOG 105]
 254,221,1,"Kleuren"
-300,6,6,30,8,1,"Art&ikel"
+300,6,6,20,8,1,"&Item"
 106,6,16,149,82,1,""
 301,163,38,51,8,1,"Regelnummers:"
 302,216,38,26,8,1,"Tekst:"
@@ -144,7 +144,7 @@ COMMENT,"Nederlandse versie"
 147,13,207,228,12,1,"Combineer di&akritische markeringen met samengest. tekens"
 
 [MENU 600]
-0,1,"&Help"
+0,1,"Hel&p"
 610,1,"Vergelijk...\tCtrl+O"
 611,1,"Opnieuw vergelijken\tCtrl+R"
 601,1,"&Afsluiten\tAlt+F4"

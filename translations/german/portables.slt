@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\portables\portables.atp"
 TEXTVERSION,"0.1 (x64)"
-VERSION,"0,1,0,184"
+VERSION,"0,1,0,185"
 
 [TRANSLATION]
 LANGID,1031
@@ -14,8 +14,8 @@ COMMENT,"Deutsche Version"
 129,1,"Keine Geräte"
 
 [STRINGTABLE 1]
-8192,1,"Mobile Geräte"
-8193,1,"Mobile Geräte verwalten."
+8192,1,"Tragbare Geräte"
+8193,1,"Tragbare Geräte verwalten."
 
 [STRINGTABLE 2]
 9216,1,"Über das Plugin"

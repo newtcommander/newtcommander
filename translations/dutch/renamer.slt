@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\renamer\renamer.atp"
 TEXTVERSION,"1.13 (x64)"
-VERSION,"1,1,3,184"
+VERSION,"1,1,3,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -220,7 +220,7 @@ COMMENT,"Nederlandse versie"
 1067,1,"Gemengde grootte"
 1068,1,"Diakritische tekens ontleden"
 1069,1,"Subtekenreeks..."
-1070,1,"begin"
+1070,1,"start"
 1071,1,"einde"
 
 [STRINGTABLE 6]
@@ -311,7 +311,7 @@ COMMENT,"Nederlandse versie"
 1154,1,"Circumflex '^'"
 1155,1,"Dollar '$'"
 1156,1,"Punt '.'"
-1157,1,"Pijpje '|'"
+1157,1,"Pijp '|'"
 1158,1,"Asterisk '*'"
 1159,1,"Plus '+'"
 1160,1,"Vraagteken '?'"

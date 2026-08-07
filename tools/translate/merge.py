@@ -219,6 +219,7 @@ def build_slt(
 
     for tpl_section in template.sections:
         section = Section(kind=tpl_section.kind, number=tpl_section.number)
+        frozen_rows: set[int] = set()
         for i, tpl_row in enumerate(tpl_section.rows):
             key = entry_key(tpl_section, tpl_row, i)
             source, value = plan[key]
@@ -273,7 +274,11 @@ def build_slt(
                     forced = overrides[symbol]
                 elif f"#{tpl_row.text}" in overrides:
                     forced = overrides[f"#{tpl_row.text}"]
-                if forced is not None and forced != text:
+                # Applied even when the engine happened to produce the same
+                # text: the pin is a human decision, and recording it as
+                # 'human' is what keeps it frozen for the accelerator dedup
+                # and out of future --redo-machine populations.
+                if forced is not None and (forced != text or kind != HUMAN):
                     if kind == MACHINE:
                         cov.machine -= 1
                     elif kind == FALLBACK:
@@ -290,6 +295,11 @@ def build_slt(
                 text = rebranded
 
             section.rows.append(type(tpl_row)(numbers=numbers, text=text))
+            if kind in (HUMAN, SKIP):
+                # A human translation is untouchable in full, accelerator
+                # included; a skip row reproduces the template. Neither may be
+                # rearranged by the accelerator dedup below (feature 055).
+                frozen_rows.add(len(section.rows) - 1)
             origin[f"{key[0]}:{key[1]}:{key[2]}"] = kind
 
         # Grow controls the translation outgrew, before the accelerator check.
@@ -304,7 +314,7 @@ def build_slt(
         # changes no wording, so it is done automatically; whatever cannot be
         # resolved that way is still reported for a human to reword.
         if section.kind in ("DIALOG", "MENU", "STRINGTABLE"):
-            cov.reaccel += len(dedupe_accelerators(section))
+            cov.reaccel += len(dedupe_accelerators(section, frozen_rows))
             dups = duplicate_accelerators([r.text for r in section.rows])
             if dups:
                 cov.dup_accel.append(

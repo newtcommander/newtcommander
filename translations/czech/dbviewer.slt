@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\dbviewer\dbviewer.atp"
 TEXTVERSION,"1.24 (x64)"
-VERSION,"1,2,4,184"
+VERSION,"1,2,4,185"
 
 [TRANSLATION]
 LANGID,1029
@@ -122,7 +122,7 @@ COMMENT,"Česká verze"
 11141,1,"Číselný"
 11142,1,"Logický"
 11143,1,"Datum"
-11144,1,"Poznámka"
+11144,1,"Memo"
 11145,1,"Plovoucí bod"
 11146,1,"Binární"
 11147,1,"Hlavní"
@@ -207,7 +207,7 @@ COMMENT,"Česká verze"
 11280,1,"&Nápověda"
 11281,1,"&O pluginu..."
 11282,1,"O&bsah\tF1"
-11283,1,"&Obsah..."
+11283,1,"&Rejstřík..."
 11284,1,"&Hledání..."
 
 [STRINGTABLE 13]

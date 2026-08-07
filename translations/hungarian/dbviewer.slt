@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\dbviewer\dbviewer.atp"
 TEXTVERSION,"1.24 (x64)"
-VERSION,"1,2,4,184"
+VERSION,"1,2,4,185"
 
 [TRANSLATION]
 LANGID,1038
@@ -122,7 +122,7 @@ COMMENT,"Magyar változat"
 11141,1,"Szám"
 11142,1,"Logikai"
 11143,1,"Dátum"
-11144,1,"Feljegyzés"
+11144,1,"Memo"
 11145,1,"Lebegőpont"
 11146,1,"Bináris"
 11147,1,"Általános"
@@ -207,7 +207,7 @@ COMMENT,"Magyar változat"
 11280,1,"&Súgó"
 11281,1,"&Névjegy..."
 11282,1,"&Tartalomjegyzék\tF1"
-11283,1,"&Tartalomjegyzék..."
+11283,1,"&Index..."
 11284,1,"Kere&s..."
 
 [STRINGTABLE 13]

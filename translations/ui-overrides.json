@@ -39,6 +39,44 @@
       "IDS_DOWNLOADINGFILE": "Stahování %s..."
     }
   },
+  "mdview": {
+    "czech": {
+      "IDS_PLUGINNAME": "Markdown Viewer",
+      "IDS_MENU_VIEW": "&Zobrazit",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Použít motiv s&ystému",
+      "#Graphite (dark)": "Grafit (tmavý)",
+      "#Nordic Dark": "Severský tmavý"
+    },
+    "slovak": {
+      "IDS_MENU_VIEW": "&Zobraziť",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Použiť motív s&ystému"
+    },
+    "german": { "IDS_MENU_VIEW_FOLLOWSYS": "S&ystemdesign folgen" },
+    "french": {
+      "IDS_MENU_VIEW": "Afficha&ge",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Suivre le thème du s&ystème"
+    },
+    "dutch": {
+      "IDS_MENU_VIEW": "Beel&d",
+      "IDS_MENU_VIEW_FOLLOWSYS": "S&ysteemthema volgen"
+    },
+    "hungarian": {
+      "IDS_MENU_VIEW": "&Nézet",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Rendszertéma k&övetése"
+    },
+    "romanian": {
+      "IDS_MENU_VIEW": "&Vizualizare",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Urmează tema s&istemului"
+    },
+    "spanish": {
+      "IDS_MENU_VIEW": "&Ver",
+      "IDS_MENU_VIEW_FOLLOWSYS": "Seguir el tema del s&istema"
+    }
+  },
+  "salamand": {
+    "czech": { "IDS_FINDLOG_TEXT": "Text" },
+    "slovak": { "IDS_FINDLOG_TEXT": "Text" }
+  },
   "zip": {
     "czech": { "IDS_PLUGINNAME": "ZIP" },
     "slovak": { "IDS_PLUGINNAME": "ZIP" },

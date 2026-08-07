@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\regedt\regedt.atp"
 TEXTVERSION,"1.14 (x64)"
-VERSION,"1,1,4,184"
+VERSION,"1,1,4,185"
 
 [TRANSLATION]
 LANGID,1031
@@ -70,10 +70,10 @@ COMMENT,"Deutsche Version"
 150,139,87,75,12,1,"&Regulärer Ausdruck"
 155,61,105,76,8,1,"&Neuer oder gleich:"
 152,139,103,80,12,1,""
-157,225,105,81,8,1,"hh:mm:ss TT.MM.JJJJ"
+157,225,105,81,8,1,"hh:mm:ss dd.mm.yyyy"
 156,61,121,76,8,1,"&Älter oder gleich:"
 153,139,119,80,12,1,""
-158,225,121,81,8,1,"hh:mm:ss TT.MM.JJJJ"
+158,225,121,81,8,1,"hh:mm:ss dd.mm.yyyy"
 148,6,132,109,8,1,"Ge&fundene Einträge:"
 149,6,142,309,57,1,""
 

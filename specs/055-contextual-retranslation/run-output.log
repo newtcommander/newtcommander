@@ -1,0 +1,38 @@
+=== czech (CS) -- 267 unique gaps, ~4,640 chars
+DeepL quota: 96,002 of 500,000 characters remaining
+  translated 267/267   
+=== german (DE) -- 336 unique gaps, ~4,121 chars
+  translated 336/336   
+=== french (FR) -- 394 unique gaps, ~6,357 chars
+  translated 394/394   
+=== dutch (NL) -- 536 unique gaps, ~6,693 chars
+  translated 536/536   
+=== hungarian (HU) -- 301 unique gaps, ~9,467 chars
+  translated 301/301   
+=== romanian (RO) -- 619 unique gaps, ~7,662 chars
+  translated 619/619   
+=== slovak (SK) -- 275 unique gaps, ~4,811 chars
+  translated 275/275   
+=== spanish (ES) -- 336 unique gaps, ~5,317 chars
+  translated 336/336   
+==============================================================================
+coverage
+==============================================================================
+language              total  human  machine  fallbk   skip  human%
+------------------------------------------------------------------------------
+czech                  7443   6082      292       0   1069     95%
+german                 7443   6008      366       0   1069     94%
+french                 7443   5969      405       0   1069     93%
+dutch                  7443   5799      575       0   1069     90%
+hungarian              7443   6050      324       0   1069     94%
+romanian               7443   5708      666       0   1069     89%
+slovak                 7443   6074      300       0   1069     95%
+spanish                7443   6011      362       1   1069     94%
+------------------------------------------------------------------------------
+rebranded entries: 14   discarded legacy: 11809   validation failures: 1   duplicate accelerators: 20
+controls widened to fit: 4388   accelerators reassigned: 0
+validation failures (kept English):
+  [spanish] 'DPI%': placeholders: [] -> ['% d']
+DeepL characters sent this run: 52,728
+DeepL quota remaining: 49,465
+EXIT=0

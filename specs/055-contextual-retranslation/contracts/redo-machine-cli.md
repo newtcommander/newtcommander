@@ -40,6 +40,20 @@ python -m translate.merge --all --redo-machine [--exclude-module NAME]...
 4. Budget cap (`--budget N`) stops **before** a language starts, never mid-language.
 5. The build (`build.cmd` / `build_langs.cmd`) never invokes any of this.
 
+## Guarantees added while implementing (as built)
+
+6. **Frozen rows in accelerator dedup**: `dedupe_accelerators` never modifies
+   a row whose provenance is `human` or `skip` — their accelerator letters are
+   fixed obstacles the machine rows are deduplicated around. (Before this
+   feature the section-wide matching silently relocated `&` markers inside
+   human translations.)
+7. **Override provenance is unconditional**: a pinned override records the
+   entry as `human` even when the engine produced the identical text, so pins
+   stay frozen for the dedup and never re-enter a `--redo-machine` population.
+8. **Same-text translations are kept**: an entry whose translation legitimately
+   equals its English ("LZMA", "Histogram") counts as translated when the
+   `.origin` sidecar vouches for it, instead of being re-sent on every run.
+
 ## Feature-run invocations (the contract consumers)
 
 ```bat

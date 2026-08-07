@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\undelete\undelete.atp"
 TEXTVERSION,"1.11 (x64)"
-VERSION,"1,1,1,184"
+VERSION,"1,1,1,185"
 
 [TRANSLATION]
 LANGID,1038
@@ -111,9 +111,9 @@ COMMENT,"Magyar változat"
 33,1,"Biztos fel akarja használni az előző klaszter vizsgálat információját?"
 34,1,"Mindig Igen válasz (ha kell, visszaállíthatja a Beállításokban)"
 35,1,"Előzőleg talált klaszterek újratöltése..."
-36,1,"3.5-es floppy"
-37,1,"5,25-es floppy"
-38,1,"8,0-as floppy"
+36,1,"3.5 Floppy"
+37,1,"5.25 Floppy"
+38,1,"8.0 Floppy"
 39,1,"Optikai lemez"
 40,1,"Helyi lemez"
 41,1,"Cserélhető lemez"

@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\regedt\regedt.atp"
 TEXTVERSION,"1.14 (x64)"
-VERSION,"1,1,4,184"
+VERSION,"1,1,4,185"
 
 [TRANSLATION]
 LANGID,1029
@@ -62,7 +62,7 @@ COMMENT,"Česká verze"
 141,6,60,50,8,1,"Prohledávat:"
 142,61,58,55,12,1,"&Klíče"
 145,139,58,55,12,1,"&Hodnoty"
-146,217,58,55,12,1,"Ú&daje"
+146,217,58,55,12,1,"&Data"
 154,6,76,41,8,1,"Možnosti:"
 147,61,74,60,12,1,"HE&X-režim"
 143,139,74,107,12,1,"&Rozlišovat velikost písmen"
@@ -222,7 +222,7 @@ COMMENT,"Česká verze"
 1094,1,"Hledání zastaveno"
 1095,1,"Název"
 1096,1,"Typ"
-1097,1,"Údaje"
+1097,1,"Data"
 1098,1,"Cesta"
 1099,1,"Velikost"
 1100,1,"Datum"

@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\portables\portables.atp"
 TEXTVERSION,"0.1 (x64)"
-VERSION,"0,1,0,184"
+VERSION,"0,1,0,185"
 
 [TRANSLATION]
 LANGID,3082
@@ -15,15 +15,15 @@ COMMENT,"Versión en español"
 
 [STRINGTABLE 1]
 8192,1,"Dispositivos portátiles"
-8193,1,"Gestionar dispositivos móviles."
+8193,1,"Gestionar dispositivos portátiles."
 
 [STRINGTABLE 2]
-9216,1,"Acerca del plugin"
+9216,1,"Acerca del complemento"
 
 [STRINGTABLE 3]
 10240,1,"Error al cambiar de directorio"
 10241,1,"Ruta: «%s»\r \n Error: %s"
 
 [STRINGTABLE 4]
-19457,1,"La ruta indicada contiene la ruta a un archivo."
+19457,1,"La ruta especificada contiene la ruta a un archivo."
 

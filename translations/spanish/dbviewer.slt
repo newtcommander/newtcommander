@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\dbviewer\dbviewer.atp"
 TEXTVERSION,"1.24 (x64)"
-VERSION,"1,2,4,184"
+VERSION,"1,2,4,185"
 
 [TRANSLATION]
 LANGID,3082
@@ -103,7 +103,7 @@ COMMENT,"Versión en español"
 
 [STRINGTABLE 2]
 11120,1,"Ficheros de base de datos (*.csv;*.dbf;*.txt)|*.csv;*.dbf;*.txt|Todos los ficheros (*.*)|*.*|"
-11121,1,"%d pt. %s (%s) te cuento... ()"
+11121,1,"%d pt. %s (%s)"
 11122,1,"La configuración ya está abierta."
 11123,1,"Nombre"
 11124,1,"Tipo"
@@ -122,7 +122,7 @@ COMMENT,"Versión en español"
 11141,1,"Numérico"
 11142,1,"Lógico"
 11143,1,"Fecha"
-11144,1,"Nota"
+11144,1,"Memo"
 11145,1,"Decimal flotante"
 11146,1,"Binario"
 11147,1,"General"
@@ -221,7 +221,7 @@ COMMENT,"Versión en español"
 11505,1,"Registro actual/Recuento de registros\tG"
 
 [STRINGTABLE 15]
-11520,1,"Usa la fuente pre&determinada"
+11520,1,"Usar fuente pre&determinada"
 11521,1,"Usar fuente &personalizada..."
 11522,1,"fuente predeterminada"
 11523,1,"fuente personalizada"

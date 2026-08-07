@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\portables\portables.atp"
 TEXTVERSION,"0.1 (x64)"
-VERSION,"0,1,0,184"
+VERSION,"0,1,0,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -15,14 +15,14 @@ COMMENT,"Nederlandse versie"
 
 [STRINGTABLE 1]
 8192,1,"Draagbare apparaten"
-8193,1,"Beheer draagbare apparaten."
+8193,1,"Draagbare apparaten beheren."
 
 [STRINGTABLE 2]
 9216,1,"Over de plug-in"
 
 [STRINGTABLE 3]
-10240,1,"Fout bij het wisselen van map"
-10241,1,"Pad: "%s"\r \n Fout: %s"
+10240,1,"Fout bij het wijzigen van de map"
+10241,1,"Pad: „%s“\r \n Fout: %s"
 
 [STRINGTABLE 4]
 19457,1,"Het opgegeven pad bevat het pad naar een bestand."

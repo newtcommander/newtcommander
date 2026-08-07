@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\checksum\checksum.atp"
 TEXTVERSION,"2.2 (x64)"
-VERSION,"2,2,0,184"
+VERSION,"2,2,0,185"
 
 [TRANSLATION]
 LANGID,1038
@@ -16,7 +16,7 @@ COMMENT,"Magyar változat"
 1006,50,68,105,8,0,"Progress1"
 1002,162,65,55,14,1,"&Beállítás..."
 1003,223,65,55,14,1,"Menté&s..."
-1004,284,65,55,14,1,"&Állj!"
+1004,284,65,55,14,1,"&Leállítás"
 1005,5,68,48,8,1,"vágólap tipp"
 
 [DIALOG 1001]
@@ -38,7 +38,7 @@ COMMENT,"Magyar változat"
 1006,42,68,101,8,0,"Progress1"
 2002,5,68,140,8,1,""
 2001,149,65,50,14,1,"&Fókusz"
-1004,205,65,50,14,1,"&Állj!"
+1004,205,65,50,14,1,"Leállítá&s"
 
 [STRINGTABLE 0]
 1,1,"Ellenőrzőösszeg"

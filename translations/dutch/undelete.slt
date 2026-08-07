@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\undelete\undelete.atp"
 TEXTVERSION,"1.11 (x64)"
-VERSION,"1,1,1,184"
+VERSION,"1,1,1,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -111,9 +111,9 @@ COMMENT,"Nederlandse versie"
 33,1,"Wilt u eerdere informatie hergebruiken van de afgelopen cluster scan?"
 34,1,"Kies altijd Ja (indien nodig is dit te wijzigen in het configuratie venster)"
 35,1,"Herladen van eerder gevonden clusters..."
-36,1,"3,5-inch diskette"
-37,1,"5,25-inch diskette"
-38,1,"8,0 Diskette"
+36,1,"3.5 Diskette"
+37,1,"5.25 Diskette"
+38,1,"8.0 Diskette"
 39,1,"Compact Disk"
 40,1,"Lokale schijf"
 41,1,"Verwisselbare schijf"

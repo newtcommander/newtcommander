@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\zip\zip.atp"
 TEXTVERSION,"1.4 (x64)"
-VERSION,"1,4,0,184"
+VERSION,"1,4,0,185"
 
 [TRANSLATION]
 LANGID,1051
@@ -30,8 +30,8 @@ COMMENT,"Slovenská verzia"
 108,94,127,85,12,1,""
 3007,188,97,111,50,1," Metóda šifrovania "
 121,193,108,101,12,1,"&ZIP 2.0 kompatibilný (slabé)"
-122,193,120,53,12,1,"&128-bitové šifrovanie AES"
-123,193,132,55,12,1,"&256-bitový AES"
+122,193,120,53,12,1,"&128-bitový AES"
+123,193,132,55,12,1,"&256-bitové AES"
 3008,8,154,292,1,1,""
 110,17,161,287,12,1,"Nabudúce nezo&brazovať (neskôr môžete zmeniť v dialógovom okne konfigurácie)"
 1,32,180,55,14,0,"OK"
@@ -117,7 +117,7 @@ COMMENT,"Slovenská verzia"
 2,237,56,50,14,1,"Zrušiť"
 
 [DIALOG 141]
-210,108,1,"PSČ"
+210,108,1,"ZIP"
 3000,13,8,193,16,1,"Tento súbor je buď časť viaczväzkového archívu alebo je poškodený."
 3001,13,31,193,24,1,"Ak viete, že by to mal byť viaczväzkový archív, prosím vložte disk s poslednou časťou archívu alebo vyhľadajte súbor na pevnom disku. Potom stlačte OK."
 3002,13,61,91,8,1,"&Posledná časť archívu:"
@@ -292,7 +292,7 @@ COMMENT,"Slovenská verzia"
 
 [MENU 860]
 861,1,"&Dočasného adresára"
-862,1,"&Programové súbory"
+862,1,"&Program Files"
 863,1,"Adresára &Windows"
 864,1,"Adresára &System"
 865,1,"Premenné pros&tredia"

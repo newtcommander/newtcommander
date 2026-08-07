@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\regedt\regedt.atp"
 TEXTVERSION,"1.14 (x64)"
-VERSION,"1,1,4,184"
+VERSION,"1,1,4,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -70,10 +70,10 @@ COMMENT,"Nederlandse versie"
 150,139,87,78,12,1,"Re&guliere expressie"
 155,61,105,76,8,1,"&Nieuwe of gelijk aan:"
 152,139,103,80,12,1,""
-157,225,105,81,8,1,"uu:mm:ss dd.mm.jjjj"
+157,225,105,81,8,1,"hh:mm:ss dd.mm.yyyy"
 156,61,121,76,8,1,"Oude&r of gelijk aan:"
 153,139,119,80,12,1,""
-158,225,121,81,8,1,"uu:mm:ss dd.mm.jjjj"
+158,225,121,81,8,1,"hh:mm:ss dd.mm.yyyy"
 148,6,132,109,8,1,"Gevonden &items:"
 149,6,142,309,57,1,""
 
@@ -205,7 +205,7 @@ COMMENT,"Nederlandse versie"
 1079,1,"%s sleutel "%s" naar"
 1080,1,"{!}%s %d waarden{} naar"
 1081,1,"{!}%s %d sleutels{} naar"
-1082,1,"{!}%s %d value{|1|s} en %d key{|1|s} naar"
+1082,1,"{!}%s %d waarde{|1|s} en %d sleutel{|1|s} naar"
 1083,1,"Verplaatsen/Hernoemen"
 1084,1,"Registervermeldingen kopiëren, ogenblik geduld (druk ESCvoor annuleren)..."
 1085,1,"Registervermeldingen verplaatsen, ogenblik geduld (druk ESCvoor annuleren)..."
@@ -243,7 +243,7 @@ COMMENT,"Nederlandse versie"
 1115,1,"Ongeldig datum/tijd formaat. Geef datum op in opmaak dd.mm.yyyy of datum en tijd in opmaak hh:mm:ss dd.mm.yyyy."
 1116,1,"Kan tijdelijkbestand niet maken. "
 1117,1,"Kan niet schrijven naar tijdelijkbestand. "
-1118,1,"Ru&we bewerking..."
+1118,1,"Ra&w bewerken..."
 1119,1,"Volledige naam"
 
 [STRINGTABLE 9]

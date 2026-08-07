@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\zip\zip.atp"
 TEXTVERSION,"1.4 (x64)"
-VERSION,"1,4,0,184"
+VERSION,"1,4,0,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -30,8 +30,8 @@ COMMENT,"Nederlandse versie"
 108,94,127,85,12,1,""
 3007,188,97,111,50,1," Coderingmethode "
 121,193,108,101,12,1,"ZI&P 2.0 verenigbaar (zwak)"
-122,193,120,53,12,1,"&128-bits AES"
-123,193,132,55,12,1,"&256-bits AES"
+122,193,120,53,12,1,"&128-bit AES"
+123,193,132,55,12,1,"&256-bit AES"
 3008,8,154,292,1,1,""
 110,17,161,287,12,1,"&Dit scherm niet meer weergeven (u kunt dit wijzigen in het configuratiescherm)"
 1,32,180,55,14,0,"OK"
@@ -232,7 +232,7 @@ COMMENT,"Nederlandse versie"
 202,20,307,108,12,1,""
 1,24,333,50,14,0,"OK"
 2,78,333,50,14,1,"Annuleren"
-198,132,333,52,14,1,"&Opnieuw instellen"
+198,132,333,50,14,1,"&Reset"
 9,186,333,50,14,1,"Help"
 
 [DIALOG 210]

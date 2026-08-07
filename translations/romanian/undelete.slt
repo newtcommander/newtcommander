@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\undelete\undelete.atp"
 TEXTVERSION,"1.11 (x64)"
-VERSION,"1,1,1,184"
+VERSION,"1,1,1,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -112,8 +112,8 @@ COMMENT,"Versiunea romana"
 34,1,"Alege intodeauna Da (daca e nevoie, poti reseta aceasta in dialogul de Configurare)"
 35,1,"Reincarc clusterele gasite anterior..."
 36,1,"3.5 Dischetă"
-37,1,"Dischetă de 5,25"
-38,1,"8,0 Dischetă"
+37,1,"5.25 Dischetă"
+38,1,"8.0 Dischetă"
 39,1,"Compact Disc"
 40,1,"Disc local"
 41,1,"Disc amovibil"

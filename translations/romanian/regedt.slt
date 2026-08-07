@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\regedt\regedt.atp"
 TEXTVERSION,"1.14 (x64)"
-VERSION,"1,1,4,184"
+VERSION,"1,1,4,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -56,7 +56,7 @@ COMMENT,"Versiunea romana"
 1,268,7,50,14,1,"&Gaseste Acum"
 701,6,27,46,8,1,"&Uita-te in:"
 137,61,25,202,132,1,""
-9,268,24,50,14,1,"&Ajutor"
+9,268,24,50,14,1,"A&jutor"
 139,258,42,62,12,1,"Arata &Optiunile"
 140,61,42,86,12,1,"Include su&bcheile"
 141,6,60,46,8,1,"Uita-te la:"
@@ -70,10 +70,10 @@ COMMENT,"Versiunea romana"
 150,139,87,75,12,1,"Expresie &regulata"
 155,61,105,76,8,1,"&Mai nou sau egal cu:"
 152,139,103,80,12,1,""
-157,225,105,81,8,1,"hh:mm:ss zz.mm.aaaa"
+157,225,105,81,8,1,"hh:mm:ss dd.mm.yyyy"
 156,61,121,76,8,1,"M&ai vechi sau egal cu:"
 153,139,119,80,12,1,""
-158,225,121,81,8,1,"hh:mm:ss zz.mm.aaaa"
+158,225,121,81,8,1,"hh:mm:ss dd.mm.yyyy"
 148,6,132,109,8,1,"Obiecte gas&ite:"
 149,6,142,309,57,1,""
 
@@ -214,7 +214,7 @@ COMMENT,"Versiunea romana"
 
 [STRINGTABLE 7]
 1088,1,"Copierea cheilor in radacina registrilor nu este posibila."
-1089,1,"O&prește-te"
+1089,1,"O&prire"
 1090,1,"&Gaseste Acum"
 1091,1,"Obiecte gas&ite:"
 1092,1,"Obiecte gas&ite (%d):"

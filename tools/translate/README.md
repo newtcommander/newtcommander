@@ -90,6 +90,10 @@ In code, `load_languages(include_disabled=True)` returns the whole registry.
 The default is the safe one deliberately: a tool that forgets about the
 policy fails *closed* rather than quietly spending budget.
 
+Modules compose the same way: `--exclude-module <name>` (repeatable) drops a
+module from any run — including `--all` — while the remaining modules keep
+their cross-module deduplication of identical `(context, text)` pairs.
+
 ---
 
 ## Commands
@@ -110,6 +114,12 @@ python -m translate.merge --all
 :: Scope to one language or one module
 python -m translate.merge --language ukrainian
 python -m translate.merge --module sftp
+
+:: Re-translate every machine-provenance entry with the current context
+:: descriptions (feature 055); human and skip entries are untouched.
+:: --exclude-module keeps a module out while preserving cross-module
+:: dedup for the rest (sftp was already context-translated in 051).
+python -m translate.merge --all --redo-machine --exclude-module sftp
 ```
 
 ---

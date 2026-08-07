@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\pictview\pictview.atp"
 TEXTVERSION,"2.13 (x64)"
-VERSION,"2,1,3,184"
+VERSION,"2,1,3,185"
 
 [TRANSLATION]
 LANGID,1031
@@ -329,7 +329,7 @@ COMMENT,"Deutsche Version"
 
 [STRINGTABLE 5]
 580,1,"&Werkzeuge"
-581,1,"&Hand\tA"
+581,1,"H&and\tA"
 582,1,"&Zoom\tZ"
 583,1,"Au&swahl\tS"
 584,1,"&Pipette\tP"
@@ -338,7 +338,7 @@ COMMENT,"Deutsche Version"
 591,1,"&Hilfethemen\tF1"
 
 [STRINGTABLE 6]
-592,1,"&Inhaltsverzeichnis..."
+592,1,"&Index..."
 593,1,"&Suchen..."
 596,1,"Über &PictView..."
 
@@ -355,7 +355,7 @@ COMMENT,"Deutsche Version"
 1000,1,"Zu wenig Speicher"
 1002,1,"Es sind einige PictView-Fenster geöffnet. Wollen Sie die Fenster schließen?"
 1003,1,"Die Datei "%s" konnte nicht gespeichert werden.\n%s"
-1004,1,"%s (%d x %d x %s - %i %%) - %s"
+1004,1,"%s (%d x %d x %s – %i %%) – %s"
 1005,1,"%s (%d x %d x %s [%d von %d] - %i%%) - %s"
 1006,1,"{!}%d Farbe{|1|n}"
 1007,1,"CMYK"
@@ -407,7 +407,7 @@ COMMENT,"Deutsche Version"
 1052,1,"Wert"
 1053,1,"Zwischenablage"
 1054,1,"Bildschirmfoto"
-1055,1,"Scannen"
+1055,1,"Scan"
 
 [STRINGTABLE 12]
 1056,1,"Gesamtes Programmfenster und alle zum Programm gehörenden Fenster erfassen."
@@ -454,7 +454,7 @@ COMMENT,"Deutsche Version"
 1093,1,"Rot\tR"
 1094,1,"Grün\tG"
 1095,1,"Blau\tB"
-1096,1,"RGB-\tA"
+1096,1,"RGB\tA"
 1097,1,"Luminanz (L)"
 1098,1,"Rot (R)"
 1099,1,"Grün (G)"
@@ -513,11 +513,11 @@ COMMENT,"Deutsche Version"
 2204,1,"Kopieren\tStrg+C"
 2205,1,"Einfügen\tStrg+V"
 2206,1,"Hand\tA"
-2207,1,"Zoom-\tZ"
+2207,1,"Zoom\tZ"
 
 [STRINGTABLE 21]
 2208,1,"Auswahl\tS"
-2209,1,"Pipetten-\tP"
+2209,1,"Pipette\tP"
 2210,1,"90°-Linksdrehung\tL"
 2211,1,"90°-Rechtsdrehung\tR"
 2212,1,"Verkleinern\t-"
@@ -564,7 +564,7 @@ COMMENT,"Deutsche Version"
 [STRINGTABLE 24]
 2280,1,"Zoll"
 2281,1,"cm"
-2282,1,"mm ich"
+2282,1,"mm"
 2283,1,"Punkte"
 2284,1,"Picas"
 
@@ -617,7 +617,7 @@ COMMENT,"Deutsche Version"
 
 [STRINGTABLE 31]
 4064,1,"OS/2 PM BitMap"
-4065,1,"OS/2 Bitmap"
+4065,1,"OS/2 BitMap"
 4066,1,"MS Windows 3.x BitMap"
 4067,1,"Verlustfreies JPEG"
 4068,1,"Windows-Metadatei"
@@ -645,7 +645,7 @@ COMMENT,"Deutsche Version"
 4090,1,"Unbekannt"
 4091,1,"Ungültige Maße der Grafik."
 4092,1,"Lesen"
-4093,1,"Erweiterte Metadatei"
+4093,1,"Enhanced Metafile"
 4094,1,"Kein unterstützter Dateityp!"
 
 [STRINGTABLE 33]

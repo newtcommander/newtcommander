@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\renamer\renamer.atp"
 TEXTVERSION,"1.13 (x64)"
-VERSION,"1,1,3,184"
+VERSION,"1,1,3,185"
 
 [TRANSLATION]
 LANGID,1051
@@ -311,9 +311,9 @@ COMMENT,"Slovenská verzia"
 1154,1,"Strieška '^'"
 1155,1,"Dolár '$'"
 1156,1,"Bodka '.'"
-1157,1,"Rúrka „|“"
+1157,1,"Vertikálna čiarka '|'"
 1158,1,"Hviezdička '*'"
-1159,1,"Plus „+“"
+1159,1,"Plus '+'"
 1160,1,"Otáznik '?'"
 1161,1,"Opačná lomka '\\'"
 1162,1,"Každý znak"

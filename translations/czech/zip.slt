@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\zip\zip.atp"
 TEXTVERSION,"1.4 (x64)"
-VERSION,"1,4,0,184"
+VERSION,"1,4,0,185"
 
 [TRANSLATION]
 LANGID,1029
@@ -30,8 +30,8 @@ COMMENT,"Česká verze"
 108,94,127,85,12,1,""
 3007,188,97,111,50,1," Metoda šifrování "
 121,193,108,101,12,1,"&ZIP 2.0 kompatibilní (slabé)"
-122,193,120,53,12,1,"&128bitové šifrování AES"
-123,193,132,55,12,1,"&256bitové šifrování AES"
+122,193,120,53,12,1,"&128bitový AES"
+123,193,132,55,12,1,"&256bitové AES"
 3008,8,154,292,1,1,""
 110,17,161,287,12,1,"Příště nezo&brazovat (později můžete změnit v dialogovém okně konfigurace)"
 1,32,180,55,14,0,"OK"
@@ -117,7 +117,7 @@ COMMENT,"Česká verze"
 2,237,56,50,14,1,"Storno"
 
 [DIALOG 141]
-210,108,1,"PSČ"
+210,108,1,"ZIP"
 3000,13,8,193,16,1,"Tento soubor je buď část více-svazkového archivu nebo je poškozený."
 3001,13,31,193,24,1,"Pokud víte, že by to měl být více-svazkový archiv, prosím vložte disk s poslední částí archivu nebo vyhledejte soubor na pevném disku. Pak stiskněte OK."
 3002,13,61,91,8,1,"&Poslední část archivu:"
@@ -292,7 +292,7 @@ COMMENT,"Česká verze"
 
 [MENU 860]
 861,1,"&Dočasného adresáře"
-862,1,"&Programové soubory"
+862,1,"&Program Files"
 863,1,"Adresáře &Windows"
 864,1,"Adresáře &System"
 865,1,"Proměnné pros&tředí"

@@ -82,25 +82,25 @@ the language build, and the Czech/Slovak spot-check.
 - [X] T009 [US1] Pre-flight (needs T008): review the T008 dry-run character
       estimate (expect ≈80–120k, abort threshold 350k) and confirm
       `temp\deepl_key.txt` present
-- [ ] T010 [US1] Execute the re-translation:
+- [X] T010 [US1] Execute the re-translation:
       `python -m translate.merge --all --redo-machine --exclude-module sftp`;
       capture full console output; summarize coverage table, validation
       failures, and quota spend into
       `specs/055-contextual-retranslation/run-notes.md`
-- [ ] T011 [US1] Post-run scope check: `git status` shows modified files only
+- [X] T011 [US1] Post-run scope check: `git status` shows modified files only
       under `translations/<8 enabled languages>/` with extensions
       `.slt`/`.origin`, never `sftp.*`, never russian/ukrainian/
       chinesesimplified, never `ui-overrides.json`; per-file section/row
       counts unchanged (structure intact)
-- [ ] T012 [US1] Report checks against the T003 baseline: per-language human
+- [X] T012 [US1] Report checks against the T003 baseline: per-language human
       counts unchanged, machine counts ≈ baseline (minus entries that became
       overrides/fallbacks), new fallbacks < 2% per language (SC-005), quota
       spend within one free-tier month (SC-006); record in run-notes.md
-- [ ] T013 [US1] Language build gate (SC-004): run `build.cmd full` (Debug,
+- [X] T013 [US1] Language build gate (SC-004): run `build.cmd full` (Debug,
       absolute path, background) — build succeeds, `build_langs` imports all
       8 languages with zero positional-import errors, `.slg` produced for
       8 languages × 20 modules
-- [ ] T014 [US1] Spot-check (SC-003): sample ≥20 re-translated entries each
+- [X] T014 [US1] Spot-check (SC-003): sample ≥20 re-translated entries each
       for Czech and Slovak from `git diff` (prioritize one-word labels,
       buttons, column headings); require ≥90% correct-for-location and zero
       wrong-sense survivals among checked entries; record the sample table in
@@ -125,10 +125,10 @@ vs. working tree.
       `.slt` with `translate.slt`, key rows by `match.entry_key`, assert
       (a) every entry with HEAD provenance `human`/`skip` has identical text,
       (b) every text-changed entry had HEAD provenance `machine`
-- [ ] T016 [US2] Run the verification (needs T010, T015): 0 violations across
+- [X] T016 [US2] Run the verification (needs T010, T015): 0 violations across
       8 languages × 19 modules; re-run `python -m translate.slt --verify`
       (round-trip still byte-exact); record counts in run-notes.md
-- [ ] T017 [P] [US2] Pinned-override check: the ZIP plugin name is still the
+- [X] T017 [P] [US2] Pinned-override check: the ZIP plugin name is still the
       literal "ZIP" in every enabled language's `zip.slt`, and every
       `ui-overrides.json` key for in-scope modules still holds its pinned
       text with `human` provenance in the new `.origin`
@@ -144,15 +144,15 @@ already covered by T008).
 
 **Independent Test**: contracts/redo-machine-cli.md invocations run offline.
 
-- [ ] T018 [P] [US3] Budget cap:
+- [X] T018 [P] [US3] Budget cap:
       `python -m translate.merge --all --redo-machine --exclude-module sftp --budget 1`
       stops before the first language starts translating — no network, no
       writes, working tree unchanged
-- [ ] T019 [P] [US3] Scoping and errors:
+- [X] T019 [P] [US3] Scoping and errors:
       `--dry-run --redo-machine --language czech --module zip` restricts to
       that pair; `--exclude-module bogus` → error exit 1;
       `--module sftp --exclude-module sftp` (empty set) → error exit 1
-- [ ] T020 [US3] Report completeness (FR-011, needs T010): the captured run
+- [X] T020 [US3] Report completeness (FR-011, needs T010): the captured run
       output contains the per-language coverage table, validation-failure
       list, widen/accelerator counts, and characters spent + quota remaining
 
@@ -162,14 +162,14 @@ already covered by T008).
 
 ## Phase 6: Polish & documentation
 
-- [ ] T021 [P] Document `--redo-machine` and `--exclude-module` in
+- [X] T021 [P] Document `--redo-machine` and `--exclude-module` in
       `tools/translate/README.md` (Commands section + a note under the
       language-policy table that exclusion composes with `--all`)
-- [ ] T022 [P] Add `CHANGELOG.md` `[Unreleased]` → `### Changed` entry: all
+- [X] T022 [P] Add `CHANGELOG.md` `[Unreleased]` → `### Changed` entry: all
       machine-translated UI strings re-translated with usage context across
       the 8 shipped languages (user-visible wording improvements product-wide)
-- [ ] T023 [P] Add the feature 055 line to `CLAUDE.md` "Recent Changes"
-- [ ] T024 Final idempotence check: plain `python -m translate.merge --dry-run`
+- [X] T023 [P] Add the feature 055 line to `CLAUDE.md` "Recent Changes"
+- [X] T024 Final idempotence check: plain `python -m translate.merge --dry-run`
       again reports 0 gaps (post-state consistent); commit the tooling delta,
       refreshed `translations/`, run-notes.md, and docs
 

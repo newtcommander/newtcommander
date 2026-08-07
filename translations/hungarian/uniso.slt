@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\uniso\uniso.atp"
 TEXTVERSION,"1.37 (x64)"
-VERSION,"1,3,7,184"
+VERSION,"1,3,7,185"
 
 [TRANSLATION]
 LANGID,1038
@@ -19,7 +19,7 @@ COMMENT,"Magyar változat"
 2,163,64,50,14,1,"Mégse"
 
 [STRINGTABLE 0]
-1000,1,"UnISO"
+1000,1,"UnISO-ról”"
 1001,1,"A fájl nem nyitható meg."
 1002,1,"Nem meghatározható hiba."
 1003,1,"ISO archívum kibontása"
@@ -58,7 +58,7 @@ COMMENT,"Magyar változat"
 1036,1,"A(z) "%s" fájl nem bontható ki.\n\nEltérés van a fájlméret és az ICB blokkok között."
 1037,1,"A sáv nem nyitható meg: #%d."
 1038,1,"A fájl floppy lemez, merevlemez vagy merevlemez partíció képnek tűnik.\nPróbálja .ima kiterjesztésre átnevezni, hogy az UnFAT plugin bekapcsoljon."
-1039,1,"Ez a lemezkép APFS fájlrendszert tartalmaz. \n Ez a fájlrendszer egyelőre nem támogatott."
+1039,1,"Ez a lemezkép az APFS fájlrendszert tartalmazza. \n Ez a fájlrendszer még nem támogatott."
 
 [STRINGTABLE 3]
 1050,1,"Nem olvasható a partíciós fejléc. Túl kicsi a fájl."

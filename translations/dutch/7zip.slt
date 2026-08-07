@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\7zip\7zip.atp"
 TEXTVERSION,"1.31 (x64)"
-VERSION,"1,3,1,184"
+VERSION,"1,3,1,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -141,7 +141,7 @@ COMMENT,"Nederlandse versie"
 1061,1,"Snelste"
 1062,1,"Snel"
 1063,1,"Normaal"
-1064,1,"Maximaal"
+1064,1,"Maximum"
 1065,1,"Ultra"
 1069,1,"LZMA2"
 1070,1,"LZMA"

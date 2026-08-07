@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\mdview\mdview.atp"
 TEXTVERSION,"1.0 (x64)"
-VERSION,"1,0,0,184"
+VERSION,"1,0,0,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -11,64 +11,64 @@ COMMENT,"Versiunea romana"
 
 [DIALOG 300]
 220,60,1,"Căutare"
-3000,7,9,60,8,1,"Cău&tare text:"
+3000,7,9,62,8,1,"&Text de căutat:"
 301,7,21,206,12,1,""
-1,108,40,53,14,1,"&Caută următorul"
-2,163,40,50,14,1,"Anulează"
+1,108,40,53,14,1,"&Căutare următoare"
+2,163,40,50,14,1,"Anulare"
 
 [STRINGTABLE 0]
-46,1,"Vizualizator Markdown"
+46,1,"Markdown Viewer"
 47,1,"Despre plugin"
 
 [STRINGTABLE 1]
-48,1,"Afișează fișierele Markdown (.md) atunci când apeși tasta F3."
+48,1,"Afișează fișierele Markdown (.md) când apăsați tasta F3."
 49,1,"www.tandemcommander.org"
-50,1,"A apărut o excepție în pluginul Markdown Viewer. Vă rugăm să informați autorii și, dacă este posibil, să atașați fișierul .md pe care îl vizualizați."
-53,1,"Sunt deschise câteva ferestre ale vizualizatorului Markdown. Doriți să le închideți?"
-55,1,"Număr invalid!"
+50,1,"A apărut o excepție în pluginul Markdown Viewer. Vă rugăm să informați autorii și, dacă este posibil, atașați fișierul .md pe care îl vizualizați."
+53,1,"Sunt deschise câteva ferestre ale Markdown Viewer. Doriți să le închideți?"
+55,1,"Număr nevalid!"
 56,1,"Fișiere Markdown (*.md;*.markdown)|*.md;*.markdown|Toate fișierele (*.*)|*.*|"
 
 [STRINGTABLE 2]
 2000,1,"&Fișier"
-2001,1,"Vizualizează &sursa\tCtrl+U"
-2002,1,"În&chide\tEsc"
+2001,1,"Vizualizare &sursă\tCtrl+U"
+2002,1,"&Închidere\tEsc"
 2010,1,"&Editare"
-2011,1,"&Copiere\tCtrl+C"
+2011,1,"C&opiere\tCtrl+C"
 2012,1,"Selecte&ază tot\tCtrl+A"
-2013,1,"&Găsește...\tCtrl+F"
-2014,1,"&Caută următorul\tF3"
+2013,1,"Cău&tare...\tCtrl+F"
+2014,1,"Căutare &următoare\tF3"
 2015,1,"&Căutare anterioară\tShift+F3"
 
 [STRINGTABLE 3]
 2020,1,"&Vizualizare"
 2021,1,"&Schema de culori"
-2022,1,"&Aplică tema sistemului"
-2023,1,"Măr&ire\tCtrl++"
+2022,1,"Urmează tema s&istemului"
+2023,1,"&Mărire\tCtrl++"
 2024,1,"Mărire înap&oi\tCtrl+-"
-2025,1,"&Resetare zoom\tCtrl+0"
+2025,1,"Resetare &zoom\tCtrl+0"
 2026,1,"Încă&rcare imagini de la distanță"
-2030,1,"&Ajutor"
+2030,1,"A&jutor"
 2031,1,"Despre M&arkdown Viewer"
 
 [STRINGTABLE 4]
-2100,1,"Hârtie (ușoară)"
-2101,1,"Gri deschis (deschis)"
+2100,1,"Hârtie (deschisă)"
+2101,1,"Gri moale (deschis)"
 2102,1,"Sepia caldă (deschisă)"
 2103,1,"Lumină solară"
-2104,1,"Lumina arctică"
+2104,1,"Lumină arctică"
 2105,1,"Grafit (închis)"
-2106,1,"Miezul nopții (întuneric)"
+2106,1,"Midnight (închis)"
 2107,1,"Solar Dark"
-2108,1,"Nordic Dark"
+2108,1,"Întunecat nordic"
 2109,1,"Negru cu contrast ridicat"
 
 [STRINGTABLE 5]
-2200,1,"Acest fișier nu este în format UTF-8 valid; este afișat folosind pagina de coduri a sistemului. Utilizați opțiunea Fișier > Deschide ca text pentru a avea control deplin."
+2200,1,"Acest fișier nu este în format UTF-8 valid; este afișat folosind pagina de coduri a sistemului. Utilizați Fișier > Deschide ca text pentru control deplin."
 2201,1,"Fișierul nu a putut fi deschis."
 2202,1,"Acest document este prea mare pentru a fi afișat. Doriți să îl deschideți ca text simplu?"
 2203,1,"Căutare text:"
 2204,1,"Textul nu a fost găsit."
 2205,1,"Acest link a fost blocat din motive de securitate."
-2206,1,"Vizualizator Markdown"
-2207,1,"Mediul de execuție WebView2 nu este disponibil. Fișierul va fi deschis în schimb ca text simplu."
+2206,1,"Markdown Viewer"
+2207,1,"Mediul de execuție WebView2 nu este disponibil. Se va deschide fișierul ca text simplu."
 

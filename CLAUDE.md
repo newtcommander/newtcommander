@@ -211,4 +211,21 @@ plugin architecture preservation, UI consistency.
   (was machine-translated as "postal code" in cs/sk/fr/es/zh), pinned in
   `translations/ui-overrides.json`. No registry migration — stored values were
   verified intact; the defect was display-only.
+- 055-contextual-retranslation: every machine-provenance UI string outside the
+  SFTP plugin (≈3,300 entries, 8 enabled languages × 19 modules) re-translated
+  with usage context — the feature-051 method applied product-wide. Tooling:
+  `translate.merge --redo-machine` (demotes all `machine` `.origin` entries to
+  gaps; human/skip untouched by construction) + repeatable `--exclude-module`;
+  `uicontext._DOMAINS` now covers all 20 enabled modules. Latent pipeline
+  defects fixed: translations identical to their English were re-sent to DeepL
+  on every run (match.py now trusts the sidecar), `dedupe_accelerators` was
+  exponential on salamand's large menus (proper Kuhn visited-set sharing:
+  >4 min → 0.3 s per language) **and rewrote accelerators inside human
+  translations** (human/skip rows are now frozen obstacles), overrides that
+  matched the engine's output lost their `human` provenance, contexts were
+  built 16× instead of once. 20 pins added to `ui-overrides.json` (mdview
+  View-menu strings across 7 languages, theme names, plugin name). Run cost
+  52,728 DeepL chars; verification: provenance-scoped diff over 59,360
+  entries proves human/skip entries byte-identical (0 violations); details in
+  `specs/055-contextual-retranslation/run-notes.md`.
 - 051-fix-sftp-keyauth-hang: fixed whole-app freeze on private-key connect. Root cause was in vendored libssh2: `_libssh2_pem_parse_memory`'s scan loops never terminate when the expected PEM marker is absent (`readline_memory` cannot signal EOF), and the WinCNG in-memory loader only understood classic RSA/DSA PEM — so an OpenSSH-container key (ssh-keygen's default since OpenSSH 7.8) spun the CPU forever on the UI thread. Patched pem.c (bounds guards, documented in `src/common/dep/libssh2/readme.txt` "Local patches"), added openssh-key-v1 RSA/ECDSA import + classic-PEM passphrase decryption to the WinCNG memory path, real libssh2 error codes on key-load failures. Plugin side: connect runs on a worker thread with a cancellable wait window (prompts stay on the UI thread via a `cpHostKey`/`cpPassphrase`/`cpPassword` retry handshake), the socket stays non-blocking so libssh2's timeout is actually enforced, key-format gate rejects PKCS#8/ed25519/.ppk up front, error classification by code (not message substrings), password fallback on a server-rejected key, dead-transport detection + reconnect, cancellable F3 download. Test harness reworked onto the product's `publickey_frommemory` path with a hang watchdog (`test/run_keyauth.cmd`, 7 scenarios) plus key-format fixtures in `test/build_and_run.cmd`

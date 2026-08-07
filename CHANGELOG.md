@@ -11,6 +11,18 @@ plugin.
 
 ## [Unreleased]
 
+### Changed
+
+- **Better wording across all 8 non-English languages.** Every UI string that
+  had been machine-translated word-by-word (without knowing where in the
+  program it appears) was re-translated with its context: which dialog or menu
+  it lives in, what kind of control it labels, what its neighbours say, and
+  what the module does. This fixes the class of errors where a correct word
+  for the wrong meaning was chosen — e.g. Czech "Host:" rendered as a
+  talk-show presenter instead of a server address. About 3,300 strings across
+  the file manager and 18 plugins were refreshed; human-made translations were
+  not touched. The SFTP plugin received the same treatment earlier.
+
 ### Fixed
 
 - **SFTP: the plugin's settings could not be opened at all.** Pressing

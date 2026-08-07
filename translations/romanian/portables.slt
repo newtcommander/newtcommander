@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\portables\portables.atp"
 TEXTVERSION,"0.1 (x64)"
-VERSION,"0,1,0,184"
+VERSION,"0,1,0,185"
 
 [TRANSLATION]
 LANGID,1048
@@ -10,12 +10,12 @@ WEB,"www.tandemcommander.org"
 COMMENT,"Versiunea romana"
 
 [STRINGTABLE 0]
-128,1,"{!}Dispozitivul selectat de%d{2:s|0||1|s}"
-129,1,"Nu există dispozitive"
+128,1,"{!}%d dispozitiv selectat{2:s|0||1|s}"
+129,1,"Niciun dispozitiv"
 
 [STRINGTABLE 1]
 8192,1,"Dispozitive portabile"
-8193,1,"Gestionarea dispozitivelor portabile."
+8193,1,"Gestionați dispozitivele portabile."
 
 [STRINGTABLE 2]
 9216,1,"Despre plugin"

@@ -144,7 +144,7 @@ def _candidates(body: str, taken: set[str]) -> list[int]:
     return sorted(word_start, key=rank) + sorted(inner, key=rank)
 
 
-def dedupe_accelerators(section: Section) -> list[str]:
+def dedupe_accelerators(section: Section, frozen_rows: set[int] | None = None) -> list[str]:
     """Give every accelerated row in one section a distinct accelerator letter.
 
     Windows cycles between controls sharing an accelerator instead of activating
@@ -163,17 +163,37 @@ def dedupe_accelerators(section: Section) -> list[str]:
     unmatched keep what they had and are reported by
     :func:`validate.duplicate_accelerators`.
 
+    Rows listed in ``frozen_rows`` (indices into ``section.rows``) are never
+    modified: a human translator's accelerator choice is part of the human
+    translation and moving it would violate the do-not-touch guarantee
+    (feature 055, FR-003). Their letters become fixed obstacles the movable
+    (machine-translated) rows are deduplicated around; a conflict between two
+    frozen rows is left alone and reported by
+    :func:`validate.duplicate_accelerators`.
+
     Returns a description of each changed row, for the coverage report.
     """
+    frozen_rows = frozen_rows or set()
+    frozen_letters: set[str] = set()
+    for ri, row in enumerate(section.rows):
+        if ri not in frozen_rows:
+            continue
+        body, _tail = split_shortcut(row.text)
+        at = _accel_index(body)
+        if at is not None:
+            frozen_letters.add(body[at].lower())
+
     rows: list[tuple[Row, str, str, list[int], str]] = []
-    for row in section.rows:
+    for ri, row in enumerate(section.rows):
+        if ri in frozen_rows:
+            continue
         body, tail = split_shortcut(row.text)
         at = _accel_index(body)
         if at is None:
             continue
         plain = body.replace("&", "", 1)
         # Position of the current accelerator inside 'plain' (one '&' removed).
-        rows.append((row, plain, tail, _candidates(body, set()), at - 1))
+        rows.append((row, plain, tail, _candidates(body, frozen_letters), at - 1))
 
     # letter -> row index it is currently assigned to
     owner: dict[str, int] = {}
@@ -192,7 +212,7 @@ def dedupe_accelerators(section: Section) -> list[str]:
         order += [p for p in spots if p not in order]
         for pos in order:
             letter = plain[pos].lower()
-            if letter in blocked:
+            if letter in blocked or letter in frozen_letters:
                 continue
             # The visited set is shared across the whole augmentation attempt
             # (standard Kuhn), not copied per branch: a per-branch copy re-explores

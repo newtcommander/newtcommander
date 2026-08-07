@@ -1,7 +1,7 @@
 ﻿[EXPORTINFO]
 PROJECTNAME,"translator\projects\_template\diskmap\diskmap.atp"
 TEXTVERSION,"1.12 (x64)"
-VERSION,"1,1,2,184"
+VERSION,"1,1,2,185"
 
 [TRANSLATION]
 LANGID,1043
@@ -10,7 +10,7 @@ WEB,"www.tandemcommander.org"
 COMMENT,"Nederlandse versie"
 
 [MENU 109]
-0,1,"&Help"
+0,1,"Hel&p"
 111,1,"Bestand &openen"
 112,1,"&Selectie in paneel\tF"
 113,1,"S&toppen\tEsc"
@@ -50,7 +50,7 @@ COMMENT,"Nederlandse versie"
 54,1,"Mappen:"
 55,1,"Zoeken geannuleerd..."
 56,1,"...druk op Ctrl+R om beeld te vernieuwen"
-57,1,"Logboek"
+57,1,"Log"
 58,1,"Type"
 59,1,"Tekst"
 60,1,"Bestand of map"
