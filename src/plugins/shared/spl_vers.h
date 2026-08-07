@@ -34,7 +34,7 @@
 // where MINORB were hundredths appended without a dot (2.53) and a zero was dropped (5.0)
 #define VERSINFO_SALAMANDER_MAJOR 0
 #define VERSINFO_SALAMANDER_MINORA 1
-#define VERSINFO_SALAMANDER_MINORB 1
+#define VERSINFO_SALAMANDER_MINORB 2
 
 #define VERSINFO_SALAMANDER_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) "." VERSINFO_xstr(VERSINFO_SALAMANDER_MINORB) VERSINFO_BETAVERSION_TXT
 #define VERSINFO_SAL_SHORT_VERSION VERSINFO_xstr(VERSINFO_SALAMANDER_MAJOR) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORA) VERSINFO_xstr(VERSINFO_SALAMANDER_MINORB) VERSINFO_BETAVERSIONSHORT_TXT
@@ -106,10 +106,13 @@
 //       carried over unchanged into Tandem Commander 0.1.0 (feature 032 rebrand)
 // 185 - Tandem Commander 0.1.1 (SFTP private-key authentication and plugin
 //       stability, contextual UI translations - feature 051; see CHANGELOG.md)
+// 186 - Tandem Commander 0.1.2 (pre-release stability & security review,
+//       SFTP connect/config dialogs, product-wide contextual UI translations -
+//       features 052-056; see CHANGELOG.md)
 
 // ! DULEZITE: nova cisla buildu je nutne zapsat do vetve "default", a pak
 //             teprve do vedlejsi vetve (kompletni seznam je jen v "default" vetvi)
-#define VERSINFO_BUILDNUMBER 185
+#define VERSINFO_BUILDNUMBER 186
 
 // VERSINFO_BETAVERSION_TXT:
 //

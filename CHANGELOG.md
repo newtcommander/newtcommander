@@ -11,6 +11,16 @@ plugin.
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-07
+
+**Build 186.** Maintenance release: the SFTP plugin's dialogs and connection
+handling are reworked for reliability, plugin names render correctly in every
+language, and all machine-translated UI text was re-done with context. Shipped
+after an independent multi-perspective stability and security review of every
+change since 0.1.1 (see `specs/056-prerelease-review/review-report.md`), with
+the full build, the SFTP behavioural harness, the unit tests and the
+translation checks all passing.
+
 ### Changed
 
 - **Better wording across all 8 non-English languages.** Every UI string that

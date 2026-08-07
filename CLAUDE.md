@@ -8,7 +8,7 @@ WinAPI C++ application — no MFC, no Qt, no cross-platform frameworks.
 
 ## Product Identity (established in feature 032, renamed in feature 046)
 
-- **Product name**: Tandem Commander, version **0.1.1** (internal build 185);
+- **Product name**: Tandem Commander, version **0.1.2** (internal build 186);
   released versions and what changed in each are recorded in `CHANGELOG.md`
   (mandatory per the constitution: a release bumps
   `VERSINFO_SALAMANDER_MINORB` + `VERSINFO_BUILDNUMBER` in
@@ -211,6 +211,19 @@ plugin architecture preservation, UI consistency.
   (was machine-translated as "postal code" in cs/sk/fr/es/zh), pinned in
   `translations/ui-overrides.json`. No registry migration — stored values were
   verified intact; the defect was display-only.
+- 056-prerelease-review: release gate for **0.1.2** (build 186, released
+  2026-08-07). Multi-agent review (6 independent perspectives — memory,
+  concurrency, network security, credentials, encoding, tooling/data — with
+  adversarial verification) over the whole `v0.1.1..HEAD` delta (features
+  052–055). All four code-safety perspectives judged the delta itself clean;
+  the only shipped-product regression was F1 (SFTP: Duplicate on the now-transient
+  Quick Connect row produced an empty bookmark — `dialogs.cpp` gates it on
+  `isBookmark` like Save/Rename/Delete). Deferred, non-shipping: a dev-only
+  `addrows.py` bug left the 3 disabled languages' `sftp.slt` 5 rows short (fix
+  before re-enabling them); pre-existing `plugins1.cpp` fixed-buffer patterns.
+  Gates G1–G9 green (full Debug+Release build, saltests 1145/0, SFTP harness
+  7/7 + leak check, key-format fixtures 66/0, slt round-trip, cs+en smoke,
+  version sweep). Report: `specs/056-prerelease-review/review-report.md`.
 - 055-contextual-retranslation: every machine-provenance UI string outside the
   SFTP plugin (≈3,300 entries, 8 enabled languages × 19 modules) re-translated
   with usage context — the feature-051 method applied product-wide. Tooling:

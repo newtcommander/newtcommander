@@ -986,19 +986,24 @@ static void ConnectSelectItemData(HWND hwnd, int itemData)
 }
 
 // feature 017 (U4): Rename/Delete apply to real bookmarks only; Quick Connect
-// cannot be renamed or removed. Duplicate works on either.
+// cannot be renamed or removed.
 // feature 053: Save and the two save-secret options are bookmark-only too - quick
 // connect is transient, so there is nothing to save into and no secret may be
 // stored. This runs after the list selection is set, which is why the enable rules
 // live here and not in ConnectLoadServerToFields (at WM_INITDIALOG the fields are
 // loaded before the row is selected).
+// feature 056: Duplicate (IDB_COPYBOOKMARK) is bookmark-only as well. It copies an
+// entry's STORED blob, but feature 053 made Quick Connect transient and empty for
+// the dialog's whole lifetime, so duplicating the QC row produced an empty bookmark
+// and silently discarded whatever the user had typed. "New" is the path that turns
+// the current fields into a bookmark; Duplicate needs a real stored entry.
 static void ConnectUpdateButtons(HWND hwnd)
 {
     int data = ConnectSelectedItemData(hwnd);
     BOOL isBookmark = (data >= 0);
     EnableWindow(GetDlgItem(hwnd, IDB_RENAMEBOOKMARK), isBookmark);
     EnableWindow(GetDlgItem(hwnd, IDB_REMOVEBOOKMARK), isBookmark);
-    EnableWindow(GetDlgItem(hwnd, IDB_COPYBOOKMARK), data != LB_ERR);
+    EnableWindow(GetDlgItem(hwnd, IDB_COPYBOOKMARK), isBookmark);
     EnableWindow(GetDlgItem(hwnd, IDB_SAVEBOOKMARK), isBookmark);
     if (!isBookmark)
     {
